@@ -593,7 +593,14 @@ function generatePreview() {
     });
     const key = keyValues.join('|');
     existingIndex[key] = id;
+    
+    // DEBUG : afficher les premières clés existantes
+    if (idx < 3) {
+      console.log(`[DEBUG] Existant ${idx} - Clé: "${key}" → ID: ${id}`);
+    }
   });
+  
+  console.log(`[DEBUG] Total ${Object.keys(existingIndex).length} clés dans l'index`);
   
   // Résolution HIE si besoin
   let equivMap = {};
@@ -697,6 +704,13 @@ function generatePreview() {
       
       if (keyValues.every(v => v !== undefined && v !== null)) {
         const key = keyValues.join('|');
+        
+        // DEBUG : afficher les premières clés
+        if (idx < 3) {
+          console.log(`[DEBUG] Ligne ${idx} - Clé générée: "${key}"`);
+          console.log(`[DEBUG] Clé existe? ${existingIndex[key] ? 'OUI (UPDATE)' : 'NON (INSERT)'}`);
+        }
+        
         if (existingIndex[key]) {
           previewRow._status = 'update';
           previewRow._existingId = existingIndex[key];
