@@ -583,7 +583,15 @@ function generatePreview() {
   // Index existant
   const existingIndex = {};
   G.existingData.id.forEach((id, idx) => {
-    const key = keyFields.map(f => G.existingData[f][idx]).join('|');
+    const keyValues = keyFields.map(f => {
+      const val = G.existingData[f] ? G.existingData[f][idx] : null;
+      // Pour Mois dans RH, NULL est une valeur valide
+      if (f === 'Mois' && (val === undefined || val === null || val === '')) {
+        return 'NULL';
+      }
+      return val;
+    });
+    const key = keyValues.join('|');
     existingIndex[key] = id;
   });
   
@@ -665,7 +673,8 @@ function generatePreview() {
       } else {
         // Nettoyage valeur
         if (value === null || value === '') {
-          previewRow[targetCol] = null;
+          // Pour Mois dans RH, si vide = NULL (données annuelles)
+          previewRow[targetCol] = (targetCol === 'Mois') ? null : null;
         } else if (typeof value === 'string') {
           const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
           const num = parseFloat(cleaned);
@@ -678,7 +687,14 @@ function generatePreview() {
     
     // Vérifier si existe
     if (!previewRow._error) {
-      const keyValues = keyFields.map(f => previewRow[f]);
+      const keyValues = keyFields.map(f => {
+        // Pour Mois dans RH, NULL est une valeur valide
+        if (f === 'Mois' && (previewRow[f] === undefined || previewRow[f] === null || previewRow[f] === '')) {
+          return 'NULL';
+        }
+        return previewRow[f];
+      });
+      
       if (keyValues.every(v => v !== undefined && v !== null)) {
         const key = keyValues.join('|');
         if (existingIndex[key]) {
