@@ -892,6 +892,7 @@
     }
 
     function selectStructure(id) {
+      console.log('=== selectStructure appelée ===', id);
       setStructure(id);
       updateSelectorDisplay();
       updateQuickNavActive();
@@ -1047,10 +1048,16 @@
 
     // Fonctions refresh
     function refreshRH(structureId, annee) {
+      console.log('=== refreshRH appelée ===', {structureId, annee});
       const dataN = getRHData(structureId, annee);
       const dataNMoins1 = getRHData(structureId, annee - 1);
       
-      if (!dataN) return;
+      console.log('Données RH récupérées:', {dataN, dataNMoins1});
+      
+      if (!dataN) {
+        console.warn('⚠️ Pas de données RH pour cette structure');
+        return;
+      }
       
       // KPI - Effectif Total avec évolution
       document.getElementById('rh-effectif-total').textContent = formatNumber(dataN.effectif_total);

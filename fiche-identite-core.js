@@ -156,15 +156,24 @@ function getDRRattachees(structureId) {
 function getRHData(structureId, annee) {
   const rh = FICHE_STATE.data.rh;
   
+  console.log(`getRHData appelée pour structureId=${structureId}, annee=${annee}`);
+  
   // Liste des structures à agréger
   let structureIds = [structureId];
   
   // Si c'est une DI, ajouter les DR rattachées
   const currentStruct = FICHE_STATE.data.structures;
   const idx = currentStruct.id.indexOf(structureId);
+  
+  console.log(`Structure trouvée à l'index ${idx}:`, {
+    id: structureId,
+    type: idx !== -1 ? currentStruct.Type[idx] : 'NOT FOUND'
+  });
+  
   if (idx !== -1 && currentStruct.Type[idx] === 'DI') {
     const drRattachees = getDRRattachees(structureId);
     structureIds = structureIds.concat(drRattachees);
+    console.log(`DI détectée, agrégation avec ${drRattachees.length} DR:`, structureIds);
   }
   
   // Agréger les données
