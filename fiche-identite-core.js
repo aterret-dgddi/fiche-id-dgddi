@@ -291,16 +291,18 @@ function getRHDetailParDR(structureId, annee) {
       const agcoCount = rh.Effectif_AGCO[rhIdx] || 0;
       const suCount = rh.Effectif_SU[rhIdx] || 0;
       const autresCount = rh.Effectif_Autres[rhIdx] || 0;
+      const masseSalariale = rh.Masse_Salariale[rhIdx] || 0;
       
       details.push({
         nom: structures.Nom[structIdx],
-        sigle: structures.Sigle[structIdx],
+        sigle: structures.Sigle[structIdx] || structures.Nom[structIdx], // Utiliser Nom si pas de Sigle
         type: structures.Type[structIdx],
         effectif_total: effectifTotal,
         effectif_agco: agcoCount,
         effectif_su: suCount,
         effectif_autres: autresCount,
-        masse_salariale: rh.Masse_Salariale[rhIdx] || 0,
+        masse_salariale: masseSalariale,
+        ms_par_agent: effectifTotal > 0 ? Math.round(masseSalariale / effectifTotal) : 0,
         age_moyen_total: effectifTotal > 0 ? 
           Math.round(
             ((rh.Age_Moyen_AGCO && rh.Age_Moyen_AGCO[rhIdx] ? rh.Age_Moyen_AGCO[rhIdx] * agcoCount : 0) +
