@@ -10,7 +10,7 @@
 const FICHE_STATE = {
   gristReady: false,
   structure: null,
-  annee: 2024,
+  annee: null, // Sera définie automatiquement à partir des données
   data: {
     structures: null,
     rh: null,
@@ -18,7 +18,8 @@ const FICHE_STATE = {
     frais_mission: null,
     informatique: null,
     notif_bop: null,
-    consolidation: null
+    consolidation: null,
+    commentaires: null
   }
 };
 
@@ -101,6 +102,15 @@ function getCurrentStructure() {
   // - Pour DI/SCN : récupérer depuis le sélecteur de la page Grist
   // - Pour National : structure = null (consolidation)
   return grist.selectedTable ? grist.selectedTable.getRecord() : null;
+}
+
+// Détecter la dernière année disponible dans les données
+function getDerniereAnnee() {
+  const rh = FICHE_STATE.data.rh;
+  if (!rh || !rh.Annee) return new Date().getFullYear();
+  
+  const annees = [...new Set(rh.Annee.filter(a => a > 0))];
+  return Math.max(...annees);
 }
 
 function setStructure(structureId) {

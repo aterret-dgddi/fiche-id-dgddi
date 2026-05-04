@@ -387,6 +387,7 @@
       align-items: center;
       justify-content: center;
       font-size: 20px;
+      color: white;
     }
 
     .section-title {
@@ -572,50 +573,65 @@
         <div class="section-title">Ressources Humaines</div>
       </div>
       
-      <!-- Titre avec année -->
-      <div style="background: var(--rep-pale); padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; font-size: 12px; color: var(--rep); font-weight: 600;">
-        📅 Données <span id="rh-annee-display"></span>
-      </div>
-      
-      <!-- Tableau Effectifs et Masse Salariale -->
-      <div style="margin-bottom: 16px;">
-        <h4 style="font-size: 13px; font-weight: 600; color: var(--gris2); margin-bottom: 8px;">👥 Effectifs et Masse Salariale</h4>
-        <div style="overflow-x: auto;">
-          <table class="data-table" style="font-size: 11px;">
-            <thead>
-              <tr>
-                <th>Structure</th>
-                <th style="text-align: right;">Effectif Total</th>
-                <th style="text-align: center;">AGCO</th>
-                <th style="text-align: center;">SU</th>
-                <th style="text-align: center;">Autres</th>
-                <th style="text-align: right;">Masse Salariale</th>
-                <th style="text-align: right;">MS/Agent</th>
-              </tr>
-            </thead>
-            <tbody id="rh-effectif-tbody"></tbody>
-            <tfoot id="rh-effectif-tfoot" style="font-weight: 600; background: var(--gris4);"></tfoot>
-          </table>
+      <!-- Bulles compactes - Effectifs et MS -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px;">
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Effectif Total</div>
+          <div class="metric-value" style="font-size: 20px;" id="rh-effectif-total">—</div>
+        </div>
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">AGCO</div>
+          <div class="metric-value" style="font-size: 20px;">
+            <span id="rh-effectif-agco">—</span>
+            <span class="metric-unit" style="font-size: 11px;">(<span id="rh-pct-agco">—</span>)</span>
+          </div>
+        </div>
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">SU</div>
+          <div class="metric-value" style="font-size: 20px;">
+            <span id="rh-effectif-su">—</span>
+            <span class="metric-unit" style="font-size: 11px;">(<span id="rh-pct-su">—</span>)</span>
+          </div>
+        </div>
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Masse Salariale</div>
+          <div class="metric-value" style="font-size: 18px;" id="rh-masse-salariale">—</div>
+        </div>
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">MS par Agent</div>
+          <div class="metric-value" style="font-size: 18px;" id="rh-ms-agent">—</div>
         </div>
       </div>
       
-      <!-- Tableau Âges moyens -->
-      <div style="margin-bottom: 20px;">
-        <h4 style="font-size: 13px; font-weight: 600; color: var(--gris2); margin-bottom: 8px;">📊 Âges Moyens</h4>
-        <div style="overflow-x: auto;">
-          <table class="data-table" style="font-size: 11px;">
-            <thead>
-              <tr>
-                <th>Structure</th>
-                <th style="text-align: center;">Âge Moyen Global</th>
-                <th style="text-align: center;">AGCO</th>
-                <th style="text-align: center;">SU</th>
-                <th style="text-align: center;">Autres</th>
-              </tr>
-            </thead>
-            <tbody id="rh-age-tbody"></tbody>
-            <tfoot id="rh-age-tfoot" style="font-weight: 600; background: var(--gris4);"></tfoot>
-          </table>
+      <!-- Bulles compactes - Âges moyens -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px;">
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Âge Moyen Global</div>
+          <div class="metric-value" style="font-size: 20px;">
+            <span id="rh-age-global">—</span>
+            <span class="metric-unit" style="font-size: 12px;">ans</span>
+          </div>
+        </div>
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Âge AGCO</div>
+          <div class="metric-value" style="font-size: 20px;">
+            <span id="rh-age-agco">—</span>
+            <span class="metric-unit" style="font-size: 12px;">ans</span>
+          </div>
+        </div>
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Âge SU</div>
+          <div class="metric-value" style="font-size: 20px;">
+            <span id="rh-age-su">—</span>
+            <span class="metric-unit" style="font-size: 12px;">ans</span>
+          </div>
+        </div>
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Âge Autres</div>
+          <div class="metric-value" style="font-size: 20px;">
+            <span id="rh-age-autres">—</span>
+            <span class="metric-unit" style="font-size: 12px;">ans</span>
+          </div>
         </div>
       </div>
       
@@ -628,7 +644,7 @@
           </div>
         </div>
         <div class="chart-container">
-          <div class="chart-title">Répartition par branche</div>
+          <div class="chart-title">Répartition par branche (année N)</div>
           <div class="chart-wrapper" style="height: 220px;">
             <canvas id="chart-rh-repartition"></canvas>
           </div>
@@ -932,6 +948,10 @@
 
     // Override onDataLoaded
     function onDataLoaded() {
+      // Définir automatiquement la dernière année disponible
+      FICHE_STATE.annee = getDerniereAnnee();
+      console.log(`Année détectée: ${FICHE_STATE.annee}`);
+      
       // Construire la liste des structures
       const structures = FICHE_STATE.data.structures;
       allStructures = structures.id.map((id, idx) => ({
@@ -982,131 +1002,47 @@
 
     // Fonctions refresh
     function refreshRH(structureId, annee) {
-      const data = getRHData(structureId, annee);
+      const data = getRHData(structureId, annee); // Année N
       if (!data) return;
       
-      // Afficher l'année N-1
-      document.getElementById('rh-annee-display').textContent = (annee - 1);
+      // Remplir les bulles - Effectifs
+      document.getElementById('rh-effectif-total').textContent = formatNumber(data.effectif_total);
+      document.getElementById('rh-effectif-agco').textContent = formatNumber(data.effectif_agco);
+      document.getElementById('rh-pct-agco').textContent = formatPercent(data.pct_agco);
+      document.getElementById('rh-effectif-su').textContent = formatNumber(data.effectif_su);
+      document.getElementById('rh-pct-su').textContent = formatPercent(data.pct_su);
+      document.getElementById('rh-masse-salariale').textContent = formatCurrency(data.masse_salariale, 0);
       
-      // Récupérer les détails pour N-1
-      const details = getRHDetailParDR(structureId, annee - 1);
+      const msParAgent = data.effectif_total > 0 ? Math.round(data.masse_salariale / data.effectif_total) : 0;
+      document.getElementById('rh-ms-agent').textContent = formatCurrency(msParAgent, 0);
       
-      if (details && details.length > 0) {
-        // Remplir tableau EFFECTIFS
-        const tbodyEffectif = document.getElementById('rh-effectif-tbody');
-        const tfootEffectif = document.getElementById('rh-effectif-tfoot');
-        tbodyEffectif.innerHTML = '';
-        
-        let totalEffectif = 0, totalAGCO = 0, totalSU = 0, totalAutres = 0, totalMS = 0;
-        
-        details.forEach(d => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td><strong>${d.sigle}</strong></td>
-            <td style="text-align: right;">${formatNumber(d.effectif_total)}</td>
-            <td style="text-align: center;">${formatNumber(d.effectif_agco)}</td>
-            <td style="text-align: center;">${formatNumber(d.effectif_su)}</td>
-            <td style="text-align: center;">${formatNumber(d.effectif_autres)}</td>
-            <td style="text-align: right;">${formatCurrency(d.masse_salariale, 0)}</td>
-            <td style="text-align: right;">${formatCurrency(d.ms_par_agent, 0)}</td>
-          `;
-          tbodyEffectif.appendChild(tr);
-          
-          totalEffectif += d.effectif_total;
-          totalAGCO += d.effectif_agco;
-          totalSU += d.effectif_su;
-          totalAutres += d.effectif_autres;
-          totalMS += d.masse_salariale;
-        });
-        
-        const msMoyenGlobal = totalEffectif > 0 ? Math.round(totalMS / totalEffectif) : 0;
-        
-        tfootEffectif.innerHTML = `
-          <tr>
-            <td>TOTAL</td>
-            <td style="text-align: right;">${formatNumber(totalEffectif)}</td>
-            <td style="text-align: center;">${formatNumber(totalAGCO)}</td>
-            <td style="text-align: center;">${formatNumber(totalSU)}</td>
-            <td style="text-align: center;">${formatNumber(totalAutres)}</td>
-            <td style="text-align: right;">${formatCurrency(totalMS, 0)}</td>
-            <td style="text-align: right;">${formatCurrency(msMoyenGlobal, 0)}</td>
-          </tr>
-        `;
-        
-        // Remplir tableau ÂGES
-        const tbodyAge = document.getElementById('rh-age-tbody');
-        const tfootAge = document.getElementById('rh-age-tfoot');
-        tbodyAge.innerHTML = '';
-        
-        let sumAgeTotal = 0, sumAgeAGCO = 0, sumAgeSU = 0, sumAgeAutres = 0;
-        let countAgeTotal = 0, countAgeAGCO = 0, countAgeSU = 0, countAgeAutres = 0;
-        
-        details.forEach(d => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td><strong>${d.sigle}</strong></td>
-            <td style="text-align: center;"><strong>${formatNumber(d.age_moyen_total, 1)}</strong></td>
-            <td style="text-align: center;">${formatNumber(d.age_moyen_agco, 1)}</td>
-            <td style="text-align: center;">${formatNumber(d.age_moyen_su, 1)}</td>
-            <td style="text-align: center;">${formatNumber(d.age_moyen_autres, 1)}</td>
-          `;
-          tbodyAge.appendChild(tr);
-          
-          if (d.age_moyen_total > 0) {
-            sumAgeTotal += d.age_moyen_total * d.effectif_total;
-            countAgeTotal += d.effectif_total;
-          }
-          if (d.age_moyen_agco > 0) {
-            sumAgeAGCO += d.age_moyen_agco * d.effectif_agco;
-            countAgeAGCO += d.effectif_agco;
-          }
-          if (d.age_moyen_su > 0) {
-            sumAgeSU += d.age_moyen_su * d.effectif_su;
-            countAgeSU += d.effectif_su;
-          }
-          if (d.age_moyen_autres > 0) {
-            sumAgeAutres += d.age_moyen_autres * d.effectif_autres;
-            countAgeAutres += d.effectif_autres;
-          }
-        });
-        
-        const ageMoyenGlobal = countAgeTotal > 0 ? Math.round(sumAgeTotal / countAgeTotal * 10) / 10 : 0;
-        const ageMoyenAGCO = countAgeAGCO > 0 ? Math.round(sumAgeAGCO / countAgeAGCO * 10) / 10 : 0;
-        const ageMoyenSU = countAgeSU > 0 ? Math.round(sumAgeSU / countAgeSU * 10) / 10 : 0;
-        const ageMoyenAutres = countAgeAutres > 0 ? Math.round(sumAgeAutres / countAgeAutres * 10) / 10 : 0;
-        
-        tfootAge.innerHTML = `
-          <tr>
-            <td>MOYENNE</td>
-            <td style="text-align: center;"><strong>${formatNumber(ageMoyenGlobal, 1)}</strong></td>
-            <td style="text-align: center;">${formatNumber(ageMoyenAGCO, 1)}</td>
-            <td style="text-align: center;">${formatNumber(ageMoyenSU, 1)}</td>
-            <td style="text-align: center;">${formatNumber(ageMoyenAutres, 1)}</td>
-          </tr>
-        `;
-      }
+      // Remplir les bulles - Âges moyens
+      const ageMoyenGlobal = data.effectif_total > 0 ? 
+        Math.round((data.age_moyen_agco * data.effectif_agco + data.age_moyen_su * data.effectif_su + data.age_moyen_autres * data.effectif_autres) / data.effectif_total * 10) / 10 : 0;
       
-      // Graphique évolution (N-1 vs N uniquement)
+      document.getElementById('rh-age-global').textContent = formatNumber(ageMoyenGlobal, 1);
+      document.getElementById('rh-age-agco').textContent = formatNumber(data.age_moyen_agco, 1);
+      document.getElementById('rh-age-su').textContent = formatNumber(data.age_moyen_su, 1);
+      document.getElementById('rh-age-autres').textContent = formatNumber(data.age_moyen_autres, 1);
+      
+      // Graphique évolution (N-1 vs N)
       const historique = getRHHistorique(structureId);
       const historiqueFiltre = historique.filter(h => h.annee >= annee - 1);
       createStackedAreaChart('chart-rh-evolution', historiqueFiltre);
       
       // Graphique répartition par branche (AGCO, SU, Autres) - Année N
-      const dataN = getRHData(structureId, annee);
-      if (dataN) {
-        createPieChart('chart-rh-repartition', 
-          ['AGCO', 'SU', 'Autres'],
-          [dataN.effectif_agco, dataN.effectif_su, dataN.effectif_autres],
-          ['#007bff', '#198754', '#ffc107']
-        );
-      }
+      createPieChart('chart-rh-repartition', 
+        ['AGCO', 'SU', 'Autres'],
+        [data.effectif_agco, data.effectif_su, data.effectif_autres],
+        ['#007bff', '#198754', '#ffc107']
+      );
       
       // Charger le commentaire
       const commentaire = getCommentaire(structureId, annee, 'RH');
       const textarea = document.getElementById('rh-commentaire');
       textarea.value = commentaire;
       
-      // Ajouter événement de sauvegarde (blur = quand l'utilisateur quitte le champ)
+      // Ajouter événement de sauvegarde
       textarea.onblur = function() {
         saveCommentaire(structureId, annee, 'RH', this.value);
       };
