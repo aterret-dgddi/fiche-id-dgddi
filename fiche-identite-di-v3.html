@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fiche Identité - Indicateurs de gestion</title>
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Cabin:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Scripts externes -->
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Cabin:wght@400;500;600;700&display=swap');
+
+    :root {
+      --rep: #002F6C;
+      --rep2: #1351A8;
+      --rep-pale: #E6ECF8;
+      --rouge: #B52020;
+      --vert: #1A6B3C;
+      --orange: #C05A00;
+      --jaune: #8A6800;
+      --gris1: #1E2D3D;
+      --gris2: #4A5A6A;
+      --gris3: #8A9BAA;
+      --gris4: #EEF2F7;
+      --blanc: #FFFFFF;
+      --bord: #CDD6E4;
+      --shadow: 0 2px 8px rgba(0,30,80,.10);
+      --shadow-lg: 0 8px 32px rgba(0,20,70,.22);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 13px; }
+    body {
+      font-family: 'Cabin', sans-serif;
+      background: #F2F5FA;
+      color: var(--gris1);
+      line-height: 1.5;
+    }
+
+    /* ══════════════════════════════════ */
+    /* TOOLBAR */
+    /* ══════════════════════════════════ */
+    #toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 300;
+      background: var(--rep);
+      padding: 9px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      box-shadow: 0 2px 14px rgba(0,20,70,.45);
+    }
+
+    #toolbar h1 {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: .2px;
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-mini {
+      width: 32px;
+      height: 32px;
+      background: white;
+      border-radius: 4px;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-mini img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .tbtn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255,255,255,.13);
+      border: 1px solid rgba(255,255,255,.3);
+      color: #fff;
+      padding: 6px 13px;
+      border-radius: 5px;
+      font-family: 'Cabin', sans-serif;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s;
+      white-space: nowrap;
+    }
+
+    .tbtn:hover { background: rgba(255,255,255,.25); }
+    .tbtn.primary { background: #0057B8; border-color: #0044A0; }
+    .tbtn.primary:hover { background: #0046A0; }
+    .tbtn:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ══════════════════════════════════ */
+    /* BARRE SÉLECTEUR */
+    /* ══════════════════════════════════ */
+    #selbar {
+      background: #fff;
+      border-bottom: 3px solid var(--rep);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 48px;
+      z-index: 200;
+      box-shadow: 0 2px 6px rgba(0,20,70,.07);
+    }
+
+    #selbar label {
+      font-weight: 700;
+      color: var(--rep);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    #selector-wrap {
+      position: relative;
+      flex: 1;
+      max-width: 520px;
+    }
+
+    #sel-input {
+      width: 100%;
+      padding: 8px 35px 8px 12px;
+      border: 2px solid var(--bord);
+      border-radius: 6px;
+      font-family: 'Cabin', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--blanc);
+      color: var(--gris1);
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    #sel-input:focus,
+    #sel-input.open {
+      outline: none;
+      border-color: var(--rep);
+      box-shadow: 0 0 0 3px var(--rep-pale);
+    }
+
+    #sel-chevron {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gris3);
+      pointer-events: none;
+      transition: transform .2s;
+    }
+
+    #sel-input.open + #sel-chevron {
+      transform: translateY(-50%) rotate(180deg);
+    }
+
+    #sel-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 4px;
+      background: var(--blanc);
+      border: 2px solid var(--rep);
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      max-height: 420px;
+      display: none;
+      flex-direction: column;
+      z-index: 250;
+    }
+
+    #sel-dropdown.open {
+      display: flex;
+    }
+
+    #sel-search-wrap {
+      position: relative;
+      padding: 10px;
+      border-bottom: 1px solid var(--bord);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: var(--gris3);
+    }
+
+    #sel-search {
+      width: 100%;
+      padding: 8px 12px 8px 35px;
+      border: 1px solid var(--bord);
+      border-radius: 5px;
+      font-size: 12.5px;
+      font-family: 'Cabin', sans-serif;
+    }
+
+    #sel-search:focus {
+      outline: none;
+      border-color: var(--rep);
+    }
+
+    #sel-list {
+      overflow-y: auto;
+      max-height: 340px;
+    }
+
+    .sel-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background .12s;
+      border-bottom: 1px solid var(--gris4);
+    }
+
+    .sel-item:hover {
+      background: var(--rep-pale);
+    }
+
+    .sel-item.active {
+      background: var(--rep);
+      color: white;
+    }
+
+    .sel-item-main {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .sel-item-meta {
+      font-size: 11px;
+      color: var(--gris3);
+    }
+
+    .sel-item.active .sel-item-meta {
+      color: rgba(255,255,255,0.8);
+    }
+
+    #cur-badge {
+      padding: 3px 9px;
+      border-radius: 4px;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    #cur-badge.DI { background: #007bff; color: white; }
+    #cur-badge.SCN { background: #198754; color: white; }
+    #cur-badge.Siège { background: #003366; color: white; }
+    #cur-badge.Outremer { background: #6f42c1; color: white; }
+
+    /* ══════════════════════════════════ */
+    /* NAVIGATION RAPIDE */
+    /* ══════════════════════════════════ */
+    #quick-nav {
+      background: #fff;
+      border-bottom: 1px solid var(--bord);
+      padding: 6px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 5px 6px;
+      flex-wrap: wrap;
+    }
+
+    #qnav-items { display: contents; }
+
+    .qnav-label {
+      font-size: 10.5px;
+      color: var(--gris3);
+      flex-shrink: 0;
+      white-space: nowrap;
+      align-self: center;
+      margin-right: 2px;
+    }
+
+    .qnav-btn {
+      border: none;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      cursor: pointer;
+      margin: 2px 3px;
+      color: white;
+      font-weight: 600;
+      white-space: nowrap;
+      line-height: 1.2;
+      transition: all .15s;
+    }
+
+    .qnav-btn.Siège { background: #003366; }
+    .qnav-btn.DI { background: #007bff; }
+    .qnav-btn.Outremer { background: #6f42c1; }
+    .qnav-btn.SCN { background: #198754; }
+
+    .qnav-btn.active {
+      outline: 2px solid #fff;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+      filter: brightness(1.15);
+    }
+
+    .qnav-btn:hover {
+      filter: brightness(1.1);
+    }
+
+    /* ══════════════════════════════════ */
+    /* LOADER */
+    /* ══════════════════════════════════ */
+    #loading {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--gris2);
+    }
+
+    .spin {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--gris4);
+      border-top-color: var(--rep);
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ══════════════════════════════════ */
+    /* CONTENU FICHE */
+    /* ══════════════════════════════════ */
+    #fiche-body {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--gris4);
+    }
+
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--rep), var(--rep2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: white;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--gris1);
+    }
+
+    /* Metrics */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--gris4);
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid var(--bord);
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--gris2);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--gris1);
+    }
+
+    .metric-unit {
+      font-size: 14px;
+      color: var(--gris2);
+      font-weight: 400;
+      margin-left: 4px;
+    }
+
+    /* Charts */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .chart-container {
+      background: white;
+      border: 1px solid var(--bord);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gris2);
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 200px;
+    }
+
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table thead {
+      background: var(--gris4);
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 12px;
+      font-weight: 600;
+      color: var(--gris2);
+      border-bottom: 2px solid var(--bord);
+    }
+
+    .data-table td {
+      padding: 12px;
+      border-bottom: 1px solid var(--gris4);
+    }
+
+    .data-table tbody tr:hover {
+      background: var(--gris4);
+    }
+
+    .table-value {
+      font-weight: 500;
+      color: var(--gris1);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-success { background: #D1FAE5; color: #065F46; }
+    .badge-warning { background: #FEF3C7; color: #92400E; }
+    .badge-danger { background: #FEE2E2; color: #991B1B; }
+    .badge-info { background: #DBEAFE; color: #1E40AF; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .metrics-grid { grid-template-columns: 1fr; }
+      .chart-grid { grid-template-columns: 1fr; }
+      #toolbar { flex-direction: column; }
+    }
+
+    @media print {
+      #toolbar, #selbar, #quick-nav, .tbtn { display: none !important; }
+      .section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ═══════════ TOOLBAR ═══════════ -->
+  <div id="toolbar">
+    <h1>
+      <div class="logo-mini">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100" height="100" fill="#002F6C"/>
+          <text x="50" y="50" font-family="Arial, sans-serif" font-size="40" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">DGDDI</text>
+        </svg>
+      </div>
+      Fiche Identité — Indicateurs de gestion
+    </h1>
+    <button class="tbtn" onclick="exportToHTML()">📄 Export HTML</button>
+    <button class="tbtn" onclick="exportToPDF()">📑 Export PDF</button>
+  </div>
+
+  <!-- ═══════════ SÉLECTEUR ═══════════ -->
+  <div id="selbar">
+    <label>Structure :</label>
+    <div id="selector-wrap">
+      <input type="text" id="sel-input" placeholder="Choisir une structure…" readonly onclick="toggleDropdown()" autocomplete="off">
+      <span id="sel-chevron">▾</span>
+      <div id="sel-dropdown">
+        <div id="sel-search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="sel-search" placeholder="Rechercher par nom, région…" oninput="renderDropdownList(this.value)">
+        </div>
+        <div id="sel-list"></div>
+      </div>
+    </div>
+    <span id="cur-badge"></span>
+  </div>
+
+  <!-- ═══════════ NAVIGATION RAPIDE ═══════════ -->
+  <div id="quick-nav">
+    <span class="qnav-label">Accès rapide :</span>
+    <div id="qnav-items"></div>
+  </div>
+
+  <!-- ═══════════ FICHE ═══════════ -->
+  <div id="loading">
+    <div class="spin"></div>
+    <span>Connexion à Grist…</span>
+  </div>
+
+  <div id="fiche-body" style="display:none;">
+    
+    <!-- SECTION RH -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">👥</div>
+        <div class="section-title">Ressources Humaines</div>
+      </div>
+      
+      <!-- KPI avec évolution -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <!-- Effectif Total -->
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Effectif Total</div>
+          <div class="metric-value" style="font-size: 22px;" id="rh-effectif-total">—</div>
+          <div style="font-size: 11px; margin-top: 4px; color: var(--gris3);">
+            <span id="rh-effectif-evolution">—</span> vs N-1
+          </div>
+        </div>
+        
+        <!-- Effectif AGCO -->
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Effectif AGCO</div>
+          <div class="metric-value" style="font-size: 22px;" id="rh-agco-total">—</div>
+          <div style="font-size: 11px; margin-top: 4px; color: var(--gris3);">
+            <span id="rh-agco-evolution">—</span> vs N-1
+          </div>
+        </div>
+        
+        <!-- Effectif SU -->
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Effectif SU</div>
+          <div class="metric-value" style="font-size: 22px;" id="rh-su-total">—</div>
+          <div style="font-size: 11px; margin-top: 4px; color: var(--gris3);">
+            <span id="rh-su-evolution">—</span> vs N-1
+          </div>
+        </div>
+        
+        <!-- Âge Moyen -->
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Âge Moyen</div>
+          <div class="metric-value" style="font-size: 22px;">
+            <span id="rh-age-moyen">—</span>
+            <span class="metric-unit" style="font-size: 14px;">ans</span>
+          </div>
+        </div>
+        
+        <!-- Masse Salariale -->
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-label" style="font-size: 10px;">Masse Salariale</div>
+          <div class="metric-value" style="font-size: 18px;" id="rh-masse-salariale">—</div>
+        </div>
+      </div>
+      
+      <!-- Tableau détaillé par DR -->
+      <div style="margin-bottom: 20px;">
+        <h4 style="font-size: 13px; font-weight: 600; color: var(--gris2); margin-bottom: 8px;">📋 Détail par structure</h4>
+        <div style="overflow-x: auto;">
+          <table class="data-table" style="font-size: 11px;">
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th style="text-align: right;">Effectif Total</th>
+                <th style="text-align: center;">AGCO</th>
+                <th style="text-align: center;">SU</th>
+                <th style="text-align: center;">Autres</th>
+                <th style="text-align: right;">Masse Salariale</th>
+                <th style="text-align: right;">MS/Agent</th>
+                <th style="text-align: center;">Âge Moyen</th>
+              </tr>
+            </thead>
+            <tbody id="rh-detail-tbody"></tbody>
+            <tfoot id="rh-detail-tfoot" style="font-weight: 600; background: var(--gris4);"></tfoot>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Graphiques côte à côte -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+        <div class="chart-container">
+          <div class="chart-title">Évolution des effectifs (toute la série)</div>
+          <div class="chart-wrapper" style="height: 220px;">
+            <canvas id="chart-rh-evolution"></canvas>
+          </div>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Répartition AGCO / SU</div>
+          <div class="chart-wrapper" style="height: 220px;">
+            <canvas id="chart-rh-repartition"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Commentaire RH -->
+      <div>
+        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Commentaire</label>
+        <textarea id="rh-commentaire" 
+                  style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Cabin', sans-serif; font-size: 12px; resize: vertical;"
+                  placeholder="Ajouter un commentaire sur les ressources humaines..."></textarea>
+      </div>
+    </div>
+    
+    <!-- SECTION BUDGET -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">💰</div>
+        <div class="section-title">Budget</div>
+      </div>
+      
+      <table class="data-table" id="budget-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Notif AE</th>
+            <th>Conso AE</th>
+            <th>Taux</th>
+            <th>Notif CP</th>
+            <th>Conso CP</th>
+            <th>Taux</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody id="budget-tbody"></tbody>
+      </table>
+      
+      <div class="chart-grid" style="margin-top: 24px;">
+        <div class="chart-container">
+          <div class="chart-title">Taux de consommation AE</div>
+          <div class="chart-wrapper">
+            <canvas id="chart-budget-ae"></canvas>
+          </div>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Taux de consommation CP</div>
+          <div class="chart-wrapper">
+            <canvas id="chart-budget-cp"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- SECTION FRAIS MISSION -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">✈️</div>
+        <div class="section-title">Frais de Mission</div>
+      </div>
+      
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Total Formation</div>
+          <div class="metric-value" id="mission-formation">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Autres Missions</div>
+          <div class="metric-value" id="mission-autres">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Montant Total</div>
+          <div class="metric-value" id="mission-total">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Par Agent</div>
+          <div class="metric-value" id="mission-par-agent">—</div>
+        </div>
+      </div>
+      
+      <div class="chart-grid">
+        <div class="chart-container">
+          <div class="chart-title">Répartition Formation / Autres</div>
+          <div class="chart-wrapper">
+            <canvas id="chart-mission-type"></canvas>
+          </div>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Répartition par poste</div>
+          <div class="chart-wrapper">
+            <canvas id="chart-mission-poste"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- SECTION INFORMATIQUE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">💻</div>
+        <div class="section-title">Informatique</div>
+      </div>
+      
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Postes de Travail</div>
+          <div class="metric-value" id="it-postes">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Ratio Poste/Agent</div>
+          <div class="metric-value" id="it-ratio">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Budget IT Total</div>
+          <div class="metric-value" id="it-budget">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Budget IT par Agent</div>
+          <div class="metric-value" id="it-budget-agent">—</div>
+        </div>
+      </div>
+      
+      <div class="chart-grid">
+        <div class="chart-container">
+          <div class="chart-title">Portables vs Fixes</div>
+          <div class="chart-wrapper">
+            <canvas id="chart-it-type"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- SECTION VÉHICULES -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🚗</div>
+        <div class="section-title">Parc Automobile</div>
+      </div>
+      
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Véhicules Total</div>
+          <div class="metric-value" id="veh-total">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Taux de Vétusté</div>
+          <div class="metric-value" id="veh-vetuste">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Budget Total</div>
+          <div class="metric-value" id="veh-budget">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Ratio Véhicule/Agent</div>
+          <div class="metric-value" id="veh-ratio">—</div>
+        </div>
+      </div>
+      
+      <div class="chart-grid">
+        <div class="chart-container">
+          <div class="chart-title">Vétusté</div>
+          <div class="chart-wrapper">
+            <canvas id="chart-veh-vetuste"></canvas>
+          </div>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Budget Fonct. / Invest.</div>
+          <div class="chart-wrapper">
+            <canvas id="chart-veh-budget"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+
+  <!-- Core functions -->
+  <script src="https://aterret-dgddi.github.io/fiche-id-dgddi/fiche-identite-core.js"></script>
+
+  <script>
+    // État global
+    let allStructures = [];
+    let filteredStructures = [];
+
+    // Sélecteur
+    function toggleDropdown() {
+      const dropdown = document.getElementById('sel-dropdown');
+      const input = document.getElementById('sel-input');
+      const isOpen = dropdown.classList.contains('open');
+      
+      if (isOpen) {
+        closeDropdown();
+      } else {
+        dropdown.classList.add('open');
+        input.classList.add('open');
+        document.getElementById('sel-search').focus();
+      }
+    }
+
+    function closeDropdown() {
+      document.getElementById('sel-dropdown').classList.remove('open');
+      document.getElementById('sel-input').classList.remove('open');
+      document.getElementById('sel-search').value = '';
+    }
+
+    function renderDropdownList(searchTerm = '') {
+      const list = document.getElementById('sel-list');
+      list.innerHTML = '';
+      
+      const term = searchTerm.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      
+      filteredStructures = allStructures.filter(s => {
+        const nom = s.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const sigle = (s.sigle || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const region = (s.region || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return nom.includes(term) || sigle.includes(term) || region.includes(term);
+      });
+      
+      filteredStructures.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'sel-item';
+        if (FICHE_STATE.structure && FICHE_STATE.structure.id === s.id) {
+          item.classList.add('active');
+        }
+        item.innerHTML = `
+          <div class="sel-item-main">${s.sigle} — ${s.nom}</div>
+          <div class="sel-item-meta">${s.type} • ${s.region || ''}</div>
+        `;
+        item.onclick = () => {
+          selectStructure(s.id);
+          closeDropdown();
+        };
+        list.appendChild(item);
+      });
+      
+      if (filteredStructures.length === 0) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gris3)">Aucune structure trouvée</div>';
+      }
+    }
+
+    function selectStructure(id) {
+      setStructure(id);
+      updateSelectorDisplay();
+      updateQuickNavActive();
+    }
+
+    function updateSelectorDisplay() {
+      if (!FICHE_STATE.structure) return;
+      
+      const s = FICHE_STATE.structure;
+      document.getElementById('sel-input').value = `${s.sigle} — ${s.nom}`;
+      
+      const badge = document.getElementById('cur-badge');
+      badge.textContent = s.type;
+      badge.className = s.type;
+    }
+
+    function renderQuickNav() {
+      const container = document.getElementById('qnav-items');
+      container.innerHTML = '';
+      
+      // Grouper par type
+      const groups = {};
+      allStructures.forEach(s => {
+        if (!groups[s.type]) groups[s.type] = [];
+        groups[s.type].push(s);
+      });
+      
+      // Afficher par type
+      ['Siège', 'DI', 'SCN', 'Outremer'].forEach(type => {
+        if (!groups[type]) return;
+        
+        groups[type].forEach(s => {
+          const btn = document.createElement('button');
+          btn.className = `qnav-btn ${type}`;
+          btn.textContent = s.sigle;
+          btn.dataset.id = s.id;
+          btn.onclick = () => selectStructure(s.id);
+          container.appendChild(btn);
+        });
+      });
+    }
+
+    function updateQuickNavActive() {
+      document.querySelectorAll('.qnav-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      if (FICHE_STATE.structure) {
+        const btn = document.querySelector(`.qnav-btn[data-id="${FICHE_STATE.structure.id}"]`);
+        if (btn) btn.classList.add('active');
+      }
+    }
+
+    // Click outside pour fermer dropdown
+    document.addEventListener('click', (e) => {
+      if (!document.getElementById('selector-wrap').contains(e.target)) {
+        closeDropdown();
+      }
+    });
+
+    // Override onDataLoaded
+    function onDataLoaded() {
+      // Définir automatiquement la dernière année disponible
+      FICHE_STATE.annee = getDerniereAnnee();
+      console.log(`Année détectée: ${FICHE_STATE.annee}`);
+      
+      // Construire la liste des structures
+      const structures = FICHE_STATE.data.structures;
+      allStructures = structures.id.map((id, idx) => ({
+        id: id,
+        hie: structures.HIE[idx],
+        nom: structures.Nom[idx],
+        sigle: structures.Sigle[idx],
+        type: structures.Type[idx],
+        region: structures.Region[idx] || ''
+      }));
+      
+      // Trier par type puis nom
+      allStructures.sort((a, b) => {
+        const typeOrder = { 'Siège': 0, 'DI': 1, 'SCN': 2, 'Outremer': 3 };
+        if (typeOrder[a.type] !== typeOrder[b.type]) {
+          return typeOrder[a.type] - typeOrder[b.type];
+        }
+        return a.nom.localeCompare(b.nom);
+      });
+      
+      // Initialiser les composants
+      renderQuickNav();
+      renderDropdownList();
+      
+      // Sélectionner la première structure
+      if (allStructures.length > 0) {
+        selectStructure(allStructures[0].id);
+      }
+      
+      // Afficher la fiche
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('fiche-body').style.display = 'block';
+    }
+
+    function refreshFiche() {
+      if (!FICHE_STATE.structure) return;
+      
+      const struct = FICHE_STATE.structure;
+      const annee = FICHE_STATE.annee;
+      
+      // Charger les sections
+      refreshRH(struct.id, annee);
+      refreshBudget(struct.id, annee);
+      refreshMission(struct.id, annee);
+      refreshInformatique(struct.id, annee);
+      refreshVehicules(struct.id, annee);
+    }
+
+    // Fonctions refresh
+    function refreshRH(structureId, annee) {
+      const dataN = getRHData(structureId, annee);
+      const dataNMoins1 = getRHData(structureId, annee - 1);
+      
+      if (!dataN) return;
+      
+      // KPI - Effectif Total avec évolution
+      document.getElementById('rh-effectif-total').textContent = formatNumber(dataN.effectif_total);
+      if (dataNMoins1) {
+        const diffEffectif = dataN.effectif_total - dataNMoins1.effectif_total;
+        const color = diffEffectif >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbol = diffEffectif >= 0 ? '+' : '';
+        document.getElementById('rh-effectif-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffEffectif}</span>`;
+      }
+      
+      // KPI - AGCO avec évolution
+      document.getElementById('rh-agco-total').textContent = formatNumber(dataN.effectif_agco);
+      if (dataNMoins1) {
+        const diffAGCO = dataN.effectif_agco - dataNMoins1.effectif_agco;
+        const color = diffAGCO >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbol = diffAGCO >= 0 ? '+' : '';
+        document.getElementById('rh-agco-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffAGCO}</span>`;
+      }
+      
+      // KPI - SU avec évolution
+      document.getElementById('rh-su-total').textContent = formatNumber(dataN.effectif_su);
+      if (dataNMoins1) {
+        const diffSU = dataN.effectif_su - dataNMoins1.effectif_su;
+        const color = diffSU >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbol = diffSU >= 0 ? '+' : '';
+        document.getElementById('rh-su-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffSU}</span>`;
+      }
+      
+      // KPI - Âge Moyen
+      const ageMoyen = dataN.effectif_total > 0 ? 
+        Math.round((dataN.age_moyen_agco * dataN.effectif_agco + dataN.age_moyen_su * dataN.effectif_su + dataN.age_moyen_autres * dataN.effectif_autres) / dataN.effectif_total * 10) / 10 : 0;
+      document.getElementById('rh-age-moyen').textContent = formatNumber(ageMoyen, 1);
+      
+      // KPI - Masse Salariale
+      document.getElementById('rh-masse-salariale').textContent = formatCurrency(dataN.masse_salariale, 0);
+      
+      // Tableau détaillé par DR
+      const details = getRHDetailParDR(structureId, annee);
+      const tbody = document.getElementById('rh-detail-tbody');
+      const tfoot = document.getElementById('rh-detail-tfoot');
+      tbody.innerHTML = '';
+      
+      if (details && details.length > 0) {
+        details.forEach(d => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${d.sigle}</strong></td>
+            <td style="text-align: right;">${formatNumber(d.effectif_total)}</td>
+            <td style="text-align: center;">${formatNumber(d.effectif_agco)}</td>
+            <td style="text-align: center;">${formatNumber(d.effectif_su)}</td>
+            <td style="text-align: center;">${formatNumber(d.effectif_autres)}</td>
+            <td style="text-align: right;">${formatCurrency(d.masse_salariale, 0)}</td>
+            <td style="text-align: right;">${formatCurrency(d.ms_par_agent, 0)}</td>
+            <td style="text-align: center;">${formatNumber(d.age_moyen_total, 1)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        
+        // Ligne TOTAL
+        const msParAgent = dataN.effectif_total > 0 ? Math.round(dataN.masse_salariale / dataN.effectif_total) : 0;
+        tfoot.innerHTML = `
+          <tr>
+            <td>TOTAL</td>
+            <td style="text-align: right;">${formatNumber(dataN.effectif_total)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_agco)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_su)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_autres)}</td>
+            <td style="text-align: right;">${formatCurrency(dataN.masse_salariale, 0)}</td>
+            <td style="text-align: right;">${formatCurrency(msParAgent, 0)}</td>
+            <td style="text-align: center;">${formatNumber(ageMoyen, 1)}</td>
+          </tr>
+        `;
+      }
+      
+      // Graphique évolution (toute la série)
+      const historique = getRHHistorique(structureId);
+      createStackedAreaChart('chart-rh-evolution', historique);
+      
+      // Graphique répartition AGCO / SU avec pourcentages
+      const pctAGCO = dataN.pct_agco;
+      const pctSU = dataN.pct_su;
+      createPieChart('chart-rh-repartition', 
+        [`AGCO (${formatPercent(pctAGCO)})`, `SU (${formatPercent(pctSU)})`],
+        [dataN.effectif_agco, dataN.effectif_su],
+        ['#007bff', '#198754']
+      );
+      
+      // Charger le commentaire
+      const commentaire = getCommentaire(structureId, annee, 'RH');
+      const textarea = document.getElementById('rh-commentaire');
+      textarea.value = commentaire;
+      textarea.onblur = function() {
+        saveCommentaire(structureId, annee, 'RH', this.value);
+      };
+    }ges moyens
+      const ageMoyenGlobal = data.effectif_total > 0 ? 
+        Math.round((data.age_moyen_agco * data.effectif_agco + data.age_moyen_su * data.effectif_su + data.age_moyen_autres * data.effectif_autres) / data.effectif_total * 10) / 10 : 0;
+      
+      document.getElementById('rh-age-global').textContent = formatNumber(ageMoyenGlobal, 1);
+      document.getElementById('rh-age-agco').textContent = formatNumber(data.age_moyen_agco, 1);
+      document.getElementById('rh-age-su').textContent = formatNumber(data.age_moyen_su, 1);
+      document.getElementById('rh-age-autres').textContent = formatNumber(data.age_moyen_autres, 1);
+      
+      // Graphique évolution (N-1 vs N)
+      const historique = getRHHistorique(structureId);
+      const historiqueFiltre = historique.filter(h => h.annee >= annee - 1);
+      createStackedAreaChart('chart-rh-evolution', historiqueFiltre);
+      
+      // Graphique répartition par branche (AGCO, SU, Autres) - Année N
+      createPieChart('chart-rh-repartition', 
+        ['AGCO', 'SU', 'Autres'],
+        [data.effectif_agco, data.effectif_su, data.effectif_autres],
+        ['#007bff', '#198754', '#ffc107']
+      );
+      
+      // Charger le commentaire
+      const commentaire = getCommentaire(structureId, annee, 'RH');
+      const textarea = document.getElementById('rh-commentaire');
+      textarea.value = commentaire;
+      
+      // Ajouter événement de sauvegarde
+      textarea.onblur = function() {
+        saveCommentaire(structureId, annee, 'RH', this.value);
+      };
+    }
+
+    function refreshBudget(structureId, annee) {
+      const data = getBudgetData(structureId, annee);
+      const tbody = document.getElementById('budget-tbody');
+      tbody.innerHTML = '';
+      
+      const types = ['Total', 'T2', 'Fonctionnement', 'Intervention', 'Vehicule'];
+      const labels = {
+        'Total': 'Total (hors T2)',
+        'T2': 'Masse Salariale',
+        'Fonctionnement': 'Fonctionnement',
+        'Intervention': 'Intervention',
+        'Vehicule': 'Véhicules'
+      };
+      
+      types.forEach(type => {
+        if (!data[type]) return;
+        
+        const d = data[type];
+        const tr = document.createElement('tr');
+        
+        let badge = 'badge-success';
+        let status = 'OK';
+        if (d.taux_conso_cp > 100) {
+          badge = 'badge-danger';
+          status = 'DÉPASSEMENT';
+        } else if (d.taux_conso_cp > 95) {
+          badge = 'badge-warning';
+          status = 'ALERTE';
+        }
+        
+        tr.innerHTML = `
+          <td><strong>${labels[type]}</strong></td>
+          <td class="table-value">${formatCurrency(d.notif_ae)}</td>
+          <td>${formatCurrency(d.conso_ae)}</td>
+          <td>${formatPercent(d.taux_conso_ae)}</td>
+          <td class="table-value">${formatCurrency(d.notif_cp)}</td>
+          <td>${formatCurrency(d.conso_cp)}</td>
+          <td>${formatPercent(d.taux_conso_cp)}</td>
+          <td><span class="badge ${badge}">${status}</span></td>
+        `;
+        
+        tbody.appendChild(tr);
+      });
+      
+      if (data.Total) {
+        const tauxAE = [
+          data.T2?.taux_conso_ae || 0,
+          data.Fonctionnement?.taux_conso_ae || 0,
+          data.Intervention?.taux_conso_ae || 0,
+          data.Vehicule?.taux_conso_ae || 0
+        ];
+        
+        const tauxCP = [
+          data.T2?.taux_conso_cp || 0,
+          data.Fonctionnement?.taux_conso_cp || 0,
+          data.Intervention?.taux_conso_cp || 0,
+          data.Vehicule?.taux_conso_cp || 0
+        ];
+        
+        createBarChart('chart-budget-ae',
+          ['T2', 'Fonct.', 'Interv.', 'Véhicules'],
+          tauxAE,
+          'Taux (%)',
+          '#3B82F6'
+        );
+        
+        createBarChart('chart-budget-cp',
+          ['T2', 'Fonct.', 'Interv.', 'Véhicules'],
+          tauxCP,
+          'Taux (%)',
+          '#002F6C'
+        );
+      }
+    }
+
+    function refreshMission(structureId, annee) {
+      const data = getFraisMissionData(structureId, annee);
+      if (!data) return;
+      
+      document.getElementById('mission-formation').textContent = formatCurrency(data.total_formation);
+      document.getElementById('mission-autres').textContent = formatCurrency(data.total_autres);
+      document.getElementById('mission-total').textContent = formatCurrency(data.montant_total);
+      document.getElementById('mission-par-agent').textContent = formatCurrency(data.frais_par_agent);
+      
+      createPieChart('chart-mission-type',
+        ['Formation', 'Autres missions'],
+        [data.total_formation, data.total_autres],
+        ['#007bff', '#198754']
+      );
+      
+      const transport = data.formation_transport + data.autres_transport;
+      const repas = data.formation_repas + data.autres_repas;
+      const hebergement = data.formation_hebergement + data.autres_hebergement;
+      
+      createPieChart('chart-mission-poste',
+        ['Transport', 'Repas', 'Hébergement'],
+        [transport, repas, hebergement],
+        ['#002F6C', '#ffc107', '#dc3545']
+      );
+    }
+
+    function refreshInformatique(structureId, annee) {
+      const data = getInformatiqueData(structureId, annee);
+      if (!data) return;
+      
+      document.getElementById('it-postes').textContent = formatNumber(data.nb_postes_travail);
+      document.getElementById('it-ratio').textContent = formatNumber(data.ratio_poste_agent, 2);
+      document.getElementById('it-budget').textContent = formatCurrency(data.budget_it);
+      document.getElementById('it-budget-agent').textContent = formatCurrency(data.budget_it_par_agent);
+      
+      createPieChart('chart-it-type',
+        ['Portables', 'Fixes'],
+        [data.nb_portables, data.nb_fixes],
+        ['#007bff', '#198754']
+      );
+    }
+
+    function refreshVehicules(structureId, annee) {
+      const data = getVehiculesData(structureId, annee);
+      if (!data) return;
+      
+      document.getElementById('veh-total').textContent = formatNumber(data.nombre_total);
+      document.getElementById('veh-vetuste').textContent = formatPercent(data.taux_vetuste);
+      document.getElementById('veh-budget').textContent = formatCurrency(data.budget_total);
+      document.getElementById('veh-ratio').textContent = formatNumber(data.ratio_vehicule_agent, 3);
+      
+      createPieChart('chart-veh-vetuste',
+        ['Vétustes', 'OK'],
+        [data.nombre_vetuste, data.nombre_total - data.nombre_vetuste],
+        ['#dc3545', '#198754']
+      );
+      
+      createPieChart('chart-veh-budget',
+        ['Fonctionnement', 'Investissement'],
+        [data.budget_fonctionnement, data.budget_investissement],
+        ['#002F6C', '#007bff']
+      );
+    }
+
+    // Export HTML
+    function exportToHTML() {
+      const ficheBody = document.getElementById('fiche-body');
+      const struct = FICHE_STATE.structure;
+      
+      const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Fiche Identité ${struct.sigle} - ${FICHE_STATE.annee}</title>
+  <style>${document.querySelector('style').innerHTML}</style>
+</head>
+<body>
+  <div style="max-width:1200px;margin:0 auto;padding:24px;">
+    <h1 style="font-family:'Libre Baskerville',serif;color:var(--rep);margin-bottom:24px;">
+      Fiche Identité ${struct.nom} (${struct.sigle}) - ${FICHE_STATE.annee}
+    </h1>
+    ${ficheBody.innerHTML}
+  </div>
+</body>
+</html>`;
+      
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fiche-identite-${struct.sigle}-${FICHE_STATE.annee}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Export PDF
+    async function exportToPDF() {
+      const { jsPDF } = window.jspdf;
+      const ficheBody = document.getElementById('fiche-body');
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const canvas = await html2canvas(ficheBody, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      
+      const imgWidth = 190;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+      pdf.save(`fiche-identite-${FICHE_STATE.structure.sigle}-${FICHE_STATE.annee}.pdf`);
+    }
+
+    // Initialisation
+    window.addEventListener('load', initGrist);
+  </script>
+</body>
+</html>
