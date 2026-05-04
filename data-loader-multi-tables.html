@@ -377,17 +377,33 @@ async function loadGristData() {
     setStatus('Chargement des données Grist...', 'info');
     
     // Charger Structures et Equivalence pour la résolution HIE
-    const [structuresData, equivalenceData] = await Promise.all([
-      grist.docApi.fetchTable('Structures'),
-      grist.docApi.fetchTable('Equivalence')
-    ]);
+    const structuresData = await grist.docApi.fetchTable('Structures');
+    const equivalenceData = await grist.docApi.fetchTable('Equivalence');
     
-    G.structures = structuresData;
-    G.equivalence = equivalenceData;
+    // Vérifier que les données sont valides
+    if (!structuresData || !structuresData.id || structuresData.id.length === 0) {
+      setStatus('Attention : table Structures vide', 'error');
+      G.structures = { id: [], HIE: [], Nom: [], Sigle: [] };
+    } else {
+      G.structures = structuresData;
+      console.log(`✓ ${structuresData.id.length} structures chargées`);
+    }
+    
+    if (!equivalenceData || !equivalenceData.Source || equivalenceData.Source.length === 0) {
+      setStatus('Attention : table Equivalence vide', 'error');
+      G.equivalence = { Source: [], HIE: [] };
+    } else {
+      G.equivalence = equivalenceData;
+      console.log(`✓ ${equivalenceData.Source.length} équivalences chargées`);
+    }
     
     setStatus('Prêt à importer', 'success');
   } catch (err) {
+    console.error('Erreur chargement :', err);
     setStatus('Erreur chargement Grist : ' + err.message, 'error');
+    // Initialiser avec des données vides pour éviter les crashes
+    G.structures = { id: [], HIE: [], Nom: [], Sigle: [] };
+    G.equivalence = { Source: [], HIE: [] };
   }
 }
 
@@ -575,6 +591,16 @@ function generatePreview() {
   let hieToId = {};
   
   if (config.needsStructure) {
+    // Vérifier que les données sont chargées
+    if (!G.equivalence || !G.equivalence.Source) {
+      setStatus('Erreur : table Equivalence non chargée', 'error');
+      return;
+    }
+    if (!G.structures || !G.structures.id) {
+      setStatus('Erreur : table Structures non chargée', 'error');
+      return;
+    }
+    
     G.equivalence.Source.forEach((src, idx) => {
       const hie = G.equivalence.HIE[idx];
       equivMap[normalizeText(src)] = hie;
