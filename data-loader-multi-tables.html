@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chargeur de données DGDDI</title>
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      color: #262633;
+      background: #F7F7F7;
+      padding: 16px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #16B378; }
+    
+    .table-selector {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .table-selector label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .table-selector select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #D9D9D9;
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+    }
+    .table-info {
+      margin-top: 12px;
+      padding: 12px;
+      background: #F0FFF4;
+      border-left: 3px solid #16B378;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #065F46;
+      display: none;
+    }
+    .table-info.visible { display: block; }
+    
+    .drop-zone {
+      border: 2px dashed #D9D9D9;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .drop-zone.visible { display: block; }
+    .drop-zone:hover { border-color: #16B378; background: #F0FFF4; }
+    .drop-zone.dragover { border-color: #16B378; background: #E6F9F0; }
+    .drop-icon { font-size: 48px; margin-bottom: 12px; color: #D9D9D9; }
+    .drop-text { font-size: 14px; color: #929299; margin-bottom: 8px; }
+    .drop-hint { font-size: 12px; color: #929299; }
+    
+    .mapping-section { 
+      background: white; 
+      border-radius: 8px; 
+      padding: 20px; 
+      margin-bottom: 20px;
+      display: none;
+    }
+    .mapping-section.visible { display: block; }
+    .mapping-title { 
+      font-size: 14px; 
+      font-weight: 600; 
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mapping-table { width: 100%; border-collapse: collapse; }
+    .mapping-table th { 
+      text-align: left; 
+      padding: 8px 12px; 
+      background: #F7F7F7;
+      font-weight: 600;
+      font-size: 12px;
+      color: #929299;
+      text-transform: uppercase;
+    }
+    .mapping-table td { 
+      padding: 8px 12px; 
+      border-bottom: 1px solid #F0F0F0;
+    }
+    .mapping-table select {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #D9D9D9;
+      border-radius: 4px;
+      font-size: 13px;
+      background: white;
+    }
+    .mapping-table select.required { border-color: #F97316; }
+    .col-source { font-weight: 500; }
+    .col-preview { color: #929299; font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+    
+    .preview-section {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .preview-section.visible { display: block; }
+    .preview-title { 
+      font-size: 14px; 
+      font-weight: 600; 
+      margin-bottom: 16px;
+    }
+    .preview-table { 
+      width: 100%; 
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .preview-table th {
+      text-align: left;
+      padding: 8px 12px;
+      background: #F7F7F7;
+      font-weight: 600;
+      border-bottom: 2px solid #D9D9D9;
+      position: sticky;
+      top: 0;
+    }
+    .preview-table td {
+      padding: 6px 12px;
+      border-bottom: 1px solid #F0F0F0;
+    }
+    .preview-table tr.error td { background: #FEE2E2; color: #991B1B; }
+    .preview-table tr.insert td { background: #ECFDF5; }
+    .preview-table tr.update td { background: #FEF3C7; }
+    
+    .actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background: #16B378;
+      color: white;
+    }
+    .btn-primary:hover:not(:disabled) { background: #149865; }
+    .btn-secondary {
+      background: #F0F0F0;
+      color: #262633;
+    }
+    .btn-secondary:hover:not(:disabled) { background: #E0E0E0; }
+    
+    .status {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      display: none;
+    }
+    .status.visible { display: block; }
+    .status.info { background: #EFF6FF; color: #1E40AF; border-left: 3px solid #3B82F6; }
+    .status.success { background: #ECFDF5; color: #065F46; border-left: 3px solid #16B378; }
+    .status.error { background: #FEE2E2; color: #991B1B; border-left: 3px solid #DC2626; }
+    
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-insert { background: #ECFDF5; color: #065F46; }
+    .badge-update { background: #FEF3C7; color: #92400E; }
+    .badge-error { background: #FEE2E2; color: #991B1B; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 Chargeur de données DGDDI</h1>
+    
+    <div id="status" class="status"></div>
+    
+    <!-- Sélection de la table cible -->
+    <div class="table-selector">
+      <label for="target-table">1. Sélectionnez la table de destination</label>
+      <select id="target-table">
+        <option value="">-- Choisir une table --</option>
+        <option value="Structures">Structures (73 lignes)</option>
+        <option value="Equivalence">Equivalence (331 lignes)</option>
+        <option value="Referentiel_Prog">Referentiel_Prog (48 lignes)</option>
+        <option value="INFBUD40_2">INFBUD40_2 (Consommations budgétaires)</option>
+        <option value="Notif_BOP">Notif_BOP (Notifications budgétaires)</option>
+        <option value="RH">RH (Effectifs et masse salariale)</option>
+        <option value="Vehicules">Vehicules (Parc automobile)</option>
+        <option value="Frais_Mission">Frais_Mission (Déplacements)</option>
+        <option value="Informatique">Informatique (Matériel IT)</option>
+      </select>
+      <div id="table-info" class="table-info"></div>
+    </div>
+    
+    <div class="drop-zone" id="dropzone">
+      <div class="drop-icon">📁</div>
+      <div class="drop-text">Glissez un fichier Excel ou CSV ici</div>
+      <div class="drop-hint">ou cliquez pour sélectionner</div>
+      <input type="file" id="fileinput" accept=".xlsx,.xls,.csv" style="display:none">
+    </div>
+    
+    <div class="mapping-section" id="mapping-section">
+      <div class="mapping-title">
+        <span>🔗 Correspondance des colonnes</span>
+      </div>
+      <table class="mapping-table">
+        <thead>
+          <tr>
+            <th>Colonne fichier</th>
+            <th>Aperçu</th>
+            <th id="mapping-header-target">→ Colonne cible</th>
+          </tr>
+        </thead>
+        <tbody id="mapping-tbody"></tbody>
+      </table>
+      <div class="actions" style="margin-top: 16px;">
+        <button class="btn btn-primary" id="btn-preview">Générer la preview</button>
+      </div>
+    </div>
+    
+    <div class="preview-section" id="preview-section">
+      <div class="preview-title">
+        <span id="preview-title-text">📋 Preview</span>
+      </div>
+      <div style="max-height: 400px; overflow-y: auto;">
+        <table class="preview-table">
+          <thead id="preview-thead"></thead>
+          <tbody id="preview-tbody"></tbody>
+        </table>
+      </div>
+      <div class="actions" style="margin-top: 16px;">
+        <button class="btn btn-secondary" id="btn-cancel">Annuler</button>
+        <button class="btn btn-primary" id="btn-write">Écrire dans Grist</button>
+      </div>
+    </div>
+    
+    <div class="preview-section" id="console-section" style="display:none;">
+      <div class="preview-title">📜 Console d'exécution</div>
+      <div id="console-logs" style="background:#F7F7F7;padding:12px;border-radius:4px;max-height:200px;overflow-y:auto;font-family:monospace;font-size:11px;line-height:1.6;"></div>
+    </div>
+  </div>
+
+<script>
+// Configuration des tables
+const TABLE_CONFIG = {
+  'Structures': {
+    description: 'Structure organisationnelle (73 structures)',
+    columns: ['HIE', 'Nom', 'Sigle', 'Type', 'Region', 'Responsable'],
+    keyFields: ['HIE']
+  },
+  'Equivalence': {
+    description: 'Table de correspondance Centre_financier → HIE (331 lignes)',
+    columns: ['Source', 'Nom', 'HIE'],
+    keyFields: ['Source']
+  },
+  'Referentiel_Prog': {
+    description: 'Référentiel des activités budgétaires (48 lignes)',
+    columns: ['activite', 'brique', 'sous_brique', 'libelle_long', 'type'],
+    keyFields: ['activite']
+  },
+  'INFBUD40_2': {
+    description: 'Consommations budgétaires mensuelles du SI',
+    columns: ['exercice_periode', 'centre_financier', 'activite', 'compte_budgetaire', 'AE', 'CP'],
+    keyFields: ['exercice_periode', 'centre_financier', 'activite', 'compte_budgetaire'],
+    mapping: {
+      'Ex. compt./période': 'exercice_periode',
+      'Centre financier': 'centre_financier',
+      'Référentiel programmation': 'activite',
+      'Compte budgétaire': 'compte_budgetaire',
+      'EUR1': 'AE',
+      'EUR2': 'CP'
+    }
+  },
+  'Notif_BOP': {
+    description: 'Notifications budgétaires par BOP et type',
+    columns: ['BOP', 'Annee', 'Type', 'Notif_AE', 'Notif_CP'],
+    keyFields: ['BOP', 'Annee', 'Type']
+  },
+  'RH': {
+    description: 'Effectifs et masse salariale par structure',
+    columns: ['Structure', 'Annee', 'Mois', 'Effectif_AGCO', 'Effectif_SU', 'Effectif_Autres', 'Masse_Salariale'],
+    keyFields: ['Structure', 'Annee', 'Mois'],
+    needsStructure: true
+  },
+  'Vehicules': {
+    description: 'Parc automobile par structure',
+    columns: ['Structure', 'Annee', 'Nombre_Total', 'Nombre_Vetuste'],
+    keyFields: ['Structure', 'Annee'],
+    needsStructure: true
+  },
+  'Frais_Mission': {
+    description: 'Frais de mission et déplacements',
+    columns: ['Structure', 'Annee', 'Formation_Transport', 'Formation_Repas', 'Formation_Hebergement', 
+              'Autres_Transport', 'Autres_Repas', 'Autres_Hebergement'],
+    keyFields: ['Structure', 'Annee'],
+    needsStructure: true,
+    mapping: {
+      'MontantFormationTransport': 'Formation_Transport',
+      'MontantFormationRepas': 'Formation_Repas',
+      'MontantFormationHebergement': 'Formation_Hebergement',
+      'MontantAutresmissionsTransport': 'Autres_Transport',
+      'MontantAutresmissionsRepas': 'Autres_Repas',
+      'MontantAutresmissionsHebergement': 'Autres_Hebergement'
+    }
+  },
+  'Informatique': {
+    description: 'Matériel informatique par structure',
+    columns: ['Structure', 'Annee', 'Nb_Portables', 'Nb_Fixes'],
+    keyFields: ['Structure', 'Annee'],
+    needsStructure: true
+  }
+};
+
+// État global
+const G = {
+  gristReady: false,
+  targetTable: null,
+  rawRows: [],
+  sourceColumns: [],
+  targetColumns: [],
+  structures: [],
+  equivalence: [],
+  existingData: [],
+  mapping: {},
+  previewRows: []
+};
+
+// Attendre que le script Grist soit chargé
+window.addEventListener('load', () => {
+  if (typeof grist === 'undefined') {
+    setStatus('Erreur : ce widget doit être ouvert dans Grist', 'error');
+    return;
+  }
+  
+  // Initialisation Grist
+  grist.ready({ requiredAccess: 'full' });
+  
+  grist.onReady(() => {
+    G.gristReady = true;
+    loadGristData();
+  });
+});
+
+// Charger données de référence
+async function loadGristData() {
+  if (!G.gristReady) return;
+  
+  try {
+    setStatus('Chargement des données Grist...', 'info');
+    
+    // Charger Structures et Equivalence pour la résolution HIE
+    const [structuresData, equivalenceData] = await Promise.all([
+      grist.docApi.fetchTable('Structures'),
+      grist.docApi.fetchTable('Equivalence')
+    ]);
+    
+    G.structures = structuresData;
+    G.equivalence = equivalenceData;
+    
+    setStatus('Prêt à importer', 'success');
+  } catch (err) {
+    setStatus('Erreur chargement Grist : ' + err.message, 'error');
+  }
+}
+
+// Sélection de table
+document.getElementById('target-table').onchange = async (e) => {
+  const tableName = e.target.value;
+  
+  if (!tableName) {
+    document.getElementById('dropzone').classList.remove('visible');
+    document.getElementById('table-info').classList.remove('visible');
+    return;
+  }
+  
+  G.targetTable = tableName;
+  const config = TABLE_CONFIG[tableName];
+  
+  // Afficher info
+  const infoEl = document.getElementById('table-info');
+  infoEl.innerHTML = `
+    <strong>${config.description}</strong><br>
+    Colonnes : ${config.columns.join(', ')}<br>
+    Clés : ${config.keyFields.join(', ')}
+  `;
+  infoEl.classList.add('visible');
+  
+  // Afficher drop zone
+  document.getElementById('dropzone').classList.add('visible');
+  
+  // Charger données existantes
+  try {
+    const data = await grist.docApi.fetchTable(tableName);
+    G.existingData = data;
+    G.targetColumns = config.columns;
+  } catch (err) {
+    setStatus('Erreur chargement table : ' + err.message, 'error');
+  }
+};
+
+// Upload fichier
+const dropzone = document.getElementById('dropzone');
+const fileinput = document.getElementById('fileinput');
+
+dropzone.onclick = () => fileinput.click();
+
+dropzone.ondragover = (e) => {
+  e.preventDefault();
+  dropzone.classList.add('dragover');
+};
+
+dropzone.ondragleave = () => dropzone.classList.remove('dragover');
+
+dropzone.ondrop = (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) {
+    handleFile(e.dataTransfer.files[0]);
+  }
+};
+
+fileinput.onchange = (e) => {
+  if (e.target.files.length) {
+    handleFile(e.target.files[0]);
+  }
+};
+
+function handleFile(file) {
+  if (!G.targetTable) {
+    setStatus('Veuillez d\'abord sélectionner une table', 'error');
+    return;
+  }
+  
+  const ext = file.name.split('.').pop().toLowerCase();
+  
+  if (ext === 'csv') {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => processData(results.data)
+    });
+  } else if (['xlsx', 'xls'].includes(ext)) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const wb = XLSX.read(e.target.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws);
+      processData(data);
+    };
+    reader.readAsBinaryString(file);
+  } else {
+    setStatus('Format non supporté', 'error');
+  }
+}
+
+function processData(rows) {
+  if (!rows || rows.length === 0) {
+    setStatus('Fichier vide', 'error');
+    return;
+  }
+  
+  G.rawRows = rows;
+  G.sourceColumns = Object.keys(rows[0]);
+  
+  showMapping();
+}
+
+function showMapping() {
+  const tbody = document.getElementById('mapping-tbody');
+  tbody.innerHTML = '';
+  
+  const config = TABLE_CONFIG[G.targetTable];
+  const autoMapping = config.mapping || {};
+  
+  // Header
+  document.getElementById('mapping-header-target').textContent = `→ Colonne ${G.targetTable}`;
+  
+  G.sourceColumns.forEach(srcCol => {
+    const tr = document.createElement('tr');
+    
+    // Colonne source
+    const tdSrc = document.createElement('td');
+    tdSrc.className = 'col-source';
+    tdSrc.textContent = srcCol;
+    tr.appendChild(tdSrc);
+    
+    // Preview
+    const tdPreview = document.createElement('td');
+    tdPreview.className = 'col-preview';
+    const sampleVal = G.rawRows[0][srcCol];
+    tdPreview.textContent = sampleVal ? String(sampleVal).substring(0, 50) : '';
+    tr.appendChild(tdPreview);
+    
+    // Select target
+    const tdTarget = document.createElement('td');
+    const select = document.createElement('select');
+    select.innerHTML = '<option value="[Ignorer]">[Ignorer]</option>';
+    
+    G.targetColumns.forEach(targetCol => {
+      const opt = document.createElement('option');
+      opt.value = targetCol;
+      opt.textContent = targetCol;
+      select.appendChild(opt);
+    });
+    
+    // Auto-mapping
+    const autoTarget = autoMapping[srcCol] || srcCol;
+    if (G.targetColumns.includes(autoTarget)) {
+      select.value = autoTarget;
+      G.mapping[srcCol] = autoTarget;
+    } else {
+      G.mapping[srcCol] = '[Ignorer]';
+    }
+    
+    select.onchange = () => {
+      G.mapping[srcCol] = select.value;
+    };
+    
+    tdTarget.appendChild(select);
+    tr.appendChild(tdTarget);
+    
+    tbody.appendChild(tr);
+  });
+  
+  document.getElementById('mapping-section').classList.add('visible');
+  setStatus(`${G.sourceColumns.length} colonnes détectées`, 'info');
+}
+
+// Preview
+document.getElementById('btn-preview').onclick = generatePreview;
+
+function generatePreview() {
+  G.previewRows = [];
+  
+  const config = TABLE_CONFIG[G.targetTable];
+  const keyFields = config.keyFields;
+  
+  // Index existant
+  const existingIndex = {};
+  G.existingData.id.forEach((id, idx) => {
+    const key = keyFields.map(f => G.existingData[f][idx]).join('|');
+    existingIndex[key] = id;
+  });
+  
+  // Résolution HIE si besoin
+  let equivMap = {};
+  let hieToId = {};
+  
+  if (config.needsStructure) {
+    G.equivalence.Source.forEach((src, idx) => {
+      const hie = G.equivalence.HIE[idx];
+      equivMap[normalizeText(src)] = hie;
+    });
+    
+    G.structures.id.forEach((id, idx) => {
+      const hie = G.structures.HIE[idx];
+      hieToId[hie] = id;
+    });
+  }
+  
+  // Traiter chaque ligne
+  G.rawRows.forEach((row, idx) => {
+    const previewRow = {
+      _source: row,
+      _index: idx,
+      _status: 'insert',
+      _error: null
+    };
+    
+    // Mapper les colonnes
+    Object.keys(G.mapping).forEach(srcCol => {
+      const targetCol = G.mapping[srcCol];
+      if (targetCol === '[Ignorer]') return;
+      
+      let value = row[srcCol];
+      
+      if (targetCol === 'Structure' && config.needsStructure) {
+        // Résolution via Equivalence
+        const sourceSI = String(value || '').trim();
+        const normalizedSource = normalizeText(sourceSI);
+        const hie = equivMap[normalizedSource];
+        
+        if (!hie) {
+          previewRow._error = `Structure "${sourceSI}" non trouvée`;
+          previewRow._status = 'error';
+          return;
+        }
+        
+        const structId = hieToId[hie];
+        if (!structId) {
+          previewRow._error = `HIE "${hie}" non trouvé`;
+          previewRow._status = 'error';
+          return;
+        }
+        
+        previewRow[targetCol] = structId;
+      } else {
+        // Nettoyage valeur
+        if (value === null || value === '') {
+          previewRow[targetCol] = null;
+        } else if (typeof value === 'string') {
+          const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
+          const num = parseFloat(cleaned);
+          previewRow[targetCol] = isNaN(num) ? value : num;
+        } else {
+          previewRow[targetCol] = value;
+        }
+      }
+    });
+    
+    // Vérifier si existe
+    if (!previewRow._error) {
+      const keyValues = keyFields.map(f => previewRow[f]);
+      if (keyValues.every(v => v !== undefined && v !== null)) {
+        const key = keyValues.join('|');
+        if (existingIndex[key]) {
+          previewRow._status = 'update';
+          previewRow._existingId = existingIndex[key];
+        }
+      }
+    }
+    
+    G.previewRows.push(previewRow);
+  });
+  
+  showPreview();
+}
+
+function showPreview() {
+  const thead = document.getElementById('preview-thead');
+  const tbody = document.getElementById('preview-tbody');
+  
+  thead.innerHTML = '';
+  tbody.innerHTML = '';
+  
+  const mappedCols = [...new Set(Object.values(G.mapping).filter(v => v !== '[Ignorer]'))];
+  
+  // Headers
+  const trHead = document.createElement('tr');
+  trHead.innerHTML = '<th>Statut</th>';
+  mappedCols.forEach(col => {
+    const th = document.createElement('th');
+    th.textContent = col;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+  
+  // Rows
+  G.previewRows.forEach(prow => {
+    const tr = document.createElement('tr');
+    tr.className = prow._status;
+    
+    const tdStatus = document.createElement('td');
+    if (prow._status === 'error') {
+      tdStatus.innerHTML = `<span class="badge badge-error">ERREUR</span><br><small>${prow._error}</small>`;
+    } else if (prow._status === 'insert') {
+      tdStatus.innerHTML = '<span class="badge badge-insert">INSERT</span>';
+    } else {
+      tdStatus.innerHTML = '<span class="badge badge-update">UPDATE</span>';
+    }
+    tr.appendChild(tdStatus);
+    
+    mappedCols.forEach(col => {
+      const td = document.createElement('td');
+      td.textContent = prow[col] ?? '';
+      tr.appendChild(td);
+    });
+    
+    tbody.appendChild(tr);
+  });
+  
+  // Stats
+  const nInsert = G.previewRows.filter(r => r._status === 'insert').length;
+  const nUpdate = G.previewRows.filter(r => r._status === 'update').length;
+  const nError = G.previewRows.filter(r => r._status === 'error').length;
+  
+  document.getElementById('preview-title-text').textContent = 
+    `📋 Preview — ${nInsert} insertions, ${nUpdate} mises à jour, ${nError} erreurs`;
+  
+  document.getElementById('preview-section').classList.add('visible');
+  document.getElementById('btn-write').disabled = nError > 0 || (nInsert + nUpdate === 0);
+  
+  setStatus(`Preview générée : ${nInsert} INSERT, ${nUpdate} UPDATE, ${nError} erreurs`, nError > 0 ? 'error' : 'success');
+}
+
+// Écriture
+document.getElementById('btn-write').onclick = async () => {
+  setStatus('Écriture dans Grist...', 'info');
+  document.getElementById('btn-write').disabled = true;
+  document.getElementById('console-logs').innerHTML = '';
+  
+  try {
+    const toInsert = G.previewRows.filter(r => r._status === 'insert');
+    const toUpdate = G.previewRows.filter(r => r._status === 'update');
+    
+    addLog(`Début écriture dans ${G.targetTable} : ${toInsert.length} insertions, ${toUpdate.length} mises à jour`);
+    
+    const mappedCols = Object.values(G.mapping).filter(v => v !== '[Ignorer]');
+    
+    if (toInsert.length > 0) {
+      const colData = {};
+      mappedCols.forEach(colName => {
+        colData[colName] = toInsert.map(r => r[colName] ?? null);
+      });
+      
+      await grist.docApi.applyUserActions([
+        ['BulkAddRecord', G.targetTable, Array(toInsert.length).fill(null), colData]
+      ]);
+      addLog(`${toInsert.length} lignes insérées`, 'success');
+    }
+    
+    if (toUpdate.length > 0) {
+      const ids = toUpdate.map(r => r._existingId);
+      const colData = {};
+      mappedCols.forEach(colName => {
+        colData[colName] = toUpdate.map(r => r[colName] ?? null);
+      });
+      
+      await grist.docApi.applyUserActions([
+        ['BulkUpdateRecord', G.targetTable, ids, colData]
+      ]);
+      addLog(`${toUpdate.length} lignes mises à jour`, 'success');
+    }
+    
+    addLog('Écriture terminée', 'success');
+    setStatus(`✓ ${toInsert.length} lignes insérées, ${toUpdate.length} mises à jour`, 'success');
+    
+    setTimeout(() => resetUI(), 2000);
+    
+  } catch (err) {
+    addLog('Erreur : ' + err.message, 'error');
+    setStatus('Erreur : ' + err.message, 'error');
+    document.getElementById('btn-write').disabled = false;
+  }
+};
+
+document.getElementById('btn-cancel').onclick = resetUI;
+
+function resetUI() {
+  document.getElementById('mapping-section').classList.remove('visible');
+  document.getElementById('preview-section').classList.remove('visible');
+  G.rawRows = [];
+  G.previewRows = [];
+  G.mapping = {};
+  fileinput.value = '';
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status visible ' + type;
+}
+
+function addLog(msg, type = 'info') {
+  const consoleSection = document.getElementById('console-section');
+  const consoleLogs = document.getElementById('console-logs');
+  
+  consoleSection.style.display = 'block';
+  
+  const timestamp = new Date().toLocaleTimeString('fr-FR');
+  const color = type === 'success' ? '#16B378' : type === 'error' ? '#DC2626' : '#929299';
+  const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : '›';
+  
+  const line = document.createElement('div');
+  line.style.color = color;
+  line.innerHTML = `<span style="color:#929299">${timestamp}</span> ${icon} ${msg}`;
+  
+  consoleLogs.appendChild(line);
+  consoleLogs.scrollTop = consoleLogs.scrollHeight;
+}
+
+function normalizeText(text) {
+  return String(text || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+</script>
+</body>
+</html>
