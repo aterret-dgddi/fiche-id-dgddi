@@ -912,25 +912,50 @@
       const container = document.getElementById('qnav-items');
       container.innerHTML = '';
       
-      // Grouper par type
-      const groups = {};
-      allStructures.forEach(s => {
-        if (!groups[s.type]) groups[s.type] = [];
-        groups[s.type].push(s);
+      // Grouper par catégorie
+      const siege = allStructures.filter(s => s.type === 'Siège');
+      const di = allStructures.filter(s => s.type === 'DI');
+      const scn = allStructures.filter(s => s.type === 'SCN');
+      const drOutremer = allStructures.filter(s => s.type === 'DR' && s.est_outremer);
+      
+      // Afficher Siège
+      siege.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'qnav-btn Siège';
+        btn.textContent = s.sigle || 'Siège';
+        btn.dataset.id = s.id;
+        btn.onclick = () => selectStructure(s.id);
+        container.appendChild(btn);
       });
       
-      // Afficher par type
-      ['Siège', 'DI', 'SCN', 'Outremer'].forEach(type => {
-        if (!groups[type]) return;
-        
-        groups[type].forEach(s => {
-          const btn = document.createElement('button');
-          btn.className = `qnav-btn ${type}`;
-          btn.textContent = s.sigle;
-          btn.dataset.id = s.id;
-          btn.onclick = () => selectStructure(s.id);
-          container.appendChild(btn);
-        });
+      // Afficher DI
+      di.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'qnav-btn DI';
+        btn.textContent = s.sigle;
+        btn.dataset.id = s.id;
+        btn.onclick = () => selectStructure(s.id);
+        container.appendChild(btn);
+      });
+      
+      // Afficher SCN
+      scn.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'qnav-btn SCN';
+        btn.textContent = s.sigle;
+        btn.dataset.id = s.id;
+        btn.onclick = () => selectStructure(s.id);
+        container.appendChild(btn);
+      });
+      
+      // Afficher DR Outremer
+      drOutremer.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'qnav-btn Outremer';
+        btn.textContent = s.sigle || s.nom.substring(0, 15);
+        btn.dataset.id = s.id;
+        btn.onclick = () => selectStructure(s.id);
+        container.appendChild(btn);
       });
     }
 
@@ -960,30 +985,44 @@
       
       // Construire la liste des structures
       const structures = FICHE_STATE.data.structures;
+      
+      // Filtrer : Siège, DI, SCN, DR Outremer uniquement
       allStructures = structures.id.map((id, idx) => ({
         id: id,
         hie: structures.HIE[idx],
         nom: structures.Nom[idx],
         sigle: structures.Sigle[idx],
         type: structures.Type[idx],
-        region: structures.Region[idx] || ''
-      }));
+        region: structures.Region[idx] || '',
+        est_outremer: structures.Est_Outremer ? structures.Est_Outremer[idx] : false
+      })).filter(s => {
+        // Garder : Siège, DI, SCN, ou (DR Outremer)
+        return s.type === 'Siège' || 
+               s.type === 'DI' || 
+               s.type === 'SCN' || 
+               (s.type === 'DR' && s.est_outremer === true);
+      });
       
       // Trier par type puis nom
       allStructures.sort((a, b) => {
-        const typeOrder = { 'Siège': 0, 'DI': 1, 'SCN': 2, 'Outremer': 3 };
+        const typeOrder = { 'Siège': 0, 'DI': 1, 'SCN': 2, 'DR': 3 };
         if (typeOrder[a.type] !== typeOrder[b.type]) {
           return typeOrder[a.type] - typeOrder[b.type];
         }
         return a.nom.localeCompare(b.nom);
       });
       
+      console.log(`Structures filtrées: ${allStructures.length}`, allStructures.map(s => `${s.type}: ${s.sigle}`));
+      
       // Initialiser les composants
       renderQuickNav();
       renderDropdownList();
       
-      // Sélectionner la première structure
-      if (allStructures.length > 0) {
+      // Sélectionner la première DI (pas le Siège)
+      const premieresDI = allStructures.filter(s => s.type === 'DI');
+      if (premieresDI.length > 0) {
+        selectStructure(premieresDI[0].id);
+      } else if (allStructures.length > 0) {
         selectStructure(allStructures[0].id);
       }
       
