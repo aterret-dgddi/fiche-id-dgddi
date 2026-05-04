@@ -259,9 +259,6 @@ function getRHHistorique(structureId) {
   return historique;
 }
 
-  return historique;
-}
-
 function getVehiculesData(structureId, annee) {
   const veh = FICHE_STATE.data.vehicules;
   const idx = veh.id.findIndex((id, i) => 
