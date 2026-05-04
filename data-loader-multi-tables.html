@@ -306,7 +306,7 @@ const TABLE_CONFIG = {
   },
   'RH': {
     description: 'Effectifs et masse salariale par structure',
-    columns: ['Structure', 'Annee', 'Mois', 'Effectif_AGCO', 'Effectif_SU', 'Effectif_Autres', 'Masse_Salariale'],
+    columns: ['Structure', 'Annee', 'Mois', 'Effectif_AGCO', 'Effectif_SU', 'Effectif_Autres', 'Masse_Salariale', 'Age_Moyen_SU', 'Age_Moyen_AGCO', 'Age_Moyen_Autres'],
     keyFields: ['Structure', 'Annee', 'Mois'],
     needsStructure: true
   },
@@ -630,25 +630,38 @@ function generatePreview() {
       let value = row[srcCol];
       
       if (targetCol === 'Structure' && config.needsStructure) {
-        // Résolution via Equivalence
+        // Résolution via Equivalence OU HIE direct
         const sourceSI = String(value || '').trim();
-        const normalizedSource = normalizeText(sourceSI);
-        const hie = equivMap[normalizedSource];
         
-        if (!hie) {
-          previewRow._error = `Structure "${sourceSI}" non trouvée`;
-          previewRow._status = 'error';
-          return;
+        // Si c'est déjà un HIE (commence par HIE), chercher directement dans Structures
+        if (sourceSI.startsWith('HIE')) {
+          const structId = hieToId[sourceSI];
+          if (!structId) {
+            previewRow._error = `HIE "${sourceSI}" non trouvé dans Structures`;
+            previewRow._status = 'error';
+            return;
+          }
+          previewRow[targetCol] = structId;
+        } else {
+          // Sinon, chercher dans Equivalence
+          const normalizedSource = normalizeText(sourceSI);
+          const hie = equivMap[normalizedSource];
+          
+          if (!hie) {
+            previewRow._error = `Structure "${sourceSI}" non trouvée dans Equivalence`;
+            previewRow._status = 'error';
+            return;
+          }
+          
+          const structId = hieToId[hie];
+          if (!structId) {
+            previewRow._error = `HIE "${hie}" non trouvé dans Structures`;
+            previewRow._status = 'error';
+            return;
+          }
+          
+          previewRow[targetCol] = structId;
         }
-        
-        const structId = hieToId[hie];
-        if (!structId) {
-          previewRow._error = `HIE "${hie}" non trouvé`;
-          previewRow._status = 'error';
-          return;
-        }
-        
-        previewRow[targetCol] = structId;
       } else {
         // Nettoyage valeur
         if (value === null || value === '') {
