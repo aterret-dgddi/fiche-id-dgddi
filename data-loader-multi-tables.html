@@ -572,7 +572,20 @@ function showMapping() {
 }
 
 // Preview
-document.getElementById('btn-preview').onclick = generatePreview;
+document.getElementById('btn-preview').onclick = async () => {
+  // Recharger les données existantes avant de générer la preview
+  try {
+    setStatus('Chargement des données existantes...', 'info');
+    const data = await grist.docApi.fetchTable(G.targetTable);
+    G.existingData = data;
+    console.log(`✓ ${data.id ? data.id.length : 0} lignes existantes chargées`);
+  } catch (err) {
+    setStatus('Erreur chargement données : ' + err.message, 'error');
+    return;
+  }
+  
+  generatePreview();
+};
 
 function generatePreview() {
   G.previewRows = [];
