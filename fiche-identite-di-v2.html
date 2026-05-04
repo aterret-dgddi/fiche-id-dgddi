@@ -1087,13 +1087,14 @@
       // KPI - Masse Salariale
       document.getElementById('rh-masse-salariale').textContent = formatCurrency(dataN.masse_salariale, 0);
       
-      // Tableau détaillé par DR
+      // Tableau détaillé par DR (uniquement pour les DI)
       const details = getRHDetailParDR(structureId, annee);
       const tbody = document.getElementById('rh-detail-tbody');
       const tfoot = document.getElementById('rh-detail-tfoot');
       tbody.innerHTML = '';
       
       if (details && details.length > 0) {
+        // Afficher le tableau pour les DI
         details.forEach(d => {
           const tr = document.createElement('tr');
           tr.innerHTML = `
@@ -1114,6 +1115,21 @@
         tfoot.innerHTML = `
           <tr>
             <td>TOTAL</td>
+            <td style="text-align: right;">${formatNumber(dataN.effectif_total)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_agco)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_su)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_autres)}</td>
+            <td style="text-align: right;">${formatCurrency(dataN.masse_salariale, 0)}</td>
+            <td style="text-align: right;">${formatCurrency(msParAgent, 0)}</td>
+            <td style="text-align: center;">${formatNumber(ageMoyen, 1)}</td>
+          </tr>
+        `;
+      } else {
+        // Pour Siège/SCN : afficher juste les totaux sans détail par DR
+        const msParAgent = dataN.effectif_total > 0 ? Math.round(dataN.masse_salariale / dataN.effectif_total) : 0;
+        tfoot.innerHTML = `
+          <tr>
+            <td><strong>${FICHE_STATE.structure.sigle || FICHE_STATE.structure.nom}</strong></td>
             <td style="text-align: right;">${formatNumber(dataN.effectif_total)}</td>
             <td style="text-align: center;">${formatNumber(dataN.effectif_agco)}</td>
             <td style="text-align: center;">${formatNumber(dataN.effectif_su)}</td>
