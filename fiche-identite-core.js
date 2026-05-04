@@ -115,10 +115,25 @@ function setStructure(structureId) {
     nom: structures.Nom[idx],
     sigle: structures.Sigle[idx],
     type: structures.Type[idx],
-    region: structures.Region[idx]
+    region: structures.Region[idx],
+    parent: structures.Parent ? structures.Parent[idx] : null
   };
   
   refreshFiche();
+}
+
+// Obtenir les DR rattachées à une DI
+function getDRRattachees(structureId) {
+  const structures = FICHE_STATE.data.structures;
+  const drList = [];
+  
+  structures.id.forEach((id, idx) => {
+    if (structures.Type[idx] === 'DR' && structures.Parent && structures.Parent[idx] === structureId) {
+      drList.push(id);
+    }
+  });
+  
+  return drList;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -127,27 +142,124 @@ function setStructure(structureId) {
 
 function getRHData(structureId, annee) {
   const rh = FICHE_STATE.data.rh;
-  const idx = rh.id.findIndex((id, i) => 
-    rh.Structure[i] === structureId && 
-    rh.Annee[i] === annee &&
-    (rh.Mois[i] === 0 || rh.Mois[i] === null)
-  );
   
-  if (idx === -1) return null;
+  // Liste des structures à agréger
+  let structureIds = [structureId];
+  
+  // Si c'est une DI, ajouter les DR rattachées
+  const currentStruct = FICHE_STATE.data.structures;
+  const idx = currentStruct.id.indexOf(structureId);
+  if (idx !== -1 && currentStruct.Type[idx] === 'DI') {
+    const drRattachees = getDRRattachees(structureId);
+    structureIds = structureIds.concat(drRattachees);
+  }
+  
+  // Agréger les données
+  let totalAGCO = 0, totalSU = 0, totalAutres = 0, totalEffectif = 0, totalMS = 0;
+  let sumAgeAGCO = 0, sumAgeSU = 0, sumAgeAutres = 0;
+  let countAgeAGCO = 0, countAgeSU = 0, countAgeAutres = 0;
+  
+  structureIds.forEach(sid => {
+    const idx = rh.id.findIndex((id, i) => 
+      rh.Structure[i] === sid && 
+      rh.Annee[i] === annee &&
+      (rh.Mois[i] === 0 || rh.Mois[i] === null)
+    );
+    
+    if (idx !== -1) {
+      totalAGCO += rh.Effectif_AGCO[idx] || 0;
+      totalSU += rh.Effectif_SU[idx] || 0;
+      totalAutres += rh.Effectif_Autres[idx] || 0;
+      totalEffectif += rh.Effectif_Remuner[idx] || 0;
+      totalMS += rh.Masse_Salariale[idx] || 0;
+      
+      if (rh.Age_Moyen_AGCO && rh.Age_Moyen_AGCO[idx]) {
+        sumAgeAGCO += rh.Age_Moyen_AGCO[idx] * (rh.Effectif_AGCO[idx] || 0);
+        countAgeAGCO += rh.Effectif_AGCO[idx] || 0;
+      }
+      if (rh.Age_Moyen_SU && rh.Age_Moyen_SU[idx]) {
+        sumAgeSU += rh.Age_Moyen_SU[idx] * (rh.Effectif_SU[idx] || 0);
+        countAgeSU += rh.Effectif_SU[idx] || 0;
+      }
+      if (rh.Age_Moyen_Autres && rh.Age_Moyen_Autres[idx]) {
+        sumAgeAutres += rh.Age_Moyen_Autres[idx] * (rh.Effectif_Autres[idx] || 0);
+        countAgeAutres += rh.Effectif_Autres[idx] || 0;
+      }
+    }
+  });
+  
+  if (totalEffectif === 0) return null;
   
   return {
-    effectif_agco: rh.Effectif_AGCO[idx] || 0,
-    effectif_su: rh.Effectif_SU[idx] || 0,
-    effectif_autres: rh.Effectif_Autres[idx] || 0,
-    effectif_total: rh.Effectif_Remuner[idx] || 0,
-    masse_salariale: rh.Masse_Salariale[idx] || 0,
-    age_moyen_agco: rh.Age_Moyen_AGCO[idx] || 0,
-    age_moyen_su: rh.Age_Moyen_SU[idx] || 0,
-    age_moyen_autres: rh.Age_Moyen_Autres[idx] || 0,
-    pct_agco: rh.Pct_AGCO[idx] || 0,
-    pct_su: rh.Pct_SU[idx] || 0,
-    pct_autres: rh.Pct_Autres[idx] || 0
+    effectif_agco: totalAGCO,
+    effectif_su: totalSU,
+    effectif_autres: totalAutres,
+    effectif_total: totalEffectif,
+    masse_salariale: totalMS,
+    age_moyen_agco: countAgeAGCO > 0 ? Math.round(sumAgeAGCO / countAgeAGCO * 10) / 10 : 0,
+    age_moyen_su: countAgeSU > 0 ? Math.round(sumAgeSU / countAgeSU * 10) / 10 : 0,
+    age_moyen_autres: countAgeAutres > 0 ? Math.round(sumAgeAutres / countAgeAutres * 10) / 10 : 0,
+    pct_agco: totalEffectif > 0 ? Math.round(totalAGCO / totalEffectif * 1000) / 10 : 0,
+    pct_su: totalEffectif > 0 ? Math.round(totalSU / totalEffectif * 1000) / 10 : 0,
+    pct_autres: totalEffectif > 0 ? Math.round(totalAutres / totalEffectif * 1000) / 10 : 0
   };
+}
+
+function getRHHistorique(structureId) {
+  const rh = FICHE_STATE.data.rh;
+  
+  // Liste des structures à agréger
+  let structureIds = [structureId];
+  
+  // Si c'est une DI, ajouter les DR rattachées
+  const currentStruct = FICHE_STATE.data.structures;
+  const idx = currentStruct.id.indexOf(structureId);
+  if (idx !== -1 && currentStruct.Type[idx] === 'DI') {
+    const drRattachees = getDRRattachees(structureId);
+    structureIds = structureIds.concat(drRattachees);
+  }
+  
+  // Récupérer toutes les années disponibles
+  const anneesSet = new Set();
+  rh.id.forEach((id, i) => {
+    if (structureIds.includes(rh.Structure[i]) && (rh.Mois[i] === 0 || rh.Mois[i] === null)) {
+      anneesSet.add(rh.Annee[i]);
+    }
+  });
+  
+  const annees = Array.from(anneesSet).sort();
+  
+  // Agréger par année
+  const historique = annees.map(annee => {
+    let totalAGCO = 0, totalSU = 0, totalAutres = 0;
+    
+    structureIds.forEach(sid => {
+      const idx = rh.id.findIndex((id, i) => 
+        rh.Structure[i] === sid && 
+        rh.Annee[i] === annee &&
+        (rh.Mois[i] === 0 || rh.Mois[i] === null)
+      );
+      
+      if (idx !== -1) {
+        totalAGCO += rh.Effectif_AGCO[idx] || 0;
+        totalSU += rh.Effectif_SU[idx] || 0;
+        totalAutres += rh.Effectif_Autres[idx] || 0;
+      }
+    });
+    
+    return {
+      annee: annee,
+      agco: totalAGCO,
+      su: totalSU,
+      autres: totalAutres,
+      total: totalAGCO + totalSU + totalAutres
+    };
+  });
+  
+  return historique;
+}
+
+  return historique;
 }
 
 function getVehiculesData(structureId, annee) {
@@ -197,22 +309,24 @@ function getFraisMissionData(structureId, annee) {
 
 function getInformatiqueData(structureId, annee) {
   const it = FICHE_STATE.data.informatique;
+  if (!it || !it.id) return null;
+  
   const idx = it.id.findIndex((id, i) => 
-    it.Structure[i] === structureId && 
-    it.Annee[i] === annee
+    it.Structure && it.Structure[i] === structureId && 
+    it.Annee && it.Annee[i] === annee
   );
   
   if (idx === -1) return null;
   
   return {
-    nb_portables: it.Nb_Portables[idx] || 0,
-    nb_fixes: it.Nb_Fixes[idx] || 0,
-    nb_postes_travail: it.Nb_Postes_Travail[idx] || 0,
-    budget_it: it.Budget_IT_CP[idx] || 0,
-    budget_it_par_agent: it.Budget_IT_Par_Agent[idx] || 0,
-    budget_it_par_poste: it.Budget_IT_Par_Poste[idx] || 0,
-    ratio_poste_agent: it.Ratio_Poste_Agent[idx] || 0,
-    pct_portables: it.Pct_Portables[idx] || 0
+    nb_portables: (it.Nb_Portables && it.Nb_Portables[idx]) || 0,
+    nb_fixes: (it.Nb_Fixes && it.Nb_Fixes[idx]) || 0,
+    nb_postes_travail: (it.Nb_Postes_Travail && it.Nb_Postes_Travail[idx]) || 0,
+    budget_it: (it.Budget_IT_CP && it.Budget_IT_CP[idx]) || 0,
+    budget_it_par_agent: (it.Budget_IT_Par_Agent && it.Budget_IT_Par_Agent[idx]) || 0,
+    budget_it_par_poste: (it.Budget_IT_Par_Poste && it.Budget_IT_Par_Poste[idx]) || 0,
+    ratio_poste_agent: (it.Ratio_Poste_Agent && it.Ratio_Poste_Agent[idx]) || 0,
+    pct_portables: (it.Pct_Portables && it.Pct_Portables[idx]) || 0
   };
 }
 
@@ -390,6 +504,78 @@ function createPieChart(canvasId, labels, data, colors) {
         legend: {
           position: 'bottom',
           labels: { padding: 15, font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+
+function createStackedAreaChart(canvasId, historique) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  
+  const labels = historique.map(h => h.annee);
+  const dataAGCO = historique.map(h => h.agco);
+  const dataSU = historique.map(h => h.su);
+  const dataAutres = historique.map(h => h.autres);
+  
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'AGCO',
+          data: dataAGCO,
+          backgroundColor: 'rgba(0, 123, 255, 0.5)',
+          borderColor: 'rgba(0, 123, 255, 1)',
+          borderWidth: 2,
+          fill: true
+        },
+        {
+          label: 'SU',
+          data: dataSU,
+          backgroundColor: 'rgba(25, 135, 84, 0.5)',
+          borderColor: 'rgba(25, 135, 84, 1)',
+          borderWidth: 2,
+          fill: true
+        },
+        {
+          label: 'Autres',
+          data: dataAutres,
+          backgroundColor: 'rgba(255, 193, 7, 0.5)',
+          borderColor: 'rgba(255, 193, 7, 1)',
+          borderWidth: 2,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { padding: 15, font: { size: 11 } }
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          title: { display: true, text: 'Année' }
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          title: { display: true, text: 'Effectifs' }
         }
       }
     }
