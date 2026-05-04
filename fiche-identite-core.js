@@ -32,7 +32,7 @@ function initGrist() {
     return;
   }
   
-  grist.ready({ requiredAccess: 'read' });
+  grist.ready({ requiredAccess: 'full' });
   
   // API DINUM - pas de onReady
   setTimeout(() => {
@@ -257,6 +257,61 @@ function getRHHistorique(structureId) {
   });
   
   return historique;
+}
+
+function getRHDetailParDR(structureId, annee) {
+  const rh = FICHE_STATE.data.rh;
+  const structures = FICHE_STATE.data.structures;
+  
+  // Vérifier si c'est une DI
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1 || structures.Type[idx] !== 'DI') {
+    return null;
+  }
+  
+  // Récupérer la DI elle-même + les DR rattachées
+  const drRattachees = getDRRattachees(structureId);
+  const allStructures = [structureId].concat(drRattachees);
+  
+  const details = [];
+  
+  allStructures.forEach(sid => {
+    const structIdx = structures.id.indexOf(sid);
+    const rhIdx = rh.id.findIndex((id, i) => 
+      rh.Structure[i] === sid && 
+      rh.Annee[i] === annee &&
+      (rh.Mois[i] === 0 || rh.Mois[i] === null)
+    );
+    
+    if (rhIdx !== -1) {
+      const effectifTotal = (rh.Effectif_AGCO[rhIdx] || 0) + (rh.Effectif_SU[rhIdx] || 0) + (rh.Effectif_Autres[rhIdx] || 0);
+      const agcoCount = rh.Effectif_AGCO[rhIdx] || 0;
+      const suCount = rh.Effectif_SU[rhIdx] || 0;
+      const autresCount = rh.Effectif_Autres[rhIdx] || 0;
+      
+      details.push({
+        nom: structures.Nom[structIdx],
+        sigle: structures.Sigle[structIdx],
+        type: structures.Type[structIdx],
+        effectif_total: effectifTotal,
+        effectif_agco: agcoCount,
+        effectif_su: suCount,
+        effectif_autres: autresCount,
+        masse_salariale: rh.Masse_Salariale[rhIdx] || 0,
+        age_moyen_total: effectifTotal > 0 ? 
+          Math.round(
+            ((rh.Age_Moyen_AGCO && rh.Age_Moyen_AGCO[rhIdx] ? rh.Age_Moyen_AGCO[rhIdx] * agcoCount : 0) +
+             (rh.Age_Moyen_SU && rh.Age_Moyen_SU[rhIdx] ? rh.Age_Moyen_SU[rhIdx] * suCount : 0) +
+             (rh.Age_Moyen_Autres && rh.Age_Moyen_Autres[rhIdx] ? rh.Age_Moyen_Autres[rhIdx] * autresCount : 0)) / effectifTotal * 10
+          ) / 10 : 0,
+        age_moyen_agco: (rh.Age_Moyen_AGCO && rh.Age_Moyen_AGCO[rhIdx]) || 0,
+        age_moyen_su: (rh.Age_Moyen_SU && rh.Age_Moyen_SU[rhIdx]) || 0,
+        age_moyen_autres: (rh.Age_Moyen_Autres && rh.Age_Moyen_Autres[rhIdx]) || 0
+      });
+    }
+  });
+  
+  return details;
 }
 
 function getVehiculesData(structureId, annee) {
