@@ -1056,34 +1056,65 @@
       
       if (!dataN) {
         console.warn('⚠️ Pas de données RH pour cette structure');
+        
+        // Effacer tous les champs
+        document.getElementById('rh-effectif-total').textContent = '—';
+        document.getElementById('rh-effectif-evolution').textContent = '—';
+        document.getElementById('rh-agco-total').textContent = '—';
+        document.getElementById('rh-agco-evolution').textContent = '—';
+        document.getElementById('rh-su-total').textContent = '—';
+        document.getElementById('rh-su-evolution').textContent = '—';
+        document.getElementById('rh-age-moyen').textContent = '—';
+        document.getElementById('rh-masse-salariale').textContent = '—';
+        
+        // Vider le tableau
+        document.getElementById('rh-detail-tbody').innerHTML = '';
+        document.getElementById('rh-detail-tfoot').innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">
+              ⚠️ Aucune donnée RH disponible pour cette structure (${FICHE_STATE.structure.sigle || FICHE_STATE.structure.nom})
+            </td>
+          </tr>
+        `;
+        
+        // Détruire les graphiques
+        const chartEvolution = Chart.getChart('chart-rh-evolution');
+        if (chartEvolution) chartEvolution.destroy();
+        
+        const chartRepartition = Chart.getChart('chart-rh-repartition');
+        if (chartRepartition) chartRepartition.destroy();
+        
+        // Vider le commentaire
+        document.getElementById('rh-commentaire').value = '';
+        
         return;
       }
       
       // KPI - Effectif Total avec évolution
       document.getElementById('rh-effectif-total').textContent = formatNumber(dataN.effectif_total);
       if (dataNMoins1) {
-        const diffEffectif = dataN.effectif_total - dataNMoins1.effectif_total;
+        const diffEffectif = Math.round(dataN.effectif_total - dataNMoins1.effectif_total);
         const color = diffEffectif >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbol = diffEffectif >= 0 ? '+' : '';
-        document.getElementById('rh-effectif-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffEffectif}</span>`;
+        document.getElementById('rh-effectif-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffEffectif}</span> vs ${annee - 1}`;
       }
       
       // KPI - AGCO avec évolution
       document.getElementById('rh-agco-total').textContent = formatNumber(dataN.effectif_agco);
       if (dataNMoins1) {
-        const diffAGCO = dataN.effectif_agco - dataNMoins1.effectif_agco;
+        const diffAGCO = Math.round(dataN.effectif_agco - dataNMoins1.effectif_agco);
         const color = diffAGCO >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbol = diffAGCO >= 0 ? '+' : '';
-        document.getElementById('rh-agco-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffAGCO}</span>`;
+        document.getElementById('rh-agco-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffAGCO}</span> vs ${annee - 1}`;
       }
       
       // KPI - SU avec évolution
       document.getElementById('rh-su-total').textContent = formatNumber(dataN.effectif_su);
       if (dataNMoins1) {
-        const diffSU = dataN.effectif_su - dataNMoins1.effectif_su;
+        const diffSU = Math.round(dataN.effectif_su - dataNMoins1.effectif_su);
         const color = diffSU >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbol = diffSU >= 0 ? '+' : '';
-        document.getElementById('rh-su-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffSU}</span>`;
+        document.getElementById('rh-su-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffSU}</span> vs ${annee - 1}`;
       }
       
       // KPI - Âge Moyen
