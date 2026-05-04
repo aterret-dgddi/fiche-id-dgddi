@@ -360,13 +360,14 @@ window.addEventListener('load', () => {
     return;
   }
   
-  // Initialisation Grist
+  // Initialisation Grist - API DINUM
   grist.ready({ requiredAccess: 'full' });
   
-  grist.onReady(() => {
+  // Pas de grist.onReady sur DINUM, charger directement
+  setTimeout(() => {
     G.gristReady = true;
     loadGristData();
-  });
+  }, 500);
 });
 
 // Charger données de référence
