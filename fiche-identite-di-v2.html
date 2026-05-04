@@ -986,6 +986,8 @@
         });
         
         // Ligne TOTAL
+        const ageMoyenGlobal = (data.age_moyen_agco * data.effectif_agco + data.age_moyen_su * data.effectif_su + data.age_moyen_autres * data.effectif_autres) / data.effectif_total;
+        
         tfoot.innerHTML = `
           <tr>
             <td>TOTAL</td>
@@ -994,9 +996,7 @@
             <td style="text-align: center;">${formatNumber(data.effectif_su)}</td>
             <td style="text-align: center;">${formatNumber(data.effectif_autres)}</td>
             <td style="text-align: right;">${formatCurrency(data.masse_salariale, 0)}</td>
-            <td style="text-align: center;"><strong>${formatNumber(
-              (data.age_moyen_agco * data.effectif_agco + data.age_moyen_su * data.effectif_su + data.age_moyen_autres * data.effectif_autres) / data.effectif_total, 1
-            )}</strong></td>
+            <td style="text-align: center;"><strong>${formatNumber(ageMoyenGlobal, 1)}</strong></td>
             <td style="text-align: center;">${formatNumber(data.age_moyen_agco, 1)}</td>
             <td style="text-align: center;">${formatNumber(data.age_moyen_su, 1)}</td>
             <td style="text-align: center;">${formatNumber(data.age_moyen_autres, 1)}</td>
@@ -1015,6 +1015,16 @@
         [data.effectif_agco, data.effectif_su, data.effectif_autres],
         ['#007bff', '#198754', '#ffc107']
       );
+      
+      // Charger le commentaire
+      const commentaire = getCommentaire(structureId, annee, 'RH');
+      const textarea = document.getElementById('rh-commentaire');
+      textarea.value = commentaire;
+      
+      // Ajouter événement de sauvegarde (blur = quand l'utilisateur quitte le champ)
+      textarea.onblur = function() {
+        saveCommentaire(structureId, annee, 'RH', this.value);
+      };
     }
 
     function refreshBudget(structureId, annee) {

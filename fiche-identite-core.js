@@ -52,14 +52,15 @@ async function loadAllData() {
     showLoader('Chargement des données...');
     
     // Charger toutes les tables en parallèle
-    const [structures, rh, vehicules, frais_mission, informatique, notif_bop, consolidation] = await Promise.all([
+    const [structures, rh, vehicules, frais_mission, informatique, notif_bop, consolidation, commentaires] = await Promise.all([
       grist.docApi.fetchTable('Structures'),
       grist.docApi.fetchTable('RH'),
       grist.docApi.fetchTable('Vehicules'),
       grist.docApi.fetchTable('Frais_Mission'),
       grist.docApi.fetchTable('Informatique'),
       grist.docApi.fetchTable('Notif_BOP'),
-      grist.docApi.fetchTable('Consolidation')
+      grist.docApi.fetchTable('Consolidation'),
+      grist.docApi.fetchTable('Commentaires')
     ]);
     
     FICHE_STATE.data.structures = structures;
@@ -69,6 +70,7 @@ async function loadAllData() {
     FICHE_STATE.data.informatique = informatique;
     FICHE_STATE.data.notif_bop = notif_bop;
     FICHE_STATE.data.consolidation = consolidation;
+    FICHE_STATE.data.commentaires = commentaires;
     
     console.log('✓ Données chargées:', {
       structures: structures.id.length,
@@ -77,7 +79,8 @@ async function loadAllData() {
       frais_mission: frais_mission.id.length,
       informatique: informatique.id.length,
       notif_bop: notif_bop.id.length,
-      consolidation: consolidation.id.length
+      consolidation: consolidation.id.length,
+      commentaires: commentaires.id.length
     });
     
     hideLoader();
@@ -632,6 +635,70 @@ function createStackedAreaChart(canvasId, historique) {
       }
     }
   });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GESTION DES COMMENTAIRES
+// ═══════════════════════════════════════════════════════════════
+
+function getCommentaire(structureId, annee, section) {
+  const comments = FICHE_STATE.data.commentaires;
+  if (!comments || !comments.id) return '';
+  
+  const idx = comments.id.findIndex((id, i) => 
+    comments.Structure[i] === structureId &&
+    comments.Annee[i] === annee &&
+    comments.Section[i] === section
+  );
+  
+  return idx !== -1 ? (comments.Commentaire[idx] || '') : '';
+}
+
+async function saveCommentaire(structureId, annee, section, commentaire) {
+  const comments = FICHE_STATE.data.commentaires;
+  if (!comments) return;
+  
+  // Chercher si un commentaire existe déjà
+  const existingIdx = comments.id.findIndex((id, i) => 
+    comments.Structure[i] === structureId &&
+    comments.Annee[i] === annee &&
+    comments.Section[i] === section
+  );
+  
+  const now = new Date().toISOString();
+  
+  try {
+    if (existingIdx !== -1) {
+      // UPDATE
+      await grist.docApi.applyUserActions([
+        ['UpdateRecord', 'Commentaires', comments.id[existingIdx], {
+          Commentaire: commentaire,
+          Date_Modification: now
+        }]
+      ]);
+      console.log(`✓ Commentaire ${section} mis à jour`);
+    } else {
+      // INSERT
+      await grist.docApi.applyUserActions([
+        ['AddRecord', 'Commentaires', null, {
+          Structure: structureId,
+          Annee: annee,
+          Section: section,
+          Commentaire: commentaire,
+          Date_Creation: now,
+          Date_Modification: now
+        }]
+      ]);
+      console.log(`✓ Commentaire ${section} créé`);
+    }
+    
+    // Recharger les commentaires
+    const newComments = await grist.docApi.fetchTable('Commentaires');
+    FICHE_STATE.data.commentaires = newComments;
+    
+  } catch (err) {
+    console.error('Erreur sauvegarde commentaire:', err);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
