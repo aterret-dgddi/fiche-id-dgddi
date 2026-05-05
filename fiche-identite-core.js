@@ -73,6 +73,15 @@ async function loadAllData() {
     FICHE_STATE.data.consolidation = consolidation;
     FICHE_STATE.data.commentaires = commentaires;
     
+    // Debug : Afficher les colonnes de Consolidation
+    if (consolidation && consolidation.id && consolidation.id.length > 0) {
+      console.log('Colonnes Consolidation disponibles:', Object.keys(consolidation));
+      console.log('Exemple ligne Consolidation[0]:', Object.keys(consolidation).reduce((obj, key) => {
+        obj[key] = consolidation[key][0];
+        return obj;
+      }, {}));
+    }
+    
     console.log('✓ Données chargées:', {
       structures: structures.id.length,
       rh: rh.id.length,
