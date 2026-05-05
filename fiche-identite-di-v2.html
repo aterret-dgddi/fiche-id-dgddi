@@ -675,87 +675,71 @@
         <div class="section-title">Budget & Consommation</div>
       </div>
       
-      <!-- KPI Taux de Consommation -->
-      <div class="kpi-grid">
+      <!-- KPI Pills -->
+      <div style="display: flex; gap: 16px; margin-bottom: 24px;">
         <!-- Taux Conso AE -->
-        <div class="kpi-card">
-          <div class="kpi-header">
-            <div class="kpi-title">Taux Consommation AE</div>
-            <div class="kpi-icon">📊</div>
-          </div>
-          <div class="kpi-value" id="budget-taux-ae">—</div>
-          <div class="kpi-details">
-            <div id="budget-taux-ae-evolution"></div>
-            <div id="budget-taux-ae-compare-groupe"></div>
-            <div id="budget-taux-ae-compare-national"></div>
+        <div style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Taux Consommation AE</div>
+          <div style="font-size: 32px; font-weight: 700; margin-bottom: 12px;" id="budget-pill-taux-ae">—</div>
+          <div style="font-size: 12px; opacity: 0.85; display: flex; gap: 12px; flex-wrap: wrap;">
+            <div id="budget-pill-ae-groupe"></div>
+            <div id="budget-pill-ae-national"></div>
           </div>
         </div>
         
         <!-- Taux Conso CP -->
-        <div class="kpi-card">
-          <div class="kpi-header">
-            <div class="kpi-title">Taux Consommation CP</div>
-            <div class="kpi-icon">📊</div>
-          </div>
-          <div class="kpi-value" id="budget-taux-cp">—</div>
-          <div class="kpi-details">
-            <div id="budget-taux-cp-evolution"></div>
-            <div id="budget-taux-cp-compare-groupe"></div>
-            <div id="budget-taux-cp-compare-national"></div>
-          </div>
-        </div>
-        
-        <!-- Notif AE -->
-        <div class="kpi-card">
-          <div class="kpi-header">
-            <div class="kpi-title">Notification AE</div>
-            <div class="kpi-icon">📋</div>
-          </div>
-          <div class="kpi-value" id="budget-notif-ae">—</div>
-          <div class="kpi-details">
-            <div id="budget-notif-ae-evolution"></div>
-          </div>
-        </div>
-        
-        <!-- Notif CP -->
-        <div class="kpi-card">
-          <div class="kpi-header">
-            <div class="kpi-title">Notification CP</div>
-            <div class="kpi-icon">📋</div>
-          </div>
-          <div class="kpi-value" id="budget-notif-cp">—</div>
-          <div class="kpi-details">
-            <div id="budget-notif-cp-evolution"></div>
+        <div style="flex: 1; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Taux Consommation CP</div>
+          <div style="font-size: 32px; font-weight: 700; margin-bottom: 12px;" id="budget-pill-taux-cp">—</div>
+          <div style="font-size: 12px; opacity: 0.85; display: flex; gap: 12px; flex-wrap: wrap;">
+            <div id="budget-pill-cp-groupe"></div>
+            <div id="budget-pill-cp-national"></div>
           </div>
         </div>
       </div>
       
-      <!-- Graphique Evolution Mensuelle -->
-      <div class="chart-container" style="margin-top: 24px;">
-        <div class="chart-title">Évolution Mensuelle de la Consommation (cumul)</div>
-        <div class="chart-subtitle">Comparaison des années disponibles - Ligne pleine = année en cours, Pointillés = années antérieures</div>
-        <div class="chart-wrapper">
-          <canvas id="chart-budget-cumul"></canvas>
+      <!-- Graphiques Evolution Mensuelle -->
+      <div class="chart-grid">
+        <div class="chart-container">
+          <div class="chart-title">Évolution Mensuelle AE (cumul)</div>
+          <div class="chart-subtitle">Comparaison des années disponibles</div>
+          <div class="chart-wrapper">
+            <canvas id="chart-budget-ae"></canvas>
+          </div>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Évolution Mensuelle CP (cumul)</div>
+          <div class="chart-subtitle">Comparaison des années disponibles</div>
+          <div class="chart-wrapper">
+            <canvas id="chart-budget-cp"></canvas>
+          </div>
         </div>
       </div>
       
-      <!-- Tableau Historique -->
+      <!-- Tableau par Type -->
       <div style="margin-top: 24px;">
-        <div class="chart-title">Historique Budgétaire</div>
+        <div class="chart-title">Exécution Budgétaire par Type</div>
         <table class="data-table">
           <thead>
             <tr>
-              <th>Année</th>
-              <th>Notif AE</th>
-              <th>Conso AE</th>
-              <th>Taux AE</th>
-              <th>Notif CP</th>
-              <th>Conso CP</th>
-              <th>Taux CP</th>
-              <th>Statut</th>
+              <th rowspan="2">Type</th>
+              <th colspan="2" id="budget-header-n2">—</th>
+              <th colspan="2" id="budget-header-n1">—</th>
+              <th colspan="2" id="budget-header-n-notif">—</th>
+              <th colspan="2" id="budget-header-n-conso">—</th>
+            </tr>
+            <tr>
+              <th>AE</th>
+              <th>CP</th>
+              <th>AE</th>
+              <th>CP</th>
+              <th>AE</th>
+              <th>CP</th>
+              <th>AE</th>
+              <th>CP</th>
             </tr>
           </thead>
-          <tbody id="budget-historique-tbody"></tbody>
+          <tbody id="budget-types-tbody"></tbody>
         </table>
       </div>
     </div>
@@ -1362,17 +1346,10 @@
       const dataN = getBudgetDataInfbud(structureId, annee);
       const notifN = getNotificationsBOP(structureId, annee);
       
-      // Récupérer données année N-1
-      const dataNMoins1 = getBudgetDataInfbud(structureId, annee - 1);
-      const notifNMoins1 = getNotificationsBOP(structureId, annee - 1);
-      
       if (!dataN || !notifN) {
         console.warn('Pas de données budget pour', structureId, annee);
         return;
       }
-      
-      // Calculer dernier mois dispo
-      const dernierMois = getDernierMoisDispo(structureId, annee);
       
       // Calculer consommations cumulées année N
       let consoAE_N = 0;
@@ -1382,34 +1359,15 @@
         consoCP_N += mois.cp;
       });
       
-      // Calculer consommations cumulées année N-1 (décembre = année complète)
-      let consoAE_NMoins1 = 0;
-      let consoCP_NMoins1 = 0;
-      if (dataNMoins1 && dataNMoins1[12]) {
-        consoAE_NMoins1 = dataNMoins1[12].ae;
-        consoCP_NMoins1 = dataNMoins1[12].cp;
-      }
-      
-      // Calculer taux de consommation
+      // Calculer taux de consommation année N
       const tauxAE_N = notifN.ae > 0 ? (consoAE_N / notifN.ae * 100) : 0;
       const tauxCP_N = notifN.cp > 0 ? (consoCP_N / notifN.cp * 100) : 0;
       
-      const tauxAE_NMoins1 = (notifNMoins1 && notifNMoins1.ae > 0) ? (consoAE_NMoins1 / notifNMoins1.ae * 100) : 0;
-      const tauxCP_NMoins1 = (notifNMoins1 && notifNMoins1.cp > 0) ? (consoCP_NMoins1 / notifNMoins1.cp * 100) : 0;
+      // Afficher Pills Taux
+      document.getElementById('budget-pill-taux-ae').textContent = formatNumber(tauxAE_N, 1) + ' %';
+      document.getElementById('budget-pill-taux-cp').textContent = formatNumber(tauxCP_N, 1) + ' %';
       
-      // Afficher KPI Taux AE
-      document.getElementById('budget-taux-ae').textContent = formatNumber(tauxAE_N, 1) + ' %';
-      
-      // Évolution taux AE
-      if (tauxAE_NMoins1 > 0) {
-        const diffTaux = tauxAE_N - tauxAE_NMoins1;
-        const color = diffTaux >= 0 ? 'var(--rouge)' : 'var(--vert)';
-        const symbol = diffTaux >= 0 ? '+' : '';
-        document.getElementById('budget-taux-ae-evolution').innerHTML = 
-          `<span style="color: ${color};">${symbol}${formatNumber(diffTaux, 1)} pts</span> vs ${annee - 1}`;
-      }
-      
-      // Comparaison groupe/national taux AE
+      // Comparaisons groupe/national
       const structures = FICHE_STATE.data.structures;
       const structIdx = structures.id.indexOf(structureId);
       const type = structIdx >= 0 ? structures.Type[structIdx] : 'DI';
@@ -1417,74 +1375,42 @@
       const tauxGroupe = getTauxConsoComparaison(type, annee);
       const tauxNational = getTauxConsoComparaison('National', annee);
       
+      // Comparaison AE
       if (tauxGroupe && tauxGroupe.taux_ae > 0) {
         const diffGroupe = tauxAE_N - tauxGroupe.taux_ae;
-        const colorGroupe = diffGroupe >= 0 ? 'var(--rouge)' : 'var(--vert)';
-        const symbolGroupe = diffGroupe >= 0 ? '+' : '';
-        document.getElementById('budget-taux-ae-compare-groupe').innerHTML =
-          `vs Moy. ${type}: <span style="color: ${colorGroupe};">${symbolGroupe}${formatNumber(diffGroupe, 1)} pts</span>`;
+        const symbol = diffGroupe >= 0 ? '+' : '';
+        document.getElementById('budget-pill-ae-groupe').innerHTML =
+          `Moy. ${type}: ${symbol}${formatNumber(diffGroupe, 1)} pts`;
       }
       
       if (tauxNational && tauxNational.taux_ae > 0) {
         const diffNational = tauxAE_N - tauxNational.taux_ae;
-        const colorNational = diffNational >= 0 ? 'var(--rouge)' : 'var(--vert)';
-        const symbolNational = diffNational >= 0 ? '+' : '';
-        document.getElementById('budget-taux-ae-compare-national').innerHTML =
-          `vs National: <span style="color: ${colorNational};">${symbolNational}${formatNumber(diffNational, 1)} pts</span>`;
+        const symbol = diffNational >= 0 ? '+' : '';
+        document.getElementById('budget-pill-ae-national').innerHTML =
+          `National: ${symbol}${formatNumber(diffNational, 1)} pts`;
       }
       
-      // Afficher KPI Taux CP (même logique)
-      document.getElementById('budget-taux-cp').textContent = formatNumber(tauxCP_N, 1) + ' %';
-      
-      if (tauxCP_NMoins1 > 0) {
-        const diffTaux = tauxCP_N - tauxCP_NMoins1;
-        const color = diffTaux >= 0 ? 'var(--rouge)' : 'var(--vert)';
-        const symbol = diffTaux >= 0 ? '+' : '';
-        document.getElementById('budget-taux-cp-evolution').innerHTML = 
-          `<span style="color: ${color};">${symbol}${formatNumber(diffTaux, 1)} pts</span> vs ${annee - 1}`;
-      }
-      
+      // Comparaison CP
       if (tauxGroupe && tauxGroupe.taux_cp > 0) {
         const diffGroupe = tauxCP_N - tauxGroupe.taux_cp;
-        const colorGroupe = diffGroupe >= 0 ? 'var(--rouge)' : 'var(--vert)';
-        const symbolGroupe = diffGroupe >= 0 ? '+' : '';
-        document.getElementById('budget-taux-cp-compare-groupe').innerHTML =
-          `vs Moy. ${type}: <span style="color: ${colorGroupe};">${symbolGroupe}${formatNumber(diffGroupe, 1)} pts</span>`;
+        const symbol = diffGroupe >= 0 ? '+' : '';
+        document.getElementById('budget-pill-cp-groupe').innerHTML =
+          `Moy. ${type}: ${symbol}${formatNumber(diffGroupe, 1)} pts`;
       }
       
       if (tauxNational && tauxNational.taux_cp > 0) {
         const diffNational = tauxCP_N - tauxNational.taux_cp;
-        const colorNational = diffNational >= 0 ? 'var(--rouge)' : 'var(--vert)';
-        const symbolNational = diffNational >= 0 ? '+' : '';
-        document.getElementById('budget-taux-cp-compare-national').innerHTML =
-          `vs National: <span style="color: ${colorNational};">${symbolNational}${formatNumber(diffNational, 1)} pts</span>`;
+        const symbol = diffNational >= 0 ? '+' : '';
+        document.getElementById('budget-pill-cp-national').innerHTML =
+          `National: ${symbol}${formatNumber(diffNational, 1)} pts`;
       }
       
-      // Afficher KPI Notifications
-      document.getElementById('budget-notif-ae').textContent = formatCurrency(notifN.ae, 0);
-      document.getElementById('budget-notif-cp').textContent = formatCurrency(notifN.cp, 0);
+      // Créer graphiques séparés AE et CP
+      createBudgetCumulChartAE(structureId, annee);
+      createBudgetCumulChartCP(structureId, annee);
       
-      if (notifNMoins1) {
-        const diffNotifAE = notifN.ae - notifNMoins1.ae;
-        const pctNotifAE = notifNMoins1.ae > 0 ? (diffNotifAE / notifNMoins1.ae * 100) : 0;
-        const colorAE = diffNotifAE >= 0 ? 'var(--vert)' : 'var(--rouge)';
-        const symbolAE = diffNotifAE >= 0 ? '+' : '';
-        document.getElementById('budget-notif-ae-evolution').innerHTML =
-          `<span style="color: ${colorAE};">${symbolAE}${formatCurrency(Math.abs(diffNotifAE), 0)} (${symbolAE}${formatNumber(pctNotifAE, 1)}%)</span> vs ${annee - 1}`;
-        
-        const diffNotifCP = notifN.cp - notifNMoins1.cp;
-        const pctNotifCP = notifNMoins1.cp > 0 ? (diffNotifCP / notifNMoins1.cp * 100) : 0;
-        const colorCP = diffNotifCP >= 0 ? 'var(--vert)' : 'var(--rouge)';
-        const symbolCP = diffNotifCP >= 0 ? '+' : '';
-        document.getElementById('budget-notif-cp-evolution').innerHTML =
-          `<span style="color: ${colorCP};">${symbolCP}${formatCurrency(Math.abs(diffNotifCP), 0)} (${symbolCP}${formatNumber(pctNotifCP, 1)}%)</span> vs ${annee - 1}`;
-      }
-      
-      // Créer graphique cumul mensuel
-      createBudgetCumulChart(structureId, annee);
-      
-      // Créer tableau historique
-      createBudgetHistoriqueTable(structureId, annee);
+      // Créer tableau par Type
+      createBudgetTableByType(structureId, annee);
     }
 
     function refreshMission(structureId, annee) {
@@ -1599,24 +1525,22 @@
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // FONCTIONS GRAPHIQUE ET TABLEAU BUDGET
+    // FONCTIONS GRAPHIQUES ET TABLEAU BUDGET
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Crée le graphique d'évolution mensuelle cumulée
+     * Crée le graphique d'évolution mensuelle AE
      */
-    function createBudgetCumulChart(structureId, anneeActuelle) {
-      const canvas = document.getElementById('chart-budget-cumul');
+    function createBudgetCumulChartAE(structureId, anneeActuelle) {
+      const canvas = document.getElementById('chart-budget-ae');
       if (!canvas) return;
       
       const ctx = canvas.getContext('2d');
       
-      // Destroy existing chart
-      if (window.chartBudgetCumul) {
-        window.chartBudgetCumul.destroy();
+      if (window.chartBudgetAE) {
+        window.chartBudgetAE.destroy();
       }
       
-      // Récupérer données pour toutes les années disponibles
       const infbud = FICHE_STATE.data.infbud40;
       if (!infbud) return;
       
@@ -1629,68 +1553,42 @@
       });
       const annees = Array.from(anneesSet).sort();
       
-      // Préparer datasets
-      const datasetsAE = [];
-      const datasetsCP = [];
-      
-      const colors = [
-        'rgb(54, 162, 235)',   // Bleu
-        'rgb(255, 99, 132)',   // Rouge
-        'rgb(75, 192, 192)',   // Turquoise
-        'rgb(255, 159, 64)',   // Orange
-        'rgb(153, 102, 255)',  // Violet
-        'rgb(255, 205, 86)'    // Jaune
-      ];
+      const datasets = [];
+      const colors = ['rgb(54, 162, 235)', 'rgb(255, 99, 132)', 'rgb(75, 192, 192)', 'rgb(255, 159, 64)', 'rgb(153, 102, 255)', 'rgb(255, 205, 86)'];
       
       annees.forEach((annee, idx) => {
         const data = getBudgetDataInfbud(structureId, annee);
         if (!data) return;
         
-        // Calculer cumuls
-        const cumulAE = [];
-        const cumulCP = [];
-        let sumAE = 0;
-        let sumCP = 0;
+        const cumul = [];
+        let sum = 0;
         
         for (let mois = 1; mois <= 12; mois++) {
           if (data[mois]) {
-            sumAE += data[mois].ae;
-            sumCP += data[mois].cp;
+            sum += data[mois].ae;
           }
-          cumulAE.push(sumAE > 0 ? sumAE : null);
-          cumulCP.push(sumCP > 0 ? sumCP : null);
+          cumul.push(sum > 0 ? sum : null);
         }
         
         const color = colors[idx % colors.length];
         const isCurrentYear = annee === anneeActuelle;
         
-        datasetsAE.push({
-          label: `AE ${annee}`,
-          data: cumulAE,
+        datasets.push({
+          label: `${annee}`,
+          data: cumul,
           borderColor: color,
           backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
           borderWidth: isCurrentYear ? 3 : 2,
           borderDash: isCurrentYear ? [] : [5, 5],
           tension: 0.1
         });
-        
-        datasetsCP.push({
-          label: `CP ${annee}`,
-          data: cumulCP,
-          borderColor: color,
-          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
-          borderWidth: isCurrentYear ? 3 : 2,
-          borderDash: isCurrentYear ? [] : [5, 5],
-          tension: 0.1,
-          hidden: true // Masqué par défaut
-        });
       });
       
-      window.chartBudgetCumul = new Chart(ctx, {
+      window.chartBudgetAE = new Chart(ctx, {
         type: 'line',
         data: {
           labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
-          datasets: [...datasetsAE, ...datasetsCP]
+          datasets: datasets
         },
         options: {
           responsive: true,
@@ -1734,97 +1632,176 @@
     }
 
     /**
-     * Crée le tableau historique budgétaire
+     * Crée le graphique d'évolution mensuelle CP
      */
-    function createBudgetHistoriqueTable(structureId, anneeActuelle) {
-      const tbody = document.getElementById('budget-historique-tbody');
-      if (!tbody) return;
+    function createBudgetCumulChartCP(structureId, anneeActuelle) {
+      const canvas = document.getElementById('chart-budget-cp');
+      if (!canvas) return;
       
-      tbody.innerHTML = '';
+      const ctx = canvas.getContext('2d');
       
-      // Récupérer toutes les années disponibles
+      if (window.chartBudgetCP) {
+        window.chartBudgetCP.destroy();
+      }
+      
       const infbud = FICHE_STATE.data.infbud40;
       if (!infbud) return;
       
+      // Trouver les années disponibles
       const anneesSet = new Set();
       infbud.Annee.forEach(a => {
         if (a && a >= 2020 && a <= anneeActuelle) {
           anneesSet.add(a);
         }
       });
-      const annees = Array.from(anneesSet).sort((a, b) => b - a); // Du plus récent au plus ancien
+      const annees = Array.from(anneesSet).sort();
       
-      annees.forEach(annee => {
+      const datasets = [];
+      const colors = ['rgb(54, 162, 235)', 'rgb(255, 99, 132)', 'rgb(75, 192, 192)', 'rgb(255, 159, 64)', 'rgb(153, 102, 255)', 'rgb(255, 205, 86)'];
+      
+      annees.forEach((annee, idx) => {
         const data = getBudgetDataInfbud(structureId, annee);
-        const notif = getNotificationsBOP(structureId, annee);
-        
         if (!data) return;
         
-        let consoAE, consoCP, dernierMois;
+        const cumul = [];
+        let sum = 0;
         
-        if (annee === anneeActuelle) {
-          // Année en cours : dernier mois disponible
-          dernierMois = getDernierMoisDispo(structureId, annee);
-          consoAE = 0;
-          consoCP = 0;
-          Object.values(data).forEach(mois => {
-            consoAE += mois.ae;
-            consoCP += mois.cp;
-          });
-        } else {
-          // Années antérieures : décembre (cumulé annuel)
-          if (data[12]) {
-            consoAE = data[12].ae;
-            consoCP = data[12].cp;
-            dernierMois = 12;
-          } else {
-            return; // Pas de données décembre
+        for (let mois = 1; mois <= 12; mois++) {
+          if (data[mois]) {
+            sum += data[mois].cp;
           }
+          cumul.push(sum > 0 ? sum : null);
         }
         
-        const notifAE = notif ? notif.ae : 0;
-        const notifCP = notif ? notif.cp : 0;
+        const color = colors[idx % colors.length];
+        const isCurrentYear = annee === anneeActuelle;
         
-        const tauxAE = notifAE > 0 ? (consoAE / notifAE * 100) : 0;
-        const tauxCP = notifCP > 0 ? (consoCP / notifCP * 100) : 0;
-        
-        // Déterminer statut
-        let statut = 'OK';
-        let badgeClass = 'badge-success';
-        
-        if (annee !== anneeActuelle) {
-          // Années passées : vérifier si taux > 100%
-          if (tauxAE > 100 || tauxCP > 100) {
-            statut = 'DÉPASSEMENT';
-            badgeClass = 'badge-danger';
-          } else if (tauxAE > 95 || tauxCP > 95) {
-            statut = 'ATTENTION';
-            badgeClass = 'badge-warning';
-          }
-        } else {
-          // Année en cours : vérifier projection
-          const moisEcoules = dernierMois;
-          const tauxTemporel = (moisEcoules / 12) * 100;
-          
-          if (tauxAE > tauxTemporel + 10 || tauxCP > tauxTemporel + 10) {
-            statut = 'AVANCE';
-            badgeClass = 'badge-warning';
-          } else if (tauxAE < tauxTemporel - 10 || tauxCP < tauxTemporel - 10) {
-            statut = 'RETARD';
-            badgeClass = 'badge-warning';
+        datasets.push({
+          label: `${annee}`,
+          data: cumul,
+          borderColor: color,
+          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+          borderWidth: isCurrentYear ? 3 : 2,
+          borderDash: isCurrentYear ? [] : [5, 5],
+          tension: 0.1
+        });
+      });
+      
+      window.chartBudgetCP = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed.y !== null) {
+                    label += formatCurrency(context.parsed.y, 0);
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return formatCurrency(value, 0);
+                }
+              }
+            }
           }
         }
-        
+      });
+    }
+
+    /**
+     * Crée le tableau par Type budgétaire
+     */
+    function createBudgetTableByType(structureId, anneeActuelle) {
+      const tbody = document.getElementById('budget-types-tbody');
+      if (!tbody) return;
+      
+      tbody.innerHTML = '';
+      
+      // Mettre à jour les headers avec les années
+      document.getElementById('budget-header-n2').textContent = (anneeActuelle - 2);
+      document.getElementById('budget-header-n1').textContent = (anneeActuelle - 1);
+      document.getElementById('budget-header-n-notif').textContent = `${anneeActuelle} Notif`;
+      document.getElementById('budget-header-n-conso').textContent = `${anneeActuelle} Conso`;
+      
+      // Récupérer les types depuis Notif_BOP
+      const notifBop = FICHE_STATE.data.notif_bop;
+      if (!notifBop) return;
+      
+      // Types à afficher
+      const types = ['Total', 'T2', 'Fonctionnement', 'Intervention', 'Vehicule'];
+      const labels = {
+        'Total': 'Total (hors T2)',
+        'T2': 'Masse Salariale',
+        'Fonctionnement': 'Fonctionnement',
+        'Intervention': 'Intervention',
+        'Vehicule': 'Véhicules'
+      };
+      
+      types.forEach(type => {
         const tr = document.createElement('tr');
+        
+        // Année N-2
+        const dataNMoins2 = getBudgetDataInfbudByType(structureId, anneeActuelle - 2, type);
+        const aeNMoins2 = dataNMoins2 && dataNMoins2[12] ? dataNMoins2[12].ae : 0;
+        const cpNMoins2 = dataNMoins2 && dataNMoins2[12] ? dataNMoins2[12].cp : 0;
+        
+        // Année N-1
+        const dataNMoins1 = getBudgetDataInfbudByType(structureId, anneeActuelle - 1, type);
+        const aeNMoins1 = dataNMoins1 && dataNMoins1[12] ? dataNMoins1[12].ae : 0;
+        const cpNMoins1 = dataNMoins1 && dataNMoins1[12] ? dataNMoins1[12].cp : 0;
+        
+        // Année N : Notif
+        const notifN = getNotificationsBOPByType(structureId, anneeActuelle, type);
+        const notifAE_N = notifN ? notifN.ae : 0;
+        const notifCP_N = notifN ? notifN.cp : 0;
+        
+        // Année N : Conso
+        const dataN = getBudgetDataInfbudByType(structureId, anneeActuelle, type);
+        let consoAE_N = 0;
+        let consoCP_N = 0;
+        if (dataN) {
+          Object.values(dataN).forEach(mois => {
+            consoAE_N += mois.ae;
+            consoCP_N += mois.cp;
+          });
+        }
+        
         tr.innerHTML = `
-          <td><strong>${annee}${annee === anneeActuelle ? ' (en cours)' : ''}</strong></td>
-          <td style="text-align: right;">${formatCurrency(notifAE, 0)}</td>
-          <td style="text-align: right;">${formatCurrency(consoAE, 0)}</td>
-          <td style="text-align: right;"><strong>${formatNumber(tauxAE, 1)} %</strong></td>
-          <td style="text-align: right;">${formatCurrency(notifCP, 0)}</td>
-          <td style="text-align: right;">${formatCurrency(consoCP, 0)}</td>
-          <td style="text-align: right;"><strong>${formatNumber(tauxCP, 1)} %</strong></td>
-          <td style="text-align: center;"><span class="badge ${badgeClass}">${statut}</span></td>
+          <td><strong>${labels[type]}</strong></td>
+          <td style="text-align: right;">${formatCurrency(aeNMoins2, 0)}</td>
+          <td style="text-align: right;">${formatCurrency(cpNMoins2, 0)}</td>
+          <td style="text-align: right;">${formatCurrency(aeNMoins1, 0)}</td>
+          <td style="text-align: right;">${formatCurrency(cpNMoins1, 0)}</td>
+          <td style="text-align: right;">${formatCurrency(notifAE_N, 0)}</td>
+          <td style="text-align: right;">${formatCurrency(notifCP_N, 0)}</td>
+          <td style="text-align: right;">${formatCurrency(consoAE_N, 0)}</td>
+          <td style="text-align: right;">${formatCurrency(consoCP_N, 0)}</td>
         `;
         tbody.appendChild(tr);
       });

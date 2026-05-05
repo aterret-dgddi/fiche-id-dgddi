@@ -1129,3 +1129,94 @@ function getTauxConsoComparaison(type, annee) {
     taux_cp: totalNotifCP > 0 ? (totalConsoCP / totalNotifCP * 100) : 0
   };
 }
+
+/**
+ * Récupère les données budgétaires pour une structure, une année ET un type
+ */
+function getBudgetDataInfbudByType(structureId, annee, type) {
+  const infbud = FICHE_STATE.data.infbud40;
+  const structures = FICHE_STATE.data.structures;
+  
+  if (!infbud || !structures) return null;
+  
+  const structIdx = structures.id.indexOf(structureId);
+  if (structIdx === -1) return null;
+  
+  const structType = structures.Type[structIdx];
+  let structuresToAggregate = [structureId];
+  
+  if (structType === 'DI') {
+    structures.id.forEach((id, i) => {
+      if (structures.Type[i] === 'DR' && structures.Parent[i] === structureId) {
+        structuresToAggregate.push(id);
+      }
+    });
+  }
+  
+  const dataByMonth = {};
+  
+  infbud.id.forEach((id, idx) => {
+    const budgetAnnee = infbud.Annee[idx];
+    const budgetStructId = infbud.Structure[idx];
+    const budgetType = infbud.Type[idx];
+    
+    if (budgetAnnee !== annee) return;
+    if (!structuresToAggregate.includes(budgetStructId)) return;
+    if (budgetType !== type) return;
+    
+    const moisNum = infbud.Mois_Numero[idx];
+    if (!moisNum || moisNum === 0) return;
+    
+    if (!dataByMonth[moisNum]) {
+      dataByMonth[moisNum] = {
+        mois_numero: moisNum,
+        mois_nom: infbud.Mois[idx],
+        ae: 0,
+        cp: 0
+      };
+    }
+    
+    dataByMonth[moisNum].ae += infbud.AE[idx] || 0;
+    dataByMonth[moisNum].cp += infbud.CP[idx] || 0;
+  });
+  
+  return dataByMonth;
+}
+
+/**
+ * Récupère les notifications BOP pour une structure, une année ET un type
+ */
+function getNotificationsBOPByType(structureId, annee, type) {
+  const notifBop = FICHE_STATE.data.notif_bop;
+  const structures = FICHE_STATE.data.structures;
+  
+  if (!notifBop || !structures) return null;
+  
+  const structIdx = structures.id.indexOf(structureId);
+  if (structIdx === -1) return null;
+  
+  const structType = structures.Type[structIdx];
+  let structuresToAggregate = [structureId];
+  
+  if (structType === 'DI') {
+    structures.id.forEach((id, i) => {
+      if (structures.Type[i] === 'DR' && structures.Parent[i] === structureId) {
+        structuresToAggregate.push(id);
+      }
+    });
+  }
+  
+  let totalAE = 0;
+  let totalCP = 0;
+  
+  notifBop.id.forEach((id, idx) => {
+    if (notifBop.Annee[idx] !== annee) return;
+    if (notifBop.Type[idx] !== type) return;
+    if (!structuresToAggregate.includes(notifBop.Structure[idx])) return;
+    
+    totalAE += notifBop.Notif_AE[idx] || 0;
+    totalCP += notifBop.Notif_CP[idx] || 0;
+  });
+  
+  return { ae: totalAE, cp: totalCP };
+}
