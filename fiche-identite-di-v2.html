@@ -579,27 +579,25 @@
         <div class="metric-card" style="padding: 12px;">
           <div class="metric-label" style="font-size: 10px;">Effectif Total</div>
           <div class="metric-value" style="font-size: 22px;" id="rh-effectif-total">—</div>
-          <div style="font-size: 11px; margin-top: 4px; color: var(--gris3);">
-            <span id="rh-effectif-evolution">—</span> vs N-1
-          </div>
+          <div style="font-size: 10px; margin-top: 4px; color: var(--gris3);" id="rh-effectif-evolution">—</div>
+          <div style="font-size: 10px; margin-top: 2px; color: var(--gris3);" id="rh-effectif-compare">—</div>
+          <div style="font-size: 10px; margin-top: 2px; color: var(--gris3);" id="rh-effectif-rang">—</div>
         </div>
         
         <!-- Effectif AGCO -->
         <div class="metric-card" style="padding: 12px;">
           <div class="metric-label" style="font-size: 10px;">Effectif AGCO</div>
           <div class="metric-value" style="font-size: 22px;" id="rh-agco-total">—</div>
-          <div style="font-size: 11px; margin-top: 4px; color: var(--gris3);">
-            <span id="rh-agco-evolution">—</span> vs N-1
-          </div>
+          <div style="font-size: 10px; margin-top: 4px; color: var(--gris3);" id="rh-agco-evolution">—</div>
+          <div style="font-size: 10px; margin-top: 2px; color: var(--gris3);" id="rh-agco-compare">—</div>
         </div>
         
         <!-- Effectif SU -->
         <div class="metric-card" style="padding: 12px;">
           <div class="metric-label" style="font-size: 10px;">Effectif SU</div>
           <div class="metric-value" style="font-size: 22px;" id="rh-su-total">—</div>
-          <div style="font-size: 11px; margin-top: 4px; color: var(--gris3);">
-            <span id="rh-su-evolution">—</span> vs N-1
-          </div>
+          <div style="font-size: 10px; margin-top: 4px; color: var(--gris3);" id="rh-su-evolution">—</div>
+          <div style="font-size: 10px; margin-top: 2px; color: var(--gris3);" id="rh-su-compare">—</div>
         </div>
         
         <!-- Âge Moyen -->
@@ -1060,10 +1058,14 @@
         // Effacer tous les champs
         document.getElementById('rh-effectif-total').textContent = '—';
         document.getElementById('rh-effectif-evolution').textContent = '—';
+        document.getElementById('rh-effectif-compare').textContent = '—';
+        document.getElementById('rh-effectif-rang').textContent = '—';
         document.getElementById('rh-agco-total').textContent = '—';
         document.getElementById('rh-agco-evolution').textContent = '—';
+        document.getElementById('rh-agco-compare').textContent = '—';
         document.getElementById('rh-su-total').textContent = '—';
         document.getElementById('rh-su-evolution').textContent = '—';
+        document.getElementById('rh-su-compare').textContent = '—';
         document.getElementById('rh-age-moyen').textContent = '—';
         document.getElementById('rh-masse-salariale').textContent = '—';
         
@@ -1090,31 +1092,72 @@
         return;
       }
       
-      // KPI - Effectif Total avec évolution
+      // KPI - Effectif Total avec évolution, comparaison et rang
       document.getElementById('rh-effectif-total').textContent = formatNumber(dataN.effectif_total);
+      
+      // Évolution temporelle
       if (dataNMoins1) {
         const diffEffectif = Math.round(dataN.effectif_total - dataNMoins1.effectif_total);
+        const pctEvolution = dataNMoins1.effectif_total > 0 ? Math.round(diffEffectif / dataNMoins1.effectif_total * 1000) / 10 : 0;
         const color = diffEffectif >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbol = diffEffectif >= 0 ? '+' : '';
-        document.getElementById('rh-effectif-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffEffectif}</span> vs ${annee - 1}`;
+        document.getElementById('rh-effectif-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffEffectif} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
       }
       
-      // KPI - AGCO avec évolution
+      // Comparaison au groupe
+      const type = FICHE_STATE.structure.type;
+      const consoGroupe = getConsolidationData(type, annee);
+      if (consoGroupe && consoGroupe.nb_structures > 0) {
+        const moyenneGroupe = Math.round(consoGroupe.total_effectif / consoGroupe.nb_structures);
+        const diffGroupe = dataN.effectif_total - moyenneGroupe;
+        const pctDiffGroupe = moyenneGroupe > 0 ? Math.round(diffGroupe / moyenneGroupe * 1000) / 10 : 0;
+        const colorGroupe = diffGroupe >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbolGroupe = diffGroupe >= 0 ? '+' : '';
+        document.getElementById('rh-effectif-compare').innerHTML = `vs Moy. ${type}: <span style="color: ${colorGroupe};">${symbolGroupe}${Math.abs(diffGroupe)} (${symbolGroupe}${pctDiffGroupe}%)</span>`;
+      }
+      
+      // Rang
+      const rang = getRangStructure(structureId, annee, 'effectif_total');
+      if (rang) {
+        document.getElementById('rh-effectif-rang').innerHTML = `Rang: ${rang.rang}/${rang.total} ${type}`;
+      }
+      
+      // KPI - AGCO avec évolution et comparaison
       document.getElementById('rh-agco-total').textContent = formatNumber(dataN.effectif_agco);
       if (dataNMoins1) {
         const diffAGCO = Math.round(dataN.effectif_agco - dataNMoins1.effectif_agco);
+        const pctEvolution = dataNMoins1.effectif_agco > 0 ? Math.round(diffAGCO / dataNMoins1.effectif_agco * 1000) / 10 : 0;
         const color = diffAGCO >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbol = diffAGCO >= 0 ? '+' : '';
-        document.getElementById('rh-agco-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffAGCO}</span> vs ${annee - 1}`;
+        document.getElementById('rh-agco-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffAGCO} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
       }
       
-      // KPI - SU avec évolution
+      if (consoGroupe && consoGroupe.nb_structures > 0) {
+        const moyenneGroupe = Math.round(consoGroupe.total_effectif_agco / consoGroupe.nb_structures);
+        const diffGroupe = dataN.effectif_agco - moyenneGroupe;
+        const pctDiffGroupe = moyenneGroupe > 0 ? Math.round(diffGroupe / moyenneGroupe * 1000) / 10 : 0;
+        const colorGroupe = diffGroupe >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbolGroupe = diffGroupe >= 0 ? '+' : '';
+        document.getElementById('rh-agco-compare').innerHTML = `vs Moy. ${type}: <span style="color: ${colorGroupe};">${symbolGroupe}${Math.abs(diffGroupe)} (${symbolGroupe}${pctDiffGroupe}%)</span>`;
+      }
+      
+      // KPI - SU avec évolution et comparaison
       document.getElementById('rh-su-total').textContent = formatNumber(dataN.effectif_su);
       if (dataNMoins1) {
         const diffSU = Math.round(dataN.effectif_su - dataNMoins1.effectif_su);
+        const pctEvolution = dataNMoins1.effectif_su > 0 ? Math.round(diffSU / dataNMoins1.effectif_su * 1000) / 10 : 0;
         const color = diffSU >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbol = diffSU >= 0 ? '+' : '';
-        document.getElementById('rh-su-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffSU}</span> vs ${annee - 1}`;
+        document.getElementById('rh-su-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffSU} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
+      }
+      
+      if (consoGroupe && consoGroupe.nb_structures > 0) {
+        const moyenneGroupe = Math.round(consoGroupe.total_effectif_su / consoGroupe.nb_structures);
+        const diffGroupe = dataN.effectif_su - moyenneGroupe;
+        const pctDiffGroupe = moyenneGroupe > 0 ? Math.round(diffGroupe / moyenneGroupe * 1000) / 10 : 0;
+        const colorGroupe = diffGroupe >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbolGroupe = diffGroupe >= 0 ? '+' : '';
+        document.getElementById('rh-su-compare').innerHTML = `vs Moy. ${type}: <span style="color: ${colorGroupe};">${symbolGroupe}${Math.abs(diffGroupe)} (${symbolGroupe}${pctDiffGroupe}%)</span>`;
       }
       
       // KPI - Âge Moyen

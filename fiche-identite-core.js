@@ -149,6 +149,65 @@ function getDRRattachees(structureId) {
   return drList;
 }
 
+// Récupérer données Consolidation pour un périmètre
+function getConsolidationData(perimetre, annee) {
+  const conso = FICHE_STATE.data.consolidation;
+  if (!conso || !conso.Perimetre) return null;
+  
+  const idx = conso.id.findIndex((id, i) => 
+    conso.Perimetre[i] === perimetre &&
+    conso.Annee[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    nb_structures: conso.Nb_Structures ? conso.Nb_Structures[idx] : 0,
+    total_effectif: conso.Total_Effectif ? conso.Total_Effectif[idx] : 0,
+    total_effectif_agco: conso.Total_Effectif_AGCO ? conso.Total_Effectif_AGCO[idx] : 0,
+    total_effectif_su: conso.Total_Effectif_SU ? conso.Total_Effectif_SU[idx] : 0,
+    pct_agco: conso.Pct_AGCO ? conso.Pct_AGCO[idx] : 0,
+    pct_su: conso.Pct_SU ? conso.Pct_SU[idx] : 0,
+    total_masse_salariale: conso.Total_Masse_Salariale ? conso.Total_Masse_Salariale[idx] : 0,
+    ms_par_agent: conso.Moyenne_MS_Par_Agent ? conso.Moyenne_MS_Par_Agent[idx] : 0
+  };
+}
+
+// Calculer le rang d'une structure parmi ses pairs
+function getRangStructure(structureId, annee, metrique = 'effectif_total') {
+  const structures = FICHE_STATE.data.structures;
+  const rh = FICHE_STATE.data.rh;
+  
+  // Déterminer le type de la structure
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1) return null;
+  
+  const type = structures.Type[idx];
+  
+  // Filtrer les structures du même type
+  const structuresDuMemeType = structures.id.filter((id, i) => structures.Type[i] === type);
+  
+  // Récupérer les valeurs pour chaque structure
+  const valeurs = structuresDuMemeType.map(sid => {
+    const data = getRHData(sid, annee);
+    return {
+      id: sid,
+      valeur: data ? data[metrique] || 0 : 0
+    };
+  }).filter(v => v.valeur > 0); // Exclure structures sans données
+  
+  // Trier par valeur décroissante
+  valeurs.sort((a, b) => b.valeur - a.valeur);
+  
+  // Trouver la position
+  const position = valeurs.findIndex(v => v.id === structureId) + 1;
+  
+  return {
+    rang: position,
+    total: valeurs.length
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════
 // EXTRACTION DES DONNÉES PAR STRUCTURE
 // ═══════════════════════════════════════════════════════════════
@@ -562,6 +621,12 @@ function createPieChart(canvasId, labels, data, colors) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
   
+  // Détruire le graphique existant s'il existe
+  const existingChart = Chart.getChart(ctx);
+  if (existingChart) {
+    existingChart.destroy();
+  }
+  
   new Chart(ctx, {
     type: 'pie',
     data: {
@@ -589,6 +654,12 @@ function createPieChart(canvasId, labels, data, colors) {
 function createStackedAreaChart(canvasId, historique) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
+  
+  // Détruire le graphique existant s'il existe
+  const existingChart = Chart.getChart(ctx);
+  if (existingChart) {
+    existingChart.destroy();
+  }
   
   const labels = historique.map(h => h.annee);
   const dataAGCO = historique.map(h => h.agco);
