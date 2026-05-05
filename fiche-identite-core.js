@@ -171,20 +171,20 @@ function getConsolidationData(perimetre, annee) {
   if (idx === -1) return null;
   
   return {
-    nb_structures: conso.Nb_Structures ? conso.Nb_Structures[idx] : 0,
-    total_effectif: conso.Total_Effectif ? conso.Total_Effectif[idx] : 0,
-    total_effectif_agco: conso.Total_Effectif_AGCO ? conso.Total_Effectif_AGCO[idx] : 0,
-    total_effectif_su: conso.Total_Effectif_SU ? conso.Total_Effectif_SU[idx] : 0,
-    pct_agco: conso.Pct_AGCO ? conso.Pct_AGCO[idx] : 0,
-    pct_su: conso.Pct_SU ? conso.Pct_SU[idx] : 0,
-    total_masse_salariale: conso.Total_Masse_Salariale ? conso.Total_Masse_Salariale[idx] : 0,
-    ms_par_agent: conso.Moyenne_MS_Par_Agent ? conso.Moyenne_MS_Par_Agent[idx] : 0,
+    nb_structures: conso.$Nb_Structures ? conso.$Nb_Structures[idx] : 0,
+    total_effectif: conso.$Total_Effectif ? conso.$Total_Effectif[idx] : 0,
+    total_effectif_agco: conso.$Total_Effectif_AGCO ? conso.$Total_Effectif_AGCO[idx] : 0,
+    total_effectif_su: conso.$Total_Effectif_SU ? conso.$Total_Effectif_SU[idx] : 0,
+    pct_agco: conso.$Pct_AGCO ? conso.$Pct_AGCO[idx] : 0,
+    pct_su: conso.$Pct_SU ? conso.$Pct_SU[idx] : 0,
+    total_masse_salariale: conso.$Total_Masse_Salariale ? conso.$Total_Masse_Salariale[idx] : 0,
+    ms_par_agent: conso.$Moyenne_MS_Par_Agent ? conso.$Moyenne_MS_Par_Agent[idx] : 0,
     
-    // NOUVEAUX CHAMPS
-    age_moyen_global: conso.Age_Moyen_Global ? conso.Age_Moyen_Global[idx] : 0,
-    effectif_moyen: conso.Effectif_Moyen_Par_Structure ? conso.Effectif_Moyen_Par_Structure[idx] : 0,
-    effectif_agco_moyen: conso.Effectif_AGCO_Moyen_Par_Structure ? conso.Effectif_AGCO_Moyen_Par_Structure[idx] : 0,
-    effectif_su_moyen: conso.Effectif_SU_Moyen_Par_Structure ? conso.Effectif_SU_Moyen_Par_Structure[idx] : 0
+    // NOUVEAUX CHAMPS - Avec $ car ce sont des colonnes de formule
+    age_moyen_global: conso.$Age_Moyen_Global ? conso.$Age_Moyen_Global[idx] : 0,
+    effectif_moyen: conso.$Effectif_Moyen_Par_Structure ? conso.$Effectif_Moyen_Par_Structure[idx] : 0,
+    effectif_agco_moyen: conso.$Effectif_AGCO_Moyen_Par_Structure ? conso.$Effectif_AGCO_Moyen_Par_Structure[idx] : 0,
+    effectif_su_moyen: conso.$Effectif_SU_Moyen_Par_Structure ? conso.$Effectif_SU_Moyen_Par_Structure[idx] : 0
   };
 }
 
