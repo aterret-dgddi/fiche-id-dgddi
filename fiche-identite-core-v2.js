@@ -160,14 +160,15 @@ function getDRRattachees(structureId) {
 
 // Récupérer données Consolidation pour un périmètre
 function getConsolidationData(perimetre, annee) {
-  console.log('🔵 getConsolidationData APPELÉE avec', perimetre, annee);
+  console.log('╔═══════════════════════════════════════╗');
+  console.log('║  FONCTION GET_CONSOLIDATION_DATA     ║');
+  console.log('║  APPELÉE AVEC:', perimetre, annee, '    ║');
+  console.log('╚═══════════════════════════════════════╝');
   
   const conso = FICHE_STATE.data.consolidation;
   
-  console.log('🔵 conso existe?', !!conso, 'conso.Perimetre existe?', !!(conso && conso.Perimetre));
-  
   if (!conso || !conso.Perimetre) {
-    console.log('🔴 RETURN NULL - conso ou Perimetre manquant');
+    console.error('❌❌❌ CONSO OU PERIMETRE MANQUANT ❌❌❌');
     return null;
   }
   
