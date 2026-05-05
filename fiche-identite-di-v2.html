@@ -1115,7 +1115,11 @@
       // Comparaison au groupe
       const type = FICHE_STATE.structure.type;
       const consoGroupe = getConsolidationData(type, annee);
-      console.log('Consolidation groupe:', consoGroupe);
+      console.log('=== DEBUG CONSOLIDATION ===');
+      console.log('Type:', type, 'Année:', annee);
+      console.log('consoGroupe complet:', consoGroupe);
+      console.log('effectif_moyen:', consoGroupe ? consoGroupe.effectif_moyen : 'NULL');
+      console.log('age_moyen_global:', consoGroupe ? consoGroupe.age_moyen_global : 'NULL');
       
       if (consoGroupe && consoGroupe.effectif_moyen > 0) {
         const moyenneGroupe = Math.round(consoGroupe.effectif_moyen);

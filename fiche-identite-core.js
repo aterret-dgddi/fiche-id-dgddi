@@ -388,7 +388,7 @@ function getRHDetailParDR(structureId, annee) {
       
       details.push({
         nom: structures.Nom[structIdx],
-        sigle: structures.Sigle[structIdx] || structures.Nom[structIdx], // Utiliser Nom si pas de Sigle
+        sigle: (structures.Sigle[structIdx] && structures.Sigle[structIdx].trim()) || structures.Nom[structIdx], // Utiliser Nom si Sigle vide
         type: structures.Type[structIdx],
         effectif_total: effectifTotal,
         effectif_agco: agcoCount,
