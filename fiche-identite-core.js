@@ -163,12 +163,24 @@ function getConsolidationData(perimetre, annee) {
   const conso = FICHE_STATE.data.consolidation;
   if (!conso || !conso.Perimetre) return null;
   
+  console.log(`getConsolidationData(${perimetre}, ${annee})`);
+  console.log('Recherche dans Consolidation...');
+  
   const idx = conso.id.findIndex((id, i) => 
     conso.Perimetre[i] === perimetre &&
     conso.Annee[i] === annee
   );
   
-  if (idx === -1) return null;
+  console.log('Index trouvé:', idx);
+  
+  if (idx === -1) {
+    console.warn('⚠️ Aucune ligne trouvée dans Consolidation pour', perimetre, annee);
+    return null;
+  }
+  
+  console.log('Valeurs des nouvelles colonnes:');
+  console.log('  Age_Moyen_Global:', conso.Age_Moyen_Global ? conso.Age_Moyen_Global[idx] : 'COLONNE INEXISTANTE');
+  console.log('  Effectif_Moyen_Par_Structure:', conso.Effectif_Moyen_Par_Structure ? conso.Effectif_Moyen_Par_Structure[idx] : 'COLONNE INEXISTANTE');
   
   return {
     nb_structures: conso.Nb_Structures ? conso.Nb_Structures[idx] : 0,
