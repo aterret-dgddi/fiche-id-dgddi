@@ -200,17 +200,24 @@ function getConsolidationData(perimetre, annee) {
   } else if (nb_structures > 0) {
     // Fallback : calculer manuellement
     console.log('⚠️ Colonnes manquantes, calcul manuel...');
+    console.log('nb_structures:', nb_structures);
     const total_effectif = conso.Total_Effectif ? conso.Total_Effectif[idx] : 0;
     const total_effectif_agco = conso.Total_Effectif_AGCO ? conso.Total_Effectif_AGCO[idx] : 0;
     const total_effectif_su = conso.Total_Effectif_SU ? conso.Total_Effectif_SU[idx] : 0;
+    
+    console.log('total_effectif:', total_effectif);
     
     effectif_moyen = Math.round(total_effectif / nb_structures * 10) / 10;
     effectif_agco_moyen = Math.round(total_effectif_agco / nb_structures * 10) / 10;
     effectif_su_moyen = Math.round(total_effectif_su / nb_structures * 10) / 10;
     
+    console.log('effectif_moyen calculé:', effectif_moyen);
+    
     // Pour l'âge moyen, il faut agréger toutes les structures du périmètre
     const structures = FICHE_STATE.data.structures;
     const structuresDuType = structures.id.filter((id, i) => structures.Type[i] === perimetre);
+    
+    console.log('Structures du type', perimetre, ':', structuresDuType.length);
     
     let totalEffectifGroupe = 0;
     let sumAgeGroupe = 0;
@@ -226,10 +233,13 @@ function getConsolidationData(perimetre, annee) {
     });
     
     age_moyen_global = totalEffectifGroupe > 0 ? Math.round(sumAgeGroupe / totalEffectifGroupe * 10) / 10 : 0;
+    console.log('age_moyen_global calculé:', age_moyen_global);
     console.log('✓ Calcul manuel terminé');
+  } else {
+    console.error('❌ Impossible de calculer : nb_structures = 0');
   }
   
-  return {
+  const result = {
     nb_structures: nb_structures,
     total_effectif: conso.Total_Effectif ? conso.Total_Effectif[idx] : 0,
     total_effectif_agco: conso.Total_Effectif_AGCO ? conso.Total_Effectif_AGCO[idx] : 0,
@@ -245,6 +255,12 @@ function getConsolidationData(perimetre, annee) {
     effectif_agco_moyen: effectif_agco_moyen,
     effectif_su_moyen: effectif_su_moyen
   };
+  
+  console.log('=== OBJET RETOURNÉ ===');
+  console.log('effectif_moyen:', result.effectif_moyen);
+  console.log('age_moyen_global:', result.age_moyen_global);
+  
+  return result;
 }
 
 // Calculer le rang d'une structure parmi ses pairs
