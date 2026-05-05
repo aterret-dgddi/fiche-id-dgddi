@@ -169,7 +169,13 @@ function getConsolidationData(perimetre, annee) {
     pct_agco: conso.Pct_AGCO ? conso.Pct_AGCO[idx] : 0,
     pct_su: conso.Pct_SU ? conso.Pct_SU[idx] : 0,
     total_masse_salariale: conso.Total_Masse_Salariale ? conso.Total_Masse_Salariale[idx] : 0,
-    ms_par_agent: conso.Moyenne_MS_Par_Agent ? conso.Moyenne_MS_Par_Agent[idx] : 0
+    ms_par_agent: conso.Moyenne_MS_Par_Agent ? conso.Moyenne_MS_Par_Agent[idx] : 0,
+    
+    // NOUVEAUX CHAMPS
+    age_moyen_global: conso.Age_Moyen_Global ? conso.Age_Moyen_Global[idx] : 0,
+    effectif_moyen: conso.Effectif_Moyen_Par_Structure ? conso.Effectif_Moyen_Par_Structure[idx] : 0,
+    effectif_agco_moyen: conso.Effectif_AGCO_Moyen_Par_Structure ? conso.Effectif_AGCO_Moyen_Par_Structure[idx] : 0,
+    effectif_su_moyen: conso.Effectif_SU_Moyen_Par_Structure ? conso.Effectif_SU_Moyen_Par_Structure[idx] : 0
   };
 }
 
