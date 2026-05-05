@@ -679,7 +679,8 @@
       <div style="display: flex; gap: 16px; margin-bottom: 24px;">
         <!-- Taux Conso AE -->
         <div style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Taux Consommation AE</div>
+          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Consommation AE</div>
+          <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;" id="budget-pill-montants-ae">—</div>
           <div style="font-size: 32px; font-weight: 700; margin-bottom: 12px;" id="budget-pill-taux-ae">—</div>
           <div style="font-size: 12px; opacity: 0.85; display: flex; gap: 12px; flex-wrap: wrap;">
             <div id="budget-pill-ae-groupe"></div>
@@ -689,7 +690,8 @@
         
         <!-- Taux Conso CP -->
         <div style="flex: 1; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Taux Consommation CP</div>
+          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Consommation CP</div>
+          <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;" id="budget-pill-montants-cp">—</div>
           <div style="font-size: 32px; font-weight: 700; margin-bottom: 12px;" id="budget-pill-taux-cp">—</div>
           <div style="font-size: 12px; opacity: 0.85; display: flex; gap: 12px; flex-wrap: wrap;">
             <div id="budget-pill-cp-groupe"></div>
@@ -1342,6 +1344,9 @@
     function refreshBudget(structureId, annee) {
       console.log('=== refreshBudget appelée ===', {structureId, annee});
       
+      // FORCER ANNÉE 2026
+      annee = 2026;
+      
       // Récupérer données année en cours
       const dataN = getBudgetDataInfbud(structureId, annee);
       const notifN = getNotificationsBOP(structureId, annee);
@@ -1363,8 +1368,13 @@
       const tauxAE_N = notifN.ae > 0 ? (consoAE_N / notifN.ae * 100) : 0;
       const tauxCP_N = notifN.cp > 0 ? (consoCP_N / notifN.cp * 100) : 0;
       
-      // Afficher Pills Taux
+      // Afficher Pills avec montants
+      document.getElementById('budget-pill-montants-ae').textContent = 
+        `${formatCurrency(consoAE_N, 0)} / ${formatCurrency(notifN.ae, 0)}`;
       document.getElementById('budget-pill-taux-ae').textContent = formatNumber(tauxAE_N, 1) + ' %';
+      
+      document.getElementById('budget-pill-montants-cp').textContent = 
+        `${formatCurrency(consoCP_N, 0)} / ${formatCurrency(notifN.cp, 0)}`;
       document.getElementById('budget-pill-taux-cp').textContent = formatNumber(tauxCP_N, 1) + ' %';
       
       // Comparaisons groupe/national
@@ -1405,7 +1415,7 @@
           `National: ${symbol}${formatNumber(diffNational, 1)} pts`;
       }
       
-      // Créer graphiques séparés AE et CP
+      // Créer graphiques séparés AE et CP (en barres)
       createBudgetCumulChartAE(structureId, annee);
       createBudgetCumulChartCP(structureId, annee);
       
@@ -1529,7 +1539,7 @@
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Crée le graphique d'évolution mensuelle AE
+     * Crée le graphique d'évolution mensuelle AE (en barres)
      */
     function createBudgetCumulChartAE(structureId, anneeActuelle) {
       const canvas = document.getElementById('chart-budget-ae');
@@ -1571,21 +1581,18 @@
         }
         
         const color = colors[idx % colors.length];
-        const isCurrentYear = annee === anneeActuelle;
         
         datasets.push({
           label: `${annee}`,
           data: cumul,
+          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.7)'),
           borderColor: color,
-          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
-          borderWidth: isCurrentYear ? 3 : 2,
-          borderDash: isCurrentYear ? [] : [5, 5],
-          tension: 0.1
+          borderWidth: 1
         });
       });
       
       window.chartBudgetAE = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
           labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
           datasets: datasets
@@ -1632,7 +1639,7 @@
     }
 
     /**
-     * Crée le graphique d'évolution mensuelle CP
+     * Crée le graphique d'évolution mensuelle CP (en barres)
      */
     function createBudgetCumulChartCP(structureId, anneeActuelle) {
       const canvas = document.getElementById('chart-budget-cp');
@@ -1674,21 +1681,18 @@
         }
         
         const color = colors[idx % colors.length];
-        const isCurrentYear = annee === anneeActuelle;
         
         datasets.push({
           label: `${annee}`,
           data: cumul,
+          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.7)'),
           borderColor: color,
-          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
-          borderWidth: isCurrentYear ? 3 : 2,
-          borderDash: isCurrentYear ? [] : [5, 5],
-          tension: 0.1
+          borderWidth: 1
         });
       });
       
       window.chartBudgetCP = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
           labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
           datasets: datasets
@@ -1753,11 +1757,10 @@
       const notifBop = FICHE_STATE.data.notif_bop;
       if (!notifBop) return;
       
-      // Types à afficher
-      const types = ['Total', 'T2', 'Fonctionnement', 'Intervention', 'Vehicule'];
+      // Types à afficher (SANS T2)
+      const types = ['Total', 'Fonctionnement', 'Intervention', 'Vehicule'];
       const labels = {
         'Total': 'Total (hors T2)',
-        'T2': 'Masse Salariale',
         'Fonctionnement': 'Fonctionnement',
         'Intervention': 'Intervention',
         'Vehicule': 'Véhicules'
