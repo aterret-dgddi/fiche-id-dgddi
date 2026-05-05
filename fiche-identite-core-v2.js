@@ -53,7 +53,7 @@ async function loadAllData() {
     showLoader('Chargement des données...');
     
     // Charger toutes les tables en parallèle
-    const [structures, rh, vehicules, frais_mission, informatique, notif_bop, consolidation, commentaires] = await Promise.all([
+    const [structures, rh, vehicules, frais_mission, informatique, notif_bop, consolidation, commentaires, infbud40] = await Promise.all([
       grist.docApi.fetchTable('Structures'),
       grist.docApi.fetchTable('RH'),
       grist.docApi.fetchTable('Vehicules'),
@@ -61,7 +61,8 @@ async function loadAllData() {
       grist.docApi.fetchTable('Informatique'),
       grist.docApi.fetchTable('Notif_BOP'),
       grist.docApi.fetchTable('Consolidation'),
-      grist.docApi.fetchTable('Commentaires')
+      grist.docApi.fetchTable('Commentaires'),
+      grist.docApi.fetchTable('INFBUD40_2')
     ]);
     
     FICHE_STATE.data.structures = structures;
@@ -72,6 +73,7 @@ async function loadAllData() {
     FICHE_STATE.data.notif_bop = notif_bop;
     FICHE_STATE.data.consolidation = consolidation;
     FICHE_STATE.data.commentaires = commentaires;
+    FICHE_STATE.data.infbud40 = infbud40;
     
     // Debug : Afficher les colonnes de Consolidation
     if (consolidation && consolidation.id && consolidation.id.length > 0) {
@@ -90,7 +92,8 @@ async function loadAllData() {
       informatique: informatique.id.length,
       notif_bop: notif_bop.id.length,
       consolidation: consolidation.id.length,
-      commentaires: commentaires.id.length
+      commentaires: commentaires.id.length,
+      infbud40: infbud40.id.length
     });
     
     hideLoader();
@@ -965,3 +968,164 @@ function showError(message) {
 
 // onDataLoaded() - Appelée après chargement des données
 // refreshFiche() - Rafraîchir l'affichage avec les nouvelles données
+/**
+ * MODULE BUDGET - FICHE IDENTITÉ DGDDI
+ * Gestion des données budgétaires INFBUD40
+ */
+
+// ═══════════════════════════════════════════════════════════════
+// RÉCUPÉRATION DONNÉES BUDGET
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Récupère les données budgétaires pour une structure et une année
+ * @param {number} structureId - ID de la structure
+ * @param {number} annee - Année
+ * @returns {Object} Données budgétaires agrégées par mois
+ */
+function getBudgetDataInfbud(structureId, annee) {
+  const infbud = FICHE_STATE.data.infbud40;
+  const structures = FICHE_STATE.data.structures;
+  
+  if (!infbud || !structures) return null;
+  
+  // Trouver la structure
+  const structIdx = structures.id.indexOf(structureId);
+  if (structIdx === -1) return null;
+  
+  const structType = structures.Type[structIdx];
+  const structHIE = structures.HIE[structIdx];
+  
+  // Liste des structures à agréger
+  let structuresToAggregate = [structureId];
+  
+  // Si DI, ajouter les DR rattachées
+  if (structType === 'DI') {
+    structures.id.forEach((id, i) => {
+      if (structures.Type[i] === 'DR' && structures.Parent[i] === structureId) {
+        structuresToAggregate.push(id);
+      }
+    });
+  }
+  
+  // Agréger les données par mois
+  const dataByMonth = {};
+  
+  infbud.id.forEach((id, idx) => {
+    const budgetAnnee = infbud.Annee[idx];
+    const budgetStructId = infbud.Structure[idx];
+    
+    if (budgetAnnee !== annee) return;
+    if (!structuresToAggregate.includes(budgetStructId)) return;
+    
+    const moisNum = infbud.Mois_Numero[idx];
+    if (!moisNum || moisNum === 0) return;
+    
+    if (!dataByMonth[moisNum]) {
+      dataByMonth[moisNum] = {
+        mois_numero: moisNum,
+        mois_nom: infbud.Mois[idx],
+        ae: 0,
+        cp: 0
+      };
+    }
+    
+    dataByMonth[moisNum].ae += infbud.AE[idx] || 0;
+    dataByMonth[moisNum].cp += infbud.CP[idx] || 0;
+  });
+  
+  return dataByMonth;
+}
+
+/**
+ * Récupère les notifications BOP pour une structure et une année
+ */
+function getNotificationsBOP(structureId, annee) {
+  const notifBop = FICHE_STATE.data.notif_bop;
+  const structures = FICHE_STATE.data.structures;
+  
+  if (!notifBop || !structures) return null;
+  
+  // Liste des structures à agréger
+  const structIdx = structures.id.indexOf(structureId);
+  if (structIdx === -1) return null;
+  
+  const structType = structures.Type[structIdx];
+  let structuresToAggregate = [structureId];
+  
+  if (structType === 'DI') {
+    structures.id.forEach((id, i) => {
+      if (structures.Type[i] === 'DR' && structures.Parent[i] === structureId) {
+        structuresToAggregate.push(id);
+      }
+    });
+  }
+  
+  let totalAE = 0;
+  let totalCP = 0;
+  
+  notifBop.id.forEach((id, idx) => {
+    if (notifBop.Annee[idx] !== annee) return;
+    if (notifBop.Type[idx] !== 'Total') return;
+    if (!structuresToAggregate.includes(notifBop.Structure[idx])) return;
+    
+    totalAE += notifBop.Notif_AE[idx] || 0;
+    totalCP += notifBop.Notif_CP[idx] || 0;
+  });
+  
+  return { ae: totalAE, cp: totalCP };
+}
+
+/**
+ * Calcule le dernier mois disponible pour une année
+ */
+function getDernierMoisDispo(structureId, annee) {
+  const data = getBudgetDataInfbud(structureId, annee);
+  if (!data) return 0;
+  
+  const mois = Object.keys(data).map(m => parseInt(m)).sort((a, b) => b - a);
+  return mois.length > 0 ? mois[0] : 0;
+}
+
+/**
+ * Récupère les taux de consommation pour comparaison
+ */
+function getTauxConsoComparaison(type, annee) {
+  const infbud = FICHE_STATE.data.infbud40;
+  const structures = FICHE_STATE.data.structures;
+  const notifBop = FICHE_STATE.data.notif_bop;
+  
+  if (!infbud || !structures || !notifBop) return null;
+  
+  // Structures du type demandé
+  const structIds = structures.id.filter((id, i) => structures.Type[i] === type);
+  
+  let totalConsoAE = 0;
+  let totalConsoCP = 0;
+  let totalNotifAE = 0;
+  let totalNotifCP = 0;
+  
+  // Agréger consommations
+  infbud.id.forEach((id, idx) => {
+    if (infbud.Annee[idx] !== annee) return;
+    if (!structIds.includes(infbud.Structure[idx])) return;
+    
+    totalConsoAE += infbud.AE[idx] || 0;
+    totalConsoCP += infbud.CP[idx] || 0;
+  });
+  
+  // Agréger notifications
+  notifBop.id.forEach((id, idx) => {
+    if (notifBop.Annee[idx] !== annee) return;
+    if (notifBop.Type[idx] !== 'Total') return;
+    if (!structIds.includes(notifBop.Structure[idx])) return;
+    
+    totalNotifAE += notifBop.Notif_AE[idx] || 0;
+    totalNotifCP += notifBop.Notif_CP[idx] || 0;
+  });
+  
+  return {
+    taux_ae: totalNotifAE > 0 ? (totalConsoAE / totalNotifAE * 100) : 0,
+    taux_cp: totalNotifCP > 0 ? (totalConsoCP / totalNotifCP * 100) : 0
+  };
+}
