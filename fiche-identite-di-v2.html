@@ -1115,13 +1115,18 @@
       // Comparaison au groupe
       const type = FICHE_STATE.structure.type;
       const consoGroupe = getConsolidationData(type, annee);
+      console.log('Consolidation groupe:', consoGroupe);
+      
       if (consoGroupe && consoGroupe.effectif_moyen > 0) {
         const moyenneGroupe = Math.round(consoGroupe.effectif_moyen);
         const diffGroupe = dataN.effectif_total - moyenneGroupe;
         const pctDiffGroupe = moyenneGroupe > 0 ? Math.round(diffGroupe / moyenneGroupe * 1000) / 10 : 0;
         const colorGroupe = diffGroupe >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbolGroupe = diffGroupe >= 0 ? '+' : '';
+        console.log('Comparaison effectif:', {moyenneGroupe, diffGroupe, pctDiffGroupe});
         document.getElementById('rh-effectif-compare').innerHTML = `vs Moy. ${type}: <span style="color: ${colorGroupe};">${symbolGroupe}${formatNumber(Math.abs(diffGroupe))} (${symbolGroupe}${pctDiffGroupe}%)</span>`;
+      } else {
+        console.warn('Pas de consoGroupe ou effectif_moyen = 0');
       }
       
       // Rang
@@ -1179,7 +1184,10 @@
         const diffAge = Math.round((ageMoyen - ageMoyenGroupe) * 10) / 10;
         const colorAge = diffAge >= 0 ? 'var(--rouge)' : 'var(--vert)'; // Inversé : plus jeune = mieux
         const symbolAge = diffAge >= 0 ? '+' : '';
+        console.log('Comparaison âge groupe:', {ageMoyen, ageMoyenGroupe, diffAge});
         document.getElementById('rh-age-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorAge};">${symbolAge}${diffAge} ans</span>`;
+      } else {
+        console.warn('Pas de age_moyen_global dans consoGroupe');
       }
       
       // Comparaison âge moyen avec National (depuis Consolidation)
@@ -1225,7 +1233,7 @@
         details.forEach(d => {
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td><strong>${d.sigle || d.nom || '—'}</strong></td>
+            <td><strong>${d.sigle}</strong></td>
             <td style="text-align: right;">${formatNumber(d.effectif_total)}</td>
             <td style="text-align: center;">${formatNumber(d.effectif_agco)}</td>
             <td style="text-align: center;">${formatNumber(d.effectif_su)}</td>
