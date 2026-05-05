@@ -182,8 +182,55 @@ function getConsolidationData(perimetre, annee) {
   console.log('  Age_Moyen_Global:', conso.Age_Moyen_Global ? conso.Age_Moyen_Global[idx] : 'COLONNE INEXISTANTE');
   console.log('  Effectif_Moyen_Par_Structure:', conso.Effectif_Moyen_Par_Structure ? conso.Effectif_Moyen_Par_Structure[idx] : 'COLONNE INEXISTANTE');
   
+  // Calculer les moyennes manuellement si les colonnes n'existent pas
+  let effectif_moyen = 0;
+  let effectif_agco_moyen = 0;
+  let effectif_su_moyen = 0;
+  let age_moyen_global = 0;
+  
+  const nb_structures = conso.Nb_Structures ? conso.Nb_Structures[idx] : 0;
+  
+  if (conso.Effectif_Moyen_Par_Structure && conso.Effectif_Moyen_Par_Structure[idx]) {
+    // Utiliser Consolidation si disponible
+    effectif_moyen = conso.Effectif_Moyen_Par_Structure[idx];
+    effectif_agco_moyen = conso.Effectif_AGCO_Moyen_Par_Structure ? conso.Effectif_AGCO_Moyen_Par_Structure[idx] : 0;
+    effectif_su_moyen = conso.Effectif_SU_Moyen_Par_Structure ? conso.Effectif_SU_Moyen_Par_Structure[idx] : 0;
+    age_moyen_global = conso.Age_Moyen_Global ? conso.Age_Moyen_Global[idx] : 0;
+    console.log('✓ Utilisation des colonnes Consolidation');
+  } else if (nb_structures > 0) {
+    // Fallback : calculer manuellement
+    console.log('⚠️ Colonnes manquantes, calcul manuel...');
+    const total_effectif = conso.Total_Effectif ? conso.Total_Effectif[idx] : 0;
+    const total_effectif_agco = conso.Total_Effectif_AGCO ? conso.Total_Effectif_AGCO[idx] : 0;
+    const total_effectif_su = conso.Total_Effectif_SU ? conso.Total_Effectif_SU[idx] : 0;
+    
+    effectif_moyen = Math.round(total_effectif / nb_structures * 10) / 10;
+    effectif_agco_moyen = Math.round(total_effectif_agco / nb_structures * 10) / 10;
+    effectif_su_moyen = Math.round(total_effectif_su / nb_structures * 10) / 10;
+    
+    // Pour l'âge moyen, il faut agréger toutes les structures du périmètre
+    const structures = FICHE_STATE.data.structures;
+    const structuresDuType = structures.id.filter((id, i) => structures.Type[i] === perimetre);
+    
+    let totalEffectifGroupe = 0;
+    let sumAgeGroupe = 0;
+    structuresDuType.forEach(sid => {
+      const dataStruct = getRHData(sid, annee);
+      if (dataStruct && dataStruct.effectif_total > 0) {
+        const ageStruct = (dataStruct.age_moyen_agco * dataStruct.effectif_agco + 
+                          dataStruct.age_moyen_su * dataStruct.effectif_su + 
+                          dataStruct.age_moyen_autres * dataStruct.effectif_autres) / dataStruct.effectif_total;
+        sumAgeGroupe += ageStruct * dataStruct.effectif_total;
+        totalEffectifGroupe += dataStruct.effectif_total;
+      }
+    });
+    
+    age_moyen_global = totalEffectifGroupe > 0 ? Math.round(sumAgeGroupe / totalEffectifGroupe * 10) / 10 : 0;
+    console.log('✓ Calcul manuel terminé');
+  }
+  
   return {
-    nb_structures: conso.Nb_Structures ? conso.Nb_Structures[idx] : 0,
+    nb_structures: nb_structures,
     total_effectif: conso.Total_Effectif ? conso.Total_Effectif[idx] : 0,
     total_effectif_agco: conso.Total_Effectif_AGCO ? conso.Total_Effectif_AGCO[idx] : 0,
     total_effectif_su: conso.Total_Effectif_SU ? conso.Total_Effectif_SU[idx] : 0,
@@ -192,11 +239,11 @@ function getConsolidationData(perimetre, annee) {
     total_masse_salariale: conso.Total_Masse_Salariale ? conso.Total_Masse_Salariale[idx] : 0,
     ms_par_agent: conso.Moyenne_MS_Par_Agent ? conso.Moyenne_MS_Par_Agent[idx] : 0,
     
-    // NOUVEAUX CHAMPS - Sans $ car Grist les expose sans préfixe côté JS
-    age_moyen_global: conso.Age_Moyen_Global ? conso.Age_Moyen_Global[idx] : 0,
-    effectif_moyen: conso.Effectif_Moyen_Par_Structure ? conso.Effectif_Moyen_Par_Structure[idx] : 0,
-    effectif_agco_moyen: conso.Effectif_AGCO_Moyen_Par_Structure ? conso.Effectif_AGCO_Moyen_Par_Structure[idx] : 0,
-    effectif_su_moyen: conso.Effectif_SU_Moyen_Par_Structure ? conso.Effectif_SU_Moyen_Par_Structure[idx] : 0
+    // Moyennes (depuis Consolidation OU calcul manuel en fallback)
+    age_moyen_global: age_moyen_global,
+    effectif_moyen: effectif_moyen,
+    effectif_agco_moyen: effectif_agco_moyen,
+    effectif_su_moyen: effectif_su_moyen
   };
 }
 
