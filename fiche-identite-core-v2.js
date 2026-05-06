@@ -1341,3 +1341,229 @@ function getFraisMissionMultiAnnees(structureId, annees) {
     };
   });
 }
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE INFORMATIQUE
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Récupère les données informatique pour une structure et une année
+ * @param {number} structureId - ID de la structure
+ * @param {number} annee - Année
+ * @returns {Object|null} Données informatique
+ */
+function getInformatiqueData(structureId, annee) {
+  const informatique = FICHE_STATE.data.informatique;
+  if (!informatique) return null;
+  
+  const idx = informatique.id.findIndex((id, i) => 
+    informatique.Structure[i] === structureId && 
+    informatique.Annee[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    nb_portables: informatique.Nb_Portables?.[idx] || 0,
+    nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
+    nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
+    budget_it_cp: informatique.Budget_IT_CP?.[idx] || 0,
+    budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
+    effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
+    ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
+    pct_portables: informatique.Pct_Portables?.[idx] || 0,
+    budget_it_par_agent: informatique.Budget_IT_Par_Agent?.[idx] || 0,
+    budget_it_moyen_par_agent_4ans: informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
+  };
+}
+
+/**
+ * Récupère les moyennes consolidées pour informatique
+ * @param {string} perimetre - Type de périmètre (National, DI, SCN, Outremer, Metropole)
+ * @param {number} annee - Année
+ * @returns {Object|null} Moyennes consolidées
+ */
+function getInformatiqueMoyennes(perimetre, annee) {
+  const consolidation = FICHE_STATE.data.consolidation;
+  if (!consolidation) return null;
+  
+  const idx = consolidation.id.findIndex((id, i) => 
+    consolidation.Perimetre?.[i] === perimetre && 
+    consolidation.Annee?.[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    moy_ratio_poste_agent: consolidation.Moy_Ratio_Poste_Agent?.[idx] || 0,
+    moy_budget_it_par_agent: consolidation.Moy_Budget_IT_Par_Agent?.[idx] || 0,
+    moy_budget_it_moyen_par_agent_4ans: consolidation.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
+  };
+}
+
+/**
+ * Détermine le périmètre de comparaison pour une structure (IT)
+ * @param {number} structureId - ID de la structure
+ * @returns {string} Périmètre (DI, SCN, Outremer, Metropole)
+ */
+function getPerimetreInformatique(structureId) {
+  const structures = FICHE_STATE.data.structures;
+  if (!structures) return 'National';
+  
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1) return 'National';
+  
+  const type = structures.Type?.[idx];
+  const estOutremer = structures.Est_Outremer?.[idx];
+  
+  if (type === 'SCN') return 'SCN';
+  if (type === 'DI' && estOutremer) return 'Outremer';
+  if (type === 'DI' && !estOutremer) return 'Metropole';
+  if (type === 'DR') return 'Metropole';
+  
+  return 'National';
+}
+
+/**
+ * Calcule l'intitulé du périmètre pour l'affichage (IT)
+ * @param {string} perimetre - Code périmètre
+ * @returns {string} Libellé pour affichage
+ */
+function getLibellePerimetreInformatique(perimetre) {
+  const labels = {
+    'Metropole': 'DI Métropole',
+    'Outremer': 'Outre-Mer',
+    'SCN': 'SCN',
+    'National': 'National'
+  };
+  return labels[perimetre] || perimetre;
+}
+
+/**
+ * Récupère les données informatique pour plusieurs années
+ * @param {number} structureId - ID de la structure
+ * @param {Array<number>} annees - Liste des années à récupérer
+ * @returns {Array<Object>} Données par année
+ */
+function getInformatiqueMultiAnnees(structureId, annees) {
+  return annees.map(annee => {
+    const data = getInformatiqueData(structureId, annee);
+    return {
+      annee: annee,
+      ...(data || {})
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE INFORMATIQUE
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Récupère les données informatique pour une structure et une année
+ * @param {number} structureId - ID de la structure
+ * @param {number} annee - Année
+ * @returns {Object|null} Données informatique
+ */
+function getInformatiqueData(structureId, annee) {
+  const informatique = FICHE_STATE.data.informatique;
+  if (!informatique) return null;
+  
+  const idx = informatique.id.findIndex((id, i) => 
+    informatique.Structure[i] === structureId && 
+    informatique.Annee[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    nb_portables: informatique.Nb_Portables?.[idx] || 0,
+    nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
+    nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
+    budget_it: informatique.Budget_IT?.[idx] || 0,
+    budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
+    effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
+    ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
+    pct_portables: informatique.Pct_Portables?.[idx] || 0,
+    budget_it_par_agent: informatique.Budget_IT_Par_Agent?.[idx] || 0,
+    budget_it_moyen_par_agent_4ans: informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
+  };
+}
+
+/**
+ * Récupère les moyennes consolidées pour informatique
+ * @param {string} perimetre - Type de périmètre (National, DI, SCN, Outremer, Metropole)
+ * @param {number} annee - Année
+ * @returns {Object|null} Moyennes consolidées
+ */
+function getInformatiqueMoyennes(perimetre, annee) {
+  const consolidation = FICHE_STATE.data.consolidation;
+  if (!consolidation) return null;
+  
+  const idx = consolidation.id.findIndex((id, i) => 
+    consolidation.Perimetre?.[i] === perimetre && 
+    consolidation.Annee?.[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    moy_ratio_poste_agent: consolidation.Moy_Ratio_Poste_Agent?.[idx] || 0,
+    moy_budget_it_par_agent: consolidation.Moy_Budget_IT_Par_Agent?.[idx] || 0,
+    moy_budget_it_moyen_par_agent_4ans: consolidation.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
+  };
+}
+
+/**
+ * Détermine le périmètre de comparaison pour une structure (IT)
+ * @param {number} structureId - ID de la structure
+ * @returns {string} Périmètre (DI, SCN, Outremer, Metropole)
+ */
+function getPerimetreInformatique(structureId) {
+  const structures = FICHE_STATE.data.structures;
+  if (!structures) return 'National';
+  
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1) return 'National';
+  
+  const type = structures.Type?.[idx];
+  const estOutremer = structures.Est_Outremer?.[idx];
+  
+  if (type === 'SCN') return 'SCN';
+  if (type === 'DI' && estOutremer) return 'Outremer';
+  if (type === 'DI' && !estOutremer) return 'Metropole';
+  if (type === 'DR') return 'Metropole';
+  
+  return 'National';
+}
+
+/**
+ * Calcule l'intitulé du périmètre pour l'affichage (IT)
+ * @param {string} perimetre - Code périmètre
+ * @returns {string} Libellé pour affichage
+ */
+function getLibellePerimetreInformatique(perimetre) {
+  const labels = {
+    'Metropole': 'DI Métropole',
+    'Outremer': 'Outre-Mer',
+    'SCN': 'SCN',
+    'National': 'National'
+  };
+  return labels[perimetre] || perimetre;
+}
+
+/**
+ * Récupère les données informatique pour plusieurs années
+ * @param {number} structureId - ID de la structure
+ * @param {Array<number>} annees - Liste des années à récupérer
+ * @returns {Array<Object>} Données par année
+ */
+function getInformatiqueMultiAnnees(structureId, annees) {
+  return annees.map(annee => {
+    const data = getInformatiqueData(structureId, annee);
+    return {
+      annee: annee,
+      ...(data || {})
+    };
+  });
+}
