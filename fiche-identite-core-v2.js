@@ -1480,7 +1480,7 @@ function getInformatiqueData(structureId, annee) {
     nb_portables: informatique.Nb_Portables?.[idx] || 0,
     nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
     nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
-    budget_it: informatique.Budget_IT?.[idx] || 0,
+    budget_it: informatique.Budget_IT_CP?.[idx] || 0,
     budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
     effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
     ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
