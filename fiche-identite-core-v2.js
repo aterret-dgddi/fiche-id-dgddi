@@ -1220,3 +1220,124 @@ function getNotificationsBOPByType(structureId, annee, type) {
   
   return { ae: totalAE, cp: totalCP };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE FRAIS DE MISSION
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Récupère les données frais de mission pour une structure et une année
+ * @param {number} structureId - ID de la structure
+ * @param {number} annee - Année
+ * @returns {Object|null} Données frais de mission
+ */
+function getFraisMissionData(structureId, annee) {
+  const fraisMission = FICHE_STATE.data.frais_mission;
+  if (!fraisMission) return null;
+  
+  const idx = fraisMission.id.findIndex((id, i) => 
+    fraisMission.Structure[i] === structureId && 
+    fraisMission.Annee[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    montant_total: fraisMission.Montant_Total?.[idx] || 0,
+    total_formation: fraisMission.Total_Formation?.[idx] || 0,
+    total_autres: fraisMission.Total_Autres?.[idx] || 0,
+    total_transport: fraisMission.Total_Transport?.[idx] || 0,
+    total_repas: fraisMission.Total_Repas?.[idx] || 0,
+    total_hebergement: fraisMission.Total_Hebergement?.[idx] || 0,
+    formation_transport: fraisMission.Formation_Transport?.[idx] || 0,
+    formation_repas: fraisMission.Formation_Repas?.[idx] || 0,
+    formation_hebergement: fraisMission.Formation_Hebergement?.[idx] || 0,
+    autres_transport: fraisMission.Autres_Transport?.[idx] || 0,
+    autres_repas: fraisMission.Autres_Repas?.[idx] || 0,
+    autres_hebergement: fraisMission.Autres_Hebergement?.[idx] || 0,
+    frais_par_agent: fraisMission.Frais_Par_Agent?.[idx] || 0,
+    formation_par_agent: fraisMission.Formation_Par_Agent?.[idx] || 0,
+    autres_par_agent: fraisMission.Autres_Par_Agent?.[idx] || 0,
+    pct_formation: fraisMission.Pct_Formation?.[idx] || 0,
+    pct_autres: fraisMission.Pct_Autres?.[idx] || 0
+  };
+}
+
+/**
+ * Récupère les moyennes consolidées pour frais de mission
+ * @param {string} perimetre - Type de périmètre (National, DI, SCN, Outremer, Metropole)
+ * @param {number} annee - Année
+ * @returns {Object|null} Moyennes consolidées
+ */
+function getFraisMissionMoyennes(perimetre, annee) {
+  const consolidation = FICHE_STATE.data.consolidation;
+  if (!consolidation) return null;
+  
+  const idx = consolidation.id.findIndex((id, i) => 
+    consolidation.Perimetre?.[i] === perimetre && 
+    consolidation.Annee?.[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    moy_frais_par_structure: consolidation.Moy_Frais_Par_Structure?.[idx] || 0,
+    moy_frais_par_agent: consolidation.Moy_Frais_Par_Agent?.[idx] || 0,
+    moy_formation_par_agent: consolidation.Moy_Formation_Par_Agent?.[idx] || 0,
+    moy_autres_par_agent: consolidation.Moy_Autres_Par_Agent?.[idx] || 0
+  };
+}
+
+/**
+ * Détermine le périmètre de comparaison pour une structure
+ * @param {number} structureId - ID de la structure
+ * @returns {string} Périmètre (DI, SCN, Outremer, Metropole)
+ */
+function getPerimetreFraisMission(structureId) {
+  const structures = FICHE_STATE.data.structures;
+  if (!structures) return 'National';
+  
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1) return 'National';
+  
+  const type = structures.Type?.[idx];
+  const estOutremer = structures.Est_Outremer?.[idx];
+  
+  if (type === 'SCN') return 'SCN';
+  if (type === 'DI' && estOutremer) return 'Outremer';
+  if (type === 'DI' && !estOutremer) return 'Metropole';
+  if (type === 'DR') return 'Metropole'; // Les DR sont comparées aux DI Métropole
+  
+  return 'National';
+}
+
+/**
+ * Calcule l'intitulé du périmètre pour l'affichage
+ * @param {string} perimetre - Code périmètre
+ * @returns {string} Libellé pour affichage
+ */
+function getLibellePerimetreFraisMission(perimetre) {
+  const labels = {
+    'Metropole': 'DI Métropole',
+    'Outremer': 'Outre-Mer',
+    'SCN': 'SCN',
+    'National': 'National'
+  };
+  return labels[perimetre] || perimetre;
+}
+
+/**
+ * Récupère les données frais de mission pour plusieurs années (pour graphiques et tableau)
+ * @param {number} structureId - ID de la structure
+ * @param {Array<number>} annees - Liste des années à récupérer
+ * @returns {Array<Object>} Données par année
+ */
+function getFraisMissionMultiAnnees(structureId, annees) {
+  return annees.map(annee => {
+    const data = getFraisMissionData(structureId, annee);
+    return {
+      annee: annee,
+      ...(data || {})
+    };
+  });
+}

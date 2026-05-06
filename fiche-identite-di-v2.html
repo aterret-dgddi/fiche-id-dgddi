@@ -517,6 +517,73 @@
       #toolbar, #selbar, #quick-nav, .tbtn { display: none !important; }
       .section { page-break-inside: avoid; }
     }
+	
+	
+	/* ══════════════════════════════════ */
+/* FRAIS DE MISSION - PILLS */
+/* ══════════════════════════════════ */
+
+.fm-pill {
+  background: linear-gradient(135deg, #E8F4FD 0%, #D4E9FA 100%);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  border: 1px solid rgba(55, 138, 221, 0.15);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.fm-pill-teal {
+  background: linear-gradient(135deg, #E8F7F2 0%, #D4F0E8 100%);
+  border-color: rgba(29, 158, 117, 0.15);
+}
+
+.fm-pill-amber {
+  background: linear-gradient(135deg, #FDF6E8 0%, #FAEFD4 100%);
+  border-color: rgba(186, 117, 23, 0.15);
+}
+
+.fm-pill-purple {
+  background: linear-gradient(135deg, #F4F3FE 0%, #E8E6FB 100%);
+  border-color: rgba(127, 119, 221, 0.15);
+}
+
+.fm-evolution-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.fm-evolution-badge.positive {
+  background: rgba(97, 153, 34, 0.12);
+  color: #3B6D11;
+}
+
+.fm-evolution-badge.negative {
+  background: rgba(226, 75, 74, 0.12);
+  color: #A32D2D;
+}
+
+.fm-pill .fm-evolution-badge {
+  color: #0C447C;
+}
+
+.fm-pill-teal .fm-evolution-badge {
+  color: #085041;
+}
+
+.fm-pill-amber .fm-evolution-badge {
+  color: #633806;
+}
+
+.fm-pill-purple .fm-evolution-badge {
+  color: #3C3489;
+}
+	
+	
   </style>
 </head>
 <body>
@@ -746,45 +813,88 @@
       </div>
     </div>
     
-    <!-- SECTION FRAIS MISSION -->
+     <!-- SECTION FRAIS DE MISSION -->
+    <!-- À insérer après la section Informatique (ligne 825) et avant la section Véhicules (ligne 828) -->
+    
     <div class="section">
       <div class="section-header">
         <div class="section-icon">✈️</div>
         <div class="section-title">Frais de Mission</div>
       </div>
       
-      <div class="metrics-grid">
-        <div class="metric-card">
-          <div class="metric-label">Total Formation</div>
-          <div class="metric-value" id="mission-formation">—</div>
+      <!-- KPI Pills -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
+        
+        <!-- Total Frais Mission -->
+        <div class="fm-pill" id="fm-pill-total">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">📊</span>
+            <span style="font-size:12px;font-weight:500;">Total frais mission</span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-total-value">—</div>
+          <div class="fm-evolution-badge" id="fm-total-evol"></div>
+          <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="fm-total-comp"></div>
         </div>
-        <div class="metric-card">
-          <div class="metric-label">Total Autres Missions</div>
-          <div class="metric-value" id="mission-autres">—</div>
+
+        <!-- Formation -->
+        <div class="fm-pill fm-pill-teal" id="fm-pill-formation">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">🎓</span>
+            <span style="font-size:12px;font-weight:500;">Formation</span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-formation-value">—</div>
+          <div class="fm-evolution-badge" id="fm-formation-evol"></div>
+          <div style="font-size:10px;opacity:0.6;margin-top:10px;" id="fm-formation-pct"></div>
         </div>
-        <div class="metric-card">
-          <div class="metric-label">Montant Total</div>
-          <div class="metric-value" id="mission-total">—</div>
+
+        <!-- Autres missions -->
+        <div class="fm-pill fm-pill-amber" id="fm-pill-autres">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">✈️</span>
+            <span style="font-size:12px;font-weight:500;">Autres missions</span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-autres-value">—</div>
+          <div class="fm-evolution-badge" id="fm-autres-evol"></div>
+          <div style="font-size:10px;opacity:0.6;margin-top:10px;" id="fm-autres-pct"></div>
         </div>
-        <div class="metric-card">
-          <div class="metric-label">Par Agent</div>
-          <div class="metric-value" id="mission-par-agent">—</div>
+
+        <!-- Coût moyen par agent -->
+        <div class="fm-pill fm-pill-purple" id="fm-pill-agent">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">👤</span>
+            <span style="font-size:12px;font-weight:500;">Coût moyen / agent</span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-agent-value">—</div>
+          <div class="fm-evolution-badge" id="fm-agent-evol"></div>
+          <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="fm-agent-comp"></div>
+        </div>
+
+      </div>
+
+      <!-- Graphique Répartition -->
+      <div class="chart-container" style="margin-bottom:2rem;">
+        <div class="chart-title">Répartition des frais par type (% du total)</div>
+        <div class="chart-wrapper">
+          <canvas id="chart-fm-repartition"></canvas>
         </div>
       </div>
-      
-      <div class="chart-grid">
-        <div class="chart-container">
-          <div class="chart-title">Répartition Formation / Autres</div>
-          <div class="chart-wrapper">
-            <canvas id="chart-mission-type"></canvas>
-          </div>
-        </div>
-        <div class="chart-container">
-          <div class="chart-title">Répartition par poste</div>
-          <div class="chart-wrapper">
-            <canvas id="chart-mission-poste"></canvas>
-          </div>
-        </div>
+
+      <!-- Tableau détaillé -->
+      <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
+        <table id="table-fm" style="width:100%;border-collapse:collapse;">
+          <thead style="background:var(--gris4);">
+            <tr>
+              <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année / Type</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Transport</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Hébergement</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Repas</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total</th>
+            </tr>
+          </thead>
+          <tbody id="table-fm-body">
+            <!-- Rempli dynamiquement -->
+          </tbody>
+        </table>
       </div>
     </div>
     
@@ -1082,7 +1192,7 @@
       // Charger les sections
       refreshRH(struct.id, annee);
       refreshBudget(struct.id, annee);
-      refreshMission(struct.id, annee);
+      refreshFraisMission(struct.id, annee);
       refreshInformatique(struct.id, annee);
       refreshVehicules(struct.id, annee);
     }
@@ -1423,31 +1533,270 @@
       createBudgetTableByType(structureId, annee);
     }
 
-    function refreshMission(structureId, annee) {
-      const data = getFraisMissionData(structureId, annee);
-      if (!data) return;
-      
-      document.getElementById('mission-formation').textContent = formatCurrency(data.total_formation);
-      document.getElementById('mission-autres').textContent = formatCurrency(data.total_autres);
-      document.getElementById('mission-total').textContent = formatCurrency(data.montant_total);
-      document.getElementById('mission-par-agent').textContent = formatCurrency(data.frais_par_agent);
-      
-      createPieChart('chart-mission-type',
-        ['Formation', 'Autres missions'],
-        [data.total_formation, data.total_autres],
-        ['#007bff', '#198754']
-      );
-      
-      const transport = data.formation_transport + data.autres_transport;
-      const repas = data.formation_repas + data.autres_repas;
-      const hebergement = data.formation_hebergement + data.autres_hebergement;
-      
-      createPieChart('chart-mission-poste',
-        ['Transport', 'Repas', 'Hébergement'],
-        [transport, repas, hebergement],
-        ['#002F6C', '#ffc107', '#dc3545']
-      );
+    function refreshFraisMission(structureId, annee) {
+  // Année courante et année précédente
+  const anneeCourante = annee;
+  const anneePrecedente = annee - 1;
+  
+  // Récupérer données
+  const dataCourante = getFraisMissionData(structureId, anneeCourante);
+  const dataPrecedente = getFraisMissionData(structureId, anneePrecedente);
+  
+  if (!dataCourante) {
+    console.warn('Pas de données Frais Mission pour', anneeCourante);
+    return;
+  }
+  
+  // Périmètre et moyennes
+  const perimetre = getPerimetreFraisMission(structureId);
+  const libellePerimetre = getLibellePerimetreFraisMission(perimetre);
+  const moyennesPerimetre = getFraisMissionMoyennes(perimetre, anneeCourante);
+  const moyennesNational = getFraisMissionMoyennes('National', anneeCourante);
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI PILLS
+  // ═══════════════════════════════════════════════════════════════
+  
+  // Total Frais Mission
+  document.getElementById('fm-total-value').textContent = formatCurrency(dataCourante.montant_total / 1000) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.montant_total > 0) {
+    const evolPct = ((dataCourante.montant_total - dataPrecedente.montant_total) / dataPrecedente.montant_total * 100);
+    const badge = document.getElementById('fm-total-evol');
+    badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  if (moyennesPerimetre && moyennesNational) {
+    const ecartPerimetre = moyennesPerimetre.moy_frais_par_agent > 0
+      ? ((dataCourante.frais_par_agent - moyennesPerimetre.moy_frais_par_agent) / moyennesPerimetre.moy_frais_par_agent * 100)
+      : 0;
+    const ecartNational = moyennesNational.moy_frais_par_agent > 0
+      ? ((dataCourante.frais_par_agent - moyennesNational.moy_frais_par_agent) / moyennesNational.moy_frais_par_agent * 100)
+      : 0;
+    
+    document.getElementById('fm-total-comp').innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-top:3px;">
+        <span>vs ${libellePerimetre}</span>
+        <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;">
+        <span>vs National</span>
+        <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+      </div>
+    `;
+  }
+  
+  // Formation
+  document.getElementById('fm-formation-value').textContent = formatCurrency(dataCourante.total_formation / 1000) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.total_formation > 0) {
+    const evolPct = ((dataCourante.total_formation - dataPrecedente.total_formation) / dataPrecedente.total_formation * 100);
+    const badge = document.getElementById('fm-formation-evol');
+    badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  document.getElementById('fm-formation-pct').textContent = `${dataCourante.pct_formation.toFixed(1)}% du total`;
+  
+  // Autres missions
+  document.getElementById('fm-autres-value').textContent = formatCurrency(dataCourante.total_autres / 1000) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.total_autres > 0) {
+    const evolPct = ((dataCourante.total_autres - dataPrecedente.total_autres) / dataPrecedente.total_autres * 100);
+    const badge = document.getElementById('fm-autres-evol');
+    badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  document.getElementById('fm-autres-pct').textContent = `${dataCourante.pct_autres.toFixed(1)}% du total`;
+  
+  // Coût moyen par agent
+  document.getElementById('fm-agent-value').textContent = formatCurrency(dataCourante.frais_par_agent) + ' €';
+  
+  if (dataPrecedente && dataPrecedente.frais_par_agent > 0) {
+    const evolPct = ((dataCourante.frais_par_agent - dataPrecedente.frais_par_agent) / dataPrecedente.frais_par_agent * 100);
+    const badge = document.getElementById('fm-agent-evol');
+    badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  if (moyennesPerimetre && moyennesNational) {
+    const ecartPerimetre = moyennesPerimetre.moy_frais_par_agent > 0
+      ? ((dataCourante.frais_par_agent - moyennesPerimetre.moy_frais_par_agent) / moyennesPerimetre.moy_frais_par_agent * 100)
+      : 0;
+    const ecartNational = moyennesNational.moy_frais_par_agent > 0
+      ? ((dataCourante.frais_par_agent - moyennesNational.moy_frais_par_agent) / moyennesNational.moy_frais_par_agent * 100)
+      : 0;
+    
+    document.getElementById('fm-agent-comp').innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-top:3px;">
+        <span>vs ${libellePerimetre}</span>
+        <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;">
+        <span>vs National</span>
+        <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+      </div>
+    `;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // GRAPHIQUE RÉPARTITION
+  // ═══════════════════════════════════════════════════════════════
+  
+  const annees = [anneeCourante - 3, anneeCourante - 2, anneeCourante - 1, anneeCourante];
+  const dataMultiAnnees = getFraisMissionMultiAnnees(structureId, annees);
+  
+  const totaux = dataMultiAnnees.map(d => d.montant_total || 0);
+  const transport = dataMultiAnnees.map(d => d.total_transport || 0);
+  const hebergement = dataMultiAnnees.map(d => d.total_hebergement || 0);
+  const repas = dataMultiAnnees.map(d => d.total_repas || 0);
+  
+  const transportPct = transport.map((v, i) => totaux[i] > 0 ? (v / totaux[i] * 100).toFixed(1) : 0);
+  const hebergementPct = hebergement.map((v, i) => totaux[i] > 0 ? (v / totaux[i] * 100).toFixed(1) : 0);
+  const repasPct = repas.map((v, i) => totaux[i] > 0 ? (v / totaux[i] * 100).toFixed(1) : 0);
+  
+  createFraisMissionRepartitionChart(annees, transportPct, hebergementPct, repasPct, transport, hebergement, repas);
+  
+  // ═══════════════════════════════════════════════════════════════
+  // TABLEAU DÉTAILLÉ
+  // ═══════════════════════════════════════════════════════════════
+  
+  const tbody = document.getElementById('table-fm-body');
+  tbody.innerHTML = '';
+  
+  annees.forEach((annee, idx) => {
+    const data = dataMultiAnnees[idx];
+    
+    // Ligne année (totaux)
+    const rowAnnee = tbody.insertRow();
+    rowAnnee.style.background = '#F1EFE8';
+    rowAnnee.style.fontWeight = '500';
+    rowAnnee.innerHTML = `
+      <td style="padding:12px 16px;">${annee}</td>
+      <td style="padding:12px 16px;text-align:right;">${formatCurrency(data.total_transport / 1000)} K€</td>
+      <td style="padding:12px 16px;text-align:right;">${formatCurrency(data.total_hebergement / 1000)} K€</td>
+      <td style="padding:12px 16px;text-align:right;">${formatCurrency(data.total_repas / 1000)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-weight:500;">${formatCurrency(data.montant_total / 1000)} K€</td>
+    `;
+    
+    // Ligne Formation
+    const rowFormation = tbody.insertRow();
+    rowFormation.style.background = 'rgba(241, 239, 232, 0.4)';
+    rowFormation.innerHTML = `
+      <td style="padding:12px 16px 12px 32px;font-size:13px;">Formation</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatCurrency(data.formation_transport / 1000)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatCurrency(data.formation_hebergement / 1000)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatCurrency(data.formation_repas / 1000)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatCurrency(data.total_formation / 1000)} K€</td>
+    `;
+    
+    // Ligne Autres missions
+    const rowAutres = tbody.insertRow();
+    rowAutres.style.background = 'rgba(241, 239, 232, 0.4)';
+    rowAutres.innerHTML = `
+      <td style="padding:12px 16px 12px 32px;font-size:13px;">Autres missions</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatCurrency(data.autres_transport / 1000)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatCurrency(data.autres_hebergement / 1000)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatCurrency(data.autres_repas / 1000)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatCurrency(data.total_autres / 1000)} K€</td>
+    `;
+  });
+}
+
+function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct, repasPct, transportMontants, hebergementMontants, repasMontants) {
+  const canvas = document.getElementById('chart-fm-repartition');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  // Détruire graphique existant
+  if (window.chartFMRepartition) {
+    window.chartFMRepartition.destroy();
+  }
+  
+  window.chartFMRepartition = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: annees.map(a => String(a)),
+      datasets: [
+        {
+          label: 'Transport',
+          data: transportPct,
+          backgroundColor: '#A8CEF0',
+          borderColor: 'transparent',
+          borderWidth: 0
+        },
+        {
+          label: 'Hébergement',
+          data: hebergementPct,
+          backgroundColor: '#A3DCC5',
+          borderColor: 'transparent',
+          borderWidth: 0
+        },
+        {
+          label: 'Repas',
+          data: repasPct,
+          backgroundColor: '#F5D6A8',
+          borderColor: 'transparent',
+          borderWidth: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
+            padding: 15,
+            font: { size: 12 }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const datasetLabel = context.dataset.label;
+              const percentage = context.parsed.y;
+              const yearIndex = context.dataIndex;
+              let montant;
+              if (datasetLabel === 'Transport') montant = transportMontants[yearIndex];
+              else if (datasetLabel === 'Hébergement') montant = hebergementMontants[yearIndex];
+              else montant = repasMontants[yearIndex];
+              return datasetLabel + ': ' + percentage + '% (' + formatCurrency(montant / 1000) + ' K€)';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { font: { size: 12 } }
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            font: { size: 12 },
+            callback: function(value) {
+              return value + '%';
+            }
+          },
+          grid: {
+            color: 'rgba(0,0,0,0.05)'
+          }
+        }
+      }
     }
+  });
+}
 
     function refreshInformatique(structureId, annee) {
       const data = getInformatiqueData(structureId, annee);
