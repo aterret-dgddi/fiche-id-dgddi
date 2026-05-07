@@ -2377,27 +2377,6 @@ function createInformatiqueChart(annees, portables, fixes) {
 }
 
 
-    function refreshVehicules(structureId, annee) {
-      const data = getVehiculesData(structureId, annee);
-      if (!data) return;
-      
-      document.getElementById('veh-total').textContent = formatNumber(data.nombre_total);
-      document.getElementById('veh-vetuste').textContent = formatPercent(data.taux_vetuste);
-      document.getElementById('veh-budget').textContent = formatCurrency(data.budget_total);
-      document.getElementById('veh-ratio').textContent = formatNumber(data.ratio_vehicule_agent, 3);
-      
-      createPieChart('chart-veh-vetuste',
-        ['Vétustes', 'OK'],
-        [data.nombre_vetuste, data.nombre_total - data.nombre_vetuste],
-        ['#dc3545', '#198754']
-      );
-      
-      createPieChart('chart-veh-budget',
-        ['Fonctionnement', 'Investissement'],
-        [data.budget_fonctionnement, data.budget_investissement],
-        ['#002F6C', '#007bff']
-      );
-    }
 
     // Export HTML
     function exportToHTML() {

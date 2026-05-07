@@ -621,12 +621,7 @@ function getConsolidationData(perimetre, annee) {
     total_frais_mission: conso.Total_Frais_Mission[idx] || 0,
     moyenne_frais_par_agent: conso.Moyenne_Frais_Par_Agent[idx] || 0,
     total_budget_it: conso.Total_Budget_IT[idx] || 0,
-    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0,
-    // Moyennes Véhicules (nouvelles colonnes)
-    Moy_Nb_Vehicules: conso.Moy_Nb_Vehicules ? conso.Moy_Nb_Vehicules[idx] : 0,
-    Moy_Taux_Vetuste: conso.Moy_Taux_Vetuste ? conso.Moy_Taux_Vetuste[idx] : 0,
-    Moy_Budget_Vehicules: conso.Moy_Budget_Vehicules ? conso.Moy_Budget_Vehicules[idx] : 0,
-    Moy_Ratio_Vehicule_Agent: conso.Moy_Ratio_Vehicule_Agent ? conso.Moy_Ratio_Vehicule_Agent[idx] : 0
+    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0
   };
 }
 
@@ -1583,6 +1578,13 @@ function getInformatiqueMultiAnnees(structureId, annees) {
  * @param {number} annee - Année de référence
  */
 function refreshVehicules(structureId, annee) {
+  // Vérifier que les éléments HTML existent (section peut ne pas être affichée)
+  const vehTotalElem = document.getElementById('veh-total-value');
+  if (!vehTotalElem) {
+    // Section véhicules non présente dans cette page
+    return;
+  }
+  
   const data = getVehiculesData(structureId, annee);
   if (!data) {
     // Afficher placeholder si pas de données
