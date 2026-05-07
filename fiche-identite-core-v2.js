@@ -508,15 +508,19 @@ function getVehiculesData(structureId, annee) {
   
   if (idx === -1) return null;
   
+  const nombre_total = veh.Nombre_Total[idx] || 0;
+  const budget_fonctionnement = veh.Budget_Fonctionnement_CP[idx] || 0;
+  
   return {
-    nombre_total: veh.Nombre_Total[idx] || 0,
+    nombre_total: nombre_total,
     nombre_vetuste: veh.Nombre_Vetuste[idx] || 0,
     taux_vetuste: veh.Taux_Vetuste[idx] || 0,
-    budget_fonctionnement: veh.Budget_Fonctionnement_CP[idx] || 0,
+    budget_fonctionnement: budget_fonctionnement,
     budget_investissement: veh.Budget_Investissement_CP[idx] || 0,
     budget_total: veh.Budget_Total_CP[idx] || 0,
     ratio_vehicule_agent: veh.Ratio_Vehicule_Agent_Total[idx] || 0,
-    ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0
+    ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0,
+    cout_fonct_par_vehicule: nombre_total > 0 ? budget_fonctionnement / nombre_total : 0
   };
 }
 
@@ -621,7 +625,14 @@ function getConsolidationData(perimetre, annee) {
     total_frais_mission: conso.Total_Frais_Mission[idx] || 0,
     moyenne_frais_par_agent: conso.Moyenne_Frais_Par_Agent[idx] || 0,
     total_budget_it: conso.Total_Budget_IT[idx] || 0,
-    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0
+    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0,
+    // Moyennes Véhicules
+    Moy_Nb_Vehicules: conso.Moy_Nb_Vehicules ? conso.Moy_Nb_Vehicules[idx] : 0,
+    Moy_Taux_Vetuste: conso.Moy_Taux_Vetuste ? conso.Moy_Taux_Vetuste[idx] : 0,
+    Moy_Budget_Vehicules: conso.Moy_Budget_Vehicules ? conso.Moy_Budget_Vehicules[idx] : 0,
+    Moy_Ratio_Vehicule_Agent: conso.Moy_Ratio_Vehicule_Agent ? conso.Moy_Ratio_Vehicule_Agent[idx] : 0,
+    Moy_Cout_Fonct_Par_Vehicule: conso.Moy_Cout_Fonct_Par_Vehicule ? conso.Moy_Cout_Fonct_Par_Vehicule[idx] : 0,
+    Moy_Ratio_Vehicule_Agent_SU: conso.Moy_Ratio_Vehicule_Agent_SU ? conso.Moy_Ratio_Vehicule_Agent_SU[idx] : 0
   };
 }
 
@@ -1758,6 +1769,65 @@ function refreshVehicules(structureId, annee) {
     `;
   } else {
     document.getElementById('veh-ratio-comp').textContent = '';
+  }
+  
+  // 5. Coût de fonctionnement par véhicule
+  document.getElementById('veh-cout-value').textContent = formatCurrency(data.cout_fonct_par_vehicule, 0);
+  
+  // Évolution coût par véhicule
+  if (dataN1) {
+    const evolCout = data.cout_fonct_par_vehicule - dataN1.cout_fonct_par_vehicule;
+    const evolPctCout = dataN1.cout_fonct_par_vehicule > 0 ? (evolCout / dataN1.cout_fonct_par_vehicule) * 100 : 0;
+    document.getElementById('veh-cout-evol').innerHTML = `
+      <span style="color:${evolCout >= 0 ? '#ef4444' : '#10b981'};">
+        ${evolCout >= 0 ? '▲' : '▼'} ${Math.abs(evolPctCout).toFixed(1)}%
+      </span>
+      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
+    `;
+  } else {
+    document.getElementById('veh-cout-evol').textContent = '';
+  }
+  
+  // Comparaisons coût par véhicule
+  if (consol && consol.Moy_Cout_Fonct_Par_Vehicule && consol.Moy_Cout_Fonct_Par_Vehicule > 0) {
+    const ecart = data.cout_fonct_par_vehicule - consol.Moy_Cout_Fonct_Par_Vehicule;
+    const ecartPct = (ecart / consol.Moy_Cout_Fonct_Par_Vehicule) * 100;
+    document.getElementById('veh-cout-comp').innerHTML = `
+      <span style="color:var(--gris2);">
+        ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}
+      </span>
+    `;
+  } else {
+    document.getElementById('veh-cout-comp').textContent = '';
+  }
+  
+  // 6. Ratio véhicule / agent SU
+  document.getElementById('veh-ratio-su-value').textContent = formatNumber(data.ratio_vehicule_su, 3);
+  
+  // Évolution ratio SU
+  if (dataN1) {
+    const evolRatioSU = data.ratio_vehicule_su - dataN1.ratio_vehicule_su;
+    document.getElementById('veh-ratio-su-evol').innerHTML = `
+      <span style="color:${evolRatioSU >= 0 ? '#10b981' : '#ef4444'};">
+        ${evolRatioSU >= 0 ? '▲' : '▼'} ${Math.abs(evolRatioSU).toFixed(3)}
+      </span>
+      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
+    `;
+  } else {
+    document.getElementById('veh-ratio-su-evol').textContent = '';
+  }
+  
+  // Comparaison ratio SU vs périmètre
+  if (consol && consol.Moy_Ratio_Vehicule_Agent_SU && consol.Moy_Ratio_Vehicule_Agent_SU > 0) {
+    const ecart = data.ratio_vehicule_su - consol.Moy_Ratio_Vehicule_Agent_SU;
+    const ecartPct = (ecart / consol.Moy_Ratio_Vehicule_Agent_SU) * 100;
+    document.getElementById('veh-ratio-su-comp').innerHTML = `
+      <span style="color:var(--gris2);">
+        ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}
+      </span>
+    `;
+  } else {
+    document.getElementById('veh-ratio-su-comp').textContent = '';
   }
   
   // ========== GRAPHIQUES ==========

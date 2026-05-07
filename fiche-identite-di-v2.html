@@ -723,6 +723,34 @@
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
 }
 
+/* Pill Coût (violet) */
+.veh-pill-purple {
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #e9d5ff;
+}
+
+.veh-pill-purple::before {
+  background: linear-gradient(90deg, #a855f7 0%, #c084fc 100%);
+}
+
+.veh-pill-purple:hover {
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.15);
+}
+
+/* Pill Ratio SU (orange) */
+.veh-pill-orange {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border: 1px solid #fed7aa;
+}
+
+.veh-pill-orange::before {
+  background: linear-gradient(90deg, #f97316 0%, #fb923c 100%);
+}
+
+.veh-pill-orange:hover {
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+}
+
 /* Badge évolution */
 .veh-evolution-badge {
   display: inline-flex;
@@ -1216,6 +1244,28 @@
       <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-ratio-value">—</div>
       <div class="veh-evolution-badge" id="veh-ratio-evol"></div>
       <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-ratio-comp"></div>
+    </div>
+
+    <!-- Coût par véhicule -->
+    <div class="veh-pill veh-pill-purple" id="veh-pill-cout">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">💸</span>
+        <span style="font-size:12px;font-weight:500;">Coût fonct. / véhicule</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-cout-value">—</div>
+      <div class="veh-evolution-badge" id="veh-cout-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-cout-comp"></div>
+    </div>
+
+    <!-- Ratio SU -->
+    <div class="veh-pill veh-pill-orange" id="veh-pill-ratio-su">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">👥</span>
+        <span style="font-size:12px;font-weight:500;">Ratio véhicule / SU</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-ratio-su-value">—</div>
+      <div class="veh-evolution-badge" id="veh-ratio-su-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-ratio-su-comp"></div>
     </div>
 
   </div>
