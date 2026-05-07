@@ -621,7 +621,12 @@ function getConsolidationData(perimetre, annee) {
     total_frais_mission: conso.Total_Frais_Mission[idx] || 0,
     moyenne_frais_par_agent: conso.Moyenne_Frais_Par_Agent[idx] || 0,
     total_budget_it: conso.Total_Budget_IT[idx] || 0,
-    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0
+    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0,
+    // Moyennes Véhicules (nouvelles colonnes)
+    Moy_Nb_Vehicules: conso.Moy_Nb_Vehicules ? conso.Moy_Nb_Vehicules[idx] : 0,
+    Moy_Taux_Vetuste: conso.Moy_Taux_Vetuste ? conso.Moy_Taux_Vetuste[idx] : 0,
+    Moy_Budget_Vehicules: conso.Moy_Budget_Vehicules ? conso.Moy_Budget_Vehicules[idx] : 0,
+    Moy_Ratio_Vehicule_Agent: conso.Moy_Ratio_Vehicule_Agent ? conso.Moy_Ratio_Vehicule_Agent[idx] : 0
   };
 }
 
@@ -1566,4 +1571,385 @@ function getInformatiqueMultiAnnees(structureId, annees) {
       ...(data || {})
     };
   });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE VÉHICULES
+// ═══════════════════════════════════════════════════════════════
+ 
+/**
+ * Rafraîchit l'affichage de l'indicateur Véhicules
+ * @param {number} structureId - ID de la structure
+ * @param {number} annee - Année de référence
+ */
+function refreshVehicules(structureId, annee) {
+  const data = getVehiculesData(structureId, annee);
+  if (!data) {
+    // Afficher placeholder si pas de données
+    document.getElementById('veh-total-value').textContent = '—';
+    document.getElementById('veh-vetuste-value').textContent = '—';
+    document.getElementById('veh-budget-value').textContent = '—';
+    document.getElementById('veh-ratio-value').textContent = '—';
+    return;
+  }
+  
+  // Récupérer données N-1 pour évolution
+  const dataN1 = getVehiculesData(structureId, annee - 1);
+  
+  // Récupérer données consolidation pour comparaisons
+  const perimetre = getPerimetreStructure(structureId);
+  const consol = getConsolidationData(perimetre, annee);
+  
+  // ========== KPI PILLS ==========
+  
+  // 1. Total Véhicules
+  document.getElementById('veh-total-value').textContent = formatNumber(data.nombre_total, 0);
+  
+  // Évolution N vs N-1
+  if (dataN1) {
+    const evolTotal = data.nombre_total - dataN1.nombre_total;
+    const evolPctTotal = dataN1.nombre_total > 0 ? (evolTotal / dataN1.nombre_total) * 100 : 0;
+    document.getElementById('veh-total-evol').innerHTML = `
+      <span style="color:${evolTotal >= 0 ? '#10b981' : '#ef4444'};">
+        ${evolTotal >= 0 ? '▲' : '▼'} ${Math.abs(evolPctTotal).toFixed(1)}%
+      </span>
+      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
+    `;
+  } else {
+    document.getElementById('veh-total-evol').textContent = '';
+  }
+  
+  // Comparaison vs périmètre (utilise Moy_Nb_Vehicules)
+  if (consol && consol.Moy_Nb_Vehicules && consol.Moy_Nb_Vehicules > 0) {
+    const ecart = data.nombre_total - consol.Moy_Nb_Vehicules;
+    const ecartPct = (ecart / consol.Moy_Nb_Vehicules) * 100;
+    document.getElementById('veh-total-comp').innerHTML = `
+      <span style="color:var(--gris2);">
+        ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs moyenne ${perimetre}
+      </span>
+    `;
+  } else {
+    document.getElementById('veh-total-comp').textContent = '';
+  }
+  
+  // 2. Taux de Vétusté
+  document.getElementById('veh-vetuste-value').textContent = formatPercent(data.taux_vetuste);
+  
+  // Évolution taux vétusté
+  if (dataN1) {
+    const evolVetuste = data.taux_vetuste - dataN1.taux_vetuste;
+    document.getElementById('veh-vetuste-evol').innerHTML = `
+      <span style="color:${evolVetuste <= 0 ? '#10b981' : '#ef4444'};">
+        ${evolVetuste >= 0 ? '▲' : '▼'} ${Math.abs(evolVetuste).toFixed(1)}pp
+      </span>
+      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
+    `;
+  } else {
+    document.getElementById('veh-vetuste-evol').textContent = '';
+  }
+  
+  // Comparaison vs périmètre (utilise Moy_Taux_Vetuste)
+  if (consol && consol.Moy_Taux_Vetuste) {
+    const ecart = data.taux_vetuste - consol.Moy_Taux_Vetuste;
+    document.getElementById('veh-vetuste-comp').innerHTML = `
+      <span style="color:var(--gris2);">
+        ${ecart >= 0 ? '+' : ''}${ecart.toFixed(1)}pp vs ${perimetre}
+      </span>
+    `;
+  } else {
+    document.getElementById('veh-vetuste-comp').textContent = '';
+  }
+  
+  // 3. Budget Total (en K€)
+  document.getElementById('veh-budget-value').textContent = formatNumber(data.budget_total / 1000, 0) + ' K€';
+  
+  // Évolution budget
+  if (dataN1) {
+    const evolBudget = data.budget_total - dataN1.budget_total;
+    const evolPctBudget = dataN1.budget_total > 0 ? (evolBudget / dataN1.budget_total) * 100 : 0;
+    document.getElementById('veh-budget-evol').innerHTML = `
+      <span style="color:${evolBudget >= 0 ? '#ef4444' : '#10b981'};">
+        ${evolBudget >= 0 ? '▲' : '▼'} ${Math.abs(evolPctBudget).toFixed(1)}%
+      </span>
+      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
+    `;
+  } else {
+    document.getElementById('veh-budget-evol').textContent = '';
+  }
+  
+  // Comparaison budget vs périmètre (utilise Moy_Budget_Vehicules)
+  if (consol && consol.Moy_Budget_Vehicules && consol.Moy_Budget_Vehicules > 0) {
+    const ecart = data.budget_total - consol.Moy_Budget_Vehicules;
+    const ecartPct = (ecart / consol.Moy_Budget_Vehicules) * 100;
+    document.getElementById('veh-budget-comp').innerHTML = `
+      <span style="color:var(--gris2);">
+        ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}
+      </span>
+    `;
+  } else {
+    document.getElementById('veh-budget-comp').textContent = '';
+  }
+  
+  // 4. Ratio Véhicule/Agent
+  document.getElementById('veh-ratio-value').textContent = formatNumber(data.ratio_vehicule_agent, 3);
+  
+  // Évolution ratio
+  if (dataN1) {
+    const evolRatio = data.ratio_vehicule_agent - dataN1.ratio_vehicule_agent;
+    document.getElementById('veh-ratio-evol').innerHTML = `
+      <span style="color:${evolRatio >= 0 ? '#10b981' : '#ef4444'};">
+        ${evolRatio >= 0 ? '▲' : '▼'} ${Math.abs(evolRatio).toFixed(3)}
+      </span>
+      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
+    `;
+  } else {
+    document.getElementById('veh-ratio-evol').textContent = '';
+  }
+  
+  // Comparaison ratio vs périmètre (utilise Moy_Ratio_Vehicule_Agent)
+  if (consol && consol.Moy_Ratio_Vehicule_Agent && consol.Moy_Ratio_Vehicule_Agent > 0) {
+    const ecart = data.ratio_vehicule_agent - consol.Moy_Ratio_Vehicule_Agent;
+    const ecartPct = (ecart / consol.Moy_Ratio_Vehicule_Agent) * 100;
+    document.getElementById('veh-ratio-comp').innerHTML = `
+      <span style="color:var(--gris2);">
+        ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}
+      </span>
+    `;
+  } else {
+    document.getElementById('veh-ratio-comp').textContent = '';
+  }
+  
+  // ========== GRAPHIQUES ==========
+  
+  // Graphique Vétusté (camembert)
+  createVehiculesVetustePieChart(data);
+  
+  // Graphique Budget Fonct/Invest (barres empilées)
+  createVehiculesBudgetChart(structureId);
+  
+  // ========== TABLEAU MULTI-ANNÉES ==========
+  
+  createVehiculesTable(structureId);
+}
+ 
+/**
+ * Crée le graphique camembert de vétusté
+ */
+function createVehiculesVetustePieChart(data) {
+  const ctx = document.getElementById('chart-veh-vetuste');
+  if (!ctx) return;
+  
+  // Détruire ancien graphique si existe
+  if (window.chartVehVetuste) {
+    window.chartVehVetuste.destroy();
+  }
+  
+  const nbOk = data.nombre_total - data.nombre_vetuste;
+  
+  window.chartVehVetuste = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Vétustes', 'Récents'],
+      datasets: [{
+        data: [data.nombre_vetuste, nbOk],
+        backgroundColor: ['#ef4444', '#10b981'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
+            padding: 15,
+            font: { size: 12 },
+            generateLabels: function(chart) {
+              const data = chart.data;
+              return data.labels.map((label, i) => {
+                const value = data.datasets[0].data[i];
+                const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                return {
+                  text: `${label}: ${value} (${pct}%)`,
+                  fillStyle: data.datasets[0].backgroundColor[i],
+                  hidden: false,
+                  index: i
+                };
+              });
+            }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const value = context.parsed;
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+              return `${context.label}: ${value} véhicules (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+ 
+/**
+ * Crée le graphique Budget Fonctionnement/Investissement (barres empilées)
+ */
+function createVehiculesBudgetChart(structureId) {
+  const ctx = document.getElementById('chart-veh-budget');
+  if (!ctx) return;
+  
+  // Détruire ancien graphique si existe
+  if (window.chartVehBudget) {
+    window.chartVehBudget.destroy();
+  }
+  
+  // Récupérer années disponibles
+  const annees = getAnneesDisponibles();
+  
+  const dataFonct = [];
+  const dataInvest = [];
+  
+  annees.forEach(annee => {
+    const data = getVehiculesData(structureId, annee);
+    if (data) {
+      dataFonct.push((data.budget_fonctionnement || 0) / 1000); // Convertir en K€
+      dataInvest.push((data.budget_investissement || 0) / 1000);
+    } else {
+      dataFonct.push(0);
+      dataInvest.push(0);
+    }
+  });
+  
+  window.chartVehBudget = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: annees,
+      datasets: [
+        {
+          label: 'Fonctionnement',
+          data: dataFonct,
+          backgroundColor: '#3b82f6',
+          borderWidth: 0
+        },
+        {
+          label: 'Investissement',
+          data: dataInvest,
+          backgroundColor: '#8b5cf6',
+          borderWidth: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
+            padding: 15,
+            font: { size: 12 }          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label + ': ' + formatNumber(context.parsed.y, 0) + ' K€';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { font: { size: 12 } }
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          ticks: {
+            font: { size: 12 },
+            callback: function(value) {
+              return formatNumber(value, 0) + ' K€';
+            }
+          },
+          grid: {
+            color: 'rgba(0,0,0,0.05)'
+          }
+        }
+      }
+    }
+  });
+}
+ 
+/**
+ * Crée le tableau multi-années pour les véhicules
+ */
+function createVehiculesTable(structureId) {
+  const tbody = document.getElementById('table-veh-body');
+  if (!tbody) return;
+  
+  tbody.innerHTML = '';
+  
+  const annees = getAnneesDisponibles();
+  
+  // Récupérer données de consolidation pour la ligne moyenne
+  const perimetre = getPerimetreStructure(structureId);
+  
+  annees.forEach(annee => {
+    const data = getVehiculesData(structureId, annee);
+    
+    if (data) {
+      const row = document.createElement('tr');
+      row.style.borderBottom = '0.5px solid var(--bord)';
+      
+      row.innerHTML = `
+        <td style="padding:12px 16px;font-weight:500;font-size:13px;">${annee}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.nombre_total, 0)}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.nombre_vetuste, 0)}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatPercent(data.taux_vetuste)}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.budget_fonctionnement / 1000, 0)} K€</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.budget_investissement / 1000, 0)} K€</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.budget_total / 1000, 0)} K€</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.ratio_vehicule_agent, 3)}</td>
+      `;
+      
+      tbody.appendChild(row);
+    }
+  });
+  
+  // Ajouter ligne moyenne du périmètre
+  if (perimetre) {
+    const rowMoy = document.createElement('tr');
+    rowMoy.style.borderTop = '1px solid var(--bord)';
+    rowMoy.style.background = 'var(--gris5)';
+    rowMoy.style.fontWeight = '500';
+    
+    const consolDerniere = getConsolidationData(perimetre, annees[annees.length - 1]);
+    
+    if (consolDerniere) {
+      rowMoy.innerHTML = `
+        <td style="padding:12px 16px;font-size:13px;">Moyenne ${perimetre}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(consolDerniere.Moy_Nb_Vehicules || 0, 0)}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">—</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatPercent(consolDerniere.Moy_Taux_Vetuste || 0)}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">—</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">—</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber((consolDerniere.Moy_Budget_Vehicules || 0) / 1000, 0)} K€</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(consolDerniere.Moy_Ratio_Vehicule_Agent || 0, 3)}</td>
+      `;
+      
+      tbody.appendChild(rowMoy);
+    }
+  }
 }

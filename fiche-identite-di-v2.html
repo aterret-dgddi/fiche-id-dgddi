@@ -652,6 +652,97 @@
   margin-bottom: 8px;
 }
 	
+	
+/* ========================= VÉHICULES PILLS ========================= */
+
+.veh-pill {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.veh-pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%);
+  opacity: 0.8;
+}
+
+.veh-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Pill Vétusté (rouge) */
+.veh-pill-red {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid #fecaca;
+}
+
+.veh-pill-red::before {
+  background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+}
+
+.veh-pill-red:hover {
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+/* Pill Budget (vert) */
+.veh-pill-green {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0;
+}
+
+.veh-pill-green::before {
+  background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
+}
+
+.veh-pill-green:hover {
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+}
+
+/* Pill Ratio (bleu) */
+.veh-pill-blue {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+}
+
+.veh-pill-blue::before {
+  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+}
+
+.veh-pill-blue:hover {
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* Badge évolution */
+.veh-evolution-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .veh-pill {
+    padding: 14px 16px;
+  }
+  
+  .veh-pill div[style*="font-size:26px"] {
+    font-size: 22px !important;
+  }
+}	
+	
   </style>
 </head>
 <body>
@@ -1073,47 +1164,101 @@
       </div>
     </div>
     
-    <!-- SECTION VÉHICULES -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-icon">🚗</div>
-        <div class="section-title">Parc Automobile</div>
+    <!-- ========================= SECTION VÉHICULES ========================= -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🚗</div>
+    <div class="section-title">Parc Automobile</div>
+  </div>
+  
+  <!-- KPI Pills -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
+    
+    <!-- Total Véhicules -->
+    <div class="veh-pill" id="veh-pill-total">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">🚗</span>
+        <span style="font-size:12px;font-weight:500;">Total véhicules</span>
       </div>
-      
-      <div class="metrics-grid">
-        <div class="metric-card">
-          <div class="metric-label">Véhicules Total</div>
-          <div class="metric-value" id="veh-total">—</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Taux de Vétusté</div>
-          <div class="metric-value" id="veh-vetuste">—</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Budget Total</div>
-          <div class="metric-value" id="veh-budget">—</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Ratio Véhicule/Agent</div>
-          <div class="metric-value" id="veh-ratio">—</div>
-        </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-total-value">—</div>
+      <div class="veh-evolution-badge" id="veh-total-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-total-comp"></div>
+    </div>
+
+    <!-- Taux de Vétusté -->
+    <div class="veh-pill veh-pill-red" id="veh-pill-vetuste">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">⚠️</span>
+        <span style="font-size:12px;font-weight:500;">Taux de vétusté</span>
       </div>
-      
-      <div class="chart-grid">
-        <div class="chart-container">
-          <div class="chart-title">Vétusté</div>
-          <div class="chart-wrapper">
-            <canvas id="chart-veh-vetuste"></canvas>
-          </div>
-        </div>
-        <div class="chart-container">
-          <div class="chart-title">Budget Fonct. / Invest.</div>
-          <div class="chart-wrapper">
-            <canvas id="chart-veh-budget"></canvas>
-          </div>
-        </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-vetuste-value">—</div>
+      <div class="veh-evolution-badge" id="veh-vetuste-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-vetuste-comp"></div>
+    </div>
+
+    <!-- Budget Total -->
+    <div class="veh-pill veh-pill-green" id="veh-pill-budget">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">💰</span>
+        <span style="font-size:12px;font-weight:500;">Budget total</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-budget-value">—</div>
+      <div class="veh-evolution-badge" id="veh-budget-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-budget-comp"></div>
+    </div>
+
+    <!-- Ratio Véhicule/Agent -->
+    <div class="veh-pill veh-pill-blue" id="veh-pill-ratio">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">👤</span>
+        <span style="font-size:12px;font-weight:500;">Véhicule / agent</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-ratio-value">—</div>
+      <div class="veh-evolution-badge" id="veh-ratio-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-ratio-comp"></div>
+    </div>
+
+  </div>
+
+  <!-- Graphiques -->
+  <div class="chart-grid">
+    <div class="chart-container">
+      <div class="chart-title">Répartition Vétusté</div>
+      <div class="chart-subtitle">État du parc automobile</div>
+      <div class="chart-wrapper">
+        <canvas id="chart-veh-vetuste"></canvas>
       </div>
     </div>
+    <div class="chart-container">
+      <div class="chart-title">Évolution Budget</div>
+      <div class="chart-subtitle">Fonctionnement + Investissement (K€)</div>
+      <div class="chart-wrapper">
+        <canvas id="chart-veh-budget"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tableau détaillé -->
+  <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;margin-top:2rem;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead style="background:var(--gris4);">
+        <tr>
+          <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Vétustes</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">% Vétusté</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Fonct.</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Invest.</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total Budget</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Ratio/agent</th>
+        </tr>
+      </thead>
+      <tbody id="table-veh-body">
+        <!-- Rempli dynamiquement -->
+      </tbody>
+    </table>
+  </div>
+</div>
     
   </div>
 
