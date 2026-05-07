@@ -911,34 +911,150 @@ async function saveCommentaire(structureId, annee, section, commentaire) {
 // ═══════════════════════════════════════════════════════════════
 
 function exportToPDF() {
-  // Utiliser html2pdf.js
+  // Cloner l'élément pour ne pas modifier l'original
   const element = document.getElementById('fiche-content');
+  const clone = element.cloneNode(true);
+  
+  // Ajouter des classes pour éviter les coupures de page
+  const sections = clone.querySelectorAll('section');
+  sections.forEach(section => {
+    section.style.pageBreakInside = 'avoid';
+    section.style.breakInside = 'avoid';
+  });
+  
+  // Eviter les coupures sur les pills
+  const pillContainers = clone.querySelectorAll('[style*="display:grid"]');
+  pillContainers.forEach(container => {
+    container.style.pageBreakInside = 'avoid';
+    container.style.breakInside = 'avoid';
+  });
+  
+  // Eviter les coupures sur les graphiques
+  const chartContainers = clone.querySelectorAll('.chart-container, .chart-grid');
+  chartContainers.forEach(container => {
+    container.style.pageBreakInside = 'avoid';
+    container.style.breakInside = 'avoid';
+  });
+  
+  // Eviter les coupures sur les tableaux
+  const tables = clone.querySelectorAll('table');
+  tables.forEach(table => {
+    table.style.pageBreakInside = 'avoid';
+    table.style.breakInside = 'avoid';
+  });
+  
   const opt = {
-    margin: 10,
+    margin: [10, 10, 10, 10],
     filename: `fiche-identite-${FICHE_STATE.structure.sigle}-${FICHE_STATE.annee}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2 },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    html2canvas: { 
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      letterRendering: true
+    },
+    jsPDF: { 
+      unit: 'mm', 
+      format: 'a4', 
+      orientation: 'portrait',
+      compress: true
+    },
+    pagebreak: { 
+      mode: ['avoid-all', 'css', 'legacy'],
+      before: '.page-break-before',
+      after: '.page-break-after',
+      avoid: 'section, .chart-container, table, .veh-pill'
+    }
   };
   
-  html2pdf().set(opt).from(element).save();
+  // Créer un conteneur temporaire
+  const tempDiv = document.createElement('div');
+  tempDiv.appendChild(clone);
+  document.body.appendChild(tempDiv);
+  
+  // Générer le PDF
+  html2pdf().set(opt).from(tempDiv).save().then(() => {
+    document.body.removeChild(tempDiv);
+  });
 }
 
 function exportToHTML() {
   const element = document.getElementById('fiche-content');
+  
+  // Récupérer tous les styles de la page
+  const styles = Array.from(document.styleSheets)
+    .map(styleSheet => {
+      try {
+        return Array.from(styleSheet.cssRules)
+          .map(rule => rule.cssText)
+          .join('\n');
+      } catch (e) {
+        return '';
+      }
+    })
+    .join('\n');
+  
   const html = `<!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fiche Identité ${FICHE_STATE.structure.sigle} - ${FICHE_STATE.annee}</title>
-  <style>${document.querySelector('style').innerHTML}</style>
+  <style>
+    /* Reset et base */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #1e293b;
+      background: #f8fafc;
+      padding: 20px;
+    }
+    
+    /* Règles d'impression pour éviter les coupures */
+    @media print {
+      section {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      
+      .chart-container,
+      .chart-grid,
+      table,
+      [style*="display:grid"] {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      
+      .veh-pill,
+      .fm-pill,
+      .it-pill {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      
+      h2, h3 {
+        page-break-after: avoid;
+      }
+    }
+    
+    /* Styles de la page */
+    ${styles}
+  </style>
 </head>
 <body>
-  ${element.innerHTML}
+  <div id="fiche-content">
+    ${element.innerHTML}
+  </div>
 </body>
 </html>`;
   
-  const blob = new Blob([html], { type: 'text/html' });
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
