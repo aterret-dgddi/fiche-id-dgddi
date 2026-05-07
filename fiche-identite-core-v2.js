@@ -1226,6 +1226,29 @@ function getNotificationsBOPByType(structureId, annee, type) {
 // ═══════════════════════════════════════════════════════════════
 
 /**
+ * Détermine le périmètre de comparaison d'une structure
+ * @param {number} structureId - ID de la structure
+ * @returns {string} Périmètre (National, Metropole, Outremer, SCN)
+ */
+function getPerimetreStructure(structureId) {
+  const structures = FICHE_STATE.data.structures;
+  if (!structures) return 'National';
+  
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1) return 'National';
+  
+  const type = structures.Type?.[idx];
+  const estOutremer = structures.Est_Outremer?.[idx];
+  
+  if (type === 'SCN') return 'SCN';
+  if (type === 'DI' && estOutremer) return 'Outremer';
+  if (type === 'DI' && !estOutremer) return 'Metropole';
+  if (type === 'DR') return 'Metropole';
+  
+  return 'National';
+}
+
+/**
  * Récupère les données frais de mission pour une structure et une année
  * @param {number} structureId - ID de la structure
  * @param {number} annee - Année
