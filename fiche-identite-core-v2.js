@@ -1591,6 +1591,22 @@ function getInformatiqueMultiAnnees(structureId, annees) {
   });
 }
 
+/**
+ * Retourne la liste des années disponibles pour les données
+ * @returns {Array<number>} Liste des années [N-3, N-2, N-1, N]
+ */
+function getAnneesDisponibles() {
+  // Récupérer l'année courante de FICHE_STATE ou utiliser l'année actuelle
+  const anneeCourante = FICHE_STATE.annee || new Date().getFullYear();
+  
+  return [
+    anneeCourante - 3,
+    anneeCourante - 2,
+    anneeCourante - 1,
+    anneeCourante
+  ];
+}
+
 // ═══════════════════════════════════════════════════════════════
 // MODULE VÉHICULES
 // ═══════════════════════════════════════════════════════════════
