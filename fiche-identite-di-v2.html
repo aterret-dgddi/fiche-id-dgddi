@@ -6,7 +6,7 @@
   <title>Fiche Identité - Indicateurs de gestion</title>
   
   <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Cabin:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Marianne:wght@300;400;500;700;800&display=swap" rel="stylesheet">
   
   <!-- Scripts externes -->
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
@@ -15,7 +15,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Cabin:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Marianne:wght@300;400;500;700;800&display=swap');
 
     :root {
       --rep: #002F6C;
@@ -38,7 +38,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { font-size: 13px; }
     body {
-      font-family: 'Cabin', sans-serif;
+      font-family: 'Marianne', sans-serif;
       background: #F2F5FA;
       color: var(--gris1);
       line-height: 1.5;
@@ -61,9 +61,9 @@
     }
 
     #toolbar h1 {
-      font-family: 'Libre Baskerville', serif;
+      font-family: 'Marianne', sans-serif;
       font-size: 14px;
-      font-weight: 700;
+      font-weight: 800;
       color: #fff;
       letter-spacing: .2px;
       flex: 1;
@@ -99,7 +99,7 @@
       color: #fff;
       padding: 6px 13px;
       border-radius: 5px;
-      font-family: 'Cabin', sans-serif;
+      font-family: 'Marianne', sans-serif;
       font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
@@ -147,7 +147,7 @@
       padding: 8px 35px 8px 12px;
       border: 2px solid var(--bord);
       border-radius: 6px;
-      font-family: 'Cabin', sans-serif;
+      font-family: 'Marianne', sans-serif;
       font-size: 13px;
       font-weight: 600;
       background: var(--blanc);
@@ -218,7 +218,7 @@
       border: 1px solid var(--bord);
       border-radius: 5px;
       font-size: 12.5px;
-      font-family: 'Cabin', sans-serif;
+      font-family: 'Marianne', sans-serif;
     }
 
     #sel-search:focus {
@@ -855,7 +855,7 @@
       <div>
         <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Commentaire</label>
         <textarea id="rh-commentaire" 
-                  style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Cabin', sans-serif; font-size: 12px; resize: vertical;"
+                  style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
                   placeholder="Ajouter un commentaire sur les ressources humaines..."></textarea>
       </div>
     </div>
@@ -1141,7 +1141,7 @@
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
     
     <!-- Total Véhicules -->
-    <div class="veh-pill" id="veh-pill-total">
+    <div class="kpi-card" id="veh-pill-total">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">🚗</span>
         <span style="font-size:12px;font-weight:500;">Total véhicules</span>
@@ -1152,7 +1152,7 @@
     </div>
 
     <!-- Taux de Vétusté -->
-    <div class="veh-pill veh-pill-red" id="veh-pill-vetuste">
+    <div class="kpi-card" id="veh-pill-vetuste">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">⚠️</span>
         <span style="font-size:12px;font-weight:500;">Taux de vétusté</span>
@@ -1163,7 +1163,7 @@
     </div>
 
     <!-- Budget Total -->
-    <div class="veh-pill veh-pill-green" id="veh-pill-budget">
+    <div class="kpi-card" id="veh-pill-budget">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">💰</span>
         <span style="font-size:12px;font-weight:500;">Budget total</span>
@@ -1174,7 +1174,7 @@
     </div>
 
     <!-- Ratio Véhicule/Agent -->
-    <div class="veh-pill veh-pill-blue" id="veh-pill-ratio">
+    <div class="kpi-card" id="veh-pill-ratio">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">👤</span>
         <span style="font-size:12px;font-weight:500;">Véhicule / agent</span>
@@ -1185,7 +1185,7 @@
     </div>
 
     <!-- Coût par véhicule -->
-    <div class="veh-pill veh-pill-purple" id="veh-pill-cout">
+    <div class="kpi-card" id="veh-pill-cout">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">💸</span>
         <span style="font-size:12px;font-weight:500;">Coût fonct. / véhicule</span>
@@ -1196,7 +1196,7 @@
     </div>
 
     <!-- Ratio SU -->
-    <div class="veh-pill veh-pill-orange" id="veh-pill-ratio-su">
+    <div class="kpi-card" id="veh-pill-ratio-su">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">👥</span>
         <span style="font-size:12px;font-weight:500;">Ratio véhicule / SU</span>
@@ -2380,7 +2380,7 @@ function createInformatiqueChart(annees, portables, fixes) {
 </head>
 <body>
   <div style="max-width:1200px;margin:0 auto;padding:24px;">
-    <h1 style="font-family:'Libre Baskerville',serif;color:var(--rep);margin-bottom:24px;">
+    <h1 style="font-family:'Marianne',serif;color:var(--rep);margin-bottom:24px;">
       Fiche Identité ${struct.nom} (${struct.sigle}) - ${FICHE_STATE.annee}
     </h1>
     ${ficheBody.innerHTML}
