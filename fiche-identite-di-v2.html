@@ -827,50 +827,60 @@
         <div class="section-title">Ressources Humaines</div>
       </div>
       
-      <!-- KPI avec évolution -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
+      <!-- KPI Pills -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
         <!-- Effectif Total -->
-        <div class="metric-card" style="padding: 12px;">
-          <div class="metric-label" style="font-size: 10px;">Effectif Total</div>
-          <div class="metric-value" style="font-size: 22px;" id="rh-effectif-total">—</div>
-          <div style="font-size: 10px; margin-top: 4px; color: var(--gris3);" id="rh-effectif-evolution">—</div>
-          <div style="font-size: 10px; margin-top: 2px; color: var(--gris3);" id="rh-effectif-compare">—</div>
-          <div style="font-size: 10px; margin-top: 2px; color: var(--gris3);" id="rh-effectif-rang">—</div>
+        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Effectif Total</div>
+          <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;" id="rh-effectif-total">—</div>
+          <div style="font-size: 12px; opacity: 0.85;">
+            <div id="rh-effectif-evolution" style="margin-bottom: 4px;">—</div>
+            <div id="rh-effectif-compare" style="margin-bottom: 4px;">—</div>
+            <div id="rh-effectif-rang">—</div>
+          </div>
         </div>
         
         <!-- Effectif AGCO -->
-        <div class="metric-card" style="padding: 12px;">
-          <div class="metric-label" style="font-size: 10px;">Effectif AGCO</div>
-          <div class="metric-value" style="font-size: 22px;" id="rh-agco-total">—</div>
-          <div style="font-size: 10px; margin-top: 4px; color: var(--gris3);" id="rh-agco-evolution">—</div>
-          <div style="font-size: 10px; margin-top: 2px; color: var(--gris3);" id="rh-agco-compare">—</div>
+        <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Effectif AGCO</div>
+          <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;" id="rh-agco-total">—</div>
+          <div style="font-size: 12px; opacity: 0.85;">
+            <div id="rh-agco-evolution" style="margin-bottom: 4px;">—</div>
+            <div id="rh-agco-compare">—</div>
+          </div>
         </div>
         
         <!-- Effectif SU -->
-        <div class="metric-card" style="padding: 12px;">
-          <div class="metric-label" style="font-size: 10px;">Effectif SU</div>
-          <div class="metric-value" style="font-size: 22px;" id="rh-su-total">—</div>
-          <div style="font-size: 10px; margin-top: 4px; color: var(--gris3);" id="rh-su-evolution">—</div>
-          <div style="font-size: 10px; margin-top: 2px; color: var(--gris3);" id="rh-su-compare">—</div>
+        <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Effectif SU</div>
+          <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;" id="rh-su-total">—</div>
+          <div style="font-size: 12px; opacity: 0.85;">
+            <div id="rh-su-evolution" style="margin-bottom: 4px;">—</div>
+            <div id="rh-su-compare">—</div>
+          </div>
         </div>
         
         <!-- Âge Moyen -->
-        <div class="metric-card" style="padding: 12px;">
-          <div class="metric-label" style="font-size: 10px;">Âge Moyen</div>
-          <div class="metric-value" style="font-size: 22px;">
+        <div style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #2c3e50; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="font-size: 13px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">Âge Moyen</div>
+          <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;">
             <span id="rh-age-moyen">—</span>
-            <span class="metric-unit" style="font-size: 14px;">ans</span>
+            <span style="font-size: 18px; font-weight: 600; opacity: 0.7;">ans</span>
           </div>
-          <div style="font-size: 10px; margin-top: 4px; color: var(--gris3);" id="rh-age-compare-groupe">—</div>
-          <div style="font-size: 10px; margin-top: 2px; color: var(--gris3);" id="rh-age-compare-national">—</div>
+          <div style="font-size: 12px; opacity: 0.75;">
+            <div id="rh-age-compare-groupe" style="margin-bottom: 4px;">—</div>
+            <div id="rh-age-compare-national">—</div>
+          </div>
         </div>
         
         <!-- MS / Agent -->
-        <div class="metric-card" style="padding: 12px;">
-          <div class="metric-label" style="font-size: 10px;">MS / Agent</div>
-          <div class="metric-value" style="font-size: 18px;" id="rh-ms-par-agent">—</div>
-          <div style="font-size: 10px; margin-top: 4px; color: var(--gris3);" id="rh-ms-compare-groupe">—</div>
-          <div style="font-size: 10px; margin-top: 2px; color: var(--gris3);" id="rh-ms-compare-national">—</div>
+        <div style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #2c3e50; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="font-size: 13px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">MS / Agent</div>
+          <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px;" id="rh-ms-par-agent">—</div>
+          <div style="font-size: 12px; opacity: 0.75;">
+            <div id="rh-ms-compare-groupe" style="margin-bottom: 4px;">—</div>
+            <div id="rh-ms-compare-national">—</div>
+          </div>
         </div>
       </div>
       
