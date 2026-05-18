@@ -2711,165 +2711,227 @@ function createInformatiqueChart(annees, portables, fixes) {
       URL.revokeObjectURL(url);
     }
 
-    // Export PDF avec police Marianne
+    // Export PDF amélioré
     async function exportToPDF() {
+      // Demander si on exporte une ou toutes les structures
+      const exportAll = confirm(
+        "Voulez-vous exporter toutes les structures ?\n\n" +
+        "OUI = Exporter toutes les structures (un PDF par structure)\n" +
+        "NON = Exporter uniquement la structure actuelle"
+      );
+      
+      if (exportAll) {
+        await exportAllStructuresPDF();
+      } else {
+        await exportSingleStructurePDF(FICHE_STATE.structure, FICHE_STATE.annee);
+      }
+    }
+    
+    // Export d'une seule structure
+    async function exportSingleStructurePDF(struct, annee) {
       const { jsPDF } = window.jspdf;
-      const ficheBody = document.getElementById('fiche-body');
-      const struct = FICHE_STATE.structure;
       
-      // Afficher un message de chargement
-      const loadingDiv = document.createElement('div');
-      loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:30px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:9999;text-align:center;font-family:Marianne,sans-serif;';
-      loadingDiv.innerHTML = '<div style="font-size:16px;font-weight:600;color:#002F6C;margin-bottom:10px;">Génération du PDF</div><div style="font-size:13px;color:#666;">Veuillez patienter...</div>';
-      document.body.appendChild(loadingDiv);
+      // Message de chargement
+      const loadingDiv = showLoadingMessage(`Génération du PDF pour ${struct.sigle}...`);
       
-      // Attendre que le DOM se mette à jour
       await new Promise(resolve => setTimeout(resolve, 100));
       
       try {
-        // Créer le PDF
         const pdf = new jsPDF('p', 'mm', 'a4');
+        await addStructureToPDF(pdf, struct, annee, true);
         
-        // Dimensions A4
-        const pageWidth = 210;
-        const pageHeight = 297;
-        const margin = 15;
-        const contentWidth = pageWidth - (2 * margin);
-        const headerHeight = 15;
-        const footerHeight = 10;
-        const contentHeight = pageHeight - margin - headerHeight - footerHeight - margin;
-        
-        // Date d'export
-        const dateExport = new Date().toLocaleDateString('fr-FR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        });
-        
-        // Capturer le contenu avec html2canvas
-        const canvas = await html2canvas(ficheBody, { 
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff'
-        });
-        
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = contentWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        // Calculer le nombre de pages nécessaires
-        const totalPages = Math.ceil(imgHeight / contentHeight);
-        
-        // Fonction pour créer un canvas avec en-tête et pied de page en Marianne
-        async function createPageCanvas(pageNum, pageImgData, pageImgHeight) {
-          const fullPageCanvas = document.createElement('canvas');
-          const dpi = 2; // Haute résolution
-          fullPageCanvas.width = pageWidth * dpi * 3.78; // Conversion mm vers pixels
-          fullPageCanvas.height = pageHeight * dpi * 3.78;
-          
-          const ctx = fullPageCanvas.getContext('2d');
-          const scale = fullPageCanvas.width / pageWidth;
-          
-          // Fond blanc
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, fullPageCanvas.width, fullPageCanvas.height);
-          
-          // === EN-TÊTE ===
-          ctx.fillStyle = '#002F6C'; // Couleur DGDDI
-          ctx.fillRect(0, 0, fullPageCanvas.width, headerHeight * scale);
-          
-          ctx.fillStyle = '#ffffff';
-          ctx.font = `bold ${12 * scale}px Marianne, sans-serif`;
-          ctx.textBaseline = 'middle';
-          ctx.fillText(`Fiche Identité - ${struct.nom}`, margin * scale, (headerHeight / 2) * scale);
-          
-          // === CONTENU ===
-          const img = new Image();
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = pageImgData;
-          });
-          
-          const contentY = (margin + headerHeight) * scale;
-          const drawHeight = Math.min(pageImgHeight * scale, contentHeight * scale);
-          ctx.drawImage(img, 0, 0, img.width, img.height, 
-                       margin * scale, contentY, 
-                       contentWidth * scale, drawHeight);
-          
-          // === PIED DE PAGE ===
-          const footerY = (pageHeight - footerHeight) * scale;
-          
-          // Ligne séparatrice
-          ctx.strokeStyle = '#c8c8c8';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(margin * scale, footerY);
-          ctx.lineTo((pageWidth - margin) * scale, footerY);
-          ctx.stroke();
-          
-          // Texte du pied de page
-          ctx.fillStyle = '#666666';
-          ctx.font = `${9 * scale}px Marianne, sans-serif`;
-          ctx.textBaseline = 'top';
-          
-          // Page X / Y à gauche
-          ctx.textAlign = 'left';
-          ctx.fillText(`Page ${pageNum} / ${totalPages}`, margin * scale, (footerY + 6 * scale));
-          
-          // Date d'export à droite
-          ctx.textAlign = 'right';
-          ctx.fillText(`Exporté le ${dateExport}`, (pageWidth - margin) * scale, (footerY + 6 * scale));
-          
-          return fullPageCanvas.toDataURL('image/png');
-        }
-        
-        // Ajouter les pages
-        for (let i = 0; i < totalPages; i++) {
-          if (i > 0) {
-            pdf.addPage();
-          }
-          
-          // Calculer la portion de l'image à afficher
-          const yOffset = i * contentHeight;
-          const sourceY = (yOffset / imgWidth) * canvas.width;
-          const sourceHeight = (contentHeight / imgWidth) * canvas.width;
-          
-          // Créer un canvas temporaire pour cette portion
-          const pageCanvas = document.createElement('canvas');
-          pageCanvas.width = canvas.width;
-          pageCanvas.height = Math.min(sourceHeight, canvas.height - sourceY);
-          
-          const pageCtx = pageCanvas.getContext('2d');
-          pageCtx.drawImage(
-            canvas,
-            0, sourceY,
-            canvas.width, pageCanvas.height,
-            0, 0,
-            canvas.width, pageCanvas.height
-          );
-          
-          const pageImgData = pageCanvas.toDataURL('image/png');
-          const pageImgHeight = (pageCanvas.height * imgWidth) / canvas.width;
-          
-          // Créer la page complète avec en-tête et pied de page
-          const fullPageImgData = await createPageCanvas(i + 1, pageImgData, pageImgHeight);
-          
-          // Ajouter l'image complète au PDF
-          pdf.addImage(fullPageImgData, 'PNG', 0, 0, pageWidth, pageHeight);
-        }
-        
-        // Sauvegarder le PDF
-        pdf.save(`fiche-identite-${struct.sigle}-${FICHE_STATE.annee}.pdf`);
-        
-        // Supprimer le message de chargement
-        document.body.removeChild(loadingDiv);
+        // Sauvegarder
+        pdf.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
+        hideLoadingMessage(loadingDiv);
         
       } catch (error) {
-        console.error('Erreur lors de la génération du PDF:', error);
+        console.error('Erreur PDF:', error);
+        hideLoadingMessage(loadingDiv);
+        alert('Erreur lors de la génération du PDF.');
+      }
+    }
+    
+    // Export de toutes les structures
+    async function exportAllStructuresPDF() {
+      const structures = FICHE_STATE.data.structures;
+      const annee = FICHE_STATE.annee;
+      
+      const loadingDiv = showLoadingMessage(`Génération de ${structures.length} PDF...`);
+      
+      try {
+        for (let i = 0; i < structures.length; i++) {
+          const struct = structures[i];
+          
+          // Mettre à jour le message
+          loadingDiv.querySelector('div:last-child').textContent = 
+            `Structure ${i + 1}/${structures.length} : ${struct.sigle}`;
+          
+          // Sélectionner la structure et attendre le chargement
+          await selectStructure(struct.id);
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Générer le PDF
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          await addStructureToPDF(pdf, struct, annee, true);
+          pdf.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
+          
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        
+        hideLoadingMessage(loadingDiv);
+        alert(`${structures.length} PDF générés avec succès !`);
+        
+      } catch (error) {
+        console.error('Erreur export multiple:', error);
+        hideLoadingMessage(loadingDiv);
+        alert('Erreur lors de la génération des PDF.');
+      }
+    }
+    
+    // Ajouter une structure au PDF
+    async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 15;
+      const headerHeight = 18;
+      const footerHeight = 12;
+      
+      let currentPage = 1;
+      let yPosition = margin + headerHeight + 5;
+      
+      // Date d'export
+      const dateExport = new Date().toLocaleDateString('fr-FR');
+      
+      // Fonction pour ajouter en-tête et pied de page
+      function addHeaderFooter(pageNum, isLast = false) {
+        // EN-TÊTE
+        pdf.setFillColor(0, 47, 108);
+        pdf.rect(0, 0, pageWidth, headerHeight, 'F');
+        
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'bold');
+        
+        // Tronquer le nom si trop long
+        const maxWidth = pageWidth - (2 * margin);
+        let headerText = `Fiche Identité - ${struct.nom}`;
+        let textWidth = pdf.getTextWidth(headerText);
+        
+        if (textWidth > maxWidth) {
+          headerText = `Fiche Identité - ${struct.sigle}`;
+          textWidth = pdf.getTextWidth(headerText);
+          
+          if (textWidth > maxWidth) {
+            // Tronquer avec ...
+            while (textWidth > maxWidth - 5 && headerText.length > 20) {
+              headerText = headerText.slice(0, -1);
+              textWidth = pdf.getTextWidth(headerText + '...');
+            }
+            headerText += '...';
+          }
+        }
+        
+        pdf.text(headerText, margin, 11);
+        
+        // PIED DE PAGE
+        const footerY = pageHeight - footerHeight + 3;
+        
+        pdf.setDrawColor(200, 200, 200);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, footerY, pageWidth - margin, footerY);
+        
+        pdf.setTextColor(100, 100, 100);
+        pdf.setFontSize(8.5);
+        pdf.setFont('helvetica', 'normal');
+        
+        // Page X / Y
+        pdf.text(`Page ${pageNum}`, margin, footerY + 5);
+        
+        // Date
+        const dateText = `Exporté le ${dateExport}`;
+        const dateWidth = pdf.getTextWidth(dateText);
+        pdf.text(dateText, pageWidth - margin - dateWidth, footerY + 5);
+      }
+      
+      // Fonction pour vérifier si on doit changer de page
+      function checkPageBreak(neededHeight) {
+        const availableHeight = pageHeight - footerHeight - margin - yPosition;
+        if (availableHeight < neededHeight) {
+          addHeaderFooter(currentPage);
+          pdf.addPage();
+          currentPage++;
+          yPosition = margin + headerHeight + 5;
+          return true;
+        }
+        return false;
+      }
+      
+      // Ajouter en-tête première page
+      if (isFirstPage) {
+        addHeaderFooter(1);
+      }
+      
+      // Capturer les sections une par une
+      const ficheBody = document.getElementById('fiche-body');
+      const sections = ficheBody.querySelectorAll('.section');
+      
+      for (let section of sections) {
+        // Vérifier si c'est une section visible
+        if (section.style.display === 'none' || !section.offsetParent) continue;
+        
+        // Estimer la hauteur de la section
+        const sectionHeight = section.offsetHeight;
+        const estimatedPdfHeight = (sectionHeight * 0.264583) / 2; // px to mm, échelle
+        
+        // Si la section est trop haute, on force un changement de page
+        if (estimatedPdfHeight > 60) {
+          checkPageBreak(estimatedPdfHeight);
+        }
+        
+        // Capturer la section
+        const canvas = await html2canvas(section, {
+          scale: 1.5,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          width: section.scrollWidth,
+          height: section.scrollHeight
+        });
+        
+        const imgData = canvas.toDataURL('image/jpeg', 0.85); // JPEG avec compression
+        const imgWidth = pageWidth - (2 * margin);
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        // Vérifier si ça tient sur la page
+        checkPageBreak(imgHeight + 5);
+        
+        // Ajouter l'image
+        pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+        yPosition += imgHeight + 5;
+      }
+      
+      // Ajouter le pied de page de la dernière page
+      addHeaderFooter(currentPage, true);
+      
+      return currentPage;
+    }
+    
+    // Fonctions utilitaires pour le loading
+    function showLoadingMessage(message) {
+      const loadingDiv = document.createElement('div');
+      loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:30px 40px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:9999;text-align:center;font-family:Marianne,sans-serif;min-width:300px;';
+      loadingDiv.innerHTML = `
+        <div style="font-size:16px;font-weight:600;color:#002F6C;margin-bottom:10px;">Génération du PDF</div>
+        <div style="font-size:13px;color:#666;">${message}</div>
+      `;
+      document.body.appendChild(loadingDiv);
+      return loadingDiv;
+    }
+    
+    function hideLoadingMessage(loadingDiv) {
+      if (loadingDiv && loadingDiv.parentNode) {
         document.body.removeChild(loadingDiv);
-        alert('Erreur lors de la génération du PDF. Veuillez réessayer.');
       }
     }
 
