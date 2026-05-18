@@ -432,6 +432,42 @@
       margin-left: 4px;
     }
 
+    /* KPI Cards Style Douane */
+    .kpi-card {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-left: 3px solid #0053A0;
+      padding: 14px 16px;
+      border-radius: 4px;
+    }
+
+    .kpi-card-label {
+      font-size: 10px;
+      color: #6c757d;
+      font-weight: 600;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .kpi-card-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #0053A0;
+      margin-bottom: 6px;
+      line-height: 1;
+    }
+
+    .kpi-card-details {
+      font-size: 10px;
+      color: #495057;
+      line-height: 1.4;
+    }
+
+    .kpi-card-details > div {
+      margin-bottom: 2px;
+    }
+
     /* Charts */
     .chart-grid {
       display: grid;
@@ -523,123 +559,15 @@
 /* FRAIS DE MISSION - PILLS */
 /* ══════════════════════════════════ */
 
-.fm-pill {
-  background: linear-gradient(135deg, #E8F4FD 0%, #D4E9FA 100%);
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  border: 1px solid rgba(55, 138, 221, 0.15);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.fm-pill-teal {
-  background: linear-gradient(135deg, #E8F7F2 0%, #D4F0E8 100%);
-  border-color: rgba(29, 158, 117, 0.15);
-}
-
-.fm-pill-amber {
-  background: linear-gradient(135deg, #FDF6E8 0%, #FAEFD4 100%);
-  border-color: rgba(186, 117, 23, 0.15);
-}
-
-.fm-pill-purple {
-  background: linear-gradient(135deg, #F4F3FE 0%, #E8E6FB 100%);
-  border-color: rgba(127, 119, 221, 0.15);
-}
-
-.fm-evolution-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 500;
-  margin-bottom: 10px;
-}
-
-.fm-evolution-badge.positive {
-  background: rgba(97, 153, 34, 0.12);
-  color: #3B6D11;
-}
-
-.fm-evolution-badge.negative {
-  background: rgba(226, 75, 74, 0.12);
-  color: #A32D2D;
-}
-
-.fm-pill .fm-evolution-badge {
-  color: #0C447C;
-}
-
-.fm-pill-teal .fm-evolution-badge {
-  color: #085041;
-}
-
-.fm-pill-amber .fm-evolution-badge {
-  color: #633806;
-}
-
-.fm-pill-purple .fm-evolution-badge {
-  color: #3C3489;
-}
+/* Tous les KPI utilisent maintenant le style .kpi-card défini plus haut */
 	
 	/* ══════════════════════════════════ */
-/* INFORMATIQUE - PILLS */
+/* INFORMATIQUE - KPI utilisent aussi .kpi-card */
 /* ══════════════════════════════════ */
 
-.it-pill {
-  background: linear-gradient(135deg, #ECE9FE 0%, #E0DBFC 100%);
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  border: 1px solid rgba(127, 119, 221, 0.15);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.it-pill-blue {
-  background: linear-gradient(135deg, #E8F4FD 0%, #D4E9FA 100%);
-  border-color: rgba(55, 138, 221, 0.15);
-}
-
-.it-pill-green {
-  background: linear-gradient(135deg, #EEF6E5 0%, #E2EDDA 100%);
-  border-color: rgba(99, 153, 34, 0.15);
-}
-
-.it-pill-amber {
-  background: linear-gradient(135deg, #FDF6E8 0%, #FAEFD4 100%);
-  border-color: rgba(186, 117, 23, 0.15);
-}
-
-.it-pill-teal {
-  background: linear-gradient(135deg, #E8F7F2 0%, #D4F0E8 100%);
-  border-color: rgba(29, 158, 117, 0.15);
-}
-
-.it-pill-blue-clair {
-  background: linear-gradient(135deg, #E8F0F8 0%, #D8E5F2 100%);
-  border-color: rgba(55, 138, 221, 0.1);
-}
-
-.it-evolution {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 500;
-  margin-bottom: 10px;
-}
-
-.it-evolution.positive {
-  background: rgba(97, 153, 34, 0.12);
-  color: #3B6D11;
-}
-
-.it-evolution.negative {
-  background: rgba(226, 75, 74, 0.12);
-  color: #A32D2D;
-}
+/* Tous les KPI utilisent .kpi-card */
+	
+	/* ══════════════════════════════════ */
 
 .it-badge {
   display: inline-block;
@@ -828,57 +756,57 @@
       </div>
       
       <!-- KPI Pills -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px;">
         <!-- Effectif Total -->
-        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Effectif Total</div>
-          <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;" id="rh-effectif-total">—</div>
-          <div style="font-size: 12px; opacity: 0.85;">
-            <div id="rh-effectif-evolution" style="margin-bottom: 4px;">—</div>
-            <div id="rh-effectif-compare" style="margin-bottom: 4px;">—</div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Effectif Total</div>
+          <div class="kpi-card-value" id="rh-effectif-total">—</div>
+          <div class="kpi-card-details">
+            <div id="rh-effectif-evolution">—</div>
+            <div id="rh-effectif-compare">—</div>
             <div id="rh-effectif-rang">—</div>
           </div>
         </div>
         
         <!-- Effectif AGCO -->
-        <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Effectif AGCO</div>
-          <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;" id="rh-agco-total">—</div>
-          <div style="font-size: 12px; opacity: 0.85;">
-            <div id="rh-agco-evolution" style="margin-bottom: 4px;">—</div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Effectif AGCO</div>
+          <div class="kpi-card-value" id="rh-agco-total">—</div>
+          <div class="kpi-card-details">
+            <div id="rh-agco-evolution">—</div>
             <div id="rh-agco-compare">—</div>
           </div>
         </div>
         
         <!-- Effectif SU -->
-        <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Effectif SU</div>
-          <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;" id="rh-su-total">—</div>
-          <div style="font-size: 12px; opacity: 0.85;">
-            <div id="rh-su-evolution" style="margin-bottom: 4px;">—</div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Effectif SU</div>
+          <div class="kpi-card-value" id="rh-su-total">—</div>
+          <div class="kpi-card-details">
+            <div id="rh-su-evolution">—</div>
             <div id="rh-su-compare">—</div>
           </div>
         </div>
         
         <!-- Âge Moyen -->
-        <div style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #2c3e50; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="font-size: 13px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">Âge Moyen</div>
-          <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;">
+        <div class="kpi-card">
+          <div class="kpi-card-label">Âge Moyen</div>
+          <div class="kpi-card-value">
             <span id="rh-age-moyen">—</span>
-            <span style="font-size: 18px; font-weight: 600; opacity: 0.7;">ans</span>
+            <span style="font-size: 14px; font-weight: 600; color: #6c757d;">ans</span>
           </div>
-          <div style="font-size: 12px; opacity: 0.75;">
-            <div id="rh-age-compare-groupe" style="margin-bottom: 4px;">—</div>
+          <div class="kpi-card-details">
+            <div id="rh-age-compare-groupe">—</div>
             <div id="rh-age-compare-national">—</div>
           </div>
         </div>
         
         <!-- MS / Agent -->
-        <div style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #2c3e50; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="font-size: 13px; opacity: 0.8; margin-bottom: 8px; font-weight: 600;">MS / Agent</div>
-          <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px;" id="rh-ms-par-agent">—</div>
-          <div style="font-size: 12px; opacity: 0.75;">
-            <div id="rh-ms-compare-groupe" style="margin-bottom: 4px;">—</div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">MS / Agent</div>
+          <div class="kpi-card-value" style="font-size: 28px;" id="rh-ms-par-agent">—</div>
+          <div class="kpi-card-details">
+            <div id="rh-ms-compare-groupe">—</div>
             <div id="rh-ms-compare-national">—</div>
           </div>
         </div>
@@ -940,26 +868,26 @@
       </div>
       
       <!-- KPI Pills -->
-      <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px;">
         <!-- Taux Conso AE -->
-        <div style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Consommation AE</div>
-          <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;" id="budget-pill-montants-ae">—</div>
-          <div style="font-size: 32px; font-weight: 700; margin-bottom: 12px;" id="budget-pill-taux-ae">—</div>
-          <div style="font-size: 12px; opacity: 0.85; display: flex; gap: 12px; flex-wrap: wrap;">
-            <div id="budget-pill-ae-groupe"></div>
-            <div id="budget-pill-ae-national"></div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Consommation AE</div>
+          <div class="kpi-card-value" style="font-size: 28px;" id="budget-pill-taux-ae">—</div>
+          <div class="kpi-card-details">
+            <div id="budget-pill-montants-ae" style="font-weight: 600; margin-bottom: 4px;">—</div>
+            <div id="budget-pill-ae-groupe">—</div>
+            <div id="budget-pill-ae-national">—</div>
           </div>
         </div>
         
         <!-- Taux Conso CP -->
-        <div style="flex: 1; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Consommation CP</div>
-          <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;" id="budget-pill-montants-cp">—</div>
-          <div style="font-size: 32px; font-weight: 700; margin-bottom: 12px;" id="budget-pill-taux-cp">—</div>
-          <div style="font-size: 12px; opacity: 0.85; display: flex; gap: 12px; flex-wrap: wrap;">
-            <div id="budget-pill-cp-groupe"></div>
-            <div id="budget-pill-cp-national"></div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Consommation CP</div>
+          <div class="kpi-card-value" style="font-size: 28px;" id="budget-pill-taux-cp">—</div>
+          <div class="kpi-card-details">
+            <div id="budget-pill-montants-cp" style="font-weight: 600; margin-bottom: 4px;">—</div>
+            <div id="budget-pill-cp-groupe">—</div>
+            <div id="budget-pill-cp-national">—</div>
           </div>
         </div>
       </div>
@@ -1023,7 +951,7 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
         
         <!-- Total Frais Mission -->
-        <div class="fm-pill" id="fm-pill-total">
+        <div class="kpi-card" id="fm-pill-total">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">📊</span>
             <span style="font-size:12px;font-weight:500;">Total frais mission</span>
@@ -1034,7 +962,7 @@
         </div>
 
         <!-- Formation -->
-        <div class="fm-pill fm-pill-teal" id="fm-pill-formation">
+        <div class="kpi-card" id="fm-pill-formation">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">🎓</span>
             <span style="font-size:12px;font-weight:500;">Formation</span>
@@ -1045,7 +973,7 @@
         </div>
 
         <!-- Autres missions -->
-        <div class="fm-pill fm-pill-amber" id="fm-pill-autres">
+        <div class="kpi-card" id="fm-pill-autres">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">✈️</span>
             <span style="font-size:12px;font-weight:500;">Autres missions</span>
@@ -1056,7 +984,7 @@
         </div>
 
         <!-- Coût moyen par agent -->
-        <div class="fm-pill fm-pill-purple" id="fm-pill-agent">
+        <div class="kpi-card" id="fm-pill-agent">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">👤</span>
             <span style="font-size:12px;font-weight:500;">Coût moyen / agent</span>
@@ -1106,7 +1034,7 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:2rem;">
         
         <!-- Total Postes -->
-        <div class="it-pill">
+        <div class="kpi-card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">💻</span>
             <span style="font-size:12px;font-weight:500;flex:1;color:#3C3489;">Postes de travail</span>
@@ -1117,7 +1045,7 @@
         </div>
 
         <!-- Ratio Poste/Agent -->
-        <div class="it-pill it-pill-blue">
+        <div class="kpi-card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">👤</span>
             <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Ratio poste / agent</span>
@@ -1128,7 +1056,7 @@
         </div>
 
         <!-- Budget IT annuel -->
-        <div class="it-pill it-pill-green">
+        <div class="kpi-card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">💰</span>
             <span style="font-size:12px;font-weight:500;flex:1;color:#27500A;">Budget IT <span id="it-annee-label">2025</span></span>
@@ -1139,7 +1067,7 @@
         </div>
 
         <!-- Budget IT Moyen 4 ans -->
-        <div class="it-pill it-pill-teal">
+        <div class="kpi-card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">📈</span>
             <span style="font-size:12px;font-weight:500;flex:1;color:#085041;">Budget IT moyen 4 ans</span>
@@ -1150,7 +1078,7 @@
         </div>
 
         <!-- Budget IT par Agent annuel -->
-        <div class="it-pill it-pill-amber">
+        <div class="kpi-card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">📊</span>
             <span style="font-size:12px;font-weight:500;flex:1;color:#633806;">Budget IT / agent <span id="it-annee-label2">2025</span></span>
@@ -1161,7 +1089,7 @@
         </div>
 
         <!-- Budget IT Moyen par Agent 4 ans -->
-        <div class="it-pill it-pill-blue-clair">
+        <div class="kpi-card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">💡</span>
             <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Budget IT / agent moyen 4 ans</span>
