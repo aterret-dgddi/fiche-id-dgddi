@@ -28,12 +28,14 @@ const FICHE_STATE = {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Retourne le périmètre d'une structure (DI, DR ou National)
+ * Retourne le périmètre d'une structure (DI ou DR)
  */
 function getPerimetreStructure(structureId) {
-  const struct = FICHE_STATE.data.structures.find(s => s.id === structureId);
-  if (!struct) return null;
-  return struct.type; // 'DI' ou 'DR'
+  const structures = FICHE_STATE.data.structures;
+  if (!structures || !structures.id) return null;
+  const index = structures.id.indexOf(structureId);
+  if (index === -1) return null;
+  return structures.Type?.[index] || null;
 }
 
 /**
@@ -41,12 +43,10 @@ function getPerimetreStructure(structureId) {
  */
 function getAnneesDisponibles() {
   if (!FICHE_STATE.data.rh || !FICHE_STATE.data.rh.Annee) return [];
-  
   const anneesSet = new Set();
   FICHE_STATE.data.rh.Annee.forEach(a => {
     if (a && a >= 2020) anneesSet.add(a);
   });
-  
   return Array.from(anneesSet).sort((a, b) => a - b);
 }
 
@@ -54,11 +54,9 @@ function getAnneesDisponibles() {
  * Retourne les données de consolidation pour un périmètre et une année
  */
 function getConsolidationData(perimetre, annee) {
-  if (!FICHE_STATE.data.consolidation) return null;
-  
   const consol = FICHE_STATE.data.consolidation;
+  if (!consol || !consol.Perimetre) return null;
   
-  // Trouver l'index correspondant au périmètre et à l'année
   for (let i = 0; i < consol.Perimetre.length; i++) {
     if (consol.Perimetre[i] === perimetre && consol.Annee[i] === annee) {
       return {
@@ -79,9 +77,28 @@ function getConsolidationData(perimetre, annee) {
       };
     }
   }
-  
   return null;
 }
+
+/**
+ * Convertit les structures du format colonaire Grist en tableau d'objets
+ */
+function getStructuresArray() {
+  const structures = FICHE_STATE.data.structures;
+  if (!structures || !structures.id) return [];
+  
+  const result = [];
+  for (let i = 0; i < structures.id.length; i++) {
+    result.push({
+      id: structures.id[i],
+      sigle: structures.Sigle?.[i] || '',
+      nom: structures.Nom?.[i] || '',
+      type: structures.Type?.[i] || ''
+    });
+  }
+  return result;
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // INITIALISATION GRIST
