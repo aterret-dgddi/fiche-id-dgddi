@@ -93,10 +93,33 @@ function getStructuresArray() {
       id: structures.id[i],
       sigle: structures.Sigle?.[i] || '',
       nom: structures.Nom?.[i] || '',
-      type: structures.Type?.[i] || ''
+      type: structures.Type?.[i] || '',
+      estOutremer: structures.Est_Outremer?.[i] || false
     });
   }
   return result;
+}
+
+/**
+ * Filtre les structures selon les types sélectionnés
+ * Gère la distinction Métropole/Outremer pour DI et DR
+ */
+function filterStructuresByTypes(structures, selectedTypes) {
+  if (!selectedTypes || selectedTypes.length === 0) {
+    return structures;
+  }
+  
+  return structures.filter(struct => {
+    for (const filterType of selectedTypes) {
+      if (filterType === 'DG' && struct.type === 'DG') return true;
+      if (filterType === 'DI' && struct.type === 'DI' && !struct.estOutremer) return true;
+      if (filterType === 'DI Outremer' && struct.type === 'DI' && struct.estOutremer) return true;
+      if (filterType === 'DR Metropole' && struct.type === 'DR' && !struct.estOutremer) return true;
+      if (filterType === 'DR Outremer' && struct.type === 'DR' && struct.estOutremer) return true;
+      if (filterType === 'SCN' && struct.type === 'SCN') return true;
+    }
+    return false;
+  });
 }
 
 
@@ -2153,7 +2176,7 @@ function showExportModal() {
           <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
             <input type="checkbox" checked class="filter-type" value="DI" style="margin-right: 8px;">
             <span style="background: #007bff; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DI</span>
-            Directions Interrégionales
+            Directions Interrégionales (Métropole)
           </label>
           <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
             <input type="checkbox" class="filter-type" value="DI Outremer" style="margin-right: 8px;">
@@ -2161,8 +2184,13 @@ function showExportModal() {
             Directions Interrégionales Outremer
           </label>
           <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
-            <input type="checkbox" checked class="filter-type" value="DR" style="margin-right: 8px;">
-            <span style="background: #6f42c1; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DR</span>
+            <input type="checkbox" class="filter-type" value="DR Metropole" style="margin-right: 8px;">
+            <span style="background: #9b59b6; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DR</span>
+            Directions Régionales (Métropole)
+          </label>
+          <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" checked class="filter-type" value="DR Outremer" style="margin-right: 8px;">
+            <span style="background: #6f42c1; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DR OM</span>
             Directions Régionales Outremer
           </label>
           <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
@@ -2265,8 +2293,10 @@ async function exportAllStructuresInOnePDF(filters) {
   
   // Utiliser getStructuresArray() pour avoir un tableau d'objets
   let structures = getStructuresArray();
+  
+  // Appliquer les filtres si spécifiés
   if (filters && filters.types && filters.types.length > 0) {
-    structures = structures.filter(s => filters.types.includes(s.type));
+    structures = filterStructuresByTypes(structures, filters.types);
   }
   
   const loadingDiv = showLoadingMessage(`Génération d'un PDF avec ${structures.length} structures...`);
@@ -2308,8 +2338,10 @@ async function exportAllStructuresAsZIP(filters) {
   
   // Utiliser getStructuresArray() pour avoir un tableau d'objets
   let structures = getStructuresArray();
+  
+  // Appliquer les filtres si spécifiés
   if (filters && filters.types && filters.types.length > 0) {
-    structures = structures.filter(s => filters.types.includes(s.type));
+    structures = filterStructuresByTypes(structures, filters.types);
   }
   
   const loadingDiv = showLoadingMessage(`Génération de ${structures.length} PDF...`);
