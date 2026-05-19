@@ -1903,7 +1903,33 @@
       const notifN = getNotificationsBOP(structureId, annee);
       
       if (!dataN || !notifN) {
-        console.warn('Pas de données budget pour', structureId, annee);
+        console.warn('⚠️ Pas de données budget pour cette structure');
+        
+        // Vider tous les champs
+        document.getElementById('budget-pill-montants-ae').textContent = '—';
+        document.getElementById('budget-pill-taux-ae').textContent = '—';
+        document.getElementById('budget-pill-montants-cp').textContent = '—';
+        document.getElementById('budget-pill-taux-cp').textContent = '—';
+        document.getElementById('budget-pill-ae-groupe').innerHTML = '—';
+        document.getElementById('budget-pill-ae-national').innerHTML = '—';
+        document.getElementById('budget-pill-cp-groupe').innerHTML = '—';
+        document.getElementById('budget-pill-cp-national').innerHTML = '—';
+        
+        // Détruire les graphiques
+        const chartAE = Chart.getChart('chart-budget-cumul-ae');
+        if (chartAE) chartAE.destroy();
+        const chartCP = Chart.getChart('chart-budget-cumul-cp');
+        if (chartCP) chartCP.destroy();
+        
+        // Vider le tableau
+        const tbody = document.getElementById('budget-table-tbody');
+        if (tbody) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée budgétaire disponible</td></tr>';
+        }
+        
+        // Vider le commentaire
+        document.getElementById('budget-commentaire').value = '';
+        
         return;
       }
       
@@ -1992,7 +2018,42 @@
   const dataPrecedente = getFraisMissionData(structureId, anneePrecedente);
   
   if (!dataCourante) {
-    console.warn('Pas de données Frais Mission pour', anneeCourante);
+    console.warn('⚠️ Pas de données Frais Mission pour cette structure');
+    
+    // Vider tous les KPIs
+    document.getElementById('fm-total-value').textContent = '—';
+    document.getElementById('fm-total-evol').className = 'fm-evolution-badge';
+    document.getElementById('fm-total-evol').innerHTML = '—';
+    document.getElementById('fm-total-comp').innerHTML = '—';
+    
+    document.getElementById('fm-formation-value').textContent = '—';
+    document.getElementById('fm-formation-evol').className = 'fm-evolution-badge';
+    document.getElementById('fm-formation-evol').innerHTML = '—';
+    document.getElementById('fm-formation-pct').textContent = '—';
+    
+    document.getElementById('fm-autres-value').textContent = '—';
+    document.getElementById('fm-autres-evol').className = 'fm-evolution-badge';
+    document.getElementById('fm-autres-evol').innerHTML = '—';
+    document.getElementById('fm-autres-pct').textContent = '—';
+    
+    document.getElementById('fm-agent-value').textContent = '—';
+    document.getElementById('fm-agent-evol').className = 'fm-evolution-badge';
+    document.getElementById('fm-agent-evol').innerHTML = '—';
+    document.getElementById('fm-agent-comp').innerHTML = '—';
+    
+    // Détruire le graphique
+    const chartFM = Chart.getChart('chart-fm-repartition');
+    if (chartFM) chartFM.destroy();
+    
+    // Vider le tableau
+    const tbody = document.getElementById('fm-table-tbody');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
+    }
+    
+    // Vider le commentaire
+    document.getElementById('fm-commentaire').value = '';
+    
     return;
   }
   
@@ -2263,7 +2324,44 @@ function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct
   const dataPrecedente = getInformatiqueData(structureId, anneePrecedente);
   
   if (!dataCourante) {
-    console.warn('Pas de données Informatique pour', anneeCourante);
+    console.warn('⚠️ Pas de données Informatique pour cette structure');
+    
+    // Vider tous les KPIs
+    document.getElementById('it-total').textContent = '—';
+    document.getElementById('it-total-evol').className = 'it-evolution';
+    document.getElementById('it-total-evol').innerHTML = '—';
+    document.getElementById('it-pct-portables').textContent = '—';
+    
+    document.getElementById('it-ratio').textContent = '—';
+    document.getElementById('it-ratio-evol').className = 'it-evolution';
+    document.getElementById('it-ratio-evol').innerHTML = '—';
+    document.getElementById('it-ratio-comp').innerHTML = '—';
+    
+    document.getElementById('it-age').textContent = '—';
+    document.getElementById('it-age-evol').className = 'it-evolution';
+    document.getElementById('it-age-evol').innerHTML = '—';
+    document.getElementById('it-age-comp').innerHTML = '—';
+    
+    document.getElementById('it-depense').textContent = '—';
+    document.getElementById('it-depense-evol').className = 'it-evolution';
+    document.getElementById('it-depense-evol').innerHTML = '—';
+    document.getElementById('it-depense-comp').innerHTML = '—';
+    
+    // Détruire les graphiques
+    const chartRepartition = Chart.getChart('chart-it-repartition');
+    if (chartRepartition) chartRepartition.destroy();
+    const chartAge = Chart.getChart('chart-it-age');
+    if (chartAge) chartAge.destroy();
+    
+    // Vider le tableau
+    const tbody = document.getElementById('it-table-tbody');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
+    }
+    
+    // Vider le commentaire
+    document.getElementById('it-commentaire').value = '';
+    
     return;
   }
   
@@ -2479,6 +2577,58 @@ function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct
     saveCommentaire(structureId, annee, 'Informatique', this.value);
   };
 }
+
+    function refreshVehicules(structureId, annee) {
+      console.log('=== refreshVehicules appelée ===', {structureId, annee});
+      
+      // TODO: Implémenter la récupération des données véhicules
+      // Pour l'instant, on vide simplement les champs
+      
+      console.warn('⚠️ Fonction refreshVehicules non encore implémentée - vidage des champs');
+      
+      // Vider tous les KPIs
+      document.getElementById('veh-total-value').textContent = '—';
+      document.getElementById('veh-total-evol').className = 'veh-evolution-badge';
+      document.getElementById('veh-total-evol').innerHTML = '';
+      document.getElementById('veh-total-comp').innerHTML = '';
+      
+      document.getElementById('veh-vetuste-value').textContent = '—';
+      document.getElementById('veh-vetuste-evol').className = 'veh-evolution-badge';
+      document.getElementById('veh-vetuste-evol').innerHTML = '';
+      document.getElementById('veh-vetuste-comp').innerHTML = '';
+      
+      document.getElementById('veh-budget-value').textContent = '—';
+      document.getElementById('veh-budget-evol').className = 'veh-evolution-badge';
+      document.getElementById('veh-budget-evol').innerHTML = '';
+      document.getElementById('veh-budget-comp').innerHTML = '';
+      
+      document.getElementById('veh-ratio-value').textContent = '—';
+      document.getElementById('veh-ratio-evol').className = 'veh-evolution-badge';
+      document.getElementById('veh-ratio-evol').innerHTML = '';
+      document.getElementById('veh-ratio-comp').innerHTML = '';
+      
+      document.getElementById('veh-cout-value').textContent = '—';
+      document.getElementById('veh-cout-evol').className = 'veh-evolution-badge';
+      document.getElementById('veh-cout-evol').innerHTML = '';
+      document.getElementById('veh-cout-comp').innerHTML = '';
+      
+      document.getElementById('veh-ratio-su-value').textContent = '—';
+      document.getElementById('veh-ratio-su-evol').className = 'veh-evolution-badge';
+      document.getElementById('veh-ratio-su-evol').innerHTML = '';
+      document.getElementById('veh-ratio-su-comp').innerHTML = '';
+      
+      // Détruire les graphiques
+      const chartVetuste = Chart.getChart('chart-veh-vetuste');
+      if (chartVetuste) chartVetuste.destroy();
+      const chartBudget = Chart.getChart('chart-veh-budget');
+      if (chartBudget) chartBudget.destroy();
+      
+      // Vider le tableau
+      const tbody = document.getElementById('table-veh-body');
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
+      }
+    }
 
 function createInformatiqueChart(annees, portables, fixes) {
   const canvas = document.getElementById('chart-it-type');
