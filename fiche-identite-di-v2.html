@@ -2326,37 +2326,39 @@ function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct
   if (!dataCourante) {
     console.warn('⚠️ Pas de données Informatique pour cette structure');
     
-    // Vider tous les KPIs
+    // Vider tous les KPIs avec les bons IDs
     document.getElementById('it-total').textContent = '—';
     document.getElementById('it-total-evol').className = 'it-evolution';
     document.getElementById('it-total-evol').innerHTML = '—';
-    document.getElementById('it-pct-portables').textContent = '—';
+    document.getElementById('it-pct-portables').textContent = '';
     
     document.getElementById('it-ratio').textContent = '—';
     document.getElementById('it-ratio-evol').className = 'it-evolution';
     document.getElementById('it-ratio-evol').innerHTML = '—';
-    document.getElementById('it-ratio-comp').innerHTML = '—';
+    document.getElementById('it-ratio-comp').innerHTML = '';
     
-    document.getElementById('it-age').textContent = '—';
-    document.getElementById('it-age-evol').className = 'it-evolution';
-    document.getElementById('it-age-evol').innerHTML = '—';
-    document.getElementById('it-age-comp').innerHTML = '—';
+    document.getElementById('it-budget-annuel').textContent = '—';
+    document.getElementById('it-budget-annuel-evol').className = 'it-evolution';
+    document.getElementById('it-budget-annuel-evol').innerHTML = '—';
     
-    document.getElementById('it-depense').textContent = '—';
-    document.getElementById('it-depense-evol').className = 'it-evolution';
-    document.getElementById('it-depense-evol').innerHTML = '—';
-    document.getElementById('it-depense-comp').innerHTML = '—';
+    document.getElementById('it-budget-moyen').textContent = '—';
     
-    // Détruire les graphiques
-    const chartRepartition = Chart.getChart('chart-it-repartition');
-    if (chartRepartition) chartRepartition.destroy();
-    const chartAge = Chart.getChart('chart-it-age');
-    if (chartAge) chartAge.destroy();
+    document.getElementById('it-budget-agent-annuel').textContent = '—';
+    document.getElementById('it-budget-agent-annuel-evol').className = 'it-evolution';
+    document.getElementById('it-budget-agent-annuel-evol').innerHTML = '—';
+    document.getElementById('it-budget-agent-annuel-comp').innerHTML = '';
+    
+    document.getElementById('it-budget-agent-moyen').textContent = '—';
+    document.getElementById('it-budget-agent-moyen-comp').innerHTML = '';
+    
+    // Détruire le graphique
+    const chartIT = Chart.getChart('chart-it-type');
+    if (chartIT) chartIT.destroy();
     
     // Vider le tableau
-    const tbody = document.getElementById('it-table-tbody');
+    const tbody = document.getElementById('table-it-body');
     if (tbody) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
     }
     
     // Vider le commentaire
