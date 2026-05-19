@@ -2108,14 +2108,29 @@ function showExportModal() {
         <label style="display: block; font-weight: 600; color: #1E2D3D; margin-bottom: 12px; font-size: 14px;">🔍 Filtrer les structures</label>
         <div style="display: flex; flex-wrap: wrap; gap: 8px;">
           <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" class="filter-type" value="DG" style="margin-right: 8px;">
+            <span style="background: #dc3545; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DG</span>
+            Direction Générale
+          </label>
+          <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
             <input type="checkbox" checked class="filter-type" value="DI" style="margin-right: 8px;">
             <span style="background: #007bff; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DI</span>
             Directions Interrégionales
           </label>
           <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" class="filter-type" value="DI Outremer" style="margin-right: 8px;">
+            <span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DI OM</span>
+            Directions Interrégionales Outremer
+          </label>
+          <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
             <input type="checkbox" checked class="filter-type" value="DR" style="margin-right: 8px;">
             <span style="background: #6f42c1; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DR</span>
             Directions Régionales Outremer
+          </label>
+          <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" class="filter-type" value="SCN" style="margin-right: 8px;">
+            <span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">SCN</span>
+            Service Commun National
           </label>
         </div>
       </div>
@@ -2212,12 +2227,8 @@ async function exportAllStructuresInOnePDF(filters) {
   
   // Utiliser getStructuresArray() pour avoir un tableau d'objets
   let structures = getStructuresArray();
-  if (filters && filters.types) {
-    structures = structures.filter(s => {
-      if (filters.types.includes('DI') && s.type === 'DI') return true;
-      if (filters.types.includes('DR') && s.type === 'DR') return true;
-      return false;
-    });
+  if (filters && filters.types && filters.types.length > 0) {
+    structures = structures.filter(s => filters.types.includes(s.type));
   }
   
   const loadingDiv = showLoadingMessage(`Génération d'un PDF avec ${structures.length} structures...`);
@@ -2259,12 +2270,8 @@ async function exportAllStructuresAsZIP(filters) {
   
   // Utiliser getStructuresArray() pour avoir un tableau d'objets
   let structures = getStructuresArray();
-  if (filters && filters.types) {
-    structures = structures.filter(s => {
-      if (filters.types.includes('DI') && s.type === 'DI') return true;
-      if (filters.types.includes('DR') && s.type === 'DR') return true;
-      return false;
-    });
+  if (filters && filters.types && filters.types.length > 0) {
+    structures = structures.filter(s => filters.types.includes(s.type));
   }
   
   const loadingDiv = showLoadingMessage(`Génération de ${structures.length} PDF...`);
@@ -2316,14 +2323,58 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   let yPosition = margin + headerHeight + 5;
   const dateExport = new Date().toLocaleDateString('fr-FR');
   
+  // Charger le logo des Douanes
+  let logoData = null;
+  try {
+    const logoUrl = 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg';
+    const response = await fetch(logoUrl);
+    const svgText = await response.text();
+    
+    // Convertir SVG en image pour jsPDF
+    const img = new Image();
+    const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(svgBlob);
+    
+    await new Promise((resolve) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 200;
+        canvas.height = 200;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 200, 200);
+        logoData = canvas.toDataURL('image/png');
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(); // Continue sans logo si erreur
+      };
+      img.src = url;
+    });
+  } catch (error) {
+    console.warn('Logo non chargé:', error);
+  }
+  
   function addHeaderFooter(pageNum) {
+    // Bande bleue
     pdf.setFillColor(0, 47, 108);
     pdf.rect(0, 0, pageWidth, headerHeight, 'F');
+    
+    // Logo à gauche (si chargé)
+    if (logoData) {
+      const logoSize = 12; // 12mm de hauteur
+      const logoY = (headerHeight - logoSize) / 2;
+      pdf.addImage(logoData, 'PNG', margin, logoY, logoSize, logoSize);
+    }
+    
+    // Texte de l'en-tête (décalé pour laisser place au logo)
     pdf.setTextColor(255, 255, 255);
     pdf.setFontSize(11);
     pdf.setFont('helvetica', 'bold');
     
-    const maxWidth = pageWidth - (2 * margin);
+    const textStartX = margin + (logoData ? 15 : 0); // Décalage si logo présent
+    const maxWidth = pageWidth - textStartX - margin;
     let headerText = `Fiche Identité - ${struct.nom}`;
     let textWidth = pdf.getTextWidth(headerText);
     
@@ -2339,8 +2390,9 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       }
     }
     
-    pdf.text(headerText, margin, 11);
+    pdf.text(headerText, textStartX, 11);
     
+    // Pied de page
     const footerY = pageHeight - footerHeight + 3;
     pdf.setDrawColor(200, 200, 200);
     pdf.setLineWidth(0.5);
