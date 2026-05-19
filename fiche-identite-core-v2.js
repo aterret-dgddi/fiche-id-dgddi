@@ -508,19 +508,15 @@ function getVehiculesData(structureId, annee) {
   
   if (idx === -1) return null;
   
-  const nombre_total = veh.Nombre_Total[idx] || 0;
-  const budget_fonctionnement = veh.Budget_Fonctionnement_CP[idx] || 0;
-  
   return {
-    nombre_total: nombre_total,
+    nombre_total: veh.Nombre_Total[idx] || 0,
     nombre_vetuste: veh.Nombre_Vetuste[idx] || 0,
     taux_vetuste: veh.Taux_Vetuste[idx] || 0,
-    budget_fonctionnement: budget_fonctionnement,
+    budget_fonctionnement: veh.Budget_Fonctionnement_CP[idx] || 0,
     budget_investissement: veh.Budget_Investissement_CP[idx] || 0,
     budget_total: veh.Budget_Total_CP[idx] || 0,
     ratio_vehicule_agent: veh.Ratio_Vehicule_Agent_Total[idx] || 0,
-    ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0,
-    cout_fonct_par_vehicule: nombre_total > 0 ? budget_fonctionnement / nombre_total : 0
+    ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0
   };
 }
 
@@ -625,14 +621,7 @@ function getConsolidationData(perimetre, annee) {
     total_frais_mission: conso.Total_Frais_Mission[idx] || 0,
     moyenne_frais_par_agent: conso.Moyenne_Frais_Par_Agent[idx] || 0,
     total_budget_it: conso.Total_Budget_IT[idx] || 0,
-    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0,
-    // Moyennes Véhicules
-    Moy_Nb_Vehicules: conso.Moy_Nb_Vehicules ? conso.Moy_Nb_Vehicules[idx] : 0,
-    Moy_Taux_Vetuste: conso.Moy_Taux_Vetuste ? conso.Moy_Taux_Vetuste[idx] : 0,
-    Moy_Budget_Vehicules: conso.Moy_Budget_Vehicules ? conso.Moy_Budget_Vehicules[idx] : 0,
-    Moy_Ratio_Vehicule_Agent: conso.Moy_Ratio_Vehicule_Agent ? conso.Moy_Ratio_Vehicule_Agent[idx] : 0,
-    Moy_Cout_Fonct_Par_Vehicule: conso.Moy_Cout_Fonct_Par_Vehicule ? conso.Moy_Cout_Fonct_Par_Vehicule[idx] : 0,
-    Moy_Ratio_Vehicule_Agent_SU: conso.Moy_Ratio_Vehicule_Agent_SU ? conso.Moy_Ratio_Vehicule_Agent_SU[idx] : 0
+    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0
   };
 }
 
@@ -911,150 +900,34 @@ async function saveCommentaire(structureId, annee, section, commentaire) {
 // ═══════════════════════════════════════════════════════════════
 
 function exportToPDF() {
-  // Cloner l'élément pour ne pas modifier l'original
+  // Utiliser html2pdf.js
   const element = document.getElementById('fiche-content');
-  const clone = element.cloneNode(true);
-  
-  // Ajouter des classes pour éviter les coupures de page
-  const sections = clone.querySelectorAll('section');
-  sections.forEach(section => {
-    section.style.pageBreakInside = 'avoid';
-    section.style.breakInside = 'avoid';
-  });
-  
-  // Eviter les coupures sur les pills
-  const pillContainers = clone.querySelectorAll('[style*="display:grid"]');
-  pillContainers.forEach(container => {
-    container.style.pageBreakInside = 'avoid';
-    container.style.breakInside = 'avoid';
-  });
-  
-  // Eviter les coupures sur les graphiques
-  const chartContainers = clone.querySelectorAll('.chart-container, .chart-grid');
-  chartContainers.forEach(container => {
-    container.style.pageBreakInside = 'avoid';
-    container.style.breakInside = 'avoid';
-  });
-  
-  // Eviter les coupures sur les tableaux
-  const tables = clone.querySelectorAll('table');
-  tables.forEach(table => {
-    table.style.pageBreakInside = 'avoid';
-    table.style.breakInside = 'avoid';
-  });
-  
   const opt = {
-    margin: [10, 10, 10, 10],
+    margin: 10,
     filename: `fiche-identite-${FICHE_STATE.structure.sigle}-${FICHE_STATE.annee}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { 
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      letterRendering: true
-    },
-    jsPDF: { 
-      unit: 'mm', 
-      format: 'a4', 
-      orientation: 'portrait',
-      compress: true
-    },
-    pagebreak: { 
-      mode: ['avoid-all', 'css', 'legacy'],
-      before: '.page-break-before',
-      after: '.page-break-after',
-      avoid: 'section, .chart-container, table, .veh-pill'
-    }
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
   
-  // Créer un conteneur temporaire
-  const tempDiv = document.createElement('div');
-  tempDiv.appendChild(clone);
-  document.body.appendChild(tempDiv);
-  
-  // Générer le PDF
-  html2pdf().set(opt).from(tempDiv).save().then(() => {
-    document.body.removeChild(tempDiv);
-  });
+  html2pdf().set(opt).from(element).save();
 }
 
 function exportToHTML() {
   const element = document.getElementById('fiche-content');
-  
-  // Récupérer tous les styles de la page
-  const styles = Array.from(document.styleSheets)
-    .map(styleSheet => {
-      try {
-        return Array.from(styleSheet.cssRules)
-          .map(rule => rule.cssText)
-          .join('\n');
-      } catch (e) {
-        return '';
-      }
-    })
-    .join('\n');
-  
   const html = `<!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fiche Identité ${FICHE_STATE.structure.sigle} - ${FICHE_STATE.annee}</title>
-  <style>
-    /* Reset et base */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      line-height: 1.6;
-      color: #1e293b;
-      background: #f8fafc;
-      padding: 20px;
-    }
-    
-    /* Règles d'impression pour éviter les coupures */
-    @media print {
-      section {
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-      
-      .chart-container,
-      .chart-grid,
-      table,
-      [style*="display:grid"] {
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-      
-      .veh-pill,
-      .fm-pill,
-      .it-pill {
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-      
-      h2, h3 {
-        page-break-after: avoid;
-      }
-    }
-    
-    /* Styles de la page */
-    ${styles}
-  </style>
+  <style>${document.querySelector('style').innerHTML}</style>
 </head>
 <body>
-  <div id="fiche-content">
-    ${element.innerHTML}
-  </div>
+  ${element.innerHTML}
 </body>
 </html>`;
   
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blob = new Blob([html], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1351,29 +1224,6 @@ function getNotificationsBOPByType(structureId, annee, type) {
 // ═══════════════════════════════════════════════════════════════
 // MODULE FRAIS DE MISSION
 // ═══════════════════════════════════════════════════════════════
-
-/**
- * Détermine le périmètre de comparaison d'une structure
- * @param {number} structureId - ID de la structure
- * @returns {string} Périmètre (National, Metropole, Outremer, SCN)
- */
-function getPerimetreStructure(structureId) {
-  const structures = FICHE_STATE.data.structures;
-  if (!structures) return 'National';
-  
-  const idx = structures.id.indexOf(structureId);
-  if (idx === -1) return 'National';
-  
-  const type = structures.Type?.[idx];
-  const estOutremer = structures.Est_Outremer?.[idx];
-  
-  if (type === 'SCN') return 'SCN';
-  if (type === 'DI' && estOutremer) return 'Outremer';
-  if (type === 'DI' && !estOutremer) return 'Metropole';
-  if (type === 'DR') return 'Metropole';
-  
-  return 'National';
-}
 
 /**
  * Récupère les données frais de mission pour une structure et une année
@@ -1718,22 +1568,6 @@ function getInformatiqueMultiAnnees(structureId, annees) {
   });
 }
 
-/**
- * Retourne la liste des années disponibles pour les données
- * @returns {Array<number>} Liste des années [N-3, N-2, N-1, N]
- */
-function getAnneesDisponibles() {
-  // Récupérer l'année courante de FICHE_STATE ou utiliser l'année actuelle
-  const anneeCourante = FICHE_STATE.annee || new Date().getFullYear();
-  
-  return [
-    anneeCourante - 3,
-    anneeCourante - 2,
-    anneeCourante - 1,
-    anneeCourante
-  ];
-}
-
 // ═══════════════════════════════════════════════════════════════
 // MODULE VÉHICULES
 // ═══════════════════════════════════════════════════════════════
@@ -1744,13 +1578,6 @@ function getAnneesDisponibles() {
  * @param {number} annee - Année de référence
  */
 function refreshVehicules(structureId, annee) {
-  // Vérifier que les éléments HTML existent (section peut ne pas être affichée)
-  const vehTotalElem = document.getElementById('veh-total-value');
-  if (!vehTotalElem) {
-    // Section véhicules non présente dans cette page
-    return;
-  }
-  
   const data = getVehiculesData(structureId, annee);
   if (!data) {
     // Afficher placeholder si pas de données
@@ -1885,65 +1712,6 @@ function refreshVehicules(structureId, annee) {
     `;
   } else {
     document.getElementById('veh-ratio-comp').textContent = '';
-  }
-  
-  // 5. Coût de fonctionnement par véhicule
-  document.getElementById('veh-cout-value').textContent = formatCurrency(data.cout_fonct_par_vehicule, 0);
-  
-  // Évolution coût par véhicule
-  if (dataN1) {
-    const evolCout = data.cout_fonct_par_vehicule - dataN1.cout_fonct_par_vehicule;
-    const evolPctCout = dataN1.cout_fonct_par_vehicule > 0 ? (evolCout / dataN1.cout_fonct_par_vehicule) * 100 : 0;
-    document.getElementById('veh-cout-evol').innerHTML = `
-      <span style="color:${evolCout >= 0 ? '#ef4444' : '#10b981'};">
-        ${evolCout >= 0 ? '▲' : '▼'} ${Math.abs(evolPctCout).toFixed(1)}%
-      </span>
-      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
-    `;
-  } else {
-    document.getElementById('veh-cout-evol').textContent = '';
-  }
-  
-  // Comparaisons coût par véhicule
-  if (consol && consol.Moy_Cout_Fonct_Par_Vehicule && consol.Moy_Cout_Fonct_Par_Vehicule > 0) {
-    const ecart = data.cout_fonct_par_vehicule - consol.Moy_Cout_Fonct_Par_Vehicule;
-    const ecartPct = (ecart / consol.Moy_Cout_Fonct_Par_Vehicule) * 100;
-    document.getElementById('veh-cout-comp').innerHTML = `
-      <span style="color:var(--gris2);">
-        ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}
-      </span>
-    `;
-  } else {
-    document.getElementById('veh-cout-comp').textContent = '';
-  }
-  
-  // 6. Ratio véhicule / agent SU
-  document.getElementById('veh-ratio-su-value').textContent = formatNumber(data.ratio_vehicule_su, 3);
-  
-  // Évolution ratio SU
-  if (dataN1) {
-    const evolRatioSU = data.ratio_vehicule_su - dataN1.ratio_vehicule_su;
-    document.getElementById('veh-ratio-su-evol').innerHTML = `
-      <span style="color:${evolRatioSU >= 0 ? '#10b981' : '#ef4444'};">
-        ${evolRatioSU >= 0 ? '▲' : '▼'} ${Math.abs(evolRatioSU).toFixed(3)}
-      </span>
-      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
-    `;
-  } else {
-    document.getElementById('veh-ratio-su-evol').textContent = '';
-  }
-  
-  // Comparaison ratio SU vs périmètre
-  if (consol && consol.Moy_Ratio_Vehicule_Agent_SU && consol.Moy_Ratio_Vehicule_Agent_SU > 0) {
-    const ecart = data.ratio_vehicule_su - consol.Moy_Ratio_Vehicule_Agent_SU;
-    const ecartPct = (ecart / consol.Moy_Ratio_Vehicule_Agent_SU) * 100;
-    document.getElementById('veh-ratio-su-comp').innerHTML = `
-      <span style="color:var(--gris2);">
-        ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}
-      </span>
-    `;
-  } else {
-    document.getElementById('veh-ratio-su-comp').textContent = '';
   }
   
   // ========== GRAPHIQUES ==========
@@ -2179,4 +1947,441 @@ function createVehiculesTable(structureId) {
       tbody.appendChild(rowMoy);
     }
   }
+}
+
+// ============================================================================
+// MODULE EXPORT PDF/HTML
+// ============================================================================
+
+/**
+ * Fonction principale d'export PDF - affiche le menu popup
+ */
+function exportToPDF() {
+  showExportModal();
+}
+
+/**
+ * Affiche le menu modal d'export avec options
+ */
+function showExportModal() {
+  const modal = document.createElement('div');
+  modal.id = 'export-modal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Marianne', sans-serif;
+  `;
+  
+  const modalContent = document.createElement('div');
+  modalContent.style.cssText = `
+    background: white;
+    border-radius: 12px;
+    padding: 0;
+    width: 500px;
+    max-width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+  `;
+  
+  modalContent.innerHTML = `
+    <div style="background: linear-gradient(135deg, #002F6C, #1351A8); padding: 24px; color: white;">
+      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Exporter en PDF</h2>
+      <p style="margin: 8px 0 0 0; font-size: 13px; opacity: 0.9;">Configurez les paramètres d'export</p>
+    </div>
+    
+    <div style="padding: 24px;">
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; font-weight: 600; color: #1E2D3D; margin-bottom: 12px; font-size: 14px;">📄 Mode d'export</label>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="display: flex; align-items: center; padding: 12px; border: 2px solid #E6ECF8; border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="export-option" data-mode="single">
+            <input type="radio" name="export-mode" value="single" checked style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer;">
+            <div>
+              <div style="font-weight: 600; color: #002F6C; font-size: 14px;">Structure actuelle</div>
+              <div style="font-size: 12px; color: #6c757d; margin-top: 2px;">Exporter uniquement <strong id="current-structure-name"></strong></div>
+            </div>
+          </label>
+          
+          <label style="display: flex; align-items: center; padding: 12px; border: 2px solid #E6ECF8; border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="export-option" data-mode="multiple">
+            <input type="radio" name="export-mode" value="multiple" style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer;">
+            <div>
+              <div style="font-weight: 600; color: #002F6C; font-size: 14px;">Toutes les structures</div>
+              <div style="font-size: 12px; color: #6c757d; margin-top: 2px;">Générer un PDF unique avec toutes les structures</div>
+            </div>
+          </label>
+          
+          <label style="display: flex; align-items: center; padding: 12px; border: 2px solid #E6ECF8; border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="export-option" data-mode="zip">
+            <input type="radio" name="export-mode" value="zip" style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer;">
+            <div>
+              <div style="font-weight: 600; color: #002F6C; font-size: 14px;">Archive ZIP</div>
+              <div style="font-size: 12px; color: #6c757d; margin-top: 2px;">Générer un PDF par structure dans une archive ZIP</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      
+      <div id="filter-section" style="margin-bottom: 24px; display: none;">
+        <label style="display: block; font-weight: 600; color: #1E2D3D; margin-bottom: 12px; font-size: 14px;">🔍 Filtrer les structures</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" checked class="filter-type" value="DI" style="margin-right: 8px;">
+            <span style="background: #007bff; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DI</span>
+            Directions Interrégionales
+          </label>
+          <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
+            <input type="checkbox" checked class="filter-type" value="DR" style="margin-right: 8px;">
+            <span style="background: #6f42c1; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DR</span>
+            Directions Régionales Outremer
+          </label>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 12px; margin-top: 24px;">
+        <button id="btn-cancel-export" style="flex: 1; padding: 12px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Marianne', sans-serif; transition: all 0.2s;">Annuler</button>
+        <button id="btn-confirm-export" style="flex: 2; padding: 12px; border: none; background: linear-gradient(135deg, #002F6C, #1351A8); color: white; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Marianne', sans-serif; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0, 47, 108, 0.3);">🎯 Générer le PDF</button>
+      </div>
+    </div>
+  `;
+  
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+  
+  document.getElementById('current-structure-name').textContent = FICHE_STATE.structure.sigle;
+  
+  const options = modalContent.querySelectorAll('.export-option');
+  options.forEach(option => {
+    option.addEventListener('click', function() {
+      const radio = this.querySelector('input[type="radio"]');
+      radio.checked = true;
+      
+      options.forEach(opt => {
+        opt.style.border = '2px solid #E6ECF8';
+        opt.style.background = 'white';
+      });
+      this.style.border = '2px solid #002F6C';
+      this.style.background = '#F0F4FF';
+      
+      const mode = radio.value;
+      const filterSection = document.getElementById('filter-section');
+      if (mode === 'multiple' || mode === 'zip') {
+        filterSection.style.display = 'block';
+      } else {
+        filterSection.style.display = 'none';
+      }
+    });
+  });
+  
+  document.getElementById('btn-cancel-export').addEventListener('click', () => {
+    document.body.removeChild(modal);
+  });
+  
+  document.getElementById('btn-confirm-export').addEventListener('click', async () => {
+    const mode = document.querySelector('input[name="export-mode"]:checked').value;
+    
+    let filters = null;
+    if (mode === 'multiple' || mode === 'zip') {
+      const checkedTypes = Array.from(document.querySelectorAll('.filter-type:checked')).map(cb => cb.value);
+      filters = { types: checkedTypes };
+    }
+    
+    document.body.removeChild(modal);
+    await executeExport(mode, filters);
+  });
+  
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      document.body.removeChild(modal);
+    }
+  });
+}
+
+async function executeExport(mode, filters) {
+  if (mode === 'single') {
+    await exportSingleStructurePDF(FICHE_STATE.structure, FICHE_STATE.annee);
+  } else if (mode === 'multiple') {
+    await exportAllStructuresInOnePDF(filters);
+  } else if (mode === 'zip') {
+    await exportAllStructuresAsZIP(filters);
+  }
+}
+
+async function exportSingleStructurePDF(struct, annee) {
+  const { jsPDF } = window.jspdf;
+  const loadingDiv = showLoadingMessage(`Génération du PDF pour ${struct.sigle}...`);
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  try {
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    await addStructureToPDF(pdf, struct, annee, true);
+    pdf.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
+    hideLoadingMessage(loadingDiv);
+  } catch (error) {
+    console.error('Erreur PDF:', error);
+    hideLoadingMessage(loadingDiv);
+    alert('Erreur lors de la génération du PDF.');
+  }
+}
+
+async function exportAllStructuresInOnePDF(filters) {
+  const { jsPDF } = window.jspdf;
+  const annee = FICHE_STATE.annee;
+  
+  let structures = FICHE_STATE.data.structures;
+  if (filters && filters.types) {
+    structures = structures.filter(s => {
+      if (filters.types.includes('DI') && s.type === 'DI') return true;
+      if (filters.types.includes('DR') && s.type === 'DR') return true;
+      return false;
+    });
+  }
+  
+  const loadingDiv = showLoadingMessage(`Génération d'un PDF avec ${structures.length} structures...`);
+  
+  try {
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    let isFirstPage = true;
+    
+    for (let i = 0; i < structures.length; i++) {
+      const struct = structures[i];
+      loadingDiv.querySelector('div:last-child').textContent = `Structure ${i + 1}/${structures.length} : ${struct.sigle}`;
+      
+      await selectStructure(struct.id);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      if (!isFirstPage) pdf.addPage();
+      await addStructureToPDF(pdf, struct, annee, isFirstPage);
+      isFirstPage = false;
+    }
+    
+    pdf.save(`fiche-identite-toutes-structures-${annee}.pdf`);
+    hideLoadingMessage(loadingDiv);
+    alert(`PDF généré avec succès avec ${structures.length} structures !`);
+  } catch (error) {
+    console.error('Erreur export:', error);
+    hideLoadingMessage(loadingDiv);
+    alert('Erreur lors de la génération du PDF.');
+  }
+}
+
+async function exportAllStructuresAsZIP(filters) {
+  if (typeof JSZip === 'undefined') {
+    alert('La génération d\'archive ZIP nécessite la bibliothèque JSZip.');
+    return;
+  }
+  
+  const { jsPDF } = window.jspdf;
+  const annee = FICHE_STATE.annee;
+  
+  let structures = FICHE_STATE.data.structures;
+  if (filters && filters.types) {
+    structures = structures.filter(s => {
+      if (filters.types.includes('DI') && s.type === 'DI') return true;
+      if (filters.types.includes('DR') && s.type === 'DR') return true;
+      return false;
+    });
+  }
+  
+  const loadingDiv = showLoadingMessage(`Génération de ${structures.length} PDF...`);
+  
+  try {
+    const zip = new JSZip();
+    
+    for (let i = 0; i < structures.length; i++) {
+      const struct = structures[i];
+      loadingDiv.querySelector('div:last-child').textContent = `PDF ${i + 1}/${structures.length} : ${struct.sigle}`;
+      
+      await selectStructure(struct.id);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      await addStructureToPDF(pdf, struct, annee, true);
+      
+      const pdfBlob = pdf.output('blob');
+      zip.file(`fiche-identite-${struct.sigle}-${annee}.pdf`, pdfBlob);
+    }
+    
+    loadingDiv.querySelector('div:last-child').textContent = 'Compression de l\'archive...';
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fiches-identite-${annee}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    hideLoadingMessage(loadingDiv);
+    alert(`Archive ZIP générée avec succès avec ${structures.length} PDF !`);
+  } catch (error) {
+    console.error('Erreur export ZIP:', error);
+    hideLoadingMessage(loadingDiv);
+    alert('Erreur lors de la génération de l\'archive ZIP.');
+  }
+}
+
+async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const margin = 15;
+  const headerHeight = 18;
+  const footerHeight = 12;
+  
+  let currentPage = 1;
+  let yPosition = margin + headerHeight + 5;
+  const dateExport = new Date().toLocaleDateString('fr-FR');
+  
+  function addHeaderFooter(pageNum) {
+    pdf.setFillColor(0, 47, 108);
+    pdf.rect(0, 0, pageWidth, headerHeight, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    
+    const maxWidth = pageWidth - (2 * margin);
+    let headerText = `Fiche Identité - ${struct.nom}`;
+    let textWidth = pdf.getTextWidth(headerText);
+    
+    if (textWidth > maxWidth) {
+      headerText = `Fiche Identité - ${struct.sigle}`;
+      textWidth = pdf.getTextWidth(headerText);
+      if (textWidth > maxWidth) {
+        while (textWidth > maxWidth - 5 && headerText.length > 20) {
+          headerText = headerText.slice(0, -1);
+          textWidth = pdf.getTextWidth(headerText + '...');
+        }
+        headerText += '...';
+      }
+    }
+    
+    pdf.text(headerText, margin, 11);
+    
+    const footerY = pageHeight - footerHeight + 3;
+    pdf.setDrawColor(200, 200, 200);
+    pdf.setLineWidth(0.5);
+    pdf.line(margin, footerY, pageWidth - margin, footerY);
+    pdf.setTextColor(100, 100, 100);
+    pdf.setFontSize(8.5);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Page ${pageNum}`, margin, footerY + 5);
+    
+    const dateText = `Exporté le ${dateExport}`;
+    const dateWidth = pdf.getTextWidth(dateText);
+    pdf.text(dateText, pageWidth - margin - dateWidth, footerY + 5);
+  }
+  
+  function checkPageBreak(neededHeight) {
+    const availableHeight = pageHeight - footerHeight - margin - yPosition;
+    if (availableHeight < neededHeight) {
+      addHeaderFooter(currentPage);
+      pdf.addPage();
+      currentPage++;
+      yPosition = margin + headerHeight + 5;
+      return true;
+    }
+    return false;
+  }
+  
+  if (isFirstPage) addHeaderFooter(1);
+  
+  const ficheBody = document.getElementById('fiche-body');
+  const sections = ficheBody.querySelectorAll('.section');
+  
+  for (let section of sections) {
+    if (section.style.display === 'none' || !section.offsetParent) continue;
+    
+    const sectionHeight = section.offsetHeight;
+    const estimatedPdfHeight = (sectionHeight * 0.264583) / 2;
+    if (estimatedPdfHeight > 60) checkPageBreak(estimatedPdfHeight);
+    
+    const canvas = await html2canvas(section, {
+      scale: 1.5,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      width: section.scrollWidth,
+      height: section.scrollHeight
+    });
+    
+    const imgData = canvas.toDataURL('image/jpeg', 0.85);
+    const imgWidth = pageWidth - (2 * margin);
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    checkPageBreak(imgHeight + 5);
+    pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+    yPosition += imgHeight + 5;
+  }
+  
+  addHeaderFooter(currentPage);
+  return currentPage;
+}
+
+function showLoadingMessage(message) {
+  const loadingDiv = document.createElement('div');
+  loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:30px 40px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:9999;text-align:center;font-family:Marianne,sans-serif;min-width:300px;';
+  loadingDiv.innerHTML = `
+    <div style="font-size:16px;font-weight:600;color:#002F6C;margin-bottom:10px;">Génération du PDF</div>
+    <div style="font-size:13px;color:#666;">${message}</div>
+  `;
+  document.body.appendChild(loadingDiv);
+  return loadingDiv;
+}
+
+function hideLoadingMessage(loadingDiv) {
+  if (loadingDiv && loadingDiv.parentNode) {
+    document.body.removeChild(loadingDiv);
+  }
+}
+
+function exportToHTML() {
+  const ficheBody = document.getElementById('fiche-body');
+  const struct = FICHE_STATE.structure;
+  const styleContent = document.querySelector('style').innerHTML;
+  
+  const printStyles = `
+    @media print {
+      body { background: white; margin: 0; padding: 0; }
+      .section, .kpi-card, .metrics-grid, .chart-container, .chart-grid {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .data-table tbody tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      p, .kpi-card-details { orphans: 3; widows: 3; }
+    }
+    @page { margin: 20mm; size: A4 portrait; }
+  `;
+  
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Fiche Identité ${struct.sigle} - ${FICHE_STATE.annee}</title>
+  <style>${styleContent}${printStyles}</style>
+</head>
+<body>
+  <div style="max-width:1200px;margin:0 auto;padding:24px;">
+    <h1 style="font-family:'Marianne',serif;color:var(--rep);margin-bottom:24px;">
+      Fiche Identité ${struct.nom} (${struct.sigle}) - ${FICHE_STATE.annee}
+    </h1>
+    ${ficheBody.innerHTML}
+  </div>
+</body>
+</html>`;
+  
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fiche-identite-${struct.sigle}-${FICHE_STATE.annee}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
