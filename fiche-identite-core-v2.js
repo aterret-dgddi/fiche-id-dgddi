@@ -2210,7 +2210,8 @@ async function exportAllStructuresInOnePDF(filters) {
   const { jsPDF } = window.jspdf;
   const annee = FICHE_STATE.annee;
   
-  let structures = FICHE_STATE.data.structures;
+  // Utiliser getStructuresArray() pour avoir un tableau d'objets
+  let structures = getStructuresArray();
   if (filters && filters.types) {
     structures = structures.filter(s => {
       if (filters.types.includes('DI') && s.type === 'DI') return true;
@@ -2256,7 +2257,8 @@ async function exportAllStructuresAsZIP(filters) {
   const { jsPDF } = window.jspdf;
   const annee = FICHE_STATE.annee;
   
-  let structures = FICHE_STATE.data.structures;
+  // Utiliser getStructuresArray() pour avoir un tableau d'objets
+  let structures = getStructuresArray();
   if (filters && filters.types) {
     structures = structures.filter(s => {
       if (filters.types.includes('DI') && s.type === 'DI') return true;
