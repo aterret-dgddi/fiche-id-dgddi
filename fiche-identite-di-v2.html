@@ -372,9 +372,11 @@
       flex-shrink: 0;
     }
 
+    .fiche-header-logo img,
     .fiche-header-logo svg {
       height: 80px;
       width: auto;
+      display: block;
     }
 
     .fiche-header-content {
@@ -850,25 +852,10 @@
     <!-- EN-TÊTE FICHE IDENTITÉ -->
     <div class="fiche-header">
       <div class="fiche-header-logo">
-        <!-- Logo Douane Française -->
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#002F6C;stop-opacity:1" />
-              <stop offset="100%" style="stop-color:#1351A8;stop-opacity:1" />
-            </linearGradient>
-          </defs>
-          <!-- Fond avec dégradé -->
-          <rect width="200" height="200" rx="12" fill="url(#grad1)"/>
-          <!-- Étoile centrale stylisée -->
-          <path d="M100 40 L110 75 L145 75 L117 95 L127 130 L100 110 L73 130 L83 95 L55 75 L90 75 Z" fill="white" opacity="0.95"/>
-          <!-- Ancre stylisée -->
-          <path d="M100 80 L100 140 M85 125 Q85 145 100 145 Q115 145 115 125 M80 100 L90 100 M110 100 L120 100" 
-                stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
-          <!-- Texte DGDDI -->
-          <text x="100" y="175" font-family="Marianne, Arial, sans-serif" font-size="18" font-weight="bold" 
-                fill="white" text-anchor="middle" letter-spacing="2">DGDDI</text>
-        </svg>
+        <!-- Logo officiel des Douanes Françaises -->
+        <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg" 
+             alt="Logo des Douanes Françaises" 
+             style="height: 80px; width: auto;">
       </div>
       <div class="fiche-header-content">
         <h1 class="fiche-header-title" id="header-nom">—</h1>
