@@ -13,6 +13,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Marianne:wght@300;400;500;700;800&display=swap');
@@ -2711,19 +2712,192 @@ function createInformatiqueChart(annees, portables, fixes) {
       URL.revokeObjectURL(url);
     }
 
-    // Export PDF amélioré
+    // Export PDF avec menu popup
     async function exportToPDF() {
-      // Demander si on exporte une ou toutes les structures
-      const exportAll = confirm(
-        "Voulez-vous exporter toutes les structures ?\n\n" +
-        "OUI = Exporter toutes les structures (un PDF par structure)\n" +
-        "NON = Exporter uniquement la structure actuelle"
-      );
+      showExportModal();
+    }
+    
+    // Afficher le menu d'export
+    function showExportModal() {
+      // Créer le modal
+      const modal = document.createElement('div');
+      modal.id = 'export-modal';
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Marianne', sans-serif;
+      `;
       
-      if (exportAll) {
-        await exportAllStructuresPDF();
-      } else {
+      const modalContent = document.createElement('div');
+      modalContent.style.cssText = `
+        background: white;
+        border-radius: 12px;
+        padding: 0;
+        width: 500px;
+        max-width: 90%;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      `;
+      
+      modalContent.innerHTML = `
+        <div style="background: linear-gradient(135deg, #002F6C, #1351A8); padding: 24px; color: white;">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Exporter en PDF</h2>
+          <p style="margin: 8px 0 0 0; font-size: 13px; opacity: 0.9;">Configurez les paramètres d'export</p>
+        </div>
+        
+        <div style="padding: 24px;">
+          <!-- Mode d'export -->
+          <div style="margin-bottom: 24px;">
+            <label style="display: block; font-weight: 600; color: #1E2D3D; margin-bottom: 12px; font-size: 14px;">
+              📄 Mode d'export
+            </label>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <label style="display: flex; align-items: center; padding: 12px; border: 2px solid #E6ECF8; border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="export-option" data-mode="single">
+                <input type="radio" name="export-mode" value="single" checked style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer;">
+                <div>
+                  <div style="font-weight: 600; color: #002F6C; font-size: 14px;">Structure actuelle</div>
+                  <div style="font-size: 12px; color: #6c757d; margin-top: 2px;">Exporter uniquement <strong id="current-structure-name"></strong></div>
+                </div>
+              </label>
+              
+              <label style="display: flex; align-items: center; padding: 12px; border: 2px solid #E6ECF8; border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="export-option" data-mode="multiple">
+                <input type="radio" name="export-mode" value="multiple" style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer;">
+                <div>
+                  <div style="font-weight: 600; color: #002F6C; font-size: 14px;">Toutes les structures</div>
+                  <div style="font-size: 12px; color: #6c757d; margin-top: 2px;">Générer un PDF unique avec toutes les structures</div>
+                </div>
+              </label>
+              
+              <label style="display: flex; align-items: center; padding: 12px; border: 2px solid #E6ECF8; border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="export-option" data-mode="zip">
+                <input type="radio" name="export-mode" value="zip" style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer;">
+                <div>
+                  <div style="font-weight: 600; color: #002F6C; font-size: 14px;">Archive ZIP</div>
+                  <div style="font-size: 12px; color: #6c757d; margin-top: 2px;">Générer un PDF par structure dans une archive ZIP</div>
+                </div>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Filtre structures (pour mode multiple/zip) -->
+          <div id="filter-section" style="margin-bottom: 24px; display: none;">
+            <label style="display: block; font-weight: 600; color: #1E2D3D; margin-bottom: 12px; font-size: 14px;">
+              🔍 Filtrer les structures
+            </label>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                <input type="checkbox" checked class="filter-type" value="DI" style="margin-right: 8px;">
+                <span style="background: #007bff; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DI</span>
+                Directions Interrégionales
+              </label>
+              <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                <input type="checkbox" checked class="filter-type" value="DR" style="margin-right: 8px;">
+                <span style="background: #6f42c1; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DR</span>
+                Directions Régionales Outremer
+              </label>
+            </div>
+          </div>
+          
+          <!-- Options avancées -->
+          <div style="margin-bottom: 24px;">
+            <label style="display: block; font-weight: 600; color: #1E2D3D; margin-bottom: 12px; font-size: 14px;">
+              ⚙️ Options
+            </label>
+            <label style="display: flex; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
+              <input type="checkbox" id="include-charts" checked style="margin-right: 10px; width: 16px; height: 16px;">
+              Inclure les graphiques
+            </label>
+          </div>
+          
+          <!-- Boutons -->
+          <div style="display: flex; gap: 12px; margin-top: 24px;">
+            <button id="btn-cancel-export" style="flex: 1; padding: 12px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Marianne', sans-serif; transition: all 0.2s;">
+              Annuler
+            </button>
+            <button id="btn-confirm-export" style="flex: 2; padding: 12px; border: none; background: linear-gradient(135deg, #002F6C, #1351A8); color: white; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Marianne', sans-serif; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0, 47, 108, 0.3);">
+              🎯 Générer le PDF
+            </button>
+          </div>
+        </div>
+      `;
+      
+      modal.appendChild(modalContent);
+      document.body.appendChild(modal);
+      
+      // Remplir le nom de la structure actuelle
+      document.getElementById('current-structure-name').textContent = FICHE_STATE.structure.sigle;
+      
+      // Gérer les clics sur les options
+      const options = modalContent.querySelectorAll('.export-option');
+      options.forEach(option => {
+        option.addEventListener('click', function() {
+          const radio = this.querySelector('input[type="radio"]');
+          radio.checked = true;
+          
+          // Mettre à jour les styles
+          options.forEach(opt => {
+            opt.style.border = '2px solid #E6ECF8';
+            opt.style.background = 'white';
+          });
+          this.style.border = '2px solid #002F6C';
+          this.style.background = '#F0F4FF';
+          
+          // Afficher/masquer le filtre
+          const mode = radio.value;
+          const filterSection = document.getElementById('filter-section');
+          if (mode === 'multiple' || mode === 'zip') {
+            filterSection.style.display = 'block';
+          } else {
+            filterSection.style.display = 'none';
+          }
+        });
+      });
+      
+      // Bouton Annuler
+      document.getElementById('btn-cancel-export').addEventListener('click', () => {
+        document.body.removeChild(modal);
+      });
+      
+      // Bouton Confirmer
+      document.getElementById('btn-confirm-export').addEventListener('click', async () => {
+        const mode = document.querySelector('input[name="export-mode"]:checked').value;
+        const includeCharts = document.getElementById('include-charts').checked;
+        
+        let filters = null;
+        if (mode === 'multiple' || mode === 'zip') {
+          const checkedTypes = Array.from(document.querySelectorAll('.filter-type:checked')).map(cb => cb.value);
+          filters = { types: checkedTypes };
+        }
+        
+        document.body.removeChild(modal);
+        
+        // Lancer l'export
+        await executeExport(mode, filters, includeCharts);
+      });
+      
+      // Clic en dehors pour fermer
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          document.body.removeChild(modal);
+        }
+      });
+    }
+    
+    // Exécuter l'export selon le mode choisi
+    async function executeExport(mode, filters, includeCharts) {
+      if (mode === 'single') {
         await exportSingleStructurePDF(FICHE_STATE.structure, FICHE_STATE.annee);
+      } else if (mode === 'multiple') {
+        await exportAllStructuresInOnePDF(filters);
+      } else if (mode === 'zip') {
+        await exportAllStructuresAsZIP(filters);
       }
     }
     
@@ -2731,7 +2905,6 @@ function createInformatiqueChart(annees, portables, fixes) {
     async function exportSingleStructurePDF(struct, annee) {
       const { jsPDF } = window.jspdf;
       
-      // Message de chargement
       const loadingDiv = showLoadingMessage(`Génération du PDF pour ${struct.sigle}...`);
       
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -2740,7 +2913,6 @@ function createInformatiqueChart(annees, portables, fixes) {
         const pdf = new jsPDF('p', 'mm', 'a4');
         await addStructureToPDF(pdf, struct, annee, true);
         
-        // Sauvegarder
         pdf.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
         hideLoadingMessage(loadingDiv);
         
@@ -2751,41 +2923,122 @@ function createInformatiqueChart(annees, portables, fixes) {
       }
     }
     
-    // Export de toutes les structures
-    async function exportAllStructuresPDF() {
-      const structures = FICHE_STATE.data.structures;
+    // Export de toutes les structures dans UN SEUL PDF
+    async function exportAllStructuresInOnePDF(filters) {
+      const { jsPDF } = window.jspdf;
       const annee = FICHE_STATE.annee;
       
-      const loadingDiv = showLoadingMessage(`Génération de ${structures.length} PDF...`);
+      // Filtrer les structures
+      let structures = FICHE_STATE.data.structures;
+      if (filters && filters.types) {
+        structures = structures.filter(s => {
+          if (filters.types.includes('DI') && s.type === 'DI') return true;
+          if (filters.types.includes('DR') && s.type === 'DR') return true;
+          return false;
+        });
+      }
+      
+      const loadingDiv = showLoadingMessage(`Génération d'un PDF avec ${structures.length} structures...`);
       
       try {
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        let isFirstPage = true;
+        
         for (let i = 0; i < structures.length; i++) {
           const struct = structures[i];
           
-          // Mettre à jour le message
           loadingDiv.querySelector('div:last-child').textContent = 
             `Structure ${i + 1}/${structures.length} : ${struct.sigle}`;
           
           // Sélectionner la structure et attendre le chargement
           await selectStructure(struct.id);
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 800));
           
-          // Générer le PDF
-          const { jsPDF } = window.jspdf;
-          const pdf = new jsPDF('p', 'mm', 'a4');
-          await addStructureToPDF(pdf, struct, annee, true);
-          pdf.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
+          // Ajouter une nouvelle page si pas la première structure
+          if (!isFirstPage) {
+            pdf.addPage();
+          }
           
-          await new Promise(resolve => setTimeout(resolve, 200));
+          // Ajouter la structure au PDF
+          await addStructureToPDF(pdf, struct, annee, isFirstPage);
+          isFirstPage = false;
         }
         
+        pdf.save(`fiche-identite-toutes-structures-${annee}.pdf`);
         hideLoadingMessage(loadingDiv);
-        alert(`${structures.length} PDF générés avec succès !`);
+        alert(`PDF généré avec succès avec ${structures.length} structures !`);
         
       } catch (error) {
-        console.error('Erreur export multiple:', error);
+        console.error('Erreur export:', error);
         hideLoadingMessage(loadingDiv);
-        alert('Erreur lors de la génération des PDF.');
+        alert('Erreur lors de la génération du PDF.');
+      }
+    }
+    
+    // Export de toutes les structures en ZIP (nécessite JSZip)
+    async function exportAllStructuresAsZIP(filters) {
+      // Vérifier si JSZip est disponible
+      if (typeof JSZip === 'undefined') {
+        alert('La génération d\'archive ZIP nécessite la bibliothèque JSZip.\n\nVeuillez ajouter cette ligne dans le <head> du HTML :\n<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>\n\nPour l\'instant, utilisez le mode "Toutes les structures" qui génère un seul PDF.');
+        return;
+      }
+      
+      const { jsPDF } = window.jspdf;
+      const annee = FICHE_STATE.annee;
+      
+      // Filtrer les structures
+      let structures = FICHE_STATE.data.structures;
+      if (filters && filters.types) {
+        structures = structures.filter(s => {
+          if (filters.types.includes('DI') && s.type === 'DI') return true;
+          if (filters.types.includes('DR') && s.type === 'DR') return true;
+          return false;
+        });
+      }
+      
+      const loadingDiv = showLoadingMessage(`Génération de ${structures.length} PDF...`);
+      
+      try {
+        const zip = new JSZip();
+        
+        for (let i = 0; i < structures.length; i++) {
+          const struct = structures[i];
+          
+          loadingDiv.querySelector('div:last-child').textContent = 
+            `PDF ${i + 1}/${structures.length} : ${struct.sigle}`;
+          
+          // Sélectionner la structure et attendre le chargement
+          await selectStructure(struct.id);
+          await new Promise(resolve => setTimeout(resolve, 800));
+          
+          // Générer le PDF
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          await addStructureToPDF(pdf, struct, annee, true);
+          
+          // Ajouter au ZIP
+          const pdfBlob = pdf.output('blob');
+          zip.file(`fiche-identite-${struct.sigle}-${annee}.pdf`, pdfBlob);
+        }
+        
+        // Générer le ZIP
+        loadingDiv.querySelector('div:last-child').textContent = 'Compression de l\'archive...';
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        
+        // Télécharger le ZIP
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `fiches-identite-${annee}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        hideLoadingMessage(loadingDiv);
+        alert(`Archive ZIP générée avec succès avec ${structures.length} PDF !`);
+        
+      } catch (error) {
+        console.error('Erreur export ZIP:', error);
+        hideLoadingMessage(loadingDiv);
+        alert('Erreur lors de la génération de l\'archive ZIP.');
       }
     }
     
@@ -2800,11 +3053,9 @@ function createInformatiqueChart(annees, portables, fixes) {
       let currentPage = 1;
       let yPosition = margin + headerHeight + 5;
       
-      // Date d'export
       const dateExport = new Date().toLocaleDateString('fr-FR');
       
-      // Fonction pour ajouter en-tête et pied de page
-      function addHeaderFooter(pageNum, isLast = false) {
+      function addHeaderFooter(pageNum) {
         // EN-TÊTE
         pdf.setFillColor(0, 47, 108);
         pdf.rect(0, 0, pageWidth, headerHeight, 'F');
@@ -2813,7 +3064,6 @@ function createInformatiqueChart(annees, portables, fixes) {
         pdf.setFontSize(11);
         pdf.setFont('helvetica', 'bold');
         
-        // Tronquer le nom si trop long
         const maxWidth = pageWidth - (2 * margin);
         let headerText = `Fiche Identité - ${struct.nom}`;
         let textWidth = pdf.getTextWidth(headerText);
@@ -2823,7 +3073,6 @@ function createInformatiqueChart(annees, portables, fixes) {
           textWidth = pdf.getTextWidth(headerText);
           
           if (textWidth > maxWidth) {
-            // Tronquer avec ...
             while (textWidth > maxWidth - 5 && headerText.length > 20) {
               headerText = headerText.slice(0, -1);
               textWidth = pdf.getTextWidth(headerText + '...');
@@ -2845,16 +3094,13 @@ function createInformatiqueChart(annees, portables, fixes) {
         pdf.setFontSize(8.5);
         pdf.setFont('helvetica', 'normal');
         
-        // Page X / Y
         pdf.text(`Page ${pageNum}`, margin, footerY + 5);
         
-        // Date
         const dateText = `Exporté le ${dateExport}`;
         const dateWidth = pdf.getTextWidth(dateText);
         pdf.text(dateText, pageWidth - margin - dateWidth, footerY + 5);
       }
       
-      // Fonction pour vérifier si on doit changer de page
       function checkPageBreak(neededHeight) {
         const availableHeight = pageHeight - footerHeight - margin - yPosition;
         if (availableHeight < neededHeight) {
@@ -2867,29 +3113,23 @@ function createInformatiqueChart(annees, portables, fixes) {
         return false;
       }
       
-      // Ajouter en-tête première page
       if (isFirstPage) {
         addHeaderFooter(1);
       }
       
-      // Capturer les sections une par une
       const ficheBody = document.getElementById('fiche-body');
       const sections = ficheBody.querySelectorAll('.section');
       
       for (let section of sections) {
-        // Vérifier si c'est une section visible
         if (section.style.display === 'none' || !section.offsetParent) continue;
         
-        // Estimer la hauteur de la section
         const sectionHeight = section.offsetHeight;
-        const estimatedPdfHeight = (sectionHeight * 0.264583) / 2; // px to mm, échelle
+        const estimatedPdfHeight = (sectionHeight * 0.264583) / 2;
         
-        // Si la section est trop haute, on force un changement de page
         if (estimatedPdfHeight > 60) {
           checkPageBreak(estimatedPdfHeight);
         }
         
-        // Capturer la section
         const canvas = await html2canvas(section, {
           scale: 1.5,
           useCORS: true,
@@ -2899,25 +3139,21 @@ function createInformatiqueChart(annees, portables, fixes) {
           height: section.scrollHeight
         });
         
-        const imgData = canvas.toDataURL('image/jpeg', 0.85); // JPEG avec compression
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
         const imgWidth = pageWidth - (2 * margin);
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
         
-        // Vérifier si ça tient sur la page
         checkPageBreak(imgHeight + 5);
         
-        // Ajouter l'image
         pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
         yPosition += imgHeight + 5;
       }
       
-      // Ajouter le pied de page de la dernière page
-      addHeaderFooter(currentPage, true);
+      addHeaderFooter(currentPage);
       
       return currentPage;
     }
     
-    // Fonctions utilitaires pour le loading
     function showLoadingMessage(message) {
       const loadingDiv = document.createElement('div');
       loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:30px 40px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:9999;text-align:center;font-family:Marianne,sans-serif;min-width:300px;';
