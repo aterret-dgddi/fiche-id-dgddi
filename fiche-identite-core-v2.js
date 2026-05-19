@@ -24,6 +24,66 @@ const FICHE_STATE = {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// FONCTIONS UTILITAIRES
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Retourne le périmètre d'une structure (DI, DR ou National)
+ */
+function getPerimetreStructure(structureId) {
+  const struct = FICHE_STATE.data.structures.find(s => s.id === structureId);
+  if (!struct) return null;
+  return struct.type; // 'DI' ou 'DR'
+}
+
+/**
+ * Retourne les années disponibles dans les données
+ */
+function getAnneesDisponibles() {
+  if (!FICHE_STATE.data.rh || !FICHE_STATE.data.rh.Annee) return [];
+  
+  const anneesSet = new Set();
+  FICHE_STATE.data.rh.Annee.forEach(a => {
+    if (a && a >= 2020) anneesSet.add(a);
+  });
+  
+  return Array.from(anneesSet).sort((a, b) => a - b);
+}
+
+/**
+ * Retourne les données de consolidation pour un périmètre et une année
+ */
+function getConsolidationData(perimetre, annee) {
+  if (!FICHE_STATE.data.consolidation) return null;
+  
+  const consol = FICHE_STATE.data.consolidation;
+  
+  // Trouver l'index correspondant au périmètre et à l'année
+  for (let i = 0; i < consol.Perimetre.length; i++) {
+    if (consol.Perimetre[i] === perimetre && consol.Annee[i] === annee) {
+      return {
+        effectif_moyen: consol.Moy_Effectif_Total?.[i] || 0,
+        age_moyen_global: consol.Moy_Age_Moyen?.[i] || 0,
+        ms_par_agent: consol.Moy_MS_Par_Agent?.[i] || 0,
+        Moy_Budget_Fonctionnement: consol.Moy_Budget_Fonctionnement?.[i] || 0,
+        Moy_Budget_Investissement: consol.Moy_Budget_Investissement?.[i] || 0,
+        Moy_Budget_Total: consol.Moy_Budget_Total?.[i] || 0,
+        Moy_Nb_Vehicules: consol.Moy_Nb_Vehicules?.[i] || 0,
+        Moy_Taux_Vetuste: consol.Moy_Taux_Vetuste?.[i] || 0,
+        Moy_Budget_Vehicules: consol.Moy_Budget_Vehicules?.[i] || 0,
+        Moy_Ratio_Vehicule_Agent: consol.Moy_Ratio_Vehicule_Agent?.[i] || 0,
+        Moy_Total_Frais_Mission: consol.Moy_Total_Frais_Mission?.[i] || 0,
+        Moy_Frais_Mission_Par_Agent: consol.Moy_Frais_Mission_Par_Agent?.[i] || 0,
+        Moy_Budget_IT_CP: consol.Moy_Budget_IT_CP?.[i] || 0,
+        Moy_IT_Par_Agent: consol.Moy_IT_Par_Agent?.[i] || 0
+      };
+    }
+  }
+  
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // INITIALISATION GRIST
 // ═══════════════════════════════════════════════════════════════
 
