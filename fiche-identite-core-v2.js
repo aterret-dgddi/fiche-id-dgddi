@@ -1657,11 +1657,49 @@ function getInformatiqueMultiAnnees(structureId, annees) {
 function refreshVehicules(structureId, annee) {
   const data = getVehiculesData(structureId, annee);
   if (!data) {
-    // Afficher placeholder si pas de données
+    // Afficher placeholder si pas de données - vider TOUS les champs
+    console.warn('⚠️ Pas de données Véhicules pour cette structure');
+    
     document.getElementById('veh-total-value').textContent = '—';
+    document.getElementById('veh-total-evol').innerHTML = '';
+    document.getElementById('veh-total-comp').innerHTML = '';
+    
     document.getElementById('veh-vetuste-value').textContent = '—';
+    document.getElementById('veh-vetuste-evol').innerHTML = '';
+    document.getElementById('veh-vetuste-comp').innerHTML = '';
+    
     document.getElementById('veh-budget-value').textContent = '—';
+    document.getElementById('veh-budget-evol').innerHTML = '';
+    document.getElementById('veh-budget-comp').innerHTML = '';
+    
     document.getElementById('veh-ratio-value').textContent = '—';
+    document.getElementById('veh-ratio-evol').innerHTML = '';
+    document.getElementById('veh-ratio-comp').innerHTML = '';
+    
+    document.getElementById('veh-cout-value').textContent = '—';
+    document.getElementById('veh-cout-evol').innerHTML = '';
+    document.getElementById('veh-cout-comp').innerHTML = '';
+    
+    document.getElementById('veh-ratio-su-value').textContent = '—';
+    document.getElementById('veh-ratio-su-evol').innerHTML = '';
+    document.getElementById('veh-ratio-su-comp').innerHTML = '';
+    
+    // Détruire les graphiques
+    const chartVetuste = Chart.getChart('chart-veh-vetuste');
+    if (chartVetuste) chartVetuste.destroy();
+    const chartBudget = Chart.getChart('chart-veh-budget');
+    if (chartBudget) chartBudget.destroy();
+    
+    // Vider le tableau
+    const tbody = document.getElementById('table-veh-body');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée véhicules disponible</td></tr>';
+    }
+    
+    // Vider le commentaire
+    const commentaire = document.getElementById('veh-commentaire');
+    if (commentaire) commentaire.value = '';
+    
     return;
   }
   
