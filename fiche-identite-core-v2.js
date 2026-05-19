@@ -2502,7 +2502,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     if (estimatedPdfHeight > 60) checkPageBreak(estimatedPdfHeight);
     
     const canvas = await html2canvas(section, {
-      scale: 1.5,
+      scale: 3,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
@@ -2510,12 +2510,12 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       height: section.scrollHeight
     });
     
-    const imgData = canvas.toDataURL('image/jpeg', 0.85);
+    const imgData = canvas.toDataURL('image/png');
     const imgWidth = pageWidth - (2 * margin);
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
     checkPageBreak(imgHeight + 5);
-    pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+    pdf.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight);
     yPosition += imgHeight + 5;
   }
   
