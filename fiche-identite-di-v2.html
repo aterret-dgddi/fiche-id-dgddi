@@ -2023,36 +2023,37 @@
     // Vider tous les KPIs
     document.getElementById('fm-total-value').textContent = '—';
     document.getElementById('fm-total-evol').className = 'fm-evolution-badge';
-    document.getElementById('fm-total-evol').innerHTML = '—';
-    document.getElementById('fm-total-comp').innerHTML = '—';
+    document.getElementById('fm-total-evol').innerHTML = '';
+    document.getElementById('fm-total-comp').innerHTML = '';
     
     document.getElementById('fm-formation-value').textContent = '—';
     document.getElementById('fm-formation-evol').className = 'fm-evolution-badge';
-    document.getElementById('fm-formation-evol').innerHTML = '—';
-    document.getElementById('fm-formation-pct').textContent = '—';
+    document.getElementById('fm-formation-evol').innerHTML = '';
+    document.getElementById('fm-formation-pct').textContent = '';
     
     document.getElementById('fm-autres-value').textContent = '—';
     document.getElementById('fm-autres-evol').className = 'fm-evolution-badge';
-    document.getElementById('fm-autres-evol').innerHTML = '—';
-    document.getElementById('fm-autres-pct').textContent = '—';
+    document.getElementById('fm-autres-evol').innerHTML = '';
+    document.getElementById('fm-autres-pct').textContent = '';
     
     document.getElementById('fm-agent-value').textContent = '—';
     document.getElementById('fm-agent-evol').className = 'fm-evolution-badge';
-    document.getElementById('fm-agent-evol').innerHTML = '—';
-    document.getElementById('fm-agent-comp').innerHTML = '—';
+    document.getElementById('fm-agent-evol').innerHTML = '';
+    document.getElementById('fm-agent-comp').innerHTML = '';
     
     // Détruire le graphique
     const chartFM = Chart.getChart('chart-fm-repartition');
     if (chartFM) chartFM.destroy();
     
-    // Vider le tableau
-    const tbody = document.getElementById('fm-table-tbody');
+    // Vider le tableau (ID correct: table-fm-body)
+    const tbody = document.getElementById('table-fm-body');
     if (tbody) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
     }
     
     // Vider le commentaire
-    document.getElementById('fm-commentaire').value = '';
+    const commentaireFM = document.getElementById('fm-commentaire');
+    if (commentaireFM) commentaireFM.value = '';
     
     return;
   }
