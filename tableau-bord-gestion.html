@@ -401,6 +401,28 @@
       };
     }
 
+    // Récupérer les DR rattachées à une DI
+    function getDRForDI(diId) {
+      const structures = FICHE_STATE.data.structures;
+      if (!structures || !structures.id) return [];
+      
+      const drList = [];
+      for (let i = 0; i < structures.id.length; i++) {
+        const type = structures.Type?.[i];
+        const rattachement = structures.Rattachement_DI?.[i];
+        
+        if (type === 'DR' && rattachement === diId) {
+          drList.push({
+            id: structures.id[i],
+            sigle: structures.Sigle?.[i],
+            nom: structures.Nom?.[i],
+            estOutremer: structures.Est_Outremer?.[i] || false
+          });
+        }
+      }
+      return drList;
+    }
+
     // Récupérer toutes les structures avec leurs données
     function getAllStructuresData() {
       const structures = FICHE_STATE.data.structures;
@@ -414,27 +436,73 @@
         const sigle = structures.Sigle?.[i];
         const nom = structures.Nom?.[i];
         
-        // Filtrer uniquement DG, DI, SCN
-        if (!['DG', 'DI', 'SCN'].includes(type)) continue;
+        // Filtrer : DG, DI, DR (outremer uniquement), SCN
+        const isOutremer = structures.Est_Outremer?.[i] || false;
+        const rattachement = structures.Rattachement_DI?.[i];
+        
+        // Pour les DR : seulement celles d'outremer OU celles sans rattachement
+        if (type === 'DR' && !isOutremer && rattachement) {
+          continue; // Skip les DR métropole rattachées, elles seront agrégées dans les DI
+        }
+        
+        if (!['DG', 'DI', 'DR', 'SCN'].includes(type)) continue;
         
         const data = getStructureData(structId, ANNEE);
         if (!data) continue;
+        
+        // Si c'est une DI, récupérer et agréger ses DR
+        let drData = null;
+        if (type === 'DI') {
+          const drList = getDRForDI(structId);
+          if (drList.length > 0) {
+            drData = {
+              count: drList.length,
+              effectif_total: 0,
+              effectif_su: 0,
+              effectif_agco: 0,
+              effectif_autres: 0,
+              masse_salariale: 0,
+              sumAge: 0,
+              totalEffectif: 0
+            };
+            
+            drList.forEach(dr => {
+              const drRhData = getStructureData(dr.id, ANNEE);
+              if (drRhData) {
+                drData.effectif_total += drRhData.effectif_total;
+                drData.effectif_su += drRhData.effectif_su;
+                drData.effectif_agco += drRhData.effectif_agco;
+                drData.effectif_autres += drRhData.effectif_autres;
+                drData.masse_salariale += drRhData.masse_salariale;
+                drData.sumAge += drRhData.age_moyen * drRhData.effectif_total;
+                drData.totalEffectif += drRhData.effectif_total;
+              }
+            });
+            
+            drData.age_moyen = drData.totalEffectif > 0 ? drData.sumAge / drData.totalEffectif : 0;
+            drData.ms_par_agent = drData.effectif_total > 0 ? drData.masse_salariale / drData.effectif_total : 0;
+          }
+        }
         
         result.push({
           id: structId,
           type,
           sigle,
           nom,
+          isOutremer,
+          drData,
           ...data
         });
       }
       
-      // Trier : DG d'abord, puis DI par ordre alphabétique, puis SCN par ordre alphabétique
+      // Trier : DG d'abord, puis DI par ordre alphabétique, puis DR outremer, puis SCN par ordre alphabétique
       result.sort((a, b) => {
         if (a.type === 'DG') return -1;
         if (b.type === 'DG') return 1;
-        if (a.type === 'DI' && b.type === 'SCN') return -1;
-        if (a.type === 'SCN' && b.type === 'DI') return 1;
+        if (a.type === 'DI' && b.type !== 'DI') return -1;
+        if (b.type === 'DI' && a.type !== 'DI') return 1;
+        if (a.type === 'DR' && b.type === 'SCN') return -1;
+        if (a.type === 'SCN' && b.type === 'DR') return 1;
         return (a.sigle || '').localeCompare(b.sigle || '');
       });
       
@@ -460,18 +528,30 @@
         total_ms += s.masse_salariale;
         sum_age += s.age_moyen * s.effectif_total;
         total_eff_age += s.effectif_total;
+        
+        // Ajouter les DR si DI
+        if (s.drData) {
+          total_effectif += s.drData.effectif_total;
+          total_su += s.drData.effectif_su;
+          total_agco += s.drData.effectif_agco;
+          total_autres += s.drData.effectif_autres;
+          total_ms += s.drData.masse_salariale;
+          sum_age += s.drData.sumAge;
+          total_eff_age += s.drData.totalEffectif;
+        }
       });
       
       const age_moyen_total = total_eff_age > 0 ? sum_age / total_eff_age : 0;
       const ms_par_agent_total = total_effectif > 0 ? total_ms / total_effectif : 0;
       
       const rows = structures.map(s => {
-        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : 'badge-scn');
-        const badge = `<span class="badge ${badgeClass}">${s.type}</span>`;
+        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : (s.type === 'DR' ? 'badge-dr' : 'badge-scn'));
+        const typeLabel = s.isOutremer ? `${s.type} (OM)` : s.type;
+        const badge = `<span class="badge ${badgeClass}">${typeLabel}</span>`;
         
-        return `
+        let rowHTML = `
           <tr>
-            <td>${s.sigle} ${badge}</td>
+            <td>${badge} ${s.sigle}</td>
             <td class="number">${formatNumber(s.effectif_total)}</td>
             <td class="number">${formatNumber(s.effectif_su)}</td>
             <td class="number">${formatNumber(s.effectif_agco)}</td>
@@ -481,6 +561,24 @@
             <td class="number">${formatEuro(s.ms_par_agent)}</td>
           </tr>
         `;
+        
+        // Si DI avec des DR, ajouter une ligne pour les DR
+        if (s.drData && s.drData.count > 0) {
+          rowHTML += `
+          <tr style="background: #f8fafc; font-size: 13px; color: #64748b;">
+            <td style="padding-left: 30px;">└─ ${s.drData.count} DR rattachée(s)</td>
+            <td class="number">${formatNumber(s.drData.effectif_total)}</td>
+            <td class="number">${formatNumber(s.drData.effectif_su)}</td>
+            <td class="number">${formatNumber(s.drData.effectif_agco)}</td>
+            <td class="number">${formatNumber(s.drData.effectif_autres)}</td>
+            <td class="number">${s.drData.age_moyen.toFixed(1)} ans</td>
+            <td class="number">${formatMilliers(s.drData.masse_salariale)} k€</td>
+            <td class="number">${formatEuro(s.drData.ms_par_agent)}</td>
+          </tr>
+          `;
+        }
+        
+        return rowHTML;
       }).join('');
       
       return `
@@ -537,6 +635,22 @@
       return { nb_vehicules, nb_vetustes, budget_vehicules };
     }
 
+    function getDRVehiculeData(diId, annee) {
+      const drList = getDRForDI(diId);
+      let total_vehicules = 0, total_vetustes = 0, total_budget = 0;
+      
+      drList.forEach(dr => {
+        const vehData = getVehiculeDataForStructure(dr.id, annee);
+        if (vehData) {
+          total_vehicules += vehData.nb_vehicules;
+          total_vetustes += vehData.nb_vetustes;
+          total_budget += vehData.budget_vehicules;
+        }
+      });
+      
+      return drList.length > 0 ? { nb_vehicules: total_vehicules, nb_vetustes: total_vetustes, budget_vehicules: total_budget, count: drList.length } : null;
+    }
+
     function renderVehiculesSection() {
       const structures = getAllStructuresData();
       
@@ -561,12 +675,13 @@
         total_effectif += s.effectif_total;
         total_su += s.effectif_su;
         
-        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : 'badge-scn');
-        const badge = `<span class="badge ${badgeClass}">${s.type}</span>`;
+        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : (s.type === 'DR' ? 'badge-dr' : 'badge-scn'));
+        const typeLabel = s.isOutremer ? `${s.type} (OM)` : s.type;
+        const badge = `<span class="badge ${badgeClass}">${typeLabel}</span>`;
         
-        return `
+        let rowHTML = `
           <tr>
-            <td>${s.sigle} ${badge}</td>
+            <td>${badge} ${s.sigle}</td>
             <td class="number">${formatNumber(vehData.nb_vehicules)}</td>
             <td class="number">${formatNumber(vehData.nb_vetustes)}</td>
             <td class="number">${ratio_agent.toFixed(2)}</td>
@@ -574,6 +689,33 @@
             <td class="number">${formatEuro(cout_par_vehicule)}</td>
           </tr>
         `;
+        
+        // Si DI, ajouter les DR
+        if (s.type === 'DI' && s.drData) {
+          const drVehData = getDRVehiculeData(s.id, ANNEE);
+          if (drVehData && drVehData.count > 0) {
+            const dr_ratio_agent = s.drData.effectif_total > 0 ? (drVehData.nb_vehicules / s.drData.effectif_total) : 0;
+            const dr_ratio_su = s.drData.effectif_su > 0 ? (drVehData.nb_vehicules / s.drData.effectif_su) : 0;
+            const dr_cout_par_vehicule = drVehData.nb_vehicules > 0 ? (drVehData.budget_vehicules / drVehData.nb_vehicules) : 0;
+            
+            total_vehicules += drVehData.nb_vehicules;
+            total_vetustes += drVehData.nb_vetustes;
+            total_budget += drVehData.budget_vehicules;
+            
+            rowHTML += `
+          <tr style="background: #f8fafc; font-size: 13px; color: #64748b;">
+            <td style="padding-left: 30px;">└─ ${drVehData.count} DR rattachée(s)</td>
+            <td class="number">${formatNumber(drVehData.nb_vehicules)}</td>
+            <td class="number">${formatNumber(drVehData.nb_vetustes)}</td>
+            <td class="number">${dr_ratio_agent.toFixed(2)}</td>
+            <td class="number">${dr_ratio_su.toFixed(2)}</td>
+            <td class="number">${formatEuro(dr_cout_par_vehicule)}</td>
+          </tr>
+            `;
+          }
+        }
+        
+        return rowHTML;
       }).join('');
       
       const total_ratio_agent = total_effectif > 0 ? (total_vehicules / total_effectif) : 0;
@@ -632,6 +774,24 @@
       return { transport, hebergement, repas, formation, autres };
     }
 
+    function getDRFraisMissionData(diId, annee) {
+      const drList = getDRForDI(diId);
+      let total_transport = 0, total_hebergement = 0, total_repas = 0, total_formation = 0, total_autres = 0;
+      
+      drList.forEach(dr => {
+        const fmData = getFraisMissionDataForStructure(dr.id, annee);
+        if (fmData) {
+          total_transport += fmData.transport;
+          total_hebergement += fmData.hebergement;
+          total_repas += fmData.repas;
+          total_formation += fmData.formation;
+          total_autres += fmData.autres;
+        }
+      });
+      
+      return drList.length > 0 ? { transport: total_transport, hebergement: total_hebergement, repas: total_repas, formation: total_formation, autres: total_autres, count: drList.length } : null;
+    }
+
     function renderFraisMissionSection() {
       const structures = getAllStructuresData();
       
@@ -673,12 +833,13 @@
         total_autres += fmData.autres;
         total_effectif += s.effectif_total;
         
-        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : 'badge-scn');
-        const badge = `<span class="badge ${badgeClass}">${s.type}</span>`;
+        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : (s.type === 'DR' ? 'badge-dr' : 'badge-scn'));
+        const typeLabel = s.isOutremer ? `${s.type} (OM)` : s.type;
+        const badge = `<span class="badge ${badgeClass}">${typeLabel}</span>`;
         
-        return `
+        let rowHTML = `
           <tr>
-            <td>${s.sigle} ${badge}</td>
+            <td>${badge} ${s.sigle}</td>
             <td>
               <div class="percent-bar-container">
                 ${renderPercentBar(fmData.transport, fmData.hebergement, fmData.repas)}
@@ -689,6 +850,36 @@
             <td class="number">${formatEuro(frais_par_agent)}</td>
           </tr>
         `;
+        
+        // Si DI, ajouter les DR
+        if (s.type === 'DI' && s.drData) {
+          const drFmData = getDRFraisMissionData(s.id, ANNEE);
+          if (drFmData && drFmData.count > 0) {
+            const dr_frais_par_agent = s.drData.effectif_total > 0 ? ((drFmData.transport + drFmData.hebergement + drFmData.repas) / s.drData.effectif_total) : 0;
+            
+            total_transport += drFmData.transport;
+            total_hebergement += drFmData.hebergement;
+            total_repas += drFmData.repas;
+            total_formation += drFmData.formation;
+            total_autres += drFmData.autres;
+            
+            rowHTML += `
+          <tr style="background: #f8fafc; font-size: 13px; color: #64748b;">
+            <td style="padding-left: 30px;">└─ ${drFmData.count} DR rattachée(s)</td>
+            <td>
+              <div class="percent-bar-container">
+                ${renderPercentBar(drFmData.transport, drFmData.hebergement, drFmData.repas)}
+              </div>
+            </td>
+            <td class="number">${formatMilliers(drFmData.formation)} k€</td>
+            <td class="number">${formatMilliers(drFmData.autres)} k€</td>
+            <td class="number">${formatEuro(dr_frais_par_agent)}</td>
+          </tr>
+            `;
+          }
+        }
+        
+        return rowHTML;
       }).join('');
       
       const total_frais_par_agent = total_effectif > 0 ? ((total_transport + total_hebergement + total_repas) / total_effectif) : 0;
@@ -764,6 +955,23 @@
       return { postes_fixes, portables, budget_annee, budget_moyen_4ans };
     }
 
+    function getDRInformatiqueData(diId, annee) {
+      const drList = getDRForDI(diId);
+      let total_fixes = 0, total_portables = 0, total_budget = 0, total_budget_4ans = 0;
+      
+      drList.forEach(dr => {
+        const itData = getInformatiqueDataForStructure(dr.id, annee);
+        if (itData) {
+          total_fixes += itData.postes_fixes;
+          total_portables += itData.portables;
+          total_budget += itData.budget_annee;
+          total_budget_4ans += itData.budget_moyen_4ans;
+        }
+      });
+      
+      return drList.length > 0 ? { postes_fixes: total_fixes, portables: total_portables, budget_annee: total_budget, budget_moyen_4ans: total_budget_4ans, count: drList.length } : null;
+    }
+
     function renderInformatiqueSection() {
       const structures = getAllStructuresData();
       
@@ -787,12 +995,13 @@
         total_budget_4ans += itData.budget_moyen_4ans;
         total_effectif += s.effectif_total;
         
-        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : 'badge-scn');
-        const badge = `<span class="badge ${badgeClass}">${s.type}</span>`;
+        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : (s.type === 'DR' ? 'badge-dr' : 'badge-scn'));
+        const typeLabel = s.isOutremer ? `${s.type} (OM)` : s.type;
+        const badge = `<span class="badge ${badgeClass}">${typeLabel}</span>`;
         
-        return `
+        let rowHTML = `
           <tr>
-            <td>${s.sigle} ${badge}</td>
+            <td>${badge} ${s.sigle}</td>
             <td class="number">${formatNumber(itData.postes_fixes)}</td>
             <td class="number">${formatNumber(itData.portables)}</td>
             <td class="number">${formatMilliers(itData.budget_annee)} k€</td>
@@ -801,6 +1010,34 @@
             <td class="number">${formatEuro(cout_par_agent_lisse)}</td>
           </tr>
         `;
+        
+        // Si DI, ajouter les DR
+        if (s.type === 'DI' && s.drData) {
+          const drItData = getDRInformatiqueData(s.id, ANNEE);
+          if (drItData && drItData.count > 0) {
+            const dr_cout_par_agent = s.drData.effectif_total > 0 ? (drItData.budget_annee / s.drData.effectif_total) : 0;
+            const dr_cout_par_agent_lisse = s.drData.effectif_total > 0 ? (drItData.budget_moyen_4ans / s.drData.effectif_total) : 0;
+            
+            total_fixes += drItData.postes_fixes;
+            total_portables += drItData.portables;
+            total_budget += drItData.budget_annee;
+            total_budget_4ans += drItData.budget_moyen_4ans;
+            
+            rowHTML += `
+          <tr style="background: #f8fafc; font-size: 13px; color: #64748b;">
+            <td style="padding-left: 30px;">└─ ${drItData.count} DR rattachée(s)</td>
+            <td class="number">${formatNumber(drItData.postes_fixes)}</td>
+            <td class="number">${formatNumber(drItData.portables)}</td>
+            <td class="number">${formatMilliers(drItData.budget_annee)} k€</td>
+            <td class="number">${formatMilliers(drItData.budget_moyen_4ans)} k€</td>
+            <td class="number">${formatEuro(dr_cout_par_agent)}</td>
+            <td class="number">${formatEuro(dr_cout_par_agent_lisse)}</td>
+          </tr>
+            `;
+          }
+        }
+        
+        return rowHTML;
       }).join('');
       
       const total_cout_par_agent = total_effectif > 0 ? (total_budget / total_effectif) : 0;
