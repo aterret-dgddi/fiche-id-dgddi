@@ -341,8 +341,8 @@
           consolidation_nationale: consolidationNationale.id.length
         });
         
-        // Détecter la dernière année
-        const annees = [...new Set(consolidation.Annee.filter(a => a > 0))];
+        // Détecter la dernière année depuis Consolidation_Structure
+        const annees = [...new Set(consolidationStructure.Annee.filter(a => a > 0))];
         ANNEE = Math.max(...annees);
         document.getElementById('anneeAffichee').textContent = ANNEE;
         
