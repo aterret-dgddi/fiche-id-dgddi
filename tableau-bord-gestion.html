@@ -318,23 +318,27 @@
     let ANNEE = 2024;
     let consolidationData = [];
     let structuresData = [];
+    let consolidationNationaleData = null;
 
     async function init() {
       try {
         await grist.ready();
         
         // Charger les données
-        const [consolidation, structures] = await Promise.all([
+        const [consolidationStructure, structures, consolidationNationale] = await Promise.all([
           grist.docApi.fetchTable('Consolidation_Structure'),
-          grist.docApi.fetchTable('Structures')
+          grist.docApi.fetchTable('Structures'),
+          grist.docApi.fetchTable('Consolidation')
         ]);
         
-        consolidationData = consolidation;
+        consolidationData = consolidationStructure;
         structuresData = structures;
+        consolidationNationaleData = consolidationNationale;
         
         console.log('✅ Données chargées:', {
-          consolidation: consolidation.id.length,
-          structures: structures.id.length
+          consolidation_structure: consolidationStructure.id.length,
+          structures: structures.id.length,
+          consolidation_nationale: consolidationNationale.id.length
         });
         
         // Détecter la dernière année
@@ -354,6 +358,34 @@
       }
     }
 
+    function getMoyennes(annee) {
+      if (!consolidationNationaleData) return null;
+      
+      // Chercher la ligne Perimetre='National' pour l'année donnée
+      for (let i = 0; i < consolidationNationaleData.Perimetre.length; i++) {
+        if (consolidationNationaleData.Perimetre[i] === 'National' && consolidationNationaleData.Annee[i] === annee) {
+          // Calculer les moyennes depuis les totaux nationaux
+          const totalEffectif = consolidationNationaleData.Total_Effectif?.[i] || 0;
+          const totalMS = consolidationNationaleData.Total_Masse_Salariale?.[i] || 0;
+          const totalVehicules = consolidationNationaleData.Total_Vehicules?.[i] || 0;
+          const totalEffectifSU = consolidationNationaleData.Total_Effectif_SU?.[i] || 0;
+          const totalBudgetVehicules = consolidationNationaleData.Total_Budget_Vehicules?.[i] || 0;
+          const totalBudgetIT = consolidationNationaleData.Total_Budget_IT?.[i] || 0;
+          
+          return {
+            ms_par_agent: consolidationNationaleData.Moyenne_MS_Par_Agent?.[i] || 0,
+            age_moyen: consolidationNationaleData.Age_Moyen_Global?.[i] || 0,
+            cout_fonct_vehicule: totalVehicules > 0 ? totalBudgetVehicules / totalVehicules : 0,
+            ratio_vehicule_su: consolidationNationaleData.Ratio_Vehicule_Agent?.[i] || 0, // utiliser le ratio global
+            frais_par_agent: consolidationNationaleData.Moyenne_Frais_Par_Agent?.[i] || 0,
+            it_par_agent: consolidationNationaleData.Moyenne_Budget_IT_Par_Agent?.[i] || 0,
+            it_par_agent_lisse: consolidationNationaleData.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[i] || 0
+          };
+        }
+      }
+      return null;
+    }
+
     function getConsolidation(structureId, annee) {
       for (let i = 0; i < consolidationData.Structure.length; i++) {
         if (consolidationData.Structure[i] === structureId && consolidationData.Annee[i] === annee) {
@@ -368,6 +400,7 @@
             
             nb_vehicules: consolidationData.Nb_Vehicules?.[i] || 0,
             nb_vetustes: consolidationData.Nb_Vehicules_Vetustes?.[i] || 0,
+            taux_vetuste: consolidationData.Taux_Vetuste?.[i] || 0,
             ratio_vehicule_agent: consolidationData.Ratio_Vehicule_Agent?.[i] || 0,
             ratio_vehicule_su: consolidationData.Ratio_Vehicule_SU?.[i] || 0,
             budget_vehicules: consolidationData.Budget_Vehicules?.[i] || 0,
@@ -382,6 +415,8 @@
             
             postes_fixes: consolidationData.Postes_Fixes?.[i] || 0,
             portables: consolidationData.Portables?.[i] || 0,
+            nb_postes_total: consolidationData.Nb_Postes_Total?.[i] || 0,
+            taux_equipement: consolidationData.Taux_Equipement?.[i] || 0,
             budget_it: consolidationData.Budget_IT_CP?.[i] || 0,
             budget_it_4ans: consolidationData.Budget_IT_4ans?.[i] || 0,
             it_par_agent: consolidationData.IT_Par_Agent?.[i] || 0,
@@ -471,6 +506,14 @@
       return Math.round(num).toLocaleString('fr-FR') + ' €';
     }
 
+    function formatEcartMoyenne(valeur, moyenne) {
+      if (!moyenne || moyenne === 0) return '';
+      const ecart = ((valeur - moyenne) / moyenne * 100);
+      const signe = ecart > 0 ? '+' : '';
+      const couleur = Math.abs(ecart) < 5 ? 'var(--gris3)' : (ecart > 0 ? 'var(--rouge)' : 'var(--vert)');
+      return `<span style="font-size: 10px; color: ${couleur}; margin-left: 4px;">(${signe}${ecart.toFixed(1)}%)</span>`;
+    }
+
     function renderPercentBar(transport, hebergement, repas) {
       const total = transport + hebergement + repas;
       if (total === 0) return '<div class="percent-bar"></div><span class="percent-label">—</span>';
@@ -545,20 +588,25 @@
       totaux.ms_par_agent = totaux.effectif_total > 0 ? totaux.masse_salariale / totaux.effectif_total : 0;
       totaux.ratio_vehicule_agent = totaux.effectif_total > 0 ? totaux.nb_vehicules / totaux.effectif_total : 0;
       totaux.ratio_vehicule_su = totaux.effectif_su > 0 ? totaux.nb_vehicules / totaux.effectif_su : 0;
+      totaux.taux_vetuste = totaux.nb_vehicules > 0 ? (totaux.nb_vetustes / totaux.nb_vehicules * 100) : 0;
       totaux.cout_fonct_vehicule = totaux.nb_vehicules > 0 ? totaux.budget_vehicules / totaux.nb_vehicules : 0;
       totaux.frais_par_agent = totaux.effectif_total > 0 ? (totaux.transport + totaux.hebergement + totaux.repas) / totaux.effectif_total : 0;
+      totaux.nb_postes_total = totaux.postes_fixes + totaux.portables;
+      totaux.taux_equipement = totaux.effectif_total > 0 ? totaux.nb_postes_total / totaux.effectif_total : 0;
       totaux.it_par_agent = totaux.effectif_total > 0 ? totaux.budget_it / totaux.effectif_total : 0;
       totaux.it_par_agent_lisse = totaux.effectif_total > 0 ? totaux.budget_it_4ans / totaux.effectif_total : 0;
       
+      const moyennes = getMoyennes(ANNEE);
+      
       document.getElementById('content').innerHTML = `
-        ${renderRHSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux)}
-        ${renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux)}
-        ${renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux)}
-        ${renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux)}
+        ${renderRHSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
+        ${renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
+        ${renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
+        ${renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
       `;
     }
 
-    function renderStructureRow(s, indent = false) {
+    function renderStructureRow(s, indent = false, moyennes = null) {
       const badgeClass = getBadgeClass(s.typeAffichage);
       const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
       const rowClass = indent ? 'row-indent' : '';
@@ -572,9 +620,9 @@
             <td class="number">${formatNumber(s.effectif_su)}</td>
             <td class="number">${formatNumber(s.effectif_agco)}</td>
             <td class="number">${formatNumber(s.effectif_autres)}</td>
-            <td class="number">${s.age_moyen.toFixed(1)} ans</td>
+            <td class="number">${s.age_moyen.toFixed(1)} ans${moyennes ? formatEcartMoyenne(s.age_moyen, moyennes.age_moyen) : ''}</td>
             <td class="number">${formatMilliers(s.masse_salariale)} k€</td>
-            <td class="number">${formatEuro(s.ms_par_agent)}</td>
+            <td class="number">${formatEuro(s.ms_par_agent)}${moyennes ? formatEcartMoyenne(s.ms_par_agent, moyennes.ms_par_agent) : ''}</td>
           </tr>
         `,
         vehicules: `
@@ -582,9 +630,10 @@
             <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
             <td class="number">${formatNumber(s.nb_vehicules)}</td>
             <td class="number">${formatNumber(s.nb_vetustes)}</td>
+            <td class="number">${s.taux_vetuste.toFixed(1)} %</td>
             <td class="number">${s.ratio_vehicule_agent.toFixed(3)}</td>
-            <td class="number">${s.ratio_vehicule_su.toFixed(3)}</td>
-            <td class="number">${formatEuro(s.cout_fonct_vehicule)}</td>
+            <td class="number">${s.ratio_vehicule_su.toFixed(3)}${moyennes ? formatEcartMoyenne(s.ratio_vehicule_su, moyennes.ratio_vehicule_su) : ''}</td>
+            <td class="number">${formatEuro(s.cout_fonct_vehicule)}${moyennes ? formatEcartMoyenne(s.cout_fonct_vehicule, moyennes.cout_fonct_vehicule) : ''}</td>
           </tr>
         `,
         missions: `
@@ -597,7 +646,7 @@
             </td>
             <td class="number">${formatMilliers(s.formation)} k€</td>
             <td class="number">${formatMilliers(s.autres_missions)} k€</td>
-            <td class="number">${formatEuro(s.frais_par_agent)}</td>
+            <td class="number">${formatEuro(s.frais_par_agent)}${moyennes ? formatEcartMoyenne(s.frais_par_agent, moyennes.frais_par_agent) : ''}</td>
           </tr>
         `,
         it: `
@@ -605,35 +654,37 @@
             <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
             <td class="number">${formatNumber(s.postes_fixes)}</td>
             <td class="number">${formatNumber(s.portables)}</td>
+            <td class="number">${formatNumber(s.nb_postes_total)}</td>
+            <td class="number">${s.taux_equipement.toFixed(3)}</td>
             <td class="number">${formatMilliers(s.budget_it)} k€</td>
             <td class="number">${formatMilliers(s.budget_it_4ans)} k€</td>
-            <td class="number">${formatEuro(s.it_par_agent)}</td>
-            <td class="number">${formatEuro(s.it_par_agent_lisse)}</td>
+            <td class="number">${formatEuro(s.it_par_agent)}${moyennes ? formatEcartMoyenne(s.it_par_agent, moyennes.it_par_agent) : ''}</td>
+            <td class="number">${formatEuro(s.it_par_agent_lisse)}${moyennes ? formatEcartMoyenne(s.it_par_agent_lisse, moyennes.it_par_agent_lisse) : ''}</td>
           </tr>
         `
       };
     }
 
-    function renderRHSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux) {
+    function renderRHSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
       let rows = '';
       
       // DG
-      blocDG.forEach(s => { rows += renderStructureRow(s).rh; });
+      blocDG.forEach(s => { rows += renderStructureRow(s, false, moyennes).rh; });
       
       // DI Métropole
-      blocDIMetropole.forEach(s => { rows += renderStructureRow(s).rh; });
+      blocDIMetropole.forEach(s => { rows += renderStructureRow(s, false, moyennes).rh; });
       
       // Outremer (DI + DR indentées)
       blocOutremer.forEach((s, idx) => {
         const indent = idx > 0; // Indenter les DR seulement
-        rows += renderStructureRow(s, indent).rh;
+        rows += renderStructureRow(s, indent, moyennes).rh;
       });
       
       // DR Outremer (autres)
-      blocDROutremer.forEach(s => { rows += renderStructureRow(s).rh; });
+      blocDROutremer.forEach(s => { rows += renderStructureRow(s, false, moyennes).rh; });
       
       // SCN
-      blocSCN.forEach(s => { rows += renderStructureRow(s).rh; });
+      blocSCN.forEach(s => { rows += renderStructureRow(s, false, moyennes).rh; });
       
       return `
         <div class="section">
@@ -672,14 +723,14 @@
       `;
     }
 
-    function renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux) {
+    function renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
       let rows = '';
       
-      blocDG.forEach(s => { rows += renderStructureRow(s).vehicules; });
-      blocDIMetropole.forEach(s => { rows += renderStructureRow(s).vehicules; });
-      blocOutremer.forEach((s, idx) => { rows += renderStructureRow(s, idx > 0).vehicules; });
-      blocDROutremer.forEach(s => { rows += renderStructureRow(s).vehicules; });
-      blocSCN.forEach(s => { rows += renderStructureRow(s).vehicules; });
+      blocDG.forEach(s => { rows += renderStructureRow(s, false, moyennes).vehicules; });
+      blocDIMetropole.forEach(s => { rows += renderStructureRow(s, false, moyennes).vehicules; });
+      blocOutremer.forEach((s, idx) => { rows += renderStructureRow(s, idx > 0, moyennes).vehicules; });
+      blocDROutremer.forEach(s => { rows += renderStructureRow(s, false, moyennes).vehicules; });
+      blocSCN.forEach(s => { rows += renderStructureRow(s, false, moyennes).vehicules; });
       
       return `
         <div class="section">
@@ -692,10 +743,11 @@
               <tr>
                 <th>Structure</th>
                 <th class="number">Nb Véhicules</th>
-                <th class="number">Véhicules Vétustes</th>
+                <th class="number">Vétustes</th>
+                <th class="number">Taux Vétusté</th>
                 <th class="number">Ratio / Agent</th>
                 <th class="number">Ratio / Agent SU</th>
-                <th class="number">Coût Fonct. / Véhicule</th>
+                <th class="number">Coût Fonct. / Véh.</th>
               </tr>
             </thead>
             <tbody>
@@ -704,6 +756,7 @@
                 <td>TOTAL</td>
                 <td class="number">${formatNumber(totaux.nb_vehicules)}</td>
                 <td class="number">${formatNumber(totaux.nb_vetustes)}</td>
+                <td class="number">${totaux.taux_vetuste.toFixed(1)} %</td>
                 <td class="number">${totaux.ratio_vehicule_agent.toFixed(3)}</td>
                 <td class="number">${totaux.ratio_vehicule_su.toFixed(3)}</td>
                 <td class="number">${formatEuro(totaux.cout_fonct_vehicule)}</td>
@@ -714,14 +767,14 @@
       `;
     }
 
-    function renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux) {
+    function renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
       let rows = '';
       
-      blocDG.forEach(s => { rows += renderStructureRow(s).missions; });
-      blocDIMetropole.forEach(s => { rows += renderStructureRow(s).missions; });
-      blocOutremer.forEach((s, idx) => { rows += renderStructureRow(s, idx > 0).missions; });
-      blocDROutremer.forEach(s => { rows += renderStructureRow(s).missions; });
-      blocSCN.forEach(s => { rows += renderStructureRow(s).missions; });
+      blocDG.forEach(s => { rows += renderStructureRow(s, false, moyennes).missions; });
+      blocDIMetropole.forEach(s => { rows += renderStructureRow(s, false, moyennes).missions; });
+      blocOutremer.forEach((s, idx) => { rows += renderStructureRow(s, idx > 0, moyennes).missions; });
+      blocDROutremer.forEach(s => { rows += renderStructureRow(s, false, moyennes).missions; });
+      blocSCN.forEach(s => { rows += renderStructureRow(s, false, moyennes).missions; });
       
       return `
         <div class="section">
@@ -758,14 +811,14 @@
       `;
     }
 
-    function renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux) {
+    function renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
       let rows = '';
       
-      blocDG.forEach(s => { rows += renderStructureRow(s).it; });
-      blocDIMetropole.forEach(s => { rows += renderStructureRow(s).it; });
-      blocOutremer.forEach((s, idx) => { rows += renderStructureRow(s, idx > 0).it; });
-      blocDROutremer.forEach(s => { rows += renderStructureRow(s).it; });
-      blocSCN.forEach(s => { rows += renderStructureRow(s).it; });
+      blocDG.forEach(s => { rows += renderStructureRow(s, false, moyennes).it; });
+      blocDIMetropole.forEach(s => { rows += renderStructureRow(s, false, moyennes).it; });
+      blocOutremer.forEach((s, idx) => { rows += renderStructureRow(s, idx > 0, moyennes).it; });
+      blocDROutremer.forEach(s => { rows += renderStructureRow(s, false, moyennes).it; });
+      blocSCN.forEach(s => { rows += renderStructureRow(s, false, moyennes).it; });
       
       return `
         <div class="section">
@@ -779,8 +832,10 @@
                 <th>Structure</th>
                 <th class="number">Postes Fixes</th>
                 <th class="number">Portables</th>
+                <th class="number">Total Postes</th>
+                <th class="number">Taux Équip.</th>
                 <th class="number">Budget</th>
-                <th class="number">Budget Moyen 4 ans</th>
+                <th class="number">Budget Moy. 4 ans</th>
                 <th class="number">Coût / Agent</th>
                 <th class="number">Coût / Agent Lissé</th>
               </tr>
@@ -791,6 +846,8 @@
                 <td>TOTAL</td>
                 <td class="number">${formatNumber(totaux.postes_fixes)}</td>
                 <td class="number">${formatNumber(totaux.portables)}</td>
+                <td class="number">${formatNumber(totaux.nb_postes_total)}</td>
+                <td class="number">${totaux.taux_equipement.toFixed(3)}</td>
                 <td class="number">${formatMilliers(totaux.budget_it)} k€</td>
                 <td class="number">${formatMilliers(totaux.budget_it_4ans)} k€</td>
                 <td class="number">${formatEuro(totaux.it_par_agent)}</td>
