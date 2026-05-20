@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tableau de Bord de Gestion - DGDDI</title>
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f7fa;
+      padding: 20px;
+      color: #2d3748;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      border-radius: 8px;
+      padding: 25px 35px;
+      margin-bottom: 25px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 32px;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+    }
+
+    .header-content h1 {
+      font-size: 28px;
+      color: #1e3a8a;
+      margin-bottom: 5px;
+    }
+
+    .header-content p {
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 25px;
+      margin-bottom: 25px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 3px solid #e2e8f0;
+    }
+
+    .section-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+    }
+
+    .section-header h2 {
+      font-size: 22px;
+      color: #1e293b;
+      font-weight: 600;
+    }
+
+    /* Couleurs thématiques */
+    .bg-rh { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .bg-vehicules { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+    .bg-missions { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .bg-it { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+
+    /* Tableaux */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    thead th {
+      background: #f8fafc;
+      padding: 14px 12px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    thead th:first-child {
+      border-top-left-radius: 8px;
+    }
+
+    thead th:last-child {
+      border-top-right-radius: 8px;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #f1f5f9;
+      transition: background-color 0.2s;
+    }
+
+    tbody tr:hover {
+      background-color: #f8fafc;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody td {
+      padding: 14px 12px;
+      font-size: 14px;
+      color: #334155;
+    }
+
+    tbody td:first-child {
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .number {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .percent-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .percent-bar {
+      flex: 1;
+      height: 24px;
+      background: #f1f5f9;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .bar-segment {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+      transition: all 0.3s;
+    }
+
+    .bar-transport { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+    .bar-hebergement { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .bar-repas { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+
+    .percent-label {
+      font-size: 13px;
+      color: #64748b;
+      min-width: 50px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: #64748b;
+      font-size: 18px;
+    }
+
+    .error {
+      background: #fee;
+      color: #c00;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border-left: 4px solid #c00;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+      text-transform: uppercase;
+    }
+
+    .badge-dg { background: #dbeafe; color: #1e40af; }
+    .badge-di { background: #d1fae5; color: #065f46; }
+    .badge-scn { background: #fef3c7; color: #92400e; }
+    .badge-dr { background: #e0e7ff; color: #3730a3; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      thead th, tbody td {
+        padding: 10px 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">DG</div>
+      <div class="header-content">
+        <h1>Tableau de Bord de Gestion</h1>
+        <p>Direction Générale des Douanes et Droits Indirects • Synthèse 2024</p>
+      </div>
+    </div>
+
+    <div id="loading" class="loading">Chargement des données...</div>
+    <div id="content" style="display: none;"></div>
+  </div>
+
+  <script>
+    const FICHE_STATE = {
+      data: {
+        structures: null,
+        rh: null,
+        vehicules: null,
+        frais_mission: null,
+        informatique: null,
+        consolidation: null
+      }
+    };
+
+    let ANNEE = 2024;
+
+    async function loadAllData() {
+      const tables = ['Structures', 'RH', 'Vehicules', 'Frais_Mission', 'Informatique', 'Consolidation'];
+      
+      for (const tableName of tables) {
+        try {
+          const records = await grist.docApi.fetchTable(tableName);
+          const key = tableName.toLowerCase();
+          FICHE_STATE.data[key] = records;
+          console.log(`✓ ${tableName}:`, records.id?.length || 0, 'lignes');
+        } catch (err) {
+          console.warn(`Table ${tableName} non disponible:`, err);
+        }
+      }
+    }
+
+    function getDerniereAnnee() {
+      const rh = FICHE_STATE.data.rh;
+      if (!rh || !rh.Annee) return 2024;
+      const annees = [...new Set(rh.Annee.filter(a => a > 0))];
+      return Math.max(...annees);
+    }
+
+    function getConsolidationData(perimetre, annee) {
+      const conso = FICHE_STATE.data.consolidation;
+      if (!conso || !conso.Perimetre || !conso.id) return null;
+      
+      const idx = conso.id.findIndex((id, i) => 
+        conso.Perimetre[i] === perimetre && conso.Annee[i] === annee
+      );
+      
+      if (idx === -1) return null;
+      
+      return {
+        nb_structures: conso.Nb_Structures?.[idx] || 0,
+        
+        // RH
+        total_effectif: conso.Total_Effectif?.[idx] || 0,
+        total_effectif_agco: conso.Total_Effectif_AGCO?.[idx] || 0,
+        total_effectif_su: conso.Total_Effectif_SU?.[idx] || 0,
+        total_effectif_autres: (conso.Total_Effectif?.[idx] || 0) - (conso.Total_Effectif_AGCO?.[idx] || 0) - (conso.Total_Effectif_SU?.[idx] || 0),
+        effectif_moyen: conso.Effectif_Moyen_Par_Structure?.[idx] || 0,
+        age_moyen_global: conso.Age_Moyen_Global?.[idx] || 0,
+        total_masse_salariale: conso.Total_Masse_Salariale?.[idx] || 0,
+        ms_par_agent: conso.Moyenne_MS_Par_Agent?.[idx] || 0,
+        
+        // Véhicules
+        moy_nb_vehicules: conso.Moy_Nb_Vehicules?.[idx] || 0,
+        moy_nb_vetustes: conso.Moy_Nb_Vehicules_Vetustes?.[idx] || 0,
+        moy_ratio_vehicule_agent: conso.Moy_Ratio_Vehicule_Agent?.[idx] || 0,
+        moy_ratio_vehicule_su: conso.Moy_Ratio_Vehicule_SU?.[idx] || 0,
+        moy_cout_fonct_vehicule: conso.Moy_Cout_Fonctionnement_Par_Vehicule?.[idx] || 0,
+        
+        // Frais de mission
+        moy_transport: conso.Moy_Transport?.[idx] || 0,
+        moy_hebergement: conso.Moy_Hebergement?.[idx] || 0,
+        moy_repas: conso.Moy_Repas?.[idx] || 0,
+        total_formation: conso.Total_Formation?.[idx] || 0,
+        total_autres_missions: conso.Total_Autres_Missions?.[idx] || 0,
+        moy_frais_par_agent: conso.Moy_Frais_Mission_Par_Agent?.[idx] || 0,
+        
+        // Informatique
+        moy_postes_fixes: conso.Moy_Postes_Fixes?.[idx] || 0,
+        moy_portables: conso.Moy_Portables?.[idx] || 0,
+        moy_budget_it: conso.Moy_Budget_IT_CP?.[idx] || 0,
+        moy_budget_it_4ans: conso.Moy_Budget_IT_4ans?.[idx] || 0,
+        moy_it_par_agent: conso.Moy_IT_Par_Agent?.[idx] || 0,
+        moy_it_par_agent_lisse: conso.Moy_IT_Par_Agent_Lisse?.[idx] || 0
+      };
+    }
+
+    function formatNumber(num) {
+      if (!num && num !== 0) return '—';
+      return Math.round(num).toLocaleString('fr-FR');
+    }
+
+    function formatMilliers(num) {
+      if (!num && num !== 0) return '—';
+      return (num / 1000).toFixed(0);
+    }
+
+    function formatEuro(num) {
+      if (!num && num !== 0) return '—';
+      return Math.round(num).toLocaleString('fr-FR') + ' €';
+    }
+
+    function renderRHSection() {
+      const dg = getConsolidationData('DG', ANNEE);
+      const di = getConsolidationData('DI', ANNEE);
+      const scn = getConsolidationData('SCN', ANNEE);
+      
+      if (!di && !scn) {
+        return '<div class="section"><p>Aucune donnée RH disponible</p></div>';
+      }
+      
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon bg-rh">👥</div>
+            <h2>Ressources Humaines</h2>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th class="number">Effectif Total</th>
+                <th class="number">Effectif SU</th>
+                <th class="number">Effectif AGCO</th>
+                <th class="number">Effectif Autres</th>
+                <th class="number">Âge Moyen</th>
+                <th class="number">Masse Salariale</th>
+                <th class="number">MS / Agent</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dg ? `
+              <tr>
+                <td>DG <span class="badge badge-dg">Direction Générale</span></td>
+                <td class="number">${formatNumber(dg.total_effectif)}</td>
+                <td class="number">${formatNumber(dg.total_effectif_su)}</td>
+                <td class="number">${formatNumber(dg.total_effectif_agco)}</td>
+                <td class="number">${formatNumber(dg.total_effectif_autres)}</td>
+                <td class="number">${dg.age_moyen_global.toFixed(1)} ans</td>
+                <td class="number">${formatMilliers(dg.total_masse_salariale)} k€</td>
+                <td class="number">${formatEuro(dg.ms_par_agent)}</td>
+              </tr>
+              ` : ''}
+              ${di ? `
+              <tr>
+                <td>DI <span class="badge badge-di">${di.nb_structures} Directions</span></td>
+                <td class="number">${formatNumber(di.effectif_moyen)}</td>
+                <td class="number">${formatNumber(di.effectif_moyen * di.total_effectif_su / di.total_effectif)}</td>
+                <td class="number">${formatNumber(di.effectif_moyen * di.total_effectif_agco / di.total_effectif)}</td>
+                <td class="number">${formatNumber(di.effectif_moyen * di.total_effectif_autres / di.total_effectif)}</td>
+                <td class="number">${di.age_moyen_global.toFixed(1)} ans</td>
+                <td class="number">${formatMilliers(di.total_masse_salariale / di.nb_structures)} k€</td>
+                <td class="number">${formatEuro(di.ms_par_agent)}</td>
+              </tr>
+              ` : ''}
+              ${scn ? `
+              <tr>
+                <td>SCN <span class="badge badge-scn">${scn.nb_structures} Services</span></td>
+                <td class="number">${formatNumber(scn.effectif_moyen)}</td>
+                <td class="number">${formatNumber(scn.effectif_moyen * scn.total_effectif_su / scn.total_effectif)}</td>
+                <td class="number">${formatNumber(scn.effectif_moyen * scn.total_effectif_agco / scn.total_effectif)}</td>
+                <td class="number">${formatNumber(scn.effectif_moyen * scn.total_effectif_autres / scn.total_effectif)}</td>
+                <td class="number">${scn.age_moyen_global.toFixed(1)} ans</td>
+                <td class="number">${formatMilliers(scn.total_masse_salariale / scn.nb_structures)} k€</td>
+                <td class="number">${formatEuro(scn.ms_par_agent)}</td>
+              </tr>
+              ` : ''}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderVehiculesSection() {
+      const dg = getConsolidationData('DG', ANNEE);
+      const di = getConsolidationData('DI', ANNEE);
+      const scn = getConsolidationData('SCN', ANNEE);
+      
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon bg-vehicules">🚗</div>
+            <h2>Parc Véhicules</h2>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th class="number">Nb Véhicules</th>
+                <th class="number">Véhicules Vétustes</th>
+                <th class="number">Ratio / Agent</th>
+                <th class="number">Ratio / Agent SU</th>
+                <th class="number">Coût Fonct. / Véhicule</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dg ? `
+              <tr>
+                <td>DG <span class="badge badge-dg">Direction Générale</span></td>
+                <td class="number">${formatNumber(dg.moy_nb_vehicules)}</td>
+                <td class="number">${formatNumber(dg.moy_nb_vetustes)}</td>
+                <td class="number">${dg.moy_ratio_vehicule_agent.toFixed(2)}</td>
+                <td class="number">${dg.moy_ratio_vehicule_su.toFixed(2)}</td>
+                <td class="number">${formatEuro(dg.moy_cout_fonct_vehicule)}</td>
+              </tr>
+              ` : ''}
+              ${di ? `
+              <tr>
+                <td>DI <span class="badge badge-di">${di.nb_structures} Directions</span></td>
+                <td class="number">${formatNumber(di.moy_nb_vehicules)}</td>
+                <td class="number">${formatNumber(di.moy_nb_vetustes)}</td>
+                <td class="number">${di.moy_ratio_vehicule_agent.toFixed(2)}</td>
+                <td class="number">${di.moy_ratio_vehicule_su.toFixed(2)}</td>
+                <td class="number">${formatEuro(di.moy_cout_fonct_vehicule)}</td>
+              </tr>
+              ` : ''}
+              ${scn ? `
+              <tr>
+                <td>SCN <span class="badge badge-scn">${scn.nb_structures} Services</span></td>
+                <td class="number">${formatNumber(scn.moy_nb_vehicules)}</td>
+                <td class="number">${formatNumber(scn.moy_nb_vetustes)}</td>
+                <td class="number">${scn.moy_ratio_vehicule_agent.toFixed(2)}</td>
+                <td class="number">${scn.moy_ratio_vehicule_su.toFixed(2)}</td>
+                <td class="number">${formatEuro(scn.moy_cout_fonct_vehicule)}</td>
+              </tr>
+              ` : ''}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderFraisMissionSection() {
+      const dg = getConsolidationData('DG', ANNEE);
+      const di = getConsolidationData('DI', ANNEE);
+      const scn = getConsolidationData('SCN', ANNEE);
+      
+      function renderPercentBar(transport, hebergement, repas) {
+        const total = transport + hebergement + repas;
+        if (total === 0) return '<div class="percent-bar"></div>';
+        
+        const pctTransport = (transport / total * 100).toFixed(1);
+        const pctHebergement = (hebergement / total * 100).toFixed(1);
+        const pctRepas = (repas / total * 100).toFixed(1);
+        
+        return `
+          <div class="percent-bar-container">
+            <div class="percent-bar">
+              ${transport > 0 ? `<div class="bar-segment bar-transport" style="width: ${pctTransport}%">${pctTransport}%</div>` : ''}
+              ${hebergement > 0 ? `<div class="bar-segment bar-hebergement" style="width: ${pctHebergement}%">${pctHebergement}%</div>` : ''}
+              ${repas > 0 ? `<div class="bar-segment bar-repas" style="width: ${pctRepas}%">${pctRepas}%</div>` : ''}
+            </div>
+            <span class="percent-label">${formatMilliers(total)} k€</span>
+          </div>
+        `;
+      }
+      
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon bg-missions">✈️</div>
+            <h2>Frais de Mission</h2>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th style="width: 35%;">Répartition T/H/R</th>
+                <th class="number">Total Formation</th>
+                <th class="number">Total Autres Missions</th>
+                <th class="number">Frais Moyen / Agent</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dg ? `
+              <tr>
+                <td>DG <span class="badge badge-dg">Direction Générale</span></td>
+                <td>${renderPercentBar(dg.moy_transport, dg.moy_hebergement, dg.moy_repas)}</td>
+                <td class="number">${formatMilliers(dg.total_formation)} k€</td>
+                <td class="number">${formatMilliers(dg.total_autres_missions)} k€</td>
+                <td class="number">${formatEuro(dg.moy_frais_par_agent)}</td>
+              </tr>
+              ` : ''}
+              ${di ? `
+              <tr>
+                <td>DI <span class="badge badge-di">${di.nb_structures} Directions</span></td>
+                <td>${renderPercentBar(di.moy_transport, di.moy_hebergement, di.moy_repas)}</td>
+                <td class="number">${formatMilliers(di.total_formation / di.nb_structures)} k€</td>
+                <td class="number">${formatMilliers(di.total_autres_missions / di.nb_structures)} k€</td>
+                <td class="number">${formatEuro(di.moy_frais_par_agent)}</td>
+              </tr>
+              ` : ''}
+              ${scn ? `
+              <tr>
+                <td>SCN <span class="badge badge-scn">${scn.nb_structures} Services</span></td>
+                <td>${renderPercentBar(scn.moy_transport, scn.moy_hebergement, scn.moy_repas)}</td>
+                <td class="number">${formatMilliers(scn.total_formation / scn.nb_structures)} k€</td>
+                <td class="number">${formatMilliers(scn.total_autres_missions / scn.nb_structures)} k€</td>
+                <td class="number">${formatEuro(scn.moy_frais_par_agent)}</td>
+              </tr>
+              ` : ''}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderInformatiqueSection() {
+      const dg = getConsolidationData('DG', ANNEE);
+      const di = getConsolidationData('DI', ANNEE);
+      const scn = getConsolidationData('SCN', ANNEE);
+      
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon bg-it">💻</div>
+            <h2>Informatique</h2>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th class="number">Postes Fixes</th>
+                <th class="number">Portables</th>
+                <th class="number">Budget</th>
+                <th class="number">Budget Moyen 4 ans</th>
+                <th class="number">Coût / Agent</th>
+                <th class="number">Coût / Agent Lissé</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dg ? `
+              <tr>
+                <td>DG <span class="badge badge-dg">Direction Générale</span></td>
+                <td class="number">${formatNumber(dg.moy_postes_fixes)}</td>
+                <td class="number">${formatNumber(dg.moy_portables)}</td>
+                <td class="number">${formatMilliers(dg.moy_budget_it)} k€</td>
+                <td class="number">${formatMilliers(dg.moy_budget_it_4ans)} k€</td>
+                <td class="number">${formatEuro(dg.moy_it_par_agent)}</td>
+                <td class="number">${formatEuro(dg.moy_it_par_agent_lisse)}</td>
+              </tr>
+              ` : ''}
+              ${di ? `
+              <tr>
+                <td>DI <span class="badge badge-di">${di.nb_structures} Directions</span></td>
+                <td class="number">${formatNumber(di.moy_postes_fixes)}</td>
+                <td class="number">${formatNumber(di.moy_portables)}</td>
+                <td class="number">${formatMilliers(di.moy_budget_it)} k€</td>
+                <td class="number">${formatMilliers(di.moy_budget_it_4ans)} k€</td>
+                <td class="number">${formatEuro(di.moy_it_par_agent)}</td>
+                <td class="number">${formatEuro(di.moy_it_par_agent_lisse)}</td>
+              </tr>
+              ` : ''}
+              ${scn ? `
+              <tr>
+                <td>SCN <span class="badge badge-scn">${scn.nb_structures} Services</span></td>
+                <td class="number">${formatNumber(scn.moy_postes_fixes)}</td>
+                <td class="number">${formatNumber(scn.moy_portables)}</td>
+                <td class="number">${formatMilliers(scn.moy_budget_it)} k€</td>
+                <td class="number">${formatMilliers(scn.moy_budget_it_4ans)} k€</td>
+                <td class="number">${formatEuro(scn.moy_it_par_agent)}</td>
+                <td class="number">${formatEuro(scn.moy_it_par_agent_lisse)}</td>
+              </tr>
+              ` : ''}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function render() {
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        ${renderRHSection()}
+        ${renderVehiculesSection()}
+        ${renderFraisMissionSection()}
+        ${renderInformatiqueSection()}
+      `;
+      content.style.display = 'block';
+    }
+
+    async function init() {
+      try {
+        await grist.ready();
+        await loadAllData();
+        
+        if (!FICHE_STATE.data.consolidation) {
+          throw new Error('Table Consolidation non disponible');
+        }
+        
+        ANNEE = getDerniereAnnee();
+        
+        // Mettre à jour l'année dans le header
+        const headerP = document.querySelector('.header-content p');
+        if (headerP) {
+          headerP.textContent = `Direction Générale des Douanes et Droits Indirects • Synthèse ${ANNEE}`;
+        }
+        
+        render();
+        document.getElementById('loading').style.display = 'none';
+        
+      } catch (error) {
+        console.error('Erreur initialisation:', error);
+        document.getElementById('loading').innerHTML = 
+          `<div class="error">Erreur de chargement : ${error.message}</div>`;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
