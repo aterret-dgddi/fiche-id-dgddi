@@ -269,17 +269,35 @@
     let ANNEE = 2024;
 
     async function loadAllData() {
-      const tables = ['Structures', 'RH', 'Vehicules', 'Frais_Mission', 'Informatique', 'Consolidation'];
-      
-      for (const tableName of tables) {
-        try {
-          const records = await grist.docApi.fetchTable(tableName);
-          const key = tableName.toLowerCase();
-          FICHE_STATE.data[key] = records;
-          console.log(`✓ ${tableName}:`, records.id?.length || 0, 'lignes');
-        } catch (err) {
-          console.warn(`Table ${tableName} non disponible:`, err);
-        }
+      try {
+        // Charger toutes les tables en parallèle comme dans la fiche identité
+        const [structures, rh, vehicules, frais_mission, informatique, consolidation] = await Promise.all([
+          grist.docApi.fetchTable('Structures'),
+          grist.docApi.fetchTable('RH'),
+          grist.docApi.fetchTable('Vehicules'),
+          grist.docApi.fetchTable('Frais_Mission'),
+          grist.docApi.fetchTable('Informatique'),
+          grist.docApi.fetchTable('Consolidation')
+        ]);
+        
+        FICHE_STATE.data.structures = structures;
+        FICHE_STATE.data.rh = rh;
+        FICHE_STATE.data.vehicules = vehicules;
+        FICHE_STATE.data.frais_mission = frais_mission;
+        FICHE_STATE.data.informatique = informatique;
+        FICHE_STATE.data.consolidation = consolidation;
+        
+        console.log('✅ Données chargées:', {
+          structures: structures.id.length,
+          rh: rh.id.length,
+          vehicules: vehicules.id.length,
+          frais_mission: frais_mission.id.length,
+          informatique: informatique.id.length,
+          consolidation: consolidation.id.length
+        });
+      } catch (err) {
+        console.error('❌ Erreur chargement tables:', err);
+        throw err;
       }
     }
 
@@ -358,12 +376,25 @@
       const rh = FICHE_STATE.data.rh;
       if (!rh || !rh.Structure) return null;
       
+      console.log(`🔍 Recherche RH pour structureId=${structureId} (type=${typeof structureId}), annee=${annee}`);
+      
       const indices = [];
       for (let i = 0; i < rh.Structure.length; i++) {
-        if (rh.Structure[i] === structureId && rh.Annee[i] === annee) {
+        const rhStructId = rh.Structure[i];
+        const rhAnnee = rh.Annee[i];
+        
+        // Log première ligne pour debug
+        if (i === 0) {
+          console.log(`  Exemple RH[0]: Structure=${rhStructId} (type=${typeof rhStructId}), Annee=${rhAnnee}`);
+        }
+        
+        // Comparaison avec conversion en string pour gérer les différences de type
+        if (String(rhStructId) === String(structureId) && rhAnnee === annee) {
           indices.push(i);
         }
       }
+      
+      console.log(`  → Trouvé ${indices.length} ligne(s) RH`);
       
       if (indices.length === 0) return null;
       
@@ -389,6 +420,8 @@
       
       const age_moyen = totalEffectifAge > 0 ? sumAge / totalEffectifAge : 0;
       const ms_par_agent = effectif_total > 0 ? masse_salariale / effectif_total : 0;
+      
+      console.log(`  ✓ Effectif total: ${effectif_total}`);
       
       return {
         effectif_total,
@@ -659,7 +692,7 @@
       let nb_vehicules = 0, nb_vetustes = 0, budget_vehicules = 0;
       
       for (let i = 0; i < veh.Structure.length; i++) {
-        if (veh.Structure[i] === structureId && veh.Annee[i] === annee) {
+        if (String(veh.Structure[i]) === String(structureId) && veh.Annee[i] === annee) {
           nb_vehicules += veh.Nombre_Vehicules?.[i] || 0;
           if (veh.Est_Vetuste?.[i]) nb_vetustes++;
           budget_vehicules += veh.Budget_Vehicules?.[i] || 0;
@@ -800,7 +833,7 @@
       let transport = 0, hebergement = 0, repas = 0, formation = 0, autres = 0;
       
       for (let i = 0; i < fm.Structure.length; i++) {
-        if (fm.Structure[i] === structureId && fm.Annee[i] === annee) {
+        if (String(fm.Structure[i]) === String(structureId) && fm.Annee[i] === annee) {
           transport += fm.Transport?.[i] || 0;
           hebergement += fm.Hebergement?.[i] || 0;
           repas += fm.Repas?.[i] || 0;
@@ -969,7 +1002,7 @@
       const budgets = [];
       
       for (let i = 0; i < it.Structure.length; i++) {
-        if (it.Structure[i] === structureId && it.Annee[i] === annee) {
+        if (String(it.Structure[i]) === String(structureId) && it.Annee[i] === annee) {
           postes_fixes += it.Postes_Fixes?.[i] || 0;
           portables += it.Portables?.[i] || 0;
           budgets.push(it.Budget_IT_CP?.[i] || 0);
@@ -986,7 +1019,7 @@
       
       for (let y = annee - 1; y >= annee - 3 && nb_annees < 4; y--) {
         for (let i = 0; i < it.Structure.length; i++) {
-          if (it.Structure[i] === structureId && it.Annee[i] === y) {
+          if (String(it.Structure[i]) === String(structureId) && it.Annee[i] === y) {
             budget_4ans += it.Budget_IT_CP?.[i] || 0;
             nb_annees++;
             break;
