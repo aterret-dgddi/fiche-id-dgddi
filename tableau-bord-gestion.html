@@ -404,7 +404,12 @@
     // Récupérer toutes les structures affichables
     function getAllStructuresData() {
       const structures = FICHE_STATE.data.structures;
-      if (!structures || !structures.id) return [];
+      if (!structures || !structures.id) {
+        console.error('❌ Pas de données structures');
+        return [];
+      }
+      
+      console.log('📊 Nombre total de structures:', structures.id.length);
       
       const result = [];
       
@@ -413,6 +418,8 @@
         const type = structures.Type?.[i];
         const sigle = structures.Sigle?.[i];
         const nom = structures.Nom?.[i];
+        
+        console.log(`Structure ${i}: Type=${type}, Sigle=${sigle}`);
         
         // SOLUTION ACTUELLE (sans nouvelle colonne Grist) :
         // Filtrer selon les règles métier
@@ -423,20 +430,30 @@
         // 2. Toujours afficher : toutes les DI
         const isDI = type === 'DI';
         
-        // 3. Afficher seulement les DR outremer (971, 972, 973, 974, 976, 987, 988)
-        // Les DR métropole sont agrégées dans leurs DI parentes
+        // 3. Afficher les DR outremer : 971, 972, 973 (Antilles) + 974, 976, 987, 988
         const isDROutremer = type === 'DR' && ['971', '972', '973', '974', '976', '987', '988'].some(code => sigle?.includes(code));
         
+        console.log(`  → isAlwaysDisplayed=${isAlwaysDisplayed}, isDI=${isDI}, isDROutremer=${isDROutremer}`);
+        
         // Si ce n'est pas une structure à afficher, on passe
-        if (!isAlwaysDisplayed && !isDI && !isDROutremer) continue;
+        if (!isAlwaysDisplayed && !isDI && !isDROutremer) {
+          console.log(`  ✖ Structure ignorée`);
+          continue;
+        }
         
         const data = getStructureData(structId, ANNEE);
-        if (!data) continue;
+        if (!data) {
+          console.warn(`  ⚠️ Pas de données RH pour ${sigle} en ${ANNEE}`);
+          continue;
+        }
         
-        // Pour les DI, calculer l'agrégation des DR rattachées
+        console.log(`  ✓ Structure ajoutée: ${sigle}, effectif=${data.effectif_total}`);
+        
+        // Pour les DI, calculer l'agrégation des DR rattachées (sauf 971, 972, 973 qui sont affichées séparément)
         let drData = null;
         if (isDI) {
           const drList = getDRForDI(structId, sigle);
+          console.log(`  → DR rattachées à ${sigle}:`, drList.length);
           if (drList.length > 0) {
             drData = {
               count: drList.length,
@@ -459,6 +476,7 @@
                 drData.masse_salariale += drRhData.masse_salariale;
                 drData.sumAge += drRhData.age_moyen * drRhData.effectif_total;
                 drData.totalEffectif += drRhData.effectif_total;
+                console.log(`    • DR ${dr.sigle}: effectif=${drRhData.effectif_total}`);
               }
             });
             
@@ -477,6 +495,8 @@
         });
       }
       
+      console.log('✅ Total structures affichées:', result.length);
+      
       // Trier : DG > DI > DR outremer > SCN
       result.sort((a, b) => {
         const order = { 'DG': 0, 'DI': 1, 'DR': 2, 'SCN': 3 };
@@ -489,15 +509,12 @@
       return result;
     }
 
-    // Récupérer les DR rattachées à une DI
+    // Récupérer les DR rattachées à une DI (SAUF 971, 972, 973 qui sont affichées séparément)
     function getDRForDI(diId, diSigle) {
       const structures = FICHE_STATE.data.structures;
       if (!structures || !structures.id) return [];
       
       const drList = [];
-      
-      // CAS SPÉCIAL : DI 972 = somme des DR 971 + 972 + 973
-      const isDI972 = diSigle && (diSigle.includes('972') || diSigle.toLowerCase().includes('antilles'));
       
       for (let i = 0; i < structures.id.length; i++) {
         const type = structures.Type?.[i];
@@ -506,24 +523,18 @@
         
         if (type !== 'DR') continue;
         
-        if (isDI972) {
-          // Pour la DI 972 : inclure DR 971, 972, 973
-          if (['971', '972', '973'].some(code => sigle?.includes(code))) {
-            drList.push({
-              id: structures.id[i],
-              sigle: sigle,
-              nom: structures.Nom?.[i]
-            });
-          }
-        } else {
-          // Pour les autres DI : inclure seulement les DR avec rattachement ET qui ne sont pas 971/972/973
-          if (rattachement === diId && !['971', '972', '973'].some(code => sigle?.includes(code))) {
-            drList.push({
-              id: structures.id[i],
-              sigle: sigle,
-              nom: structures.Nom?.[i]
-            });
-          }
+        // Exclure les DR Antilles (971, 972, 973) car elles sont affichées séparément
+        if (['971', '972', '973'].some(code => sigle?.includes(code))) {
+          continue;
+        }
+        
+        // Inclure seulement les DR avec rattachement
+        if (rattachement === diId) {
+          drList.push({
+            id: structures.id[i],
+            sigle: sigle,
+            nom: structures.Nom?.[i]
+          });
         }
       }
       
@@ -640,7 +651,10 @@
 
     function getVehiculeDataForStructure(structureId, annee) {
       const veh = FICHE_STATE.data.vehicules;
-      if (!veh || !veh.Structure) return null;
+      if (!veh || !veh.Structure) {
+        console.warn('⚠️ Table véhicules non disponible');
+        return null;
+      }
       
       let nb_vehicules = 0, nb_vetustes = 0, budget_vehicules = 0;
       
@@ -651,6 +665,8 @@
           budget_vehicules += veh.Budget_Vehicules?.[i] || 0;
         }
       }
+      
+      console.log(`🚗 Véhicules ${structureId} (${annee}): ${nb_vehicules} véhicules, ${nb_vetustes} vétustes`);
       
       return { nb_vehicules, nb_vetustes, budget_vehicules };
     }
@@ -776,7 +792,10 @@
 
     function getFraisMissionDataForStructure(structureId, annee) {
       const fm = FICHE_STATE.data.frais_mission;
-      if (!fm || !fm.Structure) return null;
+      if (!fm || !fm.Structure) {
+        console.warn('⚠️ Table frais_mission non disponible');
+        return null;
+      }
       
       let transport = 0, hebergement = 0, repas = 0, formation = 0, autres = 0;
       
@@ -789,6 +808,8 @@
           autres += fm.Autres_Missions?.[i] || 0;
         }
       }
+      
+      console.log(`✈️ Frais mission ${structureId} (${annee}): T=${transport}, H=${hebergement}, R=${repas}`);
       
       return { transport, hebergement, repas, formation, autres };
     }
@@ -939,7 +960,10 @@
 
     function getInformatiqueDataForStructure(structureId, annee) {
       const it = FICHE_STATE.data.informatique;
-      if (!it || !it.Structure) return null;
+      if (!it || !it.Structure) {
+        console.warn('⚠️ Table informatique non disponible');
+        return null;
+      }
       
       let postes_fixes = 0, portables = 0;
       const budgets = [];
@@ -953,6 +977,8 @@
       }
       
       const budget_annee = budgets.reduce((a, b) => a + b, 0);
+      
+      console.log(`💻 IT ${structureId} (${annee}): ${postes_fixes} fixes, ${portables} portables, budget=${budget_annee}`);
       
       // Budget moyen sur 4 ans : chercher les années précédentes
       let budget_4ans = budget_annee;
