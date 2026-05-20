@@ -4,19 +4,41 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tableau de Bord de Gestion - DGDDI</title>
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Marianne:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+  
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    @import url('https://fonts.googleapis.com/css2?family=Marianne:wght@300;400;500;700;800&display=swap');
+
+    :root {
+      --rep: #002F6C;
+      --rep2: #1351A8;
+      --rep-pale: #E6ECF8;
+      --rouge: #B52020;
+      --vert: #1A6B3C;
+      --orange: #C05A00;
+      --jaune: #8A6800;
+      --gris1: #1E2D3D;
+      --gris2: #4A5A6A;
+      --gris3: #8A9BAA;
+      --gris4: #EEF2F7;
+      --blanc: #FFFFFF;
+      --bord: #CDD6E4;
+      --shadow: 0 2px 8px rgba(0,30,80,.10);
+      --shadow-lg: 0 8px 32px rgba(0,20,70,.22);
     }
 
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 13px; }
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f5f7fa;
+      font-family: 'Marianne', sans-serif;
+      background: #F2F5FA;
+      color: var(--gris1);
+      line-height: 1.5;
       padding: 20px;
-      color: #2d3748;
     }
 
     .container {
@@ -24,97 +46,102 @@
       margin: 0 auto;
     }
 
-    .header {
-      background: white;
-      border-radius: 8px;
-      padding: 25px 35px;
-      margin-bottom: 25px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-
-    .logo {
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    /* ══════════════════════════════════ */
+    /* HEADER */
+    /* ══════════════════════════════════ */
+    .fiche-header {
+      background: var(--blanc);
       border-radius: 12px;
+      padding: 24px 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
       display: flex;
       align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 32px;
-      font-weight: bold;
-      box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+      gap: 24px;
     }
 
-    .header-content h1 {
+    .fiche-header-logo img {
+      height: 80px;
+      width: auto;
+      display: block;
+    }
+
+    .fiche-header-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .fiche-header-title {
       font-size: 28px;
-      color: #1e3a8a;
-      margin-bottom: 5px;
+      font-weight: 800;
+      color: var(--rep);
+      letter-spacing: -0.5px;
     }
 
-    .header-content p {
-      color: #64748b;
-      font-size: 14px;
+    .fiche-header-subtitle {
+      font-size: 15px;
+      color: var(--gris2);
+      font-weight: 500;
     }
 
+    /* ══════════════════════════════════ */
+    /* SECTIONS */
+    /* ══════════════════════════════════ */
     .section {
-      background: white;
-      border-radius: 8px;
-      padding: 25px;
-      margin-bottom: 25px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      background: var(--blanc);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
     }
 
     .section-header {
       display: flex;
       align-items: center;
-      gap: 15px;
+      gap: 16px;
       margin-bottom: 20px;
-      padding-bottom: 15px;
-      border-bottom: 3px solid #e2e8f0;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--gris4);
     }
 
     .section-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 10px;
+      font-size: 32px;
+      width: 48px;
+      height: 48px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
-      color: white;
+      background: var(--rep-pale);
+      border-radius: 10px;
     }
 
-    .section-header h2 {
+    .section-title {
       font-size: 22px;
-      color: #1e293b;
-      font-weight: 600;
+      font-weight: 700;
+      color: var(--gris1);
     }
 
-    .bg-rh { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-    .bg-vehicules { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-    .bg-missions { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-    .bg-it { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
-
+    /* ══════════════════════════════════ */
+    /* TABLEAUX */
+    /* ══════════════════════════════════ */
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      font-size: 12px;
     }
 
     thead th {
-      background: #f8fafc;
-      padding: 14px 12px;
+      background: var(--gris4);
+      padding: 12px 10px;
       text-align: left;
-      font-size: 13px;
-      font-weight: 600;
-      color: #475569;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gris2);
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      border-bottom: 2px solid #e2e8f0;
+      border-bottom: 2px solid var(--bord);
     }
 
     thead th:first-child {
@@ -126,12 +153,12 @@
     }
 
     tbody tr {
-      border-bottom: 1px solid #f1f5f9;
-      transition: background-color 0.2s;
+      border-bottom: 1px solid var(--gris4);
+      transition: background-color 0.15s;
     }
 
     tbody tr:hover {
-      background-color: #f8fafc;
+      background-color: #FAFBFC;
     }
 
     tbody tr:last-child {
@@ -139,14 +166,13 @@
     }
 
     tbody td {
-      padding: 14px 12px;
-      font-size: 14px;
-      color: #334155;
+      padding: 12px 10px;
+      color: var(--gris1);
     }
 
     tbody td:first-child {
       font-weight: 600;
-      color: #1e293b;
+      color: var(--gris1);
     }
 
     .number {
@@ -154,6 +180,28 @@
       font-variant-numeric: tabular-nums;
     }
 
+    /* ══════════════════════════════════ */
+    /* BADGES */
+    /* ══════════════════════════════════ */
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      margin-right: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-dg { background: var(--rep-pale); color: var(--rep); }
+    .badge-di { background: #D1FAE5; color: var(--vert); }
+    .badge-dr { background: #E0E7FF; color: #3730A3; }
+    .badge-scn { background: #FEF3C7; color: var(--jaune); }
+
+    /* ══════════════════════════════════ */
+    /* BARRES DE RÉPARTITION */
+    /* ══════════════════════════════════ */
     .percent-bar-container {
       display: flex;
       align-items: center;
@@ -163,7 +211,7 @@
     .percent-bar {
       flex: 1;
       height: 24px;
-      background: #f1f5f9;
+      background: var(--gris4);
       border-radius: 6px;
       overflow: hidden;
       display: flex;
@@ -174,68 +222,73 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
-      font-weight: 600;
+      font-size: 10px;
+      font-weight: 700;
       color: white;
       transition: all 0.3s;
     }
 
-    .bar-transport { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-    .bar-hebergement { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-    .bar-repas { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .bar-transport { background: var(--rep2); }
+    .bar-hebergement { background: var(--vert); }
+    .bar-repas { background: var(--orange); }
 
     .percent-label {
-      font-size: 13px;
-      color: #64748b;
+      font-size: 12px;
+      color: var(--gris2);
       min-width: 80px;
       text-align: right;
+      font-weight: 600;
     }
 
+    /* ══════════════════════════════════ */
+    /* LIGNES SPÉCIALES */
+    /* ══════════════════════════════════ */
+    .row-total {
+      font-weight: 700;
+      background: var(--gris4) !important;
+      border-top: 2px solid var(--bord) !important;
+    }
+
+    .row-indent {
+      padding-left: 32px !important;
+    }
+
+    .row-di-outremer {
+      background: #ECFDF5 !important;
+      font-weight: 600;
+    }
+
+    /* ══════════════════════════════════ */
+    /* LOADING / ERROR */
+    /* ══════════════════════════════════ */
     .loading {
       text-align: center;
       padding: 60px 20px;
-      color: #64748b;
-      font-size: 18px;
+      color: var(--gris2);
+      font-size: 16px;
     }
 
     .error {
-      background: #fee;
-      color: #c00;
+      background: #FEE;
+      color: var(--rouge);
       padding: 20px;
       border-radius: 8px;
       margin: 20px 0;
-      border-left: 4px solid #c00;
+      border-left: 4px solid var(--rouge);
+      font-weight: 500;
     }
 
-    .badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-      margin-right: 8px;
-      text-transform: uppercase;
-    }
-
-    .badge-direction { background: #dbeafe; color: #1e40af; }
-    .badge-di { background: #d1fae5; color: #065f46; }
-    .badge-scn { background: #fef3c7; color: #92400e; }
-    .badge-dr { background: #e0e7ff; color: #3730a3; }
-
-    .row-total {
-      font-weight: bold;
-      background: #f8fafc !important;
-      border-top: 2px solid #cbd5e1 !important;
-    }
-
+    /* ══════════════════════════════════ */
+    /* RESPONSIVE */
+    /* ══════════════════════════════════ */
     @media (max-width: 768px) {
-      .header {
+      .fiche-header {
         flex-direction: column;
         text-align: center;
       }
 
       table {
-        font-size: 12px;
+        font-size: 11px;
       }
 
       thead th, tbody td {
@@ -246,11 +299,14 @@
 </head>
 <body>
   <div class="container">
-    <div class="header">
-      <div class="logo">DG</div>
-      <div class="header-content">
-        <h1>Tableau de Bord de Gestion</h1>
-        <p>Direction Générale des Douanes et Droits Indirects • Synthèse <span id="anneeAffichee">2024</span></p>
+    <div class="fiche-header">
+      <div class="fiche-header-logo">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg" 
+             alt="Logo des Douanes Françaises">
+      </div>
+      <div class="fiche-header-content">
+        <h1 class="fiche-header-title">Tableau de Bord de Gestion</h1>
+        <div class="fiche-header-subtitle">Direction Générale des Douanes et Droits Indirects • Synthèse <span id="anneeAffichee">2024</span></div>
       </div>
     </div>
 
@@ -342,8 +398,8 @@
       for (let i = 0; i < structuresData.id.length; i++) {
         const typeAffichage = structuresData.Type_Affichage?.[i];
         
-        // Filtrer selon Type_Affichage
-        if (['Direction', 'DI_Hexagone', 'DI_Outremer', 'DR_Antilles', 'DR_Outremer', 'SCN'].includes(typeAffichage)) {
+        // Filtrer selon Type_Affichage (incluant 'DG' maintenant!)
+        if (['DG', 'DI_Hexagone', 'DI_Outremer', 'DR_Antilles', 'DR_Outremer', 'SCN'].includes(typeAffichage)) {
           const structId = structuresData.id[i];
           const conso = getConsolidation(structId, ANNEE);
           
@@ -354,16 +410,17 @@
               nom: structuresData.Nom?.[i] || '',
               type: structuresData.Type?.[i] || '',
               typeAffichage: typeAffichage,
+              parent: structuresData.Parent?.[i],
               ...conso
             });
           }
         }
       }
       
-      // Trier : Direction > DI > DR > SCN
+      // Trier : DG > DI > DR > SCN
       structures.sort((a, b) => {
         const order = {
-          'Direction': 0,
+          'DG': 0,
           'DI_Hexagone': 1,
           'DI_Outremer': 1,
           'DR_Antilles': 2,
@@ -378,12 +435,12 @@
         return (a.sigle || '').localeCompare(b.sigle || '');
       });
       
-      console.log('📊 Structures affichées:', structures.length);
+      console.log('📊 Structures affichées:', structures.length, structures.map(s => s.sigle));
       return structures;
     }
 
     function getBadgeClass(typeAffichage) {
-      if (typeAffichage === 'Direction') return 'badge-direction';
+      if (typeAffichage === 'DG') return 'badge-dg';
       if (typeAffichage.startsWith('DI')) return 'badge-di';
       if (typeAffichage.startsWith('DR')) return 'badge-dr';
       if (typeAffichage === 'SCN') return 'badge-scn';
@@ -391,7 +448,7 @@
     }
 
     function getBadgeLabel(typeAffichage, type) {
-      if (typeAffichage === 'Direction') return 'DG';
+      if (typeAffichage === 'DG') return 'DG';
       if (typeAffichage === 'DI_Outremer') return 'DI';
       if (typeAffichage === 'DI_Hexagone') return 'DI';
       if (typeAffichage === 'DR_Antilles') return 'DR';
@@ -441,7 +498,19 @@
         return;
       }
       
-      // Calculer totaux
+      // Séparer les structures par bloc
+      const blocDG = structures.filter(s => s.typeAffichage === 'DG');
+      const blocDIMetropole = structures.filter(s => s.typeAffichage === 'DI_Hexagone');
+      
+      // Bloc Outremer : DI 972 + DR Antilles
+      const diOutremer = structures.find(s => s.typeAffichage === 'DI_Outremer');
+      const drAntilles = structures.filter(s => s.typeAffichage === 'DR_Antilles');
+      const blocOutremer = diOutremer ? [diOutremer, ...drAntilles] : drAntilles;
+      
+      const blocDROutremer = structures.filter(s => s.typeAffichage === 'DR_Outremer');
+      const blocSCN = structures.filter(s => s.typeAffichage === 'SCN');
+      
+      // Calculer totaux globaux
       const totaux = structures.reduce((acc, s) => ({
         effectif_total: acc.effectif_total + s.effectif_total,
         effectif_su: acc.effectif_su + s.effectif_su,
@@ -482,20 +551,22 @@
       totaux.it_par_agent_lisse = totaux.effectif_total > 0 ? totaux.budget_it_4ans / totaux.effectif_total : 0;
       
       document.getElementById('content').innerHTML = `
-        ${renderRHSection(structures, totaux)}
-        ${renderVehiculesSection(structures, totaux)}
-        ${renderFraisMissionSection(structures, totaux)}
-        ${renderInformatiqueSection(structures, totaux)}
+        ${renderRHSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux)}
+        ${renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux)}
+        ${renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux)}
+        ${renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux)}
       `;
     }
 
-    function renderRHSection(structures, totaux) {
-      const rows = structures.map(s => {
-        const badgeClass = getBadgeClass(s.typeAffichage);
-        const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
-        
-        return `
-          <tr>
+    function renderStructureRow(s, indent = false) {
+      const badgeClass = getBadgeClass(s.typeAffichage);
+      const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
+      const rowClass = indent ? 'row-indent' : '';
+      const extraClass = s.typeAffichage === 'DI_Outremer' ? 'row-di-outremer' : '';
+      
+      return {
+        rh: `
+          <tr class="${rowClass} ${extraClass}">
             <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
             <td class="number">${formatNumber(s.effectif_total)}</td>
             <td class="number">${formatNumber(s.effectif_su)}</td>
@@ -505,14 +576,70 @@
             <td class="number">${formatMilliers(s.masse_salariale)} k€</td>
             <td class="number">${formatEuro(s.ms_par_agent)}</td>
           </tr>
-        `;
-      }).join('');
+        `,
+        vehicules: `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td class="number">${formatNumber(s.nb_vehicules)}</td>
+            <td class="number">${formatNumber(s.nb_vetustes)}</td>
+            <td class="number">${s.ratio_vehicule_agent.toFixed(3)}</td>
+            <td class="number">${s.ratio_vehicule_su.toFixed(3)}</td>
+            <td class="number">${formatEuro(s.cout_fonct_vehicule)}</td>
+          </tr>
+        `,
+        missions: `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td>
+              <div class="percent-bar-container">
+                ${renderPercentBar(s.transport, s.hebergement, s.repas)}
+              </div>
+            </td>
+            <td class="number">${formatMilliers(s.formation)} k€</td>
+            <td class="number">${formatMilliers(s.autres_missions)} k€</td>
+            <td class="number">${formatEuro(s.frais_par_agent)}</td>
+          </tr>
+        `,
+        it: `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td class="number">${formatNumber(s.postes_fixes)}</td>
+            <td class="number">${formatNumber(s.portables)}</td>
+            <td class="number">${formatMilliers(s.budget_it)} k€</td>
+            <td class="number">${formatMilliers(s.budget_it_4ans)} k€</td>
+            <td class="number">${formatEuro(s.it_par_agent)}</td>
+            <td class="number">${formatEuro(s.it_par_agent_lisse)}</td>
+          </tr>
+        `
+      };
+    }
+
+    function renderRHSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux) {
+      let rows = '';
+      
+      // DG
+      blocDG.forEach(s => { rows += renderStructureRow(s).rh; });
+      
+      // DI Métropole
+      blocDIMetropole.forEach(s => { rows += renderStructureRow(s).rh; });
+      
+      // Outremer (DI + DR indentées)
+      blocOutremer.forEach((s, idx) => {
+        const indent = idx > 0; // Indenter les DR seulement
+        rows += renderStructureRow(s, indent).rh;
+      });
+      
+      // DR Outremer (autres)
+      blocDROutremer.forEach(s => { rows += renderStructureRow(s).rh; });
+      
+      // SCN
+      blocSCN.forEach(s => { rows += renderStructureRow(s).rh; });
       
       return `
         <div class="section">
           <div class="section-header">
-            <div class="section-icon bg-rh">👥</div>
-            <h2>Ressources Humaines</h2>
+            <div class="section-icon">🛃</div>
+            <div class="section-title">Ressources Humaines</div>
           </div>
           <table>
             <thead>
@@ -545,28 +672,20 @@
       `;
     }
 
-    function renderVehiculesSection(structures, totaux) {
-      const rows = structures.map(s => {
-        const badgeClass = getBadgeClass(s.typeAffichage);
-        const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
-        
-        return `
-          <tr>
-            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
-            <td class="number">${formatNumber(s.nb_vehicules)}</td>
-            <td class="number">${formatNumber(s.nb_vetustes)}</td>
-            <td class="number">${s.ratio_vehicule_agent.toFixed(3)}</td>
-            <td class="number">${s.ratio_vehicule_su.toFixed(3)}</td>
-            <td class="number">${formatEuro(s.cout_fonct_vehicule)}</td>
-          </tr>
-        `;
-      }).join('');
+    function renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux) {
+      let rows = '';
+      
+      blocDG.forEach(s => { rows += renderStructureRow(s).vehicules; });
+      blocDIMetropole.forEach(s => { rows += renderStructureRow(s).vehicules; });
+      blocOutremer.forEach((s, idx) => { rows += renderStructureRow(s, idx > 0).vehicules; });
+      blocDROutremer.forEach(s => { rows += renderStructureRow(s).vehicules; });
+      blocSCN.forEach(s => { rows += renderStructureRow(s).vehicules; });
       
       return `
         <div class="section">
           <div class="section-header">
-            <div class="section-icon bg-vehicules">🚗</div>
-            <h2>Parc Véhicules</h2>
+            <div class="section-icon">🚗</div>
+            <div class="section-title">Parc Véhicules</div>
           </div>
           <table>
             <thead>
@@ -595,31 +714,20 @@
       `;
     }
 
-    function renderFraisMissionSection(structures, totaux) {
-      const rows = structures.map(s => {
-        const badgeClass = getBadgeClass(s.typeAffichage);
-        const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
-        
-        return `
-          <tr>
-            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
-            <td>
-              <div class="percent-bar-container">
-                ${renderPercentBar(s.transport, s.hebergement, s.repas)}
-              </div>
-            </td>
-            <td class="number">${formatMilliers(s.formation)} k€</td>
-            <td class="number">${formatMilliers(s.autres_missions)} k€</td>
-            <td class="number">${formatEuro(s.frais_par_agent)}</td>
-          </tr>
-        `;
-      }).join('');
+    function renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux) {
+      let rows = '';
+      
+      blocDG.forEach(s => { rows += renderStructureRow(s).missions; });
+      blocDIMetropole.forEach(s => { rows += renderStructureRow(s).missions; });
+      blocOutremer.forEach((s, idx) => { rows += renderStructureRow(s, idx > 0).missions; });
+      blocDROutremer.forEach(s => { rows += renderStructureRow(s).missions; });
+      blocSCN.forEach(s => { rows += renderStructureRow(s).missions; });
       
       return `
         <div class="section">
           <div class="section-header">
-            <div class="section-icon bg-missions">✈️</div>
-            <h2>Frais de Mission</h2>
+            <div class="section-icon">✈️</div>
+            <div class="section-title">Frais de Mission</div>
           </div>
           <table>
             <thead>
@@ -650,29 +758,20 @@
       `;
     }
 
-    function renderInformatiqueSection(structures, totaux) {
-      const rows = structures.map(s => {
-        const badgeClass = getBadgeClass(s.typeAffichage);
-        const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
-        
-        return `
-          <tr>
-            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
-            <td class="number">${formatNumber(s.postes_fixes)}</td>
-            <td class="number">${formatNumber(s.portables)}</td>
-            <td class="number">${formatMilliers(s.budget_it)} k€</td>
-            <td class="number">${formatMilliers(s.budget_it_4ans)} k€</td>
-            <td class="number">${formatEuro(s.it_par_agent)}</td>
-            <td class="number">${formatEuro(s.it_par_agent_lisse)}</td>
-          </tr>
-        `;
-      }).join('');
+    function renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux) {
+      let rows = '';
+      
+      blocDG.forEach(s => { rows += renderStructureRow(s).it; });
+      blocDIMetropole.forEach(s => { rows += renderStructureRow(s).it; });
+      blocOutremer.forEach((s, idx) => { rows += renderStructureRow(s, idx > 0).it; });
+      blocDROutremer.forEach(s => { rows += renderStructureRow(s).it; });
+      blocSCN.forEach(s => { rows += renderStructureRow(s).it; });
       
       return `
         <div class="section">
           <div class="section-header">
-            <div class="section-icon bg-it">💻</div>
-            <h2>Informatique</h2>
+            <div class="section-icon">💻</div>
+            <div class="section-title">Informatique</div>
           </div>
           <table>
             <thead>
