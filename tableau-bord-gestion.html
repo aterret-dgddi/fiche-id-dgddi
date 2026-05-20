@@ -401,29 +401,7 @@
       };
     }
 
-    // Récupérer les DR rattachées à une DI
-    function getDRForDI(diId) {
-      const structures = FICHE_STATE.data.structures;
-      if (!structures || !structures.id) return [];
-      
-      const drList = [];
-      for (let i = 0; i < structures.id.length; i++) {
-        const type = structures.Type?.[i];
-        const rattachement = structures.Rattachement_DI?.[i];
-        
-        if (type === 'DR' && rattachement === diId) {
-          drList.push({
-            id: structures.id[i],
-            sigle: structures.Sigle?.[i],
-            nom: structures.Nom?.[i],
-            estOutremer: structures.Est_Outremer?.[i] || false
-          });
-        }
-      }
-      return drList;
-    }
-
-    // Récupérer toutes les structures avec leurs données
+    // Récupérer toutes les structures affichables
     function getAllStructuresData() {
       const structures = FICHE_STATE.data.structures;
       if (!structures || !structures.id) return [];
@@ -436,24 +414,29 @@
         const sigle = structures.Sigle?.[i];
         const nom = structures.Nom?.[i];
         
-        // Filtrer : DG, DI, DR (outremer uniquement), SCN
-        const isOutremer = structures.Est_Outremer?.[i] || false;
-        const rattachement = structures.Rattachement_DI?.[i];
+        // SOLUTION ACTUELLE (sans nouvelle colonne Grist) :
+        // Filtrer selon les règles métier
         
-        // Pour les DR : seulement celles d'outremer OU celles sans rattachement
-        if (type === 'DR' && !isOutremer && rattachement) {
-          continue; // Skip les DR métropole rattachées, elles seront agrégées dans les DI
-        }
+        // 1. Toujours afficher : DG, SCN
+        const isAlwaysDisplayed = ['DG', 'SCN'].includes(type);
         
-        if (!['DG', 'DI', 'DR', 'SCN'].includes(type)) continue;
+        // 2. Toujours afficher : toutes les DI
+        const isDI = type === 'DI';
+        
+        // 3. Afficher seulement les DR outremer (971, 972, 973, 974, 976, 987, 988)
+        // Les DR métropole sont agrégées dans leurs DI parentes
+        const isDROutremer = type === 'DR' && ['971', '972', '973', '974', '976', '987', '988'].some(code => sigle?.includes(code));
+        
+        // Si ce n'est pas une structure à afficher, on passe
+        if (!isAlwaysDisplayed && !isDI && !isDROutremer) continue;
         
         const data = getStructureData(structId, ANNEE);
         if (!data) continue;
         
-        // Si c'est une DI, récupérer et agréger ses DR
+        // Pour les DI, calculer l'agrégation des DR rattachées
         let drData = null;
-        if (type === 'DI') {
-          const drList = getDRForDI(structId);
+        if (isDI) {
+          const drList = getDRForDI(structId, sigle);
           if (drList.length > 0) {
             drData = {
               count: drList.length,
@@ -489,24 +472,62 @@
           type,
           sigle,
           nom,
-          isOutremer,
           drData,
           ...data
         });
       }
       
-      // Trier : DG d'abord, puis DI par ordre alphabétique, puis DR outremer, puis SCN par ordre alphabétique
+      // Trier : DG > DI > DR outremer > SCN
       result.sort((a, b) => {
-        if (a.type === 'DG') return -1;
-        if (b.type === 'DG') return 1;
-        if (a.type === 'DI' && b.type !== 'DI') return -1;
-        if (b.type === 'DI' && a.type !== 'DI') return 1;
-        if (a.type === 'DR' && b.type === 'SCN') return -1;
-        if (a.type === 'SCN' && b.type === 'DR') return 1;
+        const order = { 'DG': 0, 'DI': 1, 'DR': 2, 'SCN': 3 };
+        const orderA = order[a.type] || 99;
+        const orderB = order[b.type] || 99;
+        if (orderA !== orderB) return orderA - orderB;
         return (a.sigle || '').localeCompare(b.sigle || '');
       });
       
       return result;
+    }
+
+    // Récupérer les DR rattachées à une DI
+    function getDRForDI(diId, diSigle) {
+      const structures = FICHE_STATE.data.structures;
+      if (!structures || !structures.id) return [];
+      
+      const drList = [];
+      
+      // CAS SPÉCIAL : DI 972 = somme des DR 971 + 972 + 973
+      const isDI972 = diSigle && (diSigle.includes('972') || diSigle.toLowerCase().includes('antilles'));
+      
+      for (let i = 0; i < structures.id.length; i++) {
+        const type = structures.Type?.[i];
+        const sigle = structures.Sigle?.[i];
+        const rattachement = structures.Rattachement_DI?.[i];
+        
+        if (type !== 'DR') continue;
+        
+        if (isDI972) {
+          // Pour la DI 972 : inclure DR 971, 972, 973
+          if (['971', '972', '973'].some(code => sigle?.includes(code))) {
+            drList.push({
+              id: structures.id[i],
+              sigle: sigle,
+              nom: structures.Nom?.[i]
+            });
+          }
+        } else {
+          // Pour les autres DI : inclure seulement les DR avec rattachement ET qui ne sont pas 971/972/973
+          if (rattachement === diId && !['971', '972', '973'].some(code => sigle?.includes(code))) {
+            drList.push({
+              id: structures.id[i],
+              sigle: sigle,
+              nom: structures.Nom?.[i]
+            });
+          }
+        }
+      }
+      
+      return drList;
     }
 
     function renderRHSection() {
@@ -545,9 +566,8 @@
       const ms_par_agent_total = total_effectif > 0 ? total_ms / total_effectif : 0;
       
       const rows = structures.map(s => {
-        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : (s.type === 'DR' ? 'badge-dr' : 'badge-scn'));
-        const typeLabel = s.isOutremer ? `${s.type} (OM)` : s.type;
-        const badge = `<span class="badge ${badgeClass}">${typeLabel}</span>`;
+        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : 'badge-scn');
+        const badge = `<span class="badge ${badgeClass}">${s.type}</span>`;
         
         let rowHTML = `
           <tr>
@@ -635,8 +655,8 @@
       return { nb_vehicules, nb_vetustes, budget_vehicules };
     }
 
-    function getDRVehiculeData(diId, annee) {
-      const drList = getDRForDI(diId);
+    function getDRVehiculeData(diId, diSigle, annee) {
+      const drList = getDRForDI(diId, diSigle);
       let total_vehicules = 0, total_vetustes = 0, total_budget = 0;
       
       drList.forEach(dr => {
@@ -675,9 +695,8 @@
         total_effectif += s.effectif_total;
         total_su += s.effectif_su;
         
-        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : (s.type === 'DR' ? 'badge-dr' : 'badge-scn'));
-        const typeLabel = s.isOutremer ? `${s.type} (OM)` : s.type;
-        const badge = `<span class="badge ${badgeClass}">${typeLabel}</span>`;
+        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : 'badge-scn');
+        const badge = `<span class="badge ${badgeClass}">${s.type}</span>`;
         
         let rowHTML = `
           <tr>
@@ -692,7 +711,7 @@
         
         // Si DI, ajouter les DR
         if (s.type === 'DI' && s.drData) {
-          const drVehData = getDRVehiculeData(s.id, ANNEE);
+          const drVehData = getDRVehiculeData(s.id, s.sigle, ANNEE);
           if (drVehData && drVehData.count > 0) {
             const dr_ratio_agent = s.drData.effectif_total > 0 ? (drVehData.nb_vehicules / s.drData.effectif_total) : 0;
             const dr_ratio_su = s.drData.effectif_su > 0 ? (drVehData.nb_vehicules / s.drData.effectif_su) : 0;
@@ -774,8 +793,8 @@
       return { transport, hebergement, repas, formation, autres };
     }
 
-    function getDRFraisMissionData(diId, annee) {
-      const drList = getDRForDI(diId);
+    function getDRFraisMissionData(diId, diSigle, annee) {
+      const drList = getDRForDI(diId, diSigle);
       let total_transport = 0, total_hebergement = 0, total_repas = 0, total_formation = 0, total_autres = 0;
       
       drList.forEach(dr => {
@@ -833,9 +852,8 @@
         total_autres += fmData.autres;
         total_effectif += s.effectif_total;
         
-        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : (s.type === 'DR' ? 'badge-dr' : 'badge-scn'));
-        const typeLabel = s.isOutremer ? `${s.type} (OM)` : s.type;
-        const badge = `<span class="badge ${badgeClass}">${typeLabel}</span>`;
+        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : 'badge-scn');
+        const badge = `<span class="badge ${badgeClass}">${s.type}</span>`;
         
         let rowHTML = `
           <tr>
@@ -853,7 +871,7 @@
         
         // Si DI, ajouter les DR
         if (s.type === 'DI' && s.drData) {
-          const drFmData = getDRFraisMissionData(s.id, ANNEE);
+          const drFmData = getDRFraisMissionData(s.id, s.sigle, ANNEE);
           if (drFmData && drFmData.count > 0) {
             const dr_frais_par_agent = s.drData.effectif_total > 0 ? ((drFmData.transport + drFmData.hebergement + drFmData.repas) / s.drData.effectif_total) : 0;
             
@@ -955,8 +973,8 @@
       return { postes_fixes, portables, budget_annee, budget_moyen_4ans };
     }
 
-    function getDRInformatiqueData(diId, annee) {
-      const drList = getDRForDI(diId);
+    function getDRInformatiqueData(diId, diSigle, annee) {
+      const drList = getDRForDI(diId, diSigle);
       let total_fixes = 0, total_portables = 0, total_budget = 0, total_budget_4ans = 0;
       
       drList.forEach(dr => {
@@ -995,9 +1013,8 @@
         total_budget_4ans += itData.budget_moyen_4ans;
         total_effectif += s.effectif_total;
         
-        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : (s.type === 'DR' ? 'badge-dr' : 'badge-scn'));
-        const typeLabel = s.isOutremer ? `${s.type} (OM)` : s.type;
-        const badge = `<span class="badge ${badgeClass}">${typeLabel}</span>`;
+        const badgeClass = s.type === 'DG' ? 'badge-dg' : (s.type === 'DI' ? 'badge-di' : 'badge-scn');
+        const badge = `<span class="badge ${badgeClass}">${s.type}</span>`;
         
         let rowHTML = `
           <tr>
@@ -1013,7 +1030,7 @@
         
         // Si DI, ajouter les DR
         if (s.type === 'DI' && s.drData) {
-          const drItData = getDRInformatiqueData(s.id, ANNEE);
+          const drItData = getDRInformatiqueData(s.id, s.sigle, ANNEE);
           if (drItData && drItData.count > 0) {
             const dr_cout_par_agent = s.drData.effectif_total > 0 ? (drItData.budget_annee / s.drData.effectif_total) : 0;
             const dr_cout_par_agent_lisse = s.drData.effectif_total > 0 ? (drItData.budget_moyen_4ans / s.drData.effectif_total) : 0;
