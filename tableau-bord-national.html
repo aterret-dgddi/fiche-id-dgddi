@@ -289,8 +289,102 @@
     <div id="loading" class="loading">Chargement des données...</div>
   </div>
 
-  <script src="fiche-identite-core-v2.js"></script>
   <script>
+    // Copier les constantes et fonctions essentielles du core
+    const FICHE_STATE = {
+      gristReady: false,
+      structure: null,
+      annee: null,
+      data: {
+        structures: null,
+        rh: null,
+        vehicules: null,
+        frais_mission: null,
+        informatique: null,
+        notif_bop: null,
+        consolidation: null,
+        commentaires: null
+      }
+    };
+
+    // Charger les données depuis Grist
+    async function loadAllData() {
+      const tables = ['Structures', 'RH', 'Vehicules', 'Frais_Mission', 'Informatique', 'Notif_BOP', 'Consolidation'];
+      
+      for (const tableName of tables) {
+        try {
+          const records = await grist.docApi.fetchTable(tableName);
+          const key = tableName.toLowerCase().replace('_', '_');
+          FICHE_STATE.data[key] = records;
+          console.log(`✓ ${tableName} chargée:`, records.id?.length || 0, 'lignes');
+        } catch (err) {
+          console.warn(`Table ${tableName} non trouvée ou erreur:`, err);
+        }
+      }
+    }
+
+    function getAnneesDisponibles() {
+      if (!FICHE_STATE.data.rh || !FICHE_STATE.data.rh.Annee) return [];
+      const anneesSet = new Set();
+      FICHE_STATE.data.rh.Annee.forEach(a => {
+        if (a && a >= 2020) anneesSet.add(a);
+      });
+      return Array.from(anneesSet).sort((a, b) => a - b);
+    }
+
+    function getDerniereAnnee() {
+      const rh = FICHE_STATE.data.rh;
+      if (!rh || !rh.Annee) return new Date().getFullYear();
+      
+      const annees = [...new Set(rh.Annee.filter(a => a > 0))];
+      return Math.max(...annees);
+    }
+
+    function getConsolidationData(perimetre, annee) {
+      const conso = FICHE_STATE.data.consolidation;
+      
+      if (!conso || !conso.Perimetre || !conso.id) {
+        console.warn('⚠️ Table Consolidation non disponible');
+        return null;
+      }
+      
+      const idx = conso.id.findIndex((id, i) => 
+        conso.Perimetre[i] === perimetre &&
+        conso.Annee[i] === annee
+      );
+      
+      if (idx === -1) {
+        console.warn('⚠️ Aucune ligne trouvée dans Consolidation pour', perimetre, annee);
+        return null;
+      }
+      
+      return {
+        nb_structures: conso.Nb_Structures?.[idx] || 0,
+        total_effectif: conso.Total_Effectif?.[idx] || 0,
+        total_effectif_agco: conso.Total_Effectif_AGCO?.[idx] || 0,
+        total_effectif_su: conso.Total_Effectif_SU?.[idx] || 0,
+        pct_agco: conso.Pct_AGCO?.[idx] || 0,
+        pct_su: conso.Pct_SU?.[idx] || 0,
+        total_masse_salariale: conso.Total_Masse_Salariale?.[idx] || 0,
+        ms_par_agent: conso.Moyenne_MS_Par_Agent?.[idx] || 0,
+        age_moyen_global: conso.Age_Moyen_Global?.[idx] || 0,
+        effectif_moyen: conso.Effectif_Moyen_Par_Structure?.[idx] || 0,
+        effectif_agco_moyen: conso.Effectif_AGCO_Moyen_Par_Structure?.[idx] || 0,
+        effectif_su_moyen: conso.Effectif_SU_Moyen_Par_Structure?.[idx] || 0,
+        Moy_Budget_Fonctionnement: conso.Moy_Budget_Fonctionnement?.[idx] || 0,
+        Moy_Budget_Investissement: conso.Moy_Budget_Investissement?.[idx] || 0,
+        Moy_Budget_Total: conso.Moy_Budget_Total?.[idx] || 0,
+        Moy_Nb_Vehicules: conso.Moy_Nb_Vehicules?.[idx] || 0,
+        Moy_Taux_Vetuste: conso.Moy_Taux_Vetuste?.[idx] || 0,
+        Moy_Budget_Vehicules: conso.Moy_Budget_Vehicules?.[idx] || 0,
+        Moy_Ratio_Vehicule_Agent: conso.Moy_Ratio_Vehicule_Agent?.[idx] || 0,
+        Moy_Total_Frais_Mission: conso.Moy_Total_Frais_Mission?.[idx] || 0,
+        Moy_Frais_Mission_Par_Agent: conso.Moy_Frais_Mission_Par_Agent?.[idx] || 0,
+        Moy_Budget_IT_CP: conso.Moy_Budget_IT_CP?.[idx] || 0,
+        Moy_IT_Par_Agent: conso.Moy_IT_Par_Agent?.[idx] || 0
+      };
+    }
+
     // État du tableau de bord
     const DASHBOARD_STATE = {
       perimetre: 'National',
@@ -300,7 +394,16 @@
     // Initialisation
     async function init() {
       try {
+        // Attendre que Grist soit prêt
+        await grist.ready();
+        
+        // Charger toutes les données
         await loadAllData();
+        
+        // Vérifier que les données essentielles sont là
+        if (!FICHE_STATE.data.consolidation || !FICHE_STATE.data.rh) {
+          throw new Error('Données essentielles manquantes (Consolidation ou RH)');
+        }
         
         // Détecter l'année la plus récente
         DASHBOARD_STATE.annee = getDerniereAnnee();
@@ -315,7 +418,7 @@
       } catch (error) {
         console.error('Erreur initialisation:', error);
         document.getElementById('loading').innerHTML = 
-          `<div class="error">Erreur de chargement : ${error.message}</div>`;
+          `<div class="error">Erreur de chargement : ${error.message}<br><br>Vérifiez que les tables Grist suivantes existent : Structures, RH, Consolidation, Vehicules, Frais_Mission, Informatique, Notif_BOP</div>`;
       }
     }
 
@@ -337,37 +440,63 @@
 
     // Récupérer les données consolidées
     function getConsolidationNationale(annee) {
-      // Pour le niveau National, on agrège DI + SCN
-      const consolDI = getConsolidationData('DI', annee) || {};
-      const consolSCN = getConsolidationData('SCN', annee) || {};
-      const consolDR = getConsolidationData('DR', annee) || {};
+      // Pour le niveau National, on agrège DI + SCN + DR
+      const consolDI = getConsolidationData('DI', annee);
+      const consolSCN = getConsolidationData('SCN', annee);
+      const consolDR = getConsolidationData('DR', annee);
+      
+      // Vérifier qu'au moins une donnée est disponible
+      if (!consolDI && !consolSCN && !consolDR) {
+        console.warn('⚠️ Aucune donnée de consolidation disponible pour', annee);
+        return {
+          nb_structures_total: 0,
+          nb_di: 0,
+          nb_scn: 0,
+          nb_dr: 0,
+          effectif_total: 0,
+          effectif_agco: 0,
+          effectif_su: 0,
+          age_moyen_global: 0,
+          masse_salariale_total: 0,
+          effectif_moyen_di: 0,
+          effectif_moyen_scn: 0,
+          effectif_moyen_dr: 0,
+          di: {},
+          scn: {},
+          dr: {}
+        };
+      }
+      
+      const di = consolDI || {};
+      const scn = consolSCN || {};
+      const dr = consolDR || {};
       
       return {
-        nb_structures_total: (consolDI.nb_structures || 0) + (consolSCN.nb_structures || 0) + (consolDR.nb_structures || 0),
-        nb_di: consolDI.nb_structures || 0,
-        nb_scn: consolSCN.nb_structures || 0,
-        nb_dr: consolDR.nb_structures || 0,
+        nb_structures_total: (di.nb_structures || 0) + (scn.nb_structures || 0) + (dr.nb_structures || 0),
+        nb_di: di.nb_structures || 0,
+        nb_scn: scn.nb_structures || 0,
+        nb_dr: dr.nb_structures || 0,
         
         // Effectifs totaux
-        effectif_total: (consolDI.total_effectif || 0) + (consolSCN.total_effectif || 0) + (consolDR.total_effectif || 0),
-        effectif_agco: (consolDI.total_effectif_agco || 0) + (consolSCN.total_effectif_agco || 0) + (consolDR.total_effectif_agco || 0),
-        effectif_su: (consolDI.total_effectif_su || 0) + (consolSCN.total_effectif_su || 0) + (consolDR.total_effectif_su || 0),
+        effectif_total: (di.total_effectif || 0) + (scn.total_effectif || 0) + (dr.total_effectif || 0),
+        effectif_agco: (di.total_effectif_agco || 0) + (scn.total_effectif_agco || 0) + (dr.total_effectif_agco || 0),
+        effectif_su: (di.total_effectif_su || 0) + (scn.total_effectif_su || 0) + (dr.total_effectif_su || 0),
         
         // Moyennes pondérées pour l'âge
-        age_moyen_global: calculerAgeMoyenPondere(consolDI, consolSCN, consolDR),
+        age_moyen_global: calculerAgeMoyenPondere(di, scn, dr),
         
         // Masse salariale
-        masse_salariale_total: (consolDI.total_masse_salariale || 0) + (consolSCN.total_masse_salariale || 0) + (consolDR.total_masse_salariale || 0),
+        masse_salariale_total: (di.total_masse_salariale || 0) + (scn.total_masse_salariale || 0) + (dr.total_masse_salariale || 0),
         
         // Moyennes par structure
-        effectif_moyen_di: consolDI.effectif_moyen || 0,
-        effectif_moyen_scn: consolSCN.effectif_moyen || 0,
-        effectif_moyen_dr: consolDR.effectif_moyen || 0,
+        effectif_moyen_di: di.effectif_moyen || 0,
+        effectif_moyen_scn: scn.effectif_moyen || 0,
+        effectif_moyen_dr: dr.effectif_moyen || 0,
         
         // Pour les autres indicateurs, on fait une moyenne pondérée
-        di: consolDI,
-        scn: consolSCN,
-        dr: consolDR
+        di: di,
+        scn: scn,
+        dr: dr
       };
     }
 
@@ -402,14 +531,27 @@
       const perimetre = DASHBOARD_STATE.perimetre;
       const annee = DASHBOARD_STATE.annee;
       
+      if (!annee) {
+        document.getElementById('dashboard').innerHTML = 
+          '<div class="no-data">Aucune année disponible dans les données.</div>';
+        return;
+      }
+      
       let data;
       if (perimetre === 'National') {
         data = getConsolidationNationale(annee);
+        if (!data || data.nb_structures_total === 0) {
+          document.getElementById('dashboard').innerHTML = 
+            '<div class="no-data">Aucune donnée de consolidation disponible pour cette année.</div>';
+          document.getElementById('statsOverview').innerHTML = '';
+          return;
+        }
       } else {
         const consolData = getConsolidationData(perimetre, annee);
         if (!consolData) {
           document.getElementById('dashboard').innerHTML = 
-            '<div class="no-data">Aucune donnée disponible pour ce périmètre.</div>';
+            '<div class="no-data">Aucune donnée disponible pour ce périmètre et cette année.</div>';
+          document.getElementById('statsOverview').innerHTML = '';
           return;
         }
         data = { ...consolData, perimetre: perimetre };
