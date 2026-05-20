@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tableau de Bord National - DGDDI</title>
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      color: #2d3748;
+      font-size: 28px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      margin-top: 15px;
+    }
+
+    .perimetre-selector, .annee-selector {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .perimetre-selector label, .annee-selector label {
+      font-weight: 600;
+      color: #4a5568;
+    }
+
+    select {
+      padding: 8px 15px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    select:hover {
+      border-color: #667eea;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .stats-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+
+    .stat-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .stat-card h3 {
+      color: #4a5568;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #2d3748;
+      margin: 10px 0;
+    }
+
+    .stat-label {
+      color: #718096;
+      font-size: 13px;
+    }
+
+    .sections-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 20px;
+    }
+
+    .section-card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .section-icon {
+      width: 45px;
+      height: 45px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    .section-header h2 {
+      color: #2d3748;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .indicator-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #f7fafc;
+    }
+
+    .indicator-row:last-child {
+      border-bottom: none;
+    }
+
+    .indicator-label {
+      color: #4a5568;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .indicator-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #2d3748;
+    }
+
+    .indicator-subvalue {
+      font-size: 12px;
+      color: #718096;
+      margin-left: 8px;
+    }
+
+    /* Couleurs thématiques */
+    .blue { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .green { background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%); color: white; }
+    .orange { background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%); color: white; }
+    .purple { background: linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%); color: white; }
+    .red { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: white; }
+    .teal { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: white;
+      font-size: 18px;
+    }
+
+    .error {
+      background: #fed7d7;
+      color: #c53030;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+
+    .no-data {
+      text-align: center;
+      color: #718096;
+      padding: 30px;
+      font-style: italic;
+    }
+
+    /* Badges pour les structures */
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .badge-structures {
+      background: #e6f7ff;
+      color: #0066cc;
+    }
+
+    @media (max-width: 768px) {
+      .sections-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .stats-overview {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>
+        <span style="font-size: 32px;">📊</span>
+        Tableau de Bord National - DGDDI
+      </h1>
+      <div class="header-controls">
+        <div class="perimetre-selector">
+          <label>Périmètre :</label>
+          <select id="perimetreSelect">
+            <option value="National">🇫🇷 National</option>
+            <option value="DI">📍 Directions Interrégionales (DI)</option>
+            <option value="DR">🏢 Directions Régionales (DR)</option>
+            <option value="SCN">🏛️ Services à Compétence Nationale (SCN)</option>
+          </select>
+        </div>
+        <div class="annee-selector">
+          <label>Année :</label>
+          <select id="anneeSelect"></select>
+        </div>
+      </div>
+    </div>
+
+    <div id="statsOverview" class="stats-overview"></div>
+    <div id="dashboard" class="sections-grid"></div>
+    <div id="loading" class="loading">Chargement des données...</div>
+  </div>
+
+  <script src="fiche-identite-core-v2.js"></script>
+  <script>
+    // État du tableau de bord
+    const DASHBOARD_STATE = {
+      perimetre: 'National',
+      annee: null
+    };
+
+    // Initialisation
+    async function init() {
+      try {
+        await loadAllData();
+        
+        // Détecter l'année la plus récente
+        DASHBOARD_STATE.annee = getDerniereAnnee();
+        
+        // Peupler le sélecteur d'années
+        populateAnneeSelector();
+        
+        // Afficher le tableau de bord
+        refreshDashboard();
+        
+        document.getElementById('loading').style.display = 'none';
+      } catch (error) {
+        console.error('Erreur initialisation:', error);
+        document.getElementById('loading').innerHTML = 
+          `<div class="error">Erreur de chargement : ${error.message}</div>`;
+      }
+    }
+
+    function populateAnneeSelector() {
+      const annees = getAnneesDisponibles();
+      const select = document.getElementById('anneeSelect');
+      select.innerHTML = '';
+      
+      annees.reverse().forEach(annee => {
+        const option = document.createElement('option');
+        option.value = annee;
+        option.textContent = annee;
+        if (annee === DASHBOARD_STATE.annee) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+    }
+
+    // Récupérer les données consolidées
+    function getConsolidationNationale(annee) {
+      // Pour le niveau National, on agrège DI + SCN
+      const consolDI = getConsolidationData('DI', annee) || {};
+      const consolSCN = getConsolidationData('SCN', annee) || {};
+      const consolDR = getConsolidationData('DR', annee) || {};
+      
+      return {
+        nb_structures_total: (consolDI.nb_structures || 0) + (consolSCN.nb_structures || 0) + (consolDR.nb_structures || 0),
+        nb_di: consolDI.nb_structures || 0,
+        nb_scn: consolSCN.nb_structures || 0,
+        nb_dr: consolDR.nb_structures || 0,
+        
+        // Effectifs totaux
+        effectif_total: (consolDI.total_effectif || 0) + (consolSCN.total_effectif || 0) + (consolDR.total_effectif || 0),
+        effectif_agco: (consolDI.total_effectif_agco || 0) + (consolSCN.total_effectif_agco || 0) + (consolDR.total_effectif_agco || 0),
+        effectif_su: (consolDI.total_effectif_su || 0) + (consolSCN.total_effectif_su || 0) + (consolDR.total_effectif_su || 0),
+        
+        // Moyennes pondérées pour l'âge
+        age_moyen_global: calculerAgeMoyenPondere(consolDI, consolSCN, consolDR),
+        
+        // Masse salariale
+        masse_salariale_total: (consolDI.total_masse_salariale || 0) + (consolSCN.total_masse_salariale || 0) + (consolDR.total_masse_salariale || 0),
+        
+        // Moyennes par structure
+        effectif_moyen_di: consolDI.effectif_moyen || 0,
+        effectif_moyen_scn: consolSCN.effectif_moyen || 0,
+        effectif_moyen_dr: consolDR.effectif_moyen || 0,
+        
+        // Pour les autres indicateurs, on fait une moyenne pondérée
+        di: consolDI,
+        scn: consolSCN,
+        dr: consolDR
+      };
+    }
+
+    function calculerAgeMoyenPondere(di, scn, dr) {
+      const totalEffectif = (di.total_effectif || 0) + (scn.total_effectif || 0) + (dr.total_effectif || 0);
+      if (totalEffectif === 0) return 0;
+      
+      const sumAge = 
+        (di.age_moyen_global || 0) * (di.total_effectif || 0) +
+        (scn.age_moyen_global || 0) * (scn.total_effectif || 0) +
+        (dr.age_moyen_global || 0) * (dr.total_effectif || 0);
+      
+      return Math.round(sumAge / totalEffectif * 10) / 10;
+    }
+
+    function moyennePondereeParEffectif(di, scn, dr, champValeur) {
+      const valDI = di[champValeur] || 0;
+      const valSCN = scn[champValeur] || 0;
+      const valDR = dr[champValeur] || 0;
+      
+      const effDI = di.total_effectif || 0;
+      const effSCN = scn.total_effectif || 0;
+      const effDR = dr.total_effectif || 0;
+      
+      const totalEff = effDI + effSCN + effDR;
+      if (totalEff === 0) return 0;
+      
+      return Math.round((valDI * effDI + valSCN * effSCN + valDR * effDR) / totalEff * 10) / 10;
+    }
+
+    function refreshDashboard() {
+      const perimetre = DASHBOARD_STATE.perimetre;
+      const annee = DASHBOARD_STATE.annee;
+      
+      let data;
+      if (perimetre === 'National') {
+        data = getConsolidationNationale(annee);
+      } else {
+        const consolData = getConsolidationData(perimetre, annee);
+        if (!consolData) {
+          document.getElementById('dashboard').innerHTML = 
+            '<div class="no-data">Aucune donnée disponible pour ce périmètre.</div>';
+          return;
+        }
+        data = { ...consolData, perimetre: perimetre };
+      }
+      
+      renderStatsOverview(data, perimetre);
+      renderDashboard(data, perimetre, annee);
+    }
+
+    function renderStatsOverview(data, perimetre) {
+      const overview = document.getElementById('statsOverview');
+      
+      if (perimetre === 'National') {
+        overview.innerHTML = `
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <div class="stat-icon blue">🏛️</div>
+              <h3>Structures</h3>
+            </div>
+            <div class="stat-value">${data.nb_structures_total}</div>
+            <div class="stat-label">
+              ${data.nb_di} DI • ${data.nb_dr} DR • ${data.nb_scn} SCN
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <div class="stat-icon green">👥</div>
+              <h3>Effectif Total</h3>
+            </div>
+            <div class="stat-value">${formatNumber(data.effectif_total)}</div>
+            <div class="stat-label">
+              ${formatNumber(data.effectif_agco)} AGCO • ${formatNumber(data.effectif_su)} SU
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <div class="stat-icon purple">📅</div>
+              <h3>Âge Moyen</h3>
+            </div>
+            <div class="stat-value">${data.age_moyen_global.toFixed(1)} <span style="font-size:18px;">ans</span></div>
+            <div class="stat-label">Moyenne nationale</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <div class="stat-icon orange">💰</div>
+              <h3>Masse Salariale</h3>
+            </div>
+            <div class="stat-value">${formatMillion(data.masse_salariale_total)} M€</div>
+            <div class="stat-label">Budget total RH</div>
+          </div>
+        `;
+      } else {
+        overview.innerHTML = `
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <div class="stat-icon blue">🏢</div>
+              <h3>Structures ${perimetre}</h3>
+            </div>
+            <div class="stat-value">${data.nb_structures || 0}</div>
+            <div class="stat-label">Nombre de structures</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <div class="stat-icon green">👥</div>
+              <h3>Effectif Total</h3>
+            </div>
+            <div class="stat-value">${formatNumber(data.total_effectif || 0)}</div>
+            <div class="stat-label">
+              ${Math.round((data.pct_agco || 0))}% AGCO • ${Math.round((data.pct_su || 0))}% SU
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <div class="stat-icon purple">📊</div>
+              <h3>Moyenne/Structure</h3>
+            </div>
+            <div class="stat-value">${formatNumber(data.effectif_moyen || 0)}</div>
+            <div class="stat-label">agents en moyenne</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <div class="stat-icon orange">📅</div>
+              <h3>Âge Moyen</h3>
+            </div>
+            <div class="stat-value">${(data.age_moyen_global || 0).toFixed(1)} <span style="font-size:18px;">ans</span></div>
+            <div class="stat-label">Moyenne ${perimetre}</div>
+          </div>
+        `;
+      }
+    }
+
+    function renderDashboard(data, perimetre, annee) {
+      const dashboard = document.getElementById('dashboard');
+      
+      if (perimetre === 'National') {
+        dashboard.innerHTML = `
+          ${renderRHSection(data)}
+          ${renderBudgetsSection(data, annee)}
+          ${renderVehiculesSection(data, annee)}
+          ${renderFraisMissionSection(data, annee)}
+          ${renderInformatiqueSection(data, annee)}
+        `;
+      } else {
+        dashboard.innerHTML = `
+          ${renderRHSectionPerimetre(data, perimetre)}
+          ${renderBudgetsSectionPerimetre(data, annee, perimetre)}
+          ${renderVehiculesSectionPerimetre(data, annee, perimetre)}
+          ${renderFraisMissionSectionPerimetre(data, annee, perimetre)}
+          ${renderInformatiqueSectionPerimetre(data, annee, perimetre)}
+        `;
+      }
+    }
+
+    function renderRHSection(data) {
+      const msParAgent = data.masse_salariale_total / data.effectif_total;
+      const pctAGCO = (data.effectif_agco / data.effectif_total * 100);
+      const pctSU = (data.effectif_su / data.effectif_total * 100);
+      
+      return `
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon green">👥</div>
+            <h2>Ressources Humaines</h2>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Effectif Total</span>
+            <span class="indicator-value">${formatNumber(data.effectif_total)}</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Effectif AGCO</span>
+            <span class="indicator-value">${formatNumber(data.effectif_agco)}
+              <span class="indicator-subvalue">(${pctAGCO.toFixed(1)}%)</span>
+            </span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Effectif SU</span>
+            <span class="indicator-value">${formatNumber(data.effectif_su)}
+              <span class="indicator-subvalue">(${pctSU.toFixed(1)}%)</span>
+            </span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Âge moyen global</span>
+            <span class="indicator-value">${data.age_moyen_global.toFixed(1)} ans</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Masse salariale</span>
+            <span class="indicator-value">${formatMillion(data.masse_salariale_total)} M€</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">MS / agent</span>
+            <span class="indicator-value">${formatNumber(Math.round(msParAgent))} €</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRHSectionPerimetre(data, perimetre) {
+      return `
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon green">👥</div>
+            <h2>Ressources Humaines <span class="badge badge-structures">${data.nb_structures} ${perimetre}</span></h2>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Effectif total (agrégé)</span>
+            <span class="indicator-value">${formatNumber(data.total_effectif || 0)}</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Effectif moyen / structure</span>
+            <span class="indicator-value">${formatNumber(data.effectif_moyen || 0)}</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Âge moyen global</span>
+            <span class="indicator-value">${(data.age_moyen_global || 0).toFixed(1)} ans</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">% AGCO</span>
+            <span class="indicator-value">${(data.pct_agco || 0).toFixed(1)} %</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">% SU</span>
+            <span class="indicator-value">${(data.pct_su || 0).toFixed(1)} %</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">MS / agent</span>
+            <span class="indicator-value">${formatNumber(Math.round(data.ms_par_agent || 0))} €</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBudgetsSection(data, annee) {
+      // Récupérer les données de notif_bop pour le niveau national
+      const notifBop = FICHE_STATE.data.notif_bop;
+      let budgetFonct = 0, budgetInvest = 0, budgetTotal = 0;
+      
+      if (notifBop) {
+        // Agréger tous les budgets de l'année
+        notifBop.Annee?.forEach((a, i) => {
+          if (a === annee) {
+            budgetFonct += notifBop.Budget_Fonctionnement?.[i] || 0;
+            budgetInvest += notifBop.Budget_Investissement?.[i] || 0;
+            budgetTotal += notifBop.Budget_Total?.[i] || 0;
+          }
+        });
+      }
+      
+      const budgetParAgent = data.effectif_total > 0 ? budgetTotal / data.effectif_total : 0;
+      
+      return `
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon orange">💰</div>
+            <h2>Budgets (hors masse salariale)</h2>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget Fonctionnement</span>
+            <span class="indicator-value">${formatMillion(budgetFonct)} M€</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget Investissement</span>
+            <span class="indicator-value">${formatMillion(budgetInvest)} M€</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget Total</span>
+            <span class="indicator-value">${formatMillion(budgetTotal)} M€</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget / agent</span>
+            <span class="indicator-value">${formatNumber(Math.round(budgetParAgent))} €</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBudgetsSectionPerimetre(data, annee, perimetre) {
+      // Pour les périmètres, on utilise les moyennes de la table consolidation
+      const budgetFonct = (data.di?.Moy_Budget_Fonctionnement || 0) * (data.nb_structures || 0);
+      const budgetInvest = (data.di?.Moy_Budget_Investissement || 0) * (data.nb_structures || 0);
+      const budgetTotal = (data.di?.Moy_Budget_Total || 0) * (data.nb_structures || 0);
+      
+      return `
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon orange">💰</div>
+            <h2>Budgets (estimation) <span class="badge badge-structures">${data.nb_structures} ${perimetre}</span></h2>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget Fonct. moyen</span>
+            <span class="indicator-value">${formatMillion(budgetFonct / (data.nb_structures || 1))} M€</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget Invest. moyen</span>
+            <span class="indicator-value">${formatMillion(budgetInvest / (data.nb_structures || 1))} M€</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget Total moyen</span>
+            <span class="indicator-value">${formatMillion(budgetTotal / (data.nb_structures || 1))} M€</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderVehiculesSection(data, annee) {
+      // Agréger les données véhicules
+      const vehicules = FICHE_STATE.data.vehicules;
+      let nbVehicules = 0, budgetVehicules = 0, nbVetustes = 0;
+      
+      if (vehicules) {
+        vehicules.Annee?.forEach((a, i) => {
+          if (a === annee) {
+            nbVehicules += vehicules.Nombre_Vehicules?.[i] || 0;
+            budgetVehicules += vehicules.Budget_Vehicules?.[i] || 0;
+            if (vehicules.Est_Vetuste?.[i]) nbVetustes++;
+          }
+        });
+      }
+      
+      const tauxVetuste = nbVehicules > 0 ? (nbVetustes / nbVehicules * 100) : 0;
+      const ratioVehiculeAgent = data.effectif_total > 0 ? (nbVehicules / data.effectif_total * 100) : 0;
+      
+      return `
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon blue">🚗</div>
+            <h2>Parc Véhicules</h2>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Nombre de véhicules</span>
+            <span class="indicator-value">${formatNumber(nbVehicules)}</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Taux de vétusté</span>
+            <span class="indicator-value">${tauxVetuste.toFixed(1)} %</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Ratio véhicule/agent</span>
+            <span class="indicator-value">${ratioVehiculeAgent.toFixed(1)} %</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget véhicules</span>
+            <span class="indicator-value">${formatMillion(budgetVehicules)} M€</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderVehiculesSectionPerimetre(data, annee, perimetre) {
+      return `
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon blue">🚗</div>
+            <h2>Parc Véhicules <span class="badge badge-structures">${data.nb_structures} ${perimetre}</span></h2>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Nb moyen véhicules</span>
+            <span class="indicator-value">${formatNumber(Math.round(data.di?.Moy_Nb_Vehicules || 0))}</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Taux vétusté moyen</span>
+            <span class="indicator-value">${(data.di?.Moy_Taux_Vetuste || 0).toFixed(1)} %</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Ratio véhicule/agent</span>
+            <span class="indicator-value">${(data.di?.Moy_Ratio_Vehicule_Agent || 0).toFixed(1)} %</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderFraisMissionSection(data, annee) {
+      // Agréger les frais de mission
+      const fraisMission = FICHE_STATE.data.frais_mission;
+      let totalFraisMission = 0;
+      
+      if (fraisMission) {
+        fraisMission.Annee?.forEach((a, i) => {
+          if (a === annee) {
+            totalFraisMission += fraisMission.Total_Frais_Mission?.[i] || 0;
+          }
+        });
+      }
+      
+      const fraisParAgent = data.effectif_total > 0 ? totalFraisMission / data.effectif_total : 0;
+      
+      return `
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon purple">✈️</div>
+            <h2>Frais de Mission</h2>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Total frais de mission</span>
+            <span class="indicator-value">${formatMillion(totalFraisMission)} M€</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Frais / agent</span>
+            <span class="indicator-value">${formatNumber(Math.round(fraisParAgent))} €</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderFraisMissionSectionPerimetre(data, annee, perimetre) {
+      return `
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon purple">✈️</div>
+            <h2>Frais de Mission <span class="badge badge-structures">${data.nb_structures} ${perimetre}</span></h2>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Frais moyen / structure</span>
+            <span class="indicator-value">${formatNumber(Math.round(data.di?.Moy_Total_Frais_Mission || 0))} €</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Frais / agent</span>
+            <span class="indicator-value">${formatNumber(Math.round(data.di?.Moy_Frais_Mission_Par_Agent || 0))} €</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderInformatiqueSection(data, annee) {
+      // Agréger les budgets IT
+      const informatique = FICHE_STATE.data.informatique;
+      let budgetITTotal = 0;
+      
+      if (informatique) {
+        informatique.Annee?.forEach((a, i) => {
+          if (a === annee) {
+            budgetITTotal += informatique.Budget_IT_CP?.[i] || 0;
+          }
+        });
+      }
+      
+      const budgetITParAgent = data.effectif_total > 0 ? budgetITTotal / data.effectif_total : 0;
+      
+      return `
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon teal">💻</div>
+            <h2>Informatique</h2>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget IT Total</span>
+            <span class="indicator-value">${formatMillion(budgetITTotal)} M€</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget IT / agent</span>
+            <span class="indicator-value">${formatNumber(Math.round(budgetITParAgent))} €</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderInformatiqueSectionPerimetre(data, annee, perimetre) {
+      return `
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon teal">💻</div>
+            <h2>Informatique <span class="badge badge-structures">${data.nb_structures} ${perimetre}</span></h2>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">Budget IT moyen</span>
+            <span class="indicator-value">${formatNumber(Math.round(data.di?.Moy_Budget_IT_CP || 0))} €</span>
+          </div>
+          <div class="indicator-row">
+            <span class="indicator-label">IT / agent</span>
+            <span class="indicator-value">${formatNumber(Math.round(data.di?.Moy_IT_Par_Agent || 0))} €</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // Utilitaires de formatage
+    function formatNumber(num) {
+      if (!num && num !== 0) return '—';
+      return Math.round(num).toLocaleString('fr-FR');
+    }
+
+    function formatMillion(num) {
+      if (!num && num !== 0) return '—';
+      return (num / 1000000).toFixed(2);
+    }
+
+    // Event listeners
+    document.getElementById('perimetreSelect').addEventListener('change', (e) => {
+      DASHBOARD_STATE.perimetre = e.target.value;
+      refreshDashboard();
+    });
+
+    document.getElementById('anneeSelect').addEventListener('change', (e) => {
+      DASHBOARD_STATE.annee = parseInt(e.target.value);
+      refreshDashboard();
+    });
+
+    // Lancer l'initialisation
+    init();
+  </script>
+</body>
+</html>
