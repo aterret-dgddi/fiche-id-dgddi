@@ -1363,14 +1363,27 @@ function getFraisMissionData(structureId, annee) {
  */
 function getFraisMissionMoyennes(perimetre, annee) {
   const consolidation = FICHE_STATE.data.consolidation;
-  if (!consolidation) return null;
+  if (!consolidation) {
+    console.warn('⚠️ Table Consolidation non disponible pour Frais Mission');
+    return null;
+  }
   
   const idx = consolidation.id.findIndex((id, i) => 
     consolidation.Perimetre?.[i] === perimetre && 
     consolidation.Annee?.[i] === annee
   );
   
-  if (idx === -1) return null;
+  if (idx === -1) {
+    console.warn(`⚠️ Pas de données Consolidation pour périmètre="${perimetre}" année=${annee}`);
+    return null;
+  }
+  
+  console.log(`✓ Consolidation trouvée pour ${perimetre} ${annee}:`, {
+    Moy_Frais_Par_Structure: consolidation.Moy_Frais_Par_Structure?.[idx],
+    Moy_Frais_Par_Agent: consolidation.Moy_Frais_Par_Agent?.[idx],
+    Moy_Formation_Par_Agent: consolidation.Moy_Formation_Par_Agent?.[idx],
+    Moy_Autres_Par_Agent: consolidation.Moy_Autres_Par_Agent?.[idx]
+  });
   
   return {
     moy_frais_par_structure: consolidation.Moy_Frais_Par_Structure?.[idx] || 0,

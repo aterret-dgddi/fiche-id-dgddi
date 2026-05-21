@@ -2733,6 +2733,11 @@
   const moyennesPerimetre = getFraisMissionMoyennes(perimetre, anneeCourante);
   const moyennesNational = getFraisMissionMoyennes('National', anneeCourante);
   
+  console.log('=== DEBUG FRAIS DE MISSION ===');
+  console.log('Périmètre:', perimetre, 'Libellé:', libellePerimetre);
+  console.log('Moyennes Périmètre:', moyennesPerimetre);
+  console.log('Moyennes National:', moyennesNational);
+  
   // ═══════════════════════════════════════════════════════════════
   // KPI PILLS
   // ═══════════════════════════════════════════════════════════════
@@ -2765,6 +2770,10 @@
         <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
       </div>
     `;
+    console.log('Comparaison Total FM - Périmètre:', ecartPerimetre, 'National:', ecartNational);
+  } else {
+    document.getElementById('fm-total-comp').innerHTML = '';
+    console.warn('Moyennes Frais Mission non disponibles - Périmètre:', moyennesPerimetre, 'National:', moyennesNational);
   }
   
   // Formation
@@ -2819,6 +2828,10 @@
         <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
       </div>
     `;
+    console.log('Comparaison Coût/Agent FM - Périmètre:', ecartPerimetre, 'National:', ecartNational);
+  } else {
+    document.getElementById('fm-agent-comp').innerHTML = '';
+    console.warn('Moyennes Frais Mission par agent non disponibles');
   }
   
   // ═══════════════════════════════════════════════════════════════
