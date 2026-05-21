@@ -2460,29 +2460,29 @@
       document.getElementById('rh-ms-par-agent').textContent = formatCurrency(msParAgent, 0);
       
       // Comparaison MS/Agent avec groupe
-      if (consoGroupe && consoGroupe.ms_par_agent) {
-        const diffMS = msParAgent - consoGroupe.ms_par_agent;
-        const pctDiffMS = consoGroupe.ms_par_agent > 0 ? Math.round(diffMS / consoGroupe.ms_par_agent * 1000) / 10 : 0;
+      if (consoGroupe && consoGroupe.moyenne_ms_par_agent) {
+        const diffMS = msParAgent - consoGroupe.moyenne_ms_par_agent;
+        const pctDiffMS = consoGroupe.moyenne_ms_par_agent > 0 ? Math.round(diffMS / consoGroupe.moyenne_ms_par_agent * 1000) / 10 : 0;
         const colorMS = diffMS >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbolMS = diffMS >= 0 ? '+' : '';
         document.getElementById('rh-ms-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
-        console.log('Comparaison MS groupe:', {msParAgent, moyenneGroupe: consoGroupe.ms_par_agent, diffMS, pctDiffMS});
+        console.log('Comparaison MS groupe:', {msParAgent, moyenneGroupe: consoGroupe.moyenne_ms_par_agent, diffMS, pctDiffMS});
       } else {
         document.getElementById('rh-ms-compare-groupe').innerHTML = '';
-        console.warn('Pas de ms_par_agent dans consoGroupe');
+        console.warn('Pas de moyenne_ms_par_agent dans consoGroupe');
       }
       
       // Comparaison MS/Agent avec National
-      if (consoNational && consoNational.ms_par_agent) {
-        const diffMS = msParAgent - consoNational.ms_par_agent;
-        const pctDiffMS = consoNational.ms_par_agent > 0 ? Math.round(diffMS / consoNational.ms_par_agent * 1000) / 10 : 0;
+      if (consoNational && consoNational.moyenne_ms_par_agent) {
+        const diffMS = msParAgent - consoNational.moyenne_ms_par_agent;
+        const pctDiffMS = consoNational.moyenne_ms_par_agent > 0 ? Math.round(diffMS / consoNational.moyenne_ms_par_agent * 1000) / 10 : 0;
         const colorMS = diffMS >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbolMS = diffMS >= 0 ? '+' : '';
         document.getElementById('rh-ms-compare-national').innerHTML = `vs National: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
-        console.log('Comparaison MS national:', {msParAgent, moyenneNational: consoNational.ms_par_agent, diffMS, pctDiffMS});
+        console.log('Comparaison MS national:', {msParAgent, moyenneNational: consoNational.moyenne_ms_par_agent, diffMS, pctDiffMS});
       } else {
         document.getElementById('rh-ms-compare-national').innerHTML = '';
-        console.warn('Pas de ms_par_agent dans consoNational');
+        console.warn('Pas de moyenne_ms_par_agent dans consoNational');
       }
       
       // Tableau détaillé par DR (uniquement pour les DI)
