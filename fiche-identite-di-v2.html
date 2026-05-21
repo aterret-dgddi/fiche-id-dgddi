@@ -2393,17 +2393,8 @@
       console.log('effectif_moyen:', consoGroupe ? consoGroupe.effectif_moyen : 'NULL');
       console.log('age_moyen_global:', consoGroupe ? consoGroupe.age_moyen_global : 'NULL');
       
-      if (consoGroupe && consoGroupe.effectif_moyen > 0) {
-        const moyenneGroupe = Math.round(consoGroupe.effectif_moyen);
-        const diffGroupe = dataN.effectif_total - moyenneGroupe;
-        const pctDiffGroupe = moyenneGroupe > 0 ? Math.round(diffGroupe / moyenneGroupe * 1000) / 10 : 0;
-        const colorGroupe = diffGroupe >= 0 ? 'var(--vert)' : 'var(--rouge)';
-        const symbolGroupe = diffGroupe >= 0 ? '+' : '';
-        console.log('Comparaison effectif:', {moyenneGroupe, diffGroupe, pctDiffGroupe});
-        document.getElementById('rh-effectif-compare').innerHTML = `vs Moy. ${type}: <span style="color: ${colorGroupe};">${symbolGroupe}${formatNumber(Math.abs(diffGroupe))} (${symbolGroupe}${pctDiffGroupe}%)</span>`;
-      } else {
-        console.warn('Pas de consoGroupe ou effectif_moyen = 0');
-      }
+      // Comparaison effectif total : non pertinente (valeurs absolues liées à la taille)
+      document.getElementById('rh-effectif-compare').innerHTML = '';
       
       // Rang
       const rang = getRangStructure(structureId, annee, 'effectif_total');
@@ -2421,14 +2412,8 @@
         document.getElementById('rh-agco-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffAGCO} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
       }
       
-      if (consoGroupe && consoGroupe.effectif_agco_moyen > 0) {
-        const moyenneGroupe = Math.round(consoGroupe.effectif_agco_moyen);
-        const diffGroupe = dataN.effectif_agco - moyenneGroupe;
-        const pctDiffGroupe = moyenneGroupe > 0 ? Math.round(diffGroupe / moyenneGroupe * 1000) / 10 : 0;
-        const colorGroupe = diffGroupe >= 0 ? 'var(--vert)' : 'var(--rouge)';
-        const symbolGroupe = diffGroupe >= 0 ? '+' : '';
-        document.getElementById('rh-agco-compare').innerHTML = `vs Moy. ${type}: <span style="color: ${colorGroupe};">${symbolGroupe}${formatNumber(Math.abs(diffGroupe))} (${symbolGroupe}${pctDiffGroupe}%)</span>`;
-      }
+      // Comparaison effectif AGCO : non pertinente (valeurs absolues liées à la taille)
+      document.getElementById('rh-agco-compare').innerHTML = '';
       
       // KPI - SU avec évolution et comparaison
       document.getElementById('rh-su-total').textContent = formatNumber(dataN.effectif_su);
@@ -2440,14 +2425,8 @@
         document.getElementById('rh-su-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffSU} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
       }
       
-      if (consoGroupe && consoGroupe.effectif_su_moyen > 0) {
-        const moyenneGroupe = Math.round(consoGroupe.effectif_su_moyen);
-        const diffGroupe = dataN.effectif_su - moyenneGroupe;
-        const pctDiffGroupe = moyenneGroupe > 0 ? Math.round(diffGroupe / moyenneGroupe * 1000) / 10 : 0;
-        const colorGroupe = diffGroupe >= 0 ? 'var(--vert)' : 'var(--rouge)';
-        const symbolGroupe = diffGroupe >= 0 ? '+' : '';
-        document.getElementById('rh-su-compare').innerHTML = `vs Moy. ${type}: <span style="color: ${colorGroupe};">${symbolGroupe}${formatNumber(Math.abs(diffGroupe))} (${symbolGroupe}${pctDiffGroupe}%)</span>`;
-      }
+      // Comparaison effectif SU : non pertinente (valeurs absolues liées à la taille)
+      document.getElementById('rh-su-compare').innerHTML = '';
       
       // KPI - Âge Moyen avec comparaisons
       const ageMoyen = dataN.effectif_total > 0 ? 
@@ -2487,6 +2466,10 @@
         const colorMS = diffMS >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbolMS = diffMS >= 0 ? '+' : '';
         document.getElementById('rh-ms-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
+        console.log('Comparaison MS groupe:', {msParAgent, moyenneGroupe: consoGroupe.ms_par_agent, diffMS, pctDiffMS});
+      } else {
+        document.getElementById('rh-ms-compare-groupe').innerHTML = '';
+        console.warn('Pas de ms_par_agent dans consoGroupe');
       }
       
       // Comparaison MS/Agent avec National
@@ -2496,6 +2479,10 @@
         const colorMS = diffMS >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbolMS = diffMS >= 0 ? '+' : '';
         document.getElementById('rh-ms-compare-national').innerHTML = `vs National: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
+        console.log('Comparaison MS national:', {msParAgent, moyenneNational: consoNational.ms_par_agent, diffMS, pctDiffMS});
+      } else {
+        document.getElementById('rh-ms-compare-national').innerHTML = '';
+        console.warn('Pas de ms_par_agent dans consoNational');
       }
       
       // Tableau détaillé par DR (uniquement pour les DI)
