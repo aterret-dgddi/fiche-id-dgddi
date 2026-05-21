@@ -1873,8 +1873,13 @@
       const descriptionEl = document.getElementById('comment-description');
       const pillsContainer = document.getElementById('comment-pills');
       
-      // Vérifier si le bouton existe déjà
-      if (header.querySelector('.comment-edit-btn')) return;
+      // Supprimer les boutons existants pour les recréer avec les bons paramètres
+      const existingEditBtn = header.querySelector('.comment-edit-btn');
+      const existingSaveBtn = header.querySelector('.comment-save-btn');
+      const existingCancelBtn = header.querySelector('.comment-cancel-btn');
+      if (existingEditBtn) existingEditBtn.remove();
+      if (existingSaveBtn) existingSaveBtn.remove();
+      if (existingCancelBtn) existingCancelBtn.remove();
       
       // Bouton Modifier
       const editBtn = document.createElement('button');
@@ -2273,6 +2278,8 @@
      * Sauvegarde le commentaire principal dans Grist
      */
     async function saveMainComment(structureId, annee, description, pillsText) {
+      console.log('=== saveMainComment ===', { structureId, annee, description: description.substring(0, 50), pillsText });
+      
       const comments = FICHE_STATE.data.commentaires;
       if (!comments) throw new Error('Table Commentaires non chargée');
       
