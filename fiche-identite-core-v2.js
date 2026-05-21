@@ -2575,22 +2575,22 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   if (isFirstPage) addHeaderFooter(1);
   
   const ficheBody = document.getElementById('fiche-body');
-  const sections = ficheBody.querySelectorAll('.section');
   
-  for (let section of sections) {
-    if (section.style.display === 'none' || !section.offsetParent) continue;
+  // Fonction pour capturer et ajouter un élément au PDF
+  async function captureAndAddElement(element) {
+    if (!element || element.style.display === 'none' || !element.offsetParent) return;
     
-    const sectionHeight = section.offsetHeight;
-    const estimatedPdfHeight = (sectionHeight * 0.264583) / 2;
+    const elementHeight = element.offsetHeight;
+    const estimatedPdfHeight = (elementHeight * 0.264583) / 2;
     if (estimatedPdfHeight > 60) checkPageBreak(estimatedPdfHeight);
     
-    const canvas = await html2canvas(section, {
+    const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
-      width: section.scrollWidth,
-      height: section.scrollHeight
+      width: element.scrollWidth,
+      height: element.scrollHeight
     });
     
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
@@ -2600,6 +2600,20 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     checkPageBreak(imgHeight + 5);
     pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
     yPosition += imgHeight + 5;
+  }
+  
+  // 1. Capturer l'en-tête de la fiche
+  const ficheHeader = ficheBody.querySelector('.fiche-header');
+  await captureAndAddElement(ficheHeader);
+  
+  // 2. Capturer le cadre commentaire principal avec les pills
+  const mainCommentBox = document.getElementById('main-comment-box');
+  await captureAndAddElement(mainCommentBox);
+  
+  // 3. Capturer toutes les sections
+  const sections = ficheBody.querySelectorAll('.section');
+  for (let section of sections) {
+    await captureAndAddElement(section);
   }
   
   addHeaderFooter(currentPage);
