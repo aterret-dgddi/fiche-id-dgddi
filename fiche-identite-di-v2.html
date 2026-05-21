@@ -1806,7 +1806,7 @@
       
       if (idx !== -1) {
         // Récupérer la synthèse (description)
-        const synthese = comments.Synthese?.[idx] || '';
+        const synthese = comments.Commentaire?.[idx] || '';
         descriptionEl.textContent = synthese || 'Aucune description disponible pour cette structure.';
         
         // Récupérer et parser les pills
@@ -2289,7 +2289,7 @@
         // UPDATE
         await grist.docApi.applyUserActions([
           ['UpdateRecord', 'Commentaires', comments.id[existingIdx], {
-            Synthese: description,
+            Commentaire: description,
             Pills: pillsText,
             Date_Modification: now
           }]
@@ -2302,7 +2302,7 @@
             Structure: structureId,
             Annee: annee,
             Section: 'Synthese',
-            Synthese: description,
+            Commentaire: description,
             Pills: pillsText,
             Date_Creation: now,
             Date_Modification: now
