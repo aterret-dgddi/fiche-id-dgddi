@@ -51,6 +51,38 @@
     }
     .table-info.visible { display: block; }
     
+    .import-mode-selector {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .import-mode-selector.visible { display: block; }
+    .import-mode-selector label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .import-mode-selector select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #D9D9D9;
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+    }
+    .mode-info {
+      margin-top: 12px;
+      padding: 12px;
+      background: #EFF6FF;
+      border-left: 3px solid #3B82F6;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #1E40AF;
+    }
+    
     .drop-zone {
       border: 2px dashed #D9D9D9;
       border-radius: 8px;
@@ -220,6 +252,15 @@
       <div id="table-info" class="table-info"></div>
     </div>
     
+    <!-- Sélection du mode d'import (pour tables avec options multiples) -->
+    <div class="import-mode-selector" id="import-mode-selector">
+      <label for="import-mode">2. Sélectionnez le type d'import</label>
+      <select id="import-mode">
+        <option value="">-- Choisir le type d'import --</option>
+      </select>
+      <div id="mode-info" class="mode-info"></div>
+    </div>
+    
     <div class="drop-zone" id="dropzone">
       <div class="drop-icon">📁</div>
       <div class="drop-text">Glissez un fichier Excel ou CSV ici</div>
@@ -269,7 +310,7 @@
   </div>
 
 <script>
-// Configuration des tables
+// Configuration des tables avec options d'import multiples
 const TABLE_CONFIG = {
   'Structures': {
     description: 'Structure organisationnelle (73 structures)',
@@ -314,7 +355,27 @@ const TABLE_CONFIG = {
     description: 'Parc automobile par structure',
     columns: ['Structure', 'Annee', 'Nombre_Total', 'Nombre_Vetuste'],
     keyFields: ['Structure', 'Annee'],
-    needsStructure: true
+    needsStructure: true,
+    importModes: {
+      'standard': {
+        label: 'Import standard (parc automobile)',
+        columns: ['Structure', 'Annee', 'Nombre_Total', 'Nombre_Vetuste'],
+        keyFields: ['Structure', 'Annee'],
+        info: 'Import du parc automobile : Structure, Annee, Nombre_Total, Nombre_Vetuste'
+      },
+      'budget_fonctionnement': {
+        label: 'Import Budget_Fonctionnement',
+        columns: ['Structure', 'Annee', 'Budget_Fonctionnement'],
+        keyFields: ['Structure', 'Annee'],
+        info: 'Import du budget de fonctionnement des véhicules'
+      },
+      'budget_investissement': {
+        label: 'Import Budget_Investissement',
+        columns: ['Structure', 'Annee', 'Budget_Investissement'],
+        keyFields: ['Structure', 'Annee'],
+        info: 'Import du budget d\'investissement des véhicules'
+      }
+    }
   },
   'Frais_Mission': {
     description: 'Frais de mission et déplacements',
@@ -335,7 +396,21 @@ const TABLE_CONFIG = {
     description: 'Matériel informatique par structure',
     columns: ['Structure', 'Annee', 'Nb_Portables', 'Nb_Fixes'],
     keyFields: ['Structure', 'Annee'],
-    needsStructure: true
+    needsStructure: true,
+    importModes: {
+      'standard': {
+        label: 'Import standard (matériel IT)',
+        columns: ['Structure', 'Annee', 'Nb_Portables', 'Nb_Fixes'],
+        keyFields: ['Structure', 'Annee'],
+        info: 'Import du matériel informatique : Structure, Annee, Nb_Portables, Nb_Fixes'
+      },
+      'budget_it_cp': {
+        label: 'Import Budget_IT_CP',
+        columns: ['Structure', 'Annee', 'Budget_IT_CP'],
+        keyFields: ['Structure', 'Annee'],
+        info: 'Import du budget IT en crédits de paiement'
+      }
+    }
   }
 };
 
@@ -343,6 +418,7 @@ const TABLE_CONFIG = {
 const G = {
   gristReady: false,
   targetTable: null,
+  importMode: null,
   rawRows: [],
   sourceColumns: [],
   targetColumns: [],
@@ -415,6 +491,7 @@ document.getElementById('target-table').onchange = async (e) => {
   if (!tableName) {
     document.getElementById('dropzone').classList.remove('visible');
     document.getElementById('table-info').classList.remove('visible');
+    document.getElementById('import-mode-selector').classList.remove('visible');
     return;
   }
   
@@ -425,19 +502,74 @@ document.getElementById('target-table').onchange = async (e) => {
   const infoEl = document.getElementById('table-info');
   infoEl.innerHTML = `
     <strong>${config.description}</strong><br>
-    Colonnes : ${config.columns.join(', ')}<br>
-    Clés : ${config.keyFields.join(', ')}
+    ${config.importModes ? 'Table avec plusieurs modes d\'import disponibles' : `Colonnes : ${config.columns.join(', ')}`}<br>
+    ${!config.importModes ? `Clés : ${config.keyFields.join(', ')}` : ''}
   `;
   infoEl.classList.add('visible');
+  
+  // Si la table a plusieurs modes d'import, afficher le sélecteur
+  if (config.importModes) {
+    const modeSelector = document.getElementById('import-mode');
+    modeSelector.innerHTML = '<option value="">-- Choisir le type d\'import --</option>';
+    
+    Object.keys(config.importModes).forEach(modeKey => {
+      const mode = config.importModes[modeKey];
+      const option = document.createElement('option');
+      option.value = modeKey;
+      option.textContent = mode.label;
+      modeSelector.appendChild(option);
+    });
+    
+    document.getElementById('import-mode-selector').classList.add('visible');
+    document.getElementById('dropzone').classList.remove('visible');
+    G.importMode = null;
+  } else {
+    // Pas de modes multiples, afficher directement la drop zone
+    document.getElementById('import-mode-selector').classList.remove('visible');
+    document.getElementById('dropzone').classList.add('visible');
+    G.importMode = 'standard';
+    
+    // Charger données existantes
+    try {
+      const data = await grist.docApi.fetchTable(tableName);
+      G.existingData = data;
+      G.targetColumns = config.columns;
+    } catch (err) {
+      setStatus('Erreur chargement table : ' + err.message, 'error');
+    }
+  }
+};
+
+// Sélection du mode d'import
+document.getElementById('import-mode').onchange = async (e) => {
+  const modeKey = e.target.value;
+  
+  if (!modeKey) {
+    document.getElementById('dropzone').classList.remove('visible');
+    return;
+  }
+  
+  G.importMode = modeKey;
+  const config = TABLE_CONFIG[G.targetTable];
+  const mode = config.importModes[modeKey];
+  
+  // Afficher info du mode
+  const modeInfoEl = document.getElementById('mode-info');
+  modeInfoEl.innerHTML = `
+    <strong>${mode.label}</strong><br>
+    ${mode.info}<br>
+    Colonnes : ${mode.columns.join(', ')}<br>
+    Clés : ${mode.keyFields.join(', ')}
+  `;
   
   // Afficher drop zone
   document.getElementById('dropzone').classList.add('visible');
   
   // Charger données existantes
   try {
-    const data = await grist.docApi.fetchTable(tableName);
+    const data = await grist.docApi.fetchTable(G.targetTable);
     G.existingData = data;
-    G.targetColumns = config.columns;
+    G.targetColumns = mode.columns;
   } catch (err) {
     setStatus('Erreur chargement table : ' + err.message, 'error');
   }
@@ -454,112 +586,115 @@ dropzone.ondragover = (e) => {
   dropzone.classList.add('dragover');
 };
 
-dropzone.ondragleave = () => dropzone.classList.remove('dragover');
+dropzone.ondragleave = () => {
+  dropzone.classList.remove('dragover');
+};
 
 dropzone.ondrop = (e) => {
   e.preventDefault();
   dropzone.classList.remove('dragover');
-  if (e.dataTransfer.files.length) {
-    handleFile(e.dataTransfer.files[0]);
-  }
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
 };
 
 fileinput.onchange = (e) => {
-  if (e.target.files.length) {
-    handleFile(e.target.files[0]);
-  }
+  const file = e.target.files[0];
+  if (file) handleFile(file);
 };
 
 function handleFile(file) {
-  if (!G.targetTable) {
-    setStatus('Veuillez d\'abord sélectionner une table', 'error');
-    return;
-  }
-  
   const ext = file.name.split('.').pop().toLowerCase();
   
+  setStatus(`Lecture de ${file.name}...`, 'info');
+  
   if (ext === 'csv') {
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => processData(results.data)
-    });
-  } else if (['xlsx', 'xls'].includes(ext)) {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const wb = XLSX.read(e.target.result, { type: 'binary' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(ws);
-      processData(data);
+      const csv = e.target.result;
+      const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+      G.rawRows = parsed.data;
+      G.sourceColumns = parsed.meta.fields;
+      showMapping();
     };
-    reader.readAsBinaryString(file);
+    reader.readAsText(file);
   } else {
-    setStatus('Format non supporté', 'error');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet);
+      G.rawRows = json;
+      G.sourceColumns = Object.keys(json[0] || {});
+      showMapping();
+    };
+    reader.readAsArrayBuffer(file);
   }
-}
-
-function processData(rows) {
-  if (!rows || rows.length === 0) {
-    setStatus('Fichier vide', 'error');
-    return;
-  }
-  
-  G.rawRows = rows;
-  G.sourceColumns = Object.keys(rows[0]);
-  
-  showMapping();
 }
 
 function showMapping() {
   const tbody = document.getElementById('mapping-tbody');
   tbody.innerHTML = '';
   
+  // Obtenir la config actuelle
   const config = TABLE_CONFIG[G.targetTable];
-  const autoMapping = config.mapping || {};
+  let targetColumns, autoMapping;
   
-  // Header
-  document.getElementById('mapping-header-target').textContent = `→ Colonne ${G.targetTable}`;
+  if (config.importModes && G.importMode) {
+    const mode = config.importModes[G.importMode];
+    targetColumns = mode.columns;
+  } else {
+    targetColumns = config.columns;
+    autoMapping = config.mapping;
+  }
   
   G.sourceColumns.forEach(srcCol => {
     const tr = document.createElement('tr');
     
-    // Colonne source
     const tdSrc = document.createElement('td');
     tdSrc.className = 'col-source';
     tdSrc.textContent = srcCol;
     tr.appendChild(tdSrc);
     
-    // Preview
     const tdPreview = document.createElement('td');
     tdPreview.className = 'col-preview';
-    const sampleVal = G.rawRows[0][srcCol];
-    tdPreview.textContent = sampleVal ? String(sampleVal).substring(0, 50) : '';
+    const sampleValue = G.rawRows[0][srcCol];
+    tdPreview.textContent = sampleValue ? String(sampleValue).substring(0, 50) : '(vide)';
     tr.appendChild(tdPreview);
     
-    // Select target
     const tdTarget = document.createElement('td');
     const select = document.createElement('select');
-    select.innerHTML = '<option value="[Ignorer]">[Ignorer]</option>';
     
-    G.targetColumns.forEach(targetCol => {
+    const optIgnore = document.createElement('option');
+    optIgnore.value = '[Ignorer]';
+    optIgnore.textContent = '[Ignorer]';
+    select.appendChild(optIgnore);
+    
+    targetColumns.forEach(col => {
       const opt = document.createElement('option');
-      opt.value = targetCol;
-      opt.textContent = targetCol;
+      opt.value = col;
+      opt.textContent = col;
       select.appendChild(opt);
     });
     
     // Auto-mapping
-    const autoTarget = autoMapping[srcCol] || srcCol;
-    if (G.targetColumns.includes(autoTarget)) {
-      select.value = autoTarget;
-      G.mapping[srcCol] = autoTarget;
+    if (autoMapping && autoMapping[srcCol]) {
+      select.value = autoMapping[srcCol];
+    } else if (targetColumns.includes(srcCol)) {
+      select.value = srcCol;
     } else {
-      G.mapping[srcCol] = '[Ignorer]';
+      const normalized = srcCol.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const match = targetColumns.find(tc => 
+        tc.toLowerCase().replace(/[^a-z0-9]/g, '') === normalized
+      );
+      if (match) select.value = match;
     }
     
-    select.onchange = () => {
-      G.mapping[srcCol] = select.value;
+    select.onchange = (e) => {
+      G.mapping[srcCol] = e.target.value;
     };
+    
+    G.mapping[srcCol] = select.value;
     
     tdTarget.appendChild(select);
     tr.appendChild(tdTarget);
@@ -568,80 +703,63 @@ function showMapping() {
   });
   
   document.getElementById('mapping-section').classList.add('visible');
-  setStatus(`${G.sourceColumns.length} colonnes détectées`, 'info');
+  setStatus(`${G.rawRows.length} lignes détectées dans le fichier`, 'success');
 }
 
 // Preview
-document.getElementById('btn-preview').onclick = async () => {
-  // Recharger les données existantes avant de générer la preview
-  try {
-    setStatus('Chargement des données existantes...', 'info');
-    const data = await grist.docApi.fetchTable(G.targetTable);
-    G.existingData = data;
-    console.log(`✓ ${data.id ? data.id.length : 0} lignes existantes chargées`);
-  } catch (err) {
-    setStatus('Erreur chargement données : ' + err.message, 'error');
-    return;
-  }
-  
+document.getElementById('btn-preview').onclick = () => {
   generatePreview();
 };
 
 function generatePreview() {
-  G.previewRows = [];
+  setStatus('Génération de la preview...', 'info');
   
   const config = TABLE_CONFIG[G.targetTable];
-  const keyFields = config.keyFields;
+  let keyFields, needsStructure;
   
-  // Index existant
+  if (config.importModes && G.importMode) {
+    const mode = config.importModes[G.importMode];
+    keyFields = mode.keyFields;
+    needsStructure = config.needsStructure;
+  } else {
+    keyFields = config.keyFields;
+    needsStructure = config.needsStructure;
+  }
+  
+  // Index des données existantes
   const existingIndex = {};
-  G.existingData.id.forEach((id, idx) => {
-    const keyValues = keyFields.map(f => {
-      const val = G.existingData[f] ? G.existingData[f][idx] : null;
-      // Pour Mois dans RH, NULL ou 0 = données annuelles
-      if (f === 'Mois' && (val === undefined || val === null || val === '' || val === 0)) {
-        return 'NULL';
-      }
-      return val;
-    });
-    const key = keyValues.join('|');
-    existingIndex[key] = id;
-    
-    // DEBUG : afficher les premières clés existantes
-    if (idx < 3) {
-      console.log(`[DEBUG] Existant ${idx} - Clé: "${key}" → ID: ${id}`);
-    }
-  });
-  
-  console.log(`[DEBUG] Total ${Object.keys(existingIndex).length} clés dans l'index`);
-  
-  // Résolution HIE si besoin
-  let equivMap = {};
-  let hieToId = {};
-  
-  if (config.needsStructure) {
-    // Vérifier que les données sont chargées
-    if (!G.equivalence || !G.equivalence.Source) {
-      setStatus('Erreur : table Equivalence non chargée', 'error');
-      return;
-    }
-    if (!G.structures || !G.structures.id) {
-      setStatus('Erreur : table Structures non chargée', 'error');
-      return;
-    }
-    
-    G.equivalence.Source.forEach((src, idx) => {
-      const hie = G.equivalence.HIE[idx];
-      equivMap[normalizeText(src)] = hie;
-    });
-    
-    G.structures.id.forEach((id, idx) => {
-      const hie = G.structures.HIE[idx];
-      hieToId[hie] = id;
+  if (G.existingData && G.existingData.id) {
+    G.existingData.id.forEach((id, idx) => {
+      const keyValues = keyFields.map(f => {
+        const val = G.existingData[f] ? G.existingData[f][idx] : null;
+        if (f === 'Mois' && (val === null || val === undefined || val === '' || val === 0)) {
+          return 'NULL';
+        }
+        return val;
+      });
+      const key = keyValues.join('|');
+      existingIndex[key] = id;
     });
   }
   
-  // Traiter chaque ligne
+  // Maps de résolution Structure
+  const equivMap = {};
+  const hieToId = {};
+  
+  if (needsStructure && G.equivalence.Source) {
+    G.equivalence.Source.forEach((source, idx) => {
+      const normalized = normalizeText(source);
+      equivMap[normalized] = G.equivalence.HIE[idx];
+    });
+  }
+  
+  if (needsStructure && G.structures.HIE) {
+    G.structures.HIE.forEach((hie, idx) => {
+      hieToId[hie] = G.structures.id[idx];
+    });
+  }
+  
+  G.previewRows = [];
   G.rawRows.forEach((row, idx) => {
     const previewRow = {
       _source: row,
@@ -657,7 +775,7 @@ function generatePreview() {
       
       let value = row[srcCol];
       
-      if (targetCol === 'Structure' && config.needsStructure) {
+      if (targetCol === 'Structure' && needsStructure) {
         // Résolution via Equivalence OU HIE direct
         const sourceSI = String(value || '').trim();
         
@@ -693,7 +811,6 @@ function generatePreview() {
       } else {
         // Nettoyage valeur
         if (value === null || value === '') {
-          // Pour Mois dans RH, si vide = NULL (données annuelles)
           previewRow[targetCol] = (targetCol === 'Mois') ? null : null;
         } else if (typeof value === 'string') {
           const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
@@ -708,7 +825,6 @@ function generatePreview() {
     // Vérifier si existe
     if (!previewRow._error) {
       const keyValues = keyFields.map(f => {
-        // Pour Mois dans RH, NULL ou 0 = données annuelles
         if (f === 'Mois' && (previewRow[f] === undefined || previewRow[f] === null || previewRow[f] === '' || previewRow[f] === 0)) {
           return 'NULL';
         }
@@ -718,7 +834,6 @@ function generatePreview() {
       if (keyValues.every(v => v !== undefined && v !== null)) {
         const key = keyValues.join('|');
         
-        // DEBUG : afficher les premières clés
         if (idx < 3) {
           console.log(`[DEBUG] Ligne ${idx} - Clé générée: "${key}"`);
           console.log(`[DEBUG] Clé existe? ${existingIndex[key] ? 'OUI (UPDATE)' : 'NON (INSERT)'}`);
