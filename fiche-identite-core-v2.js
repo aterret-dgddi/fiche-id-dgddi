@@ -51,35 +51,6 @@ function getAnneesDisponibles() {
   return Array.from(anneesSet).sort((a, b) => a - b);
 }
 
-/**
- * Retourne les données de consolidation pour un périmètre et une année
- */
-function getConsolidationData(perimetre, annee) {
-  const consol = FICHE_STATE.data.consolidation;
-  if (!consol || !consol.Perimetre) return null;
-  
-  for (let i = 0; i < consol.Perimetre.length; i++) {
-    if (consol.Perimetre[i] === perimetre && consol.Annee[i] === annee) {
-      return {
-        effectif_moyen: consol.Moy_Effectif_Total?.[i] || 0,
-        age_moyen_global: consol.Moy_Age_Moyen?.[i] || 0,
-        ms_par_agent: consol.Moy_MS_Par_Agent?.[i] || 0,
-        Moy_Budget_Fonctionnement: consol.Moy_Budget_Fonctionnement?.[i] || 0,
-        Moy_Budget_Investissement: consol.Moy_Budget_Investissement?.[i] || 0,
-        Moy_Budget_Total: consol.Moy_Budget_Total?.[i] || 0,
-        Moy_Nb_Vehicules: consol.Moy_Nb_Vehicules?.[i] || 0,
-        Moy_Taux_Vetuste: consol.Moy_Taux_Vetuste?.[i] || 0,
-        Moy_Budget_Vehicules: consol.Moy_Budget_Vehicules?.[i] || 0,
-        Moy_Ratio_Vehicule_Agent: consol.Moy_Ratio_Vehicule_Agent?.[i] || 0,
-        Moy_Total_Frais_Mission: consol.Moy_Total_Frais_Mission?.[i] || 0,
-        Moy_Frais_Mission_Par_Agent: consol.Moy_Frais_Mission_Par_Agent?.[i] || 0,
-        Moy_Budget_IT_CP: consol.Moy_Budget_IT_CP?.[i] || 0,
-        Moy_IT_Par_Agent: consol.Moy_IT_Par_Agent?.[i] || 0
-      };
-    }
-  }
-  return null;
-}
 
 /**
  * Retourne les données consolidées pré-calculées pour une structure et une année
@@ -150,8 +121,8 @@ function getConsolidationStructureData(structureId, annee) {
         taux_equipement: consolStruct.Taux_Equipement?.[i] || 0,
         budget_it_cp: consolStruct.Budget_IT_CP?.[i] || 0,
         budget_it_4ans: consolStruct.Budget_IT_4ans?.[i] || 0,
-        budget_it_par_agent: consolStruct.Budget_IT_Par_Agent?.[i] || 0,
-        budget_it_par_agent_4ans: consolStruct.Budget_IT_Par_Agent_4ans?.[i] || 0
+        budget_it_par_agent: consolStruct.IT_Par_Agent?.[i] || 0,
+        budget_it_par_agent_4ans: consolStruct.IT_Par_Agent_Lisse?.[i] || 0
       };
     }
   }
@@ -344,119 +315,7 @@ function getDRRattachees(structureId) {
   return drList;
 }
 
-// Récupérer données Consolidation pour un périmètre
-function getConsolidationData(perimetre, annee) {
-  console.log('╔═══════════════════════════════════════╗');
-  console.log('║  FONCTION GET_CONSOLIDATION_DATA     ║');
-  console.log('║  APPELÉE AVEC:', perimetre, annee, '    ║');
-  console.log('╚═══════════════════════════════════════╝');
-  
-  const conso = FICHE_STATE.data.consolidation;
-  
-  if (!conso || !conso.Perimetre) {
-    console.error('❌❌❌ CONSO OU PERIMETRE MANQUANT ❌❌❌');
-    return null;
-  }
-  
-  console.log(`getConsolidationData(${perimetre}, ${annee})`);
-  console.log('Recherche dans Consolidation...');
-  
-  const idx = conso.id.findIndex((id, i) => 
-    conso.Perimetre[i] === perimetre &&
-    conso.Annee[i] === annee
-  );
-  
-  console.log('Index trouvé:', idx);
-  
-  if (idx === -1) {
-    console.warn('⚠️ Aucune ligne trouvée dans Consolidation pour', perimetre, annee);
-    return null;
-  }
-  
-  console.log('Valeurs des nouvelles colonnes:');
-  console.log('  Age_Moyen_Global:', conso.Age_Moyen_Global ? conso.Age_Moyen_Global[idx] : 'COLONNE INEXISTANTE');
-  console.log('  Effectif_Moyen_Par_Structure:', conso.Effectif_Moyen_Par_Structure ? conso.Effectif_Moyen_Par_Structure[idx] : 'COLONNE INEXISTANTE');
-  
-  // Calculer les moyennes manuellement si les colonnes n'existent pas
-  let effectif_moyen = 0;
-  let effectif_agco_moyen = 0;
-  let effectif_su_moyen = 0;
-  let age_moyen_global = 0;
-  
-  const nb_structures = conso.Nb_Structures ? conso.Nb_Structures[idx] : 0;
-  
-  if (conso.Effectif_Moyen_Par_Structure && conso.Effectif_Moyen_Par_Structure[idx]) {
-    // Utiliser Consolidation si disponible
-    effectif_moyen = conso.Effectif_Moyen_Par_Structure[idx];
-    effectif_agco_moyen = conso.Effectif_AGCO_Moyen_Par_Structure ? conso.Effectif_AGCO_Moyen_Par_Structure[idx] : 0;
-    effectif_su_moyen = conso.Effectif_SU_Moyen_Par_Structure ? conso.Effectif_SU_Moyen_Par_Structure[idx] : 0;
-    age_moyen_global = conso.Age_Moyen_Global ? conso.Age_Moyen_Global[idx] : 0;
-    console.log('✓ Utilisation des colonnes Consolidation');
-  } else if (nb_structures > 0) {
-    // Fallback : calculer manuellement
-    console.log('⚠️ Colonnes manquantes, calcul manuel...');
-    console.log('nb_structures:', nb_structures);
-    const total_effectif = conso.Total_Effectif ? conso.Total_Effectif[idx] : 0;
-    const total_effectif_agco = conso.Total_Effectif_AGCO ? conso.Total_Effectif_AGCO[idx] : 0;
-    const total_effectif_su = conso.Total_Effectif_SU ? conso.Total_Effectif_SU[idx] : 0;
-    
-    console.log('total_effectif:', total_effectif);
-    
-    effectif_moyen = Math.round(total_effectif / nb_structures * 10) / 10;
-    effectif_agco_moyen = Math.round(total_effectif_agco / nb_structures * 10) / 10;
-    effectif_su_moyen = Math.round(total_effectif_su / nb_structures * 10) / 10;
-    
-    console.log('effectif_moyen calculé:', effectif_moyen);
-    
-    // Pour l'âge moyen, il faut agréger toutes les structures du périmètre
-    const structures = FICHE_STATE.data.structures;
-    const structuresDuType = structures.id.filter((id, i) => structures.Type[i] === perimetre);
-    
-    console.log('Structures du type', perimetre, ':', structuresDuType.length);
-    
-    let totalEffectifGroupe = 0;
-    let sumAgeGroupe = 0;
-    structuresDuType.forEach(sid => {
-      const dataStruct = getRHData(sid, annee);
-      if (dataStruct && dataStruct.effectif_total > 0) {
-        const ageStruct = (dataStruct.age_moyen_agco * dataStruct.effectif_agco + 
-                          dataStruct.age_moyen_su * dataStruct.effectif_su + 
-                          dataStruct.age_moyen_autres * dataStruct.effectif_autres) / dataStruct.effectif_total;
-        sumAgeGroupe += ageStruct * dataStruct.effectif_total;
-        totalEffectifGroupe += dataStruct.effectif_total;
-      }
-    });
-    
-    age_moyen_global = totalEffectifGroupe > 0 ? Math.round(sumAgeGroupe / totalEffectifGroupe * 10) / 10 : 0;
-    console.log('age_moyen_global calculé:', age_moyen_global);
-    console.log('✓ Calcul manuel terminé');
-  } else {
-    console.error('❌ Impossible de calculer : nb_structures = 0');
-  }
-  
-  const result = {
-    nb_structures: nb_structures,
-    total_effectif: conso.Total_Effectif ? conso.Total_Effectif[idx] : 0,
-    total_effectif_agco: conso.Total_Effectif_AGCO ? conso.Total_Effectif_AGCO[idx] : 0,
-    total_effectif_su: conso.Total_Effectif_SU ? conso.Total_Effectif_SU[idx] : 0,
-    pct_agco: conso.Pct_AGCO ? conso.Pct_AGCO[idx] : 0,
-    pct_su: conso.Pct_SU ? conso.Pct_SU[idx] : 0,
-    total_masse_salariale: conso.Total_Masse_Salariale ? conso.Total_Masse_Salariale[idx] : 0,
-    ms_par_agent: conso.Moyenne_MS_Par_Agent ? conso.Moyenne_MS_Par_Agent[idx] : 0,
-    
-    // Moyennes (depuis Consolidation OU calcul manuel en fallback)
-    age_moyen_global: age_moyen_global,
-    effectif_moyen: effectif_moyen,
-    effectif_agco_moyen: effectif_agco_moyen,
-    effectif_su_moyen: effectif_su_moyen
-  };
-  
-  console.log('=== OBJET RETOURNÉ ===');
-  console.log('effectif_moyen:', result.effectif_moyen);
-  console.log('age_moyen_global:', result.age_moyen_global);
-  
-  return result;
-}
+
 
 // Calculer le rang d'une structure parmi ses pairs
 function getRangStructure(structureId, annee, metrique = 'effectif_total') {
@@ -785,8 +644,17 @@ function getBudgetData(structureId, annee) {
   return results;
 }
 
+/**
+ * Retourne les données de consolidation pour un périmètre et une année
+ * Utilisé pour les comparaisons "vs périmètre" dans les sections
+ */
 function getConsolidationData(perimetre, annee) {
   const conso = FICHE_STATE.data.consolidation;
+  
+  if (!conso || !conso.Perimetre) {
+    return null;
+  }
+  
   const idx = conso.id.findIndex((id, i) => 
     conso.Perimetre[i] === perimetre && 
     conso.Annee[i] === annee
@@ -795,6 +663,7 @@ function getConsolidationData(perimetre, annee) {
   if (idx === -1) return null;
   
   return {
+    // === RH ===
     nb_structures: conso.Nb_Structures[idx] || 0,
     total_effectif: conso.Total_Effectif[idx] || 0,
     total_effectif_agco: conso.Total_Effectif_AGCO[idx] || 0,
@@ -803,19 +672,44 @@ function getConsolidationData(perimetre, annee) {
     moyenne_ms_par_agent: conso.Moyenne_MS_Par_Agent[idx] || 0,
     pct_agco: conso.Pct_AGCO[idx] || 0,
     pct_su: conso.Pct_SU[idx] || 0,
+    
+    // === MOYENNES RH (colonnes ajoutées dans Consolidation) ===
+    age_moyen_global: conso.Age_Moyen_Global?.[idx] || 0,                          // ← AJOUTÉ
+    effectif_moyen: conso.Effectif_Moyen_Par_Structure?.[idx] || 0,                // ← AJOUTÉ
+    effectif_agco_moyen: conso.Effectif_AGCO_Moyen_Par_Structure?.[idx] || 0,      // ← AJOUTÉ
+    effectif_su_moyen: conso.Effectif_SU_Moyen_Par_Structure?.[idx] || 0,          // ← AJOUTÉ
+    
+    // === VÉHICULES ===
     total_vehicules: conso.Total_Vehicules[idx] || 0,
     taux_vetuste_moyen: conso.Taux_Vetuste_Moyen[idx] || 0,
     total_budget_vehicules: conso.Total_Budget_Vehicules[idx] || 0,
+    
+    // === MOYENNES VÉHICULES (colonnes ajoutées) ===
+    moy_nb_vehicules: conso.Moy_Nb_Vehicules?.[idx] || 0,                          // ← AJOUTÉ
+    moy_taux_vetuste: conso.Moy_Taux_Vetuste?.[idx] || 0,                          // ← AJOUTÉ
+    moy_budget_vehicules: conso.Moy_Budget_Vehicules?.[idx] || 0,                  // ← AJOUTÉ
+    moy_ratio_vehicule_agent: conso.Moy_Ratio_Vehicule_Agent?.[idx] || 0,          // ← AJOUTÉ
+    
+    // === BUDGET (notifs BOP) ===
     total_notif_ae: conso.Total_Notif_AE[idx] || 0,
     total_notif_cp: conso.Total_Notif_CP[idx] || 0,
     total_conso_ae: conso.Total_Conso_AE[idx] || 0,
     total_conso_cp: conso.Total_Conso_CP[idx] || 0,
     taux_conso_moyen_ae: conso.Taux_Conso_Moyen_AE[idx] || 0,
     taux_conso_moyen_cp: conso.Taux_Conso_Moyen_CP[idx] || 0,
+    
+    // === FRAIS DE MISSION ===
     total_frais_mission: conso.Total_Frais_Mission[idx] || 0,
     moyenne_frais_par_agent: conso.Moyenne_Frais_Par_Agent[idx] || 0,
+    
+    // === INFORMATIQUE ===
     total_budget_it: conso.Total_Budget_IT[idx] || 0,
-    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0
+    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0,
+    
+    // === MOYENNES INFORMATIQUE (colonnes ajoutées) ===
+    moy_budget_it_par_agent: conso.Moy_Budget_IT_Par_Agent?.[idx] || 0,            // ← AJOUTÉ
+    moy_ratio_poste_agent: conso.Moy_Ratio_Poste_Agent?.[idx] || 0,                // ← AJOUTÉ
+    moy_budget_it_moyen_4ans: conso.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0 // ← AJOUTÉ
   };
 }
 
