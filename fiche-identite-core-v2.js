@@ -706,6 +706,12 @@ function getConsolidationData(perimetre, annee) {
     total_frais_mission: conso.Total_Frais_Mission[idx] || 0,
     moyenne_frais_par_agent: conso.Moyenne_Frais_Par_Agent[idx] || 0,
     
+    // === MOYENNES FRAIS DE MISSION (colonnes ajoutées) ===
+    moy_frais_par_structure: conso.Moy_Frais_Par_Structure?.[idx] || 0,         
+    moy_frais_par_agent: conso.Moy_Frais_Par_Agent?.[idx] || conso.Moyenne_Frais_Par_Agent?.[idx] || 0, // Fallback vers Moyenne_Frais_Par_Agent
+    moy_formation_par_agent: conso.Moy_Formation_Par_Agent?.[idx] || 0,         
+    moy_autres_par_agent: conso.Moy_Autres_Par_Agent?.[idx] || 0,               
+    
     // === INFORMATIQUE ===
     total_budget_it: conso.Total_Budget_IT[idx] || 0,
     moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0,
@@ -1362,34 +1368,25 @@ function getFraisMissionData(structureId, annee) {
  * @returns {Object|null} Moyennes consolidées
  */
 function getFraisMissionMoyennes(perimetre, annee) {
-  const consolidation = FICHE_STATE.data.consolidation;
-  if (!consolidation) {
-    console.warn('⚠️ Table Consolidation non disponible pour Frais Mission');
-    return null;
-  }
+  const conso = getConsolidationData(perimetre, annee);
   
-  const idx = consolidation.id.findIndex((id, i) => 
-    consolidation.Perimetre?.[i] === perimetre && 
-    consolidation.Annee?.[i] === annee
-  );
-  
-  if (idx === -1) {
+  if (!conso) {
     console.warn(`⚠️ Pas de données Consolidation pour périmètre="${perimetre}" année=${annee}`);
     return null;
   }
   
   console.log(`✓ Consolidation trouvée pour ${perimetre} ${annee}:`, {
-    Moy_Frais_Par_Structure: consolidation.Moy_Frais_Par_Structure?.[idx],
-    Moy_Frais_Par_Agent: consolidation.Moy_Frais_Par_Agent?.[idx],
-    Moy_Formation_Par_Agent: consolidation.Moy_Formation_Par_Agent?.[idx],
-    Moy_Autres_Par_Agent: consolidation.Moy_Autres_Par_Agent?.[idx]
+    moy_frais_par_structure: conso.moy_frais_par_structure,
+    moy_frais_par_agent: conso.moy_frais_par_agent,
+    moy_formation_par_agent: conso.moy_formation_par_agent,
+    moy_autres_par_agent: conso.moy_autres_par_agent
   });
   
   return {
-    moy_frais_par_structure: consolidation.Moy_Frais_Par_Structure?.[idx] || 0,
-    moy_frais_par_agent: consolidation.Moy_Frais_Par_Agent?.[idx] || 0,
-    moy_formation_par_agent: consolidation.Moy_Formation_Par_Agent?.[idx] || 0,
-    moy_autres_par_agent: consolidation.Moy_Autres_Par_Agent?.[idx] || 0
+    moy_frais_par_structure: conso.moy_frais_par_structure || 0,
+    moy_frais_par_agent: conso.moy_frais_par_agent || 0,
+    moy_formation_par_agent: conso.moy_formation_par_agent || 0,
+    moy_autres_par_agent: conso.moy_autres_par_agent || 0
   };
 }
 
