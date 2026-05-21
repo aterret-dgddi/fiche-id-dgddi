@@ -1845,7 +1845,7 @@ function refreshVehicules(structureId, annee) {
   }
   
   // 5. Coût fonctionnement par véhicule
-  document.getElementById('veh-cout-value').textContent = formatEuro(data.cout_fonct_vehicule);
+  document.getElementById('veh-cout-value').textContent = formatCurrency(data.cout_fonct_vehicule, 0);
   
   // Évolution coût
   if (dataN1 && dataN1.cout_fonct_vehicule) {
