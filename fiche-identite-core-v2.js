@@ -561,15 +561,66 @@ function getVehiculesData(structureId, annee) {
   
   if (idx === -1) return null;
   
+  const nombre_total = veh.Nombre_Total[idx] || 0;
+  const budget_fonctionnement = veh.Budget_Fonctionnement_CP[idx] || 0;
+  
   return {
-    nombre_total: veh.Nombre_Total[idx] || 0,
+    nombre_total: nombre_total,
     nombre_vetuste: veh.Nombre_Vetuste[idx] || 0,
     taux_vetuste: veh.Taux_Vetuste[idx] || 0,
-    budget_fonctionnement: veh.Budget_Fonctionnement_CP[idx] || 0,
+    budget_fonctionnement: budget_fonctionnement,
     budget_investissement: veh.Budget_Investissement_CP[idx] || 0,
     budget_total: veh.Budget_Total_CP[idx] || 0,
     ratio_vehicule_agent: veh.Ratio_Vehicule_Agent_Total[idx] || 0,
-    ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0
+    ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0,
+    cout_fonct_vehicule: nombre_total > 0 ? budget_fonctionnement / nombre_total : 0
+  };
+}
+
+function getFraisMissionData(structureId, annee) {
+  const fm = FICHE_STATE.data.frais_mission;
+  const idx = fm.id.findIndex((id, i) => 
+    fm.Structure[i] === structureId && 
+    fm.Annee[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    formation_transport: fm.Formation_Transport[idx] || 0,
+    formation_repas: fm.Formation_Repas[idx] || 0,
+    formation_hebergement: fm.Formation_Hebergement[idx] || 0,
+    autres_transport: fm.Autres_Transport[idx] || 0,
+    autres_repas: fm.Autres_Repas[idx] || 0,
+    autres_hebergement: fm.Autres_Hebergement[idx] || 0,
+    total_formation: fm.Total_Formation[idx] || 0,
+    total_autres: fm.Total_Autres[idx] || 0,
+    montant_total: fm.Montant_Total[idx] || 0,
+    frais_par_agent: fm.Frais_Par_Agent[idx] || 0,
+    pct_formation: fm.Pct_Formation[idx] || 0
+  };
+}
+
+function getInformatiqueData(structureId, annee) {
+  const it = FICHE_STATE.data.informatique;
+  if (!it || !it.id) return null;
+  
+  const idx = it.id.findIndex((id, i) => 
+    it.Structure && it.Structure[i] === structureId && 
+    it.Annee && it.Annee[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    nb_portables: (it.Nb_Portables && it.Nb_Portables[idx]) || 0,
+    nb_fixes: (it.Nb_Fixes && it.Nb_Fixes[idx]) || 0,
+    nb_postes_travail: (it.Nb_Postes_Travail && it.Nb_Postes_Travail[idx]) || 0,
+    budget_it: (it.Budget_IT_CP && it.Budget_IT_CP[idx]) || 0,
+    budget_it_par_agent: (it.Budget_IT_Par_Agent && it.Budget_IT_Par_Agent[idx]) || 0,
+    budget_it_par_poste: (it.Budget_IT_Par_Poste && it.Budget_IT_Par_Poste[idx]) || 0,
+    ratio_poste_agent: (it.Ratio_Poste_Agent && it.Ratio_Poste_Agent[idx]) || 0,
+    pct_portables: (it.Pct_Portables && it.Pct_Portables[idx]) || 0
   };
 }
 
@@ -940,6 +991,47 @@ async function saveCommentaire(structureId, annee, section, commentaire) {
 // EXPORT PDF/HTML
 // ═══════════════════════════════════════════════════════════════
 
+function exportToPDF() {
+  // Utiliser html2pdf.js
+  const element = document.getElementById('fiche-content');
+  const opt = {
+    margin: 10,
+    filename: `fiche-identite-${FICHE_STATE.structure.sigle}-${FICHE_STATE.annee}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  
+  html2pdf().set(opt).from(element).save();
+}
+
+function exportToHTML() {
+  const element = document.getElementById('fiche-content');
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Fiche Identité ${FICHE_STATE.structure.sigle} - ${FICHE_STATE.annee}</title>
+  <style>${document.querySelector('style').innerHTML}</style>
+</head>
+<body>
+  ${element.innerHTML}
+</body>
+</html>`;
+  
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fiche-identite-${FICHE_STATE.structure.sigle}-${FICHE_STATE.annee}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+
 function showLoader(message = 'Chargement...') {
   const loader = document.getElementById('loader');
   if (loader) {
@@ -1269,38 +1361,6 @@ function getFraisMissionData(structureId, annee) {
  * @param {number} annee - Année
  * @returns {Object|null} Moyennes consolidées
  */
-
-/**
- * Récupère les données informatiques pour une structure et une année
- * @param {number} structureId - ID de la structure
- * @param {number} annee - Année
- * @returns {Object|null} Données informatiques
- */
-function getInformatiqueData(structureId, annee) {
-  const informatique = FICHE_STATE.data.informatique;
-  if (!informatique) return null;
-  
-  const idx = informatique.id.findIndex((id, i) => 
-    informatique.Structure[i] === structureId && 
-    informatique.Annee[i] === annee
-  );
-  
-  if (idx === -1) return null;
-  
-  return {
-    nb_portables: informatique.Nb_Portables?.[idx] || 0,
-    nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
-    nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
-    budget_it: informatique.Budget_IT_CP?.[idx] || 0,
-    budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
-    effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
-    ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
-    pct_portables: informatique.Pct_Portables?.[idx] || 0,
-    budget_it_par_agent: informatique.Budget_IT_Par_Agent?.[idx] || 0,
-    budget_it_moyen_par_agent_4ans: informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
-  };
-}
-
 function getFraisMissionMoyennes(perimetre, annee) {
   const consolidation = FICHE_STATE.data.consolidation;
   if (!consolidation) return null;
@@ -1383,6 +1443,150 @@ function getFraisMissionMultiAnnees(structureId, annees) {
  * @param {number} structureId - ID de la structure
  * @param {number} annee - Année
  * @returns {Object|null} Données informatique
+ */
+function getInformatiqueData(structureId, annee) {
+  const informatique = FICHE_STATE.data.informatique;
+  if (!informatique) return null;
+  
+  const idx = informatique.id.findIndex((id, i) => 
+    informatique.Structure[i] === structureId && 
+    informatique.Annee[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    nb_portables: informatique.Nb_Portables?.[idx] || 0,
+    nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
+    nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
+    budget_it_cp: informatique.Budget_IT_CP?.[idx] || 0,
+    budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
+    effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
+    ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
+    pct_portables: informatique.Pct_Portables?.[idx] || 0,
+    budget_it_par_agent: informatique.Budget_IT_Par_Agent?.[idx] || 0,
+    budget_it_moyen_par_agent_4ans: informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
+  };
+}
+
+/**
+ * Récupère les moyennes consolidées pour informatique
+ * @param {string} perimetre - Type de périmètre (National, DI, SCN, Outremer, Metropole)
+ * @param {number} annee - Année
+ * @returns {Object|null} Moyennes consolidées
+ */
+function getInformatiqueMoyennes(perimetre, annee) {
+  const consolidation = FICHE_STATE.data.consolidation;
+  if (!consolidation) return null;
+  
+  const idx = consolidation.id.findIndex((id, i) => 
+    consolidation.Perimetre?.[i] === perimetre && 
+    consolidation.Annee?.[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    moy_ratio_poste_agent: consolidation.Moy_Ratio_Poste_Agent?.[idx] || 0,
+    moy_budget_it_par_agent: consolidation.Moy_Budget_IT_Par_Agent?.[idx] || 0,
+    moy_budget_it_moyen_par_agent_4ans: consolidation.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
+  };
+}
+
+/**
+ * Détermine le périmètre de comparaison pour une structure (IT)
+ * @param {number} structureId - ID de la structure
+ * @returns {string} Périmètre (DI, SCN, Outremer, Metropole)
+ */
+function getPerimetreInformatique(structureId) {
+  const structures = FICHE_STATE.data.structures;
+  if (!structures) return 'National';
+  
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1) return 'National';
+  
+  const type = structures.Type?.[idx];
+  const estOutremer = structures.Est_Outremer?.[idx];
+  
+  if (type === 'SCN') return 'SCN';
+  if (type === 'DI' && estOutremer) return 'Outremer';
+  if (type === 'DI' && !estOutremer) return 'Metropole';
+  if (type === 'DR') return 'Metropole';
+  
+  return 'National';
+}
+
+/**
+ * Calcule l'intitulé du périmètre pour l'affichage (IT)
+ * @param {string} perimetre - Code périmètre
+ * @returns {string} Libellé pour affichage
+ */
+function getLibellePerimetreInformatique(perimetre) {
+  const labels = {
+    'Metropole': 'DI Métropole',
+    'Outremer': 'Outre-Mer',
+    'SCN': 'SCN',
+    'National': 'National'
+  };
+  return labels[perimetre] || perimetre;
+}
+
+/**
+ * Récupère les données informatique pour plusieurs années
+ * @param {number} structureId - ID de la structure
+ * @param {Array<number>} annees - Liste des années à récupérer
+ * @returns {Array<Object>} Données par année
+ */
+function getInformatiqueMultiAnnees(structureId, annees) {
+  return annees.map(annee => {
+    const data = getInformatiqueData(structureId, annee);
+    return {
+      annee: annee,
+      ...(data || {})
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE INFORMATIQUE
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Récupère les données informatique pour une structure et une année
+ * @param {number} structureId - ID de la structure
+ * @param {number} annee - Année
+ * @returns {Object|null} Données informatique
+ */
+function getInformatiqueData(structureId, annee) {
+  const informatique = FICHE_STATE.data.informatique;
+  if (!informatique) return null;
+  
+  const idx = informatique.id.findIndex((id, i) => 
+    informatique.Structure[i] === structureId && 
+    informatique.Annee[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    nb_portables: informatique.Nb_Portables?.[idx] || 0,
+    nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
+    nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
+    budget_it: informatique.Budget_IT_CP?.[idx] || 0,
+    budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
+    effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
+    ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
+    pct_portables: informatique.Pct_Portables?.[idx] || 0,
+    budget_it_par_agent: informatique.Budget_IT_Par_Agent?.[idx] || 0,
+    budget_it_moyen_par_agent_4ans: informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
+  };
+}
+
+/**
+ * Récupère les moyennes consolidées pour informatique
+ * @param {string} perimetre - Type de périmètre (National, DI, SCN, Outremer, Metropole)
+ * @param {number} annee - Année
+ * @returns {Object|null} Moyennes consolidées
  */
 function getInformatiqueMoyennes(perimetre, annee) {
   const consolidation = FICHE_STATE.data.consolidation;
@@ -1638,6 +1842,66 @@ function refreshVehicules(structureId, annee) {
     `;
   } else {
     document.getElementById('veh-ratio-comp').textContent = '';
+  }
+  
+  // 5. Coût fonctionnement par véhicule
+  document.getElementById('veh-cout-value').textContent = formatEuro(data.cout_fonct_vehicule);
+  
+  // Évolution coût
+  if (dataN1 && dataN1.cout_fonct_vehicule) {
+    const evolCout = data.cout_fonct_vehicule - dataN1.cout_fonct_vehicule;
+    const evolPctCout = dataN1.cout_fonct_vehicule > 0 ? (evolCout / dataN1.cout_fonct_vehicule) * 100 : 0;
+    document.getElementById('veh-cout-evol').innerHTML = `
+      <span style="color:${evolCout >= 0 ? '#ef4444' : '#10b981'};">
+        ${evolCout >= 0 ? '▲' : '▼'} ${Math.abs(evolPctCout).toFixed(1)}%
+      </span>
+      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
+    `;
+  } else {
+    document.getElementById('veh-cout-evol').textContent = '';
+  }
+  
+  // Comparaison coût vs périmètre (calculer depuis Moy_Budget_Vehicules / Moy_Nb_Vehicules)
+  if (consol && consol.Moy_Budget_Vehicules && consol.Moy_Nb_Vehicules && consol.Moy_Nb_Vehicules > 0) {
+    const moyenneCout = consol.Moy_Budget_Vehicules / consol.Moy_Nb_Vehicules;
+    const ecart = data.cout_fonct_vehicule - moyenneCout;
+    const ecartPct = moyenneCout > 0 ? (ecart / moyenneCout) * 100 : 0;
+    document.getElementById('veh-cout-comp').innerHTML = `
+      <span style="color:var(--gris2);">
+        ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}
+      </span>
+    `;
+  } else {
+    document.getElementById('veh-cout-comp').textContent = '';
+  }
+  
+  // 6. Ratio véhicule / SU
+  document.getElementById('veh-ratio-su-value').textContent = formatNumber(data.ratio_vehicule_su, 3);
+  
+  // Évolution ratio SU
+  if (dataN1 && dataN1.ratio_vehicule_su) {
+    const evolRatioSU = data.ratio_vehicule_su - dataN1.ratio_vehicule_su;
+    document.getElementById('veh-ratio-su-evol').innerHTML = `
+      <span style="color:${evolRatioSU >= 0 ? '#10b981' : '#ef4444'};">
+        ${evolRatioSU >= 0 ? '▲' : '▼'} ${Math.abs(evolRatioSU).toFixed(3)}
+      </span>
+      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
+    `;
+  } else {
+    document.getElementById('veh-ratio-su-evol').textContent = '';
+  }
+  
+  // Comparaison ratio SU vs périmètre (utilise Moy_Ratio_Vehicule_SU)
+  if (consol && consol.Moy_Ratio_Vehicule_SU && consol.Moy_Ratio_Vehicule_SU > 0) {
+    const ecart = data.ratio_vehicule_su - consol.Moy_Ratio_Vehicule_SU;
+    const ecartPct = (ecart / consol.Moy_Ratio_Vehicule_SU) * 100;
+    document.getElementById('veh-ratio-su-comp').innerHTML = `
+      <span style="color:var(--gris2);">
+        ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}
+      </span>
+    `;
+  } else {
+    document.getElementById('veh-ratio-su-comp').textContent = '';
   }
   
   // ========== GRAPHIQUES ==========

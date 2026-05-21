@@ -376,7 +376,7 @@
             ms_par_agent: consolidationNationaleData.Moyenne_MS_Par_Agent?.[i] || 0,
             age_moyen: consolidationNationaleData.Age_Moyen_Global?.[i] || 0,
             cout_fonct_vehicule: totalVehicules > 0 ? totalBudgetVehicules / totalVehicules : 0,
-            ratio_vehicule_su: consolidationNationaleData.Ratio_Vehicule_Agent?.[i] || 0, // utiliser le ratio global
+            ratio_vehicule_su: totalEffectifSU > 0 ? totalVehicules / totalEffectifSU : 0,
             frais_par_agent: consolidationNationaleData.Moyenne_Frais_Par_Agent?.[i] || 0,
             it_par_agent: consolidationNationaleData.Moyenne_Budget_IT_Par_Agent?.[i] || 0,
             it_par_agent_lisse: consolidationNationaleData.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[i] || 0
@@ -389,22 +389,26 @@
     function getConsolidation(structureId, annee) {
       for (let i = 0; i < consolidationData.Structure.length; i++) {
         if (consolidationData.Structure[i] === structureId && consolidationData.Annee[i] === annee) {
+          const nb_vehicules = consolidationData.Nb_Vehicules?.[i] || 0;
+          const budget_vehicules = consolidationData.Budget_Vehicules?.[i] || 0;
+          const effectif_su = consolidationData.Effectif_SU?.[i] || 0;
+          
           return {
             effectif_total: consolidationData.Effectif_Total?.[i] || 0,
-            effectif_su: consolidationData.Effectif_SU?.[i] || 0,
+            effectif_su: effectif_su,
             effectif_agco: consolidationData.Effectif_AGCO?.[i] || 0,
             effectif_autres: consolidationData.Effectif_Autres?.[i] || 0,
             age_moyen: consolidationData.Age_Moyen?.[i] || 0,
             masse_salariale: consolidationData.Masse_Salariale?.[i] || 0,
             ms_par_agent: consolidationData.MS_Par_Agent?.[i] || 0,
             
-            nb_vehicules: consolidationData.Nb_Vehicules?.[i] || 0,
+            nb_vehicules: nb_vehicules,
             nb_vetustes: consolidationData.Nb_Vehicules_Vetustes?.[i] || 0,
             taux_vetuste: consolidationData.Taux_Vetuste?.[i] || 0,
             ratio_vehicule_agent: consolidationData.Ratio_Vehicule_Agent?.[i] || 0,
-            ratio_vehicule_su: consolidationData.Ratio_Vehicule_SU?.[i] || 0,
-            budget_vehicules: consolidationData.Budget_Vehicules?.[i] || 0,
-            cout_fonct_vehicule: consolidationData.Cout_Fonctionnement_Par_Vehicule?.[i] || 0,
+            ratio_vehicule_su: effectif_su > 0 ? nb_vehicules / effectif_su : 0,
+            budget_vehicules: budget_vehicules,
+            cout_fonct_vehicule: nb_vehicules > 0 ? budget_vehicules / nb_vehicules : 0,
             
             transport: consolidationData.Transport?.[i] || 0,
             hebergement: consolidationData.Hebergement?.[i] || 0,
