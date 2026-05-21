@@ -19,6 +19,7 @@ const FICHE_STATE = {
     informatique: null,
     notif_bop: null,
     consolidation: null,
+	consolidation_structure: null,
     commentaires: null
   }
 };
@@ -77,6 +78,85 @@ function getConsolidationData(perimetre, annee) {
       };
     }
   }
+  return null;
+}
+
+/**
+ * Retourne les données consolidées pré-calculées pour une structure et une année
+ * Utilise la table Consolidation_Structure qui contient tous les indicateurs
+ * déjà calculés côté serveur (incluant DR rattachées pour les DI)
+ */
+function getConsolidationStructureData(structureId, annee) {
+  const consolStruct = FICHE_STATE.data.consolidation_structure;
+  
+  if (!consolStruct || !consolStruct.Structure) {
+    console.warn('⚠️ Table Consolidation_Structure non disponible');
+    return null;
+  }
+  
+  // Trouver la ligne correspondante
+  for (let i = 0; i < consolStruct.Structure.length; i++) {
+    if (consolStruct.Structure[i] === structureId && consolStruct.Annee[i] === annee) {
+      console.log(`✓ Consolidation_Structure trouvée pour structure ${structureId}, année ${annee}`);
+      
+      return {
+        // === RH ===
+        effectif_total: consolStruct.Effectif_Total?.[i] || 0,
+        effectif_agco: consolStruct.Effectif_AGCO?.[i] || 0,
+        effectif_su: consolStruct.Effectif_SU?.[i] || 0,
+        effectif_autres: consolStruct.Effectif_Autres?.[i] || 0,
+        age_moyen: consolStruct.Age_Moyen?.[i] || 0,
+        masse_salariale: consolStruct.Masse_Salariale?.[i] || 0,
+        ms_par_agent: consolStruct.MS_Par_Agent?.[i] || 0,
+        
+        // Calculs dérivés
+        age_moyen_agco: consolStruct.Age_Moyen?.[i] || 0,
+        age_moyen_su: consolStruct.Age_Moyen?.[i] || 0,
+        age_moyen_autres: consolStruct.Age_Moyen?.[i] || 0,
+        pct_agco: consolStruct.Effectif_Total?.[i] > 0 
+          ? Math.round((consolStruct.Effectif_AGCO?.[i] || 0) / consolStruct.Effectif_Total[i] * 1000) / 10 
+          : 0,
+        pct_su: consolStruct.Effectif_Total?.[i] > 0 
+          ? Math.round((consolStruct.Effectif_SU?.[i] || 0) / consolStruct.Effectif_Total[i] * 1000) / 10 
+          : 0,
+        pct_autres: consolStruct.Effectif_Total?.[i] > 0 
+          ? Math.round((consolStruct.Effectif_Autres?.[i] || 0) / consolStruct.Effectif_Total[i] * 1000) / 10 
+          : 0,
+        
+        // === VÉHICULES ===
+        nb_vehicules: consolStruct.Nb_Vehicules?.[i] || 0,
+        nb_vehicules_vetustes: consolStruct.Nb_Vehicules_Vetustes?.[i] || 0,
+        taux_vetuste: consolStruct.Taux_Vetuste?.[i] || 0,
+        ratio_vehicule_agent: consolStruct.Ratio_Vehicule_Agent?.[i] || 0,
+        ratio_vehicule_su: consolStruct.Ratio_Vehicule_SU?.[i] || 0,
+        budget_vehicules: consolStruct.Budget_Vehicules?.[i] || 0,
+        cout_fonctionnement_vehicule: consolStruct.Cout_Fonctionnement_Par_Vehicule?.[i] || 0,
+        
+        // === FRAIS DE MISSION ===
+        frais_transport: consolStruct.Transport?.[i] || 0,
+        frais_hebergement: consolStruct.Hebergement?.[i] || 0,
+        frais_repas: consolStruct.Repas?.[i] || 0,
+        frais_formation: consolStruct.Formation?.[i] || 0,
+        frais_autres_missions: consolStruct.Autres_Missions?.[i] || 0,
+        frais_mission_par_agent: consolStruct.Frais_Mission_Par_Agent?.[i] || 0,
+        total_frais_mission: (consolStruct.Transport?.[i] || 0) + 
+                            (consolStruct.Hebergement?.[i] || 0) + 
+                            (consolStruct.Repas?.[i] || 0),
+        
+        // === INFORMATIQUE ===
+        postes_fixes: consolStruct.Postes_Fixes?.[i] || 0,
+        portables: consolStruct.Portables?.[i] || 0,
+        nb_postes_total: consolStruct.Nb_Postes_Total?.[i] || 0,
+        taux_equipement: consolStruct.Taux_Equipement?.[i] || 0,
+        budget_it_cp: consolStruct.Budget_IT_CP?.[i] || 0,
+        budget_it_4ans: consolStruct.Budget_IT_4ans?.[i] || 0,
+        budget_it_par_agent: consolStruct.Budget_IT_Par_Agent?.[i] || 0,
+        budget_it_par_agent_4ans: consolStruct.Budget_IT_Par_Agent_4ans?.[i] || 0
+      };
+    }
+  }
+  
+  console.warn(`⚠️ Aucune donnée Consolidation_Structure pour Structure ${structureId}, Année ${annee}`);
   return null;
 }
 
@@ -153,7 +233,7 @@ async function loadAllData() {
     showLoader('Chargement des données...');
     
     // Charger toutes les tables en parallèle
-    const [structures, rh, vehicules, frais_mission, informatique, notif_bop, consolidation, commentaires, infbud40] = await Promise.all([
+    const [structures, rh, vehicules, frais_mission, informatique, notif_bop, consolidation, consolidation_structure, commentaires, infbud40] = await Promise.all([
       grist.docApi.fetchTable('Structures'),
       grist.docApi.fetchTable('RH'),
       grist.docApi.fetchTable('Vehicules'),
@@ -161,6 +241,7 @@ async function loadAllData() {
       grist.docApi.fetchTable('Informatique'),
       grist.docApi.fetchTable('Notif_BOP'),
       grist.docApi.fetchTable('Consolidation'),
+	  grist.docApi.fetchTable('Consolidation_Structure'),
       grist.docApi.fetchTable('Commentaires'),
       grist.docApi.fetchTable('INFBUD40_2')
     ]);
@@ -172,6 +253,7 @@ async function loadAllData() {
     FICHE_STATE.data.informatique = informatique;
     FICHE_STATE.data.notif_bop = notif_bop;
     FICHE_STATE.data.consolidation = consolidation;
+	FICHE_STATE.data.consolidation_structure = consolidation_structure;
     FICHE_STATE.data.commentaires = commentaires;
     FICHE_STATE.data.infbud40 = infbud40;
     
@@ -192,6 +274,7 @@ async function loadAllData() {
       informatique: informatique.id.length,
       notif_bop: notif_bop.id.length,
       consolidation: consolidation.id.length,
+	  consolidation_structure: consolidation_structure.id.length,
       commentaires: commentaires.id.length,
       infbud40: infbud40.id.length
     });
@@ -418,6 +501,17 @@ function getRHData(structureId, annee) {
   const rh = FICHE_STATE.data.rh;
   
   console.log(`getRHData appelée pour structureId=${structureId}, annee=${annee}`);
+  
+    // ✨ OPTIMISATION : Essayer d'abord Consolidation_Structure
+  const consolData = getConsolidationStructureData(structureId, annee);
+  
+  if (consolData && consolData.effectif_total > 0) {
+    console.log('✓ Utilisation Consolidation_Structure (optimisé)');
+    return consolData;
+  }
+  
+  // ⚠️ FALLBACK : Calcul manuel (ancien code)
+  console.warn('⚠️ Fallback sur calcul manuel RH');
   
   // Liste des structures à agréger
   let structureIds = [structureId];
