@@ -389,42 +389,42 @@
     function getConsolidation(structureId, annee) {
       for (let i = 0; i < consolidationData.Structure.length; i++) {
         if (consolidationData.Structure[i] === structureId && consolidationData.Annee[i] === annee) {
-          const nb_vehicules = consolidationData.Nb_Vehicules?.[i] || 0;
-          const budget_vehicules = consolidationData.Budget_Vehicules?.[i] || 0;
-          const effectif_su = consolidationData.Effectif_SU?.[i] || 0;
+          const nb_vehicules = Number(consolidationData.Nb_Vehicules?.[i]) || 0;
+          const budget_vehicules = Number(consolidationData.Budget_Vehicules?.[i]) || 0;
+          const effectif_su = Number(consolidationData.Effectif_SU?.[i]) || 0;
           
           return {
-            effectif_total: consolidationData.Effectif_Total?.[i] || 0,
+            effectif_total: Number(consolidationData.Effectif_Total?.[i]) || 0,
             effectif_su: effectif_su,
-            effectif_agco: consolidationData.Effectif_AGCO?.[i] || 0,
-            effectif_autres: consolidationData.Effectif_Autres?.[i] || 0,
-            age_moyen: consolidationData.Age_Moyen?.[i] || 0,
-            masse_salariale: consolidationData.Masse_Salariale?.[i] || 0,
-            ms_par_agent: consolidationData.MS_Par_Agent?.[i] || 0,
+            effectif_agco: Number(consolidationData.Effectif_AGCO?.[i]) || 0,
+            effectif_autres: Number(consolidationData.Effectif_Autres?.[i]) || 0,
+            age_moyen: Number(consolidationData.Age_Moyen?.[i]) || 0,
+            masse_salariale: Number(consolidationData.Masse_Salariale?.[i]) || 0,
+            ms_par_agent: Number(consolidationData.MS_Par_Agent?.[i]) || 0,
             
             nb_vehicules: nb_vehicules,
-            nb_vetustes: consolidationData.Nb_Vehicules_Vetustes?.[i] || 0,
-            taux_vetuste: consolidationData.Taux_Vetuste?.[i] || 0,
-            ratio_vehicule_agent: consolidationData.Ratio_Vehicule_Agent?.[i] || 0,
+            nb_vetustes: Number(consolidationData.Nb_Vehicules_Vetustes?.[i]) || 0,
+            taux_vetuste: Number(consolidationData.Taux_Vetuste?.[i]) || 0,
+            ratio_vehicule_agent: Number(consolidationData.Ratio_Vehicule_Agent?.[i]) || 0,
             ratio_vehicule_su: effectif_su > 0 ? nb_vehicules / effectif_su : 0,
             budget_vehicules: budget_vehicules,
             cout_fonct_vehicule: nb_vehicules > 0 ? budget_vehicules / nb_vehicules : 0,
             
-            transport: consolidationData.Transport?.[i] || 0,
-            hebergement: consolidationData.Hebergement?.[i] || 0,
-            repas: consolidationData.Repas?.[i] || 0,
-            formation: consolidationData.Formation?.[i] || 0,
-            autres_missions: consolidationData.Autres_Missions?.[i] || 0,
-            frais_par_agent: consolidationData.Frais_Mission_Par_Agent?.[i] || 0,
+            transport: Number(consolidationData.Transport?.[i]) || 0,
+            hebergement: Number(consolidationData.Hebergement?.[i]) || 0,
+            repas: Number(consolidationData.Repas?.[i]) || 0,
+            formation: Number(consolidationData.Formation?.[i]) || 0,
+            autres_missions: Number(consolidationData.Autres_Missions?.[i]) || 0,
+            frais_par_agent: Number(consolidationData.Frais_Mission_Par_Agent?.[i]) || 0,
             
-            postes_fixes: consolidationData.Postes_Fixes?.[i] || 0,
-            portables: consolidationData.Portables?.[i] || 0,
-            nb_postes_total: consolidationData.Nb_Postes_Total?.[i] || 0,
-            taux_equipement: consolidationData.Taux_Equipement?.[i] || 0,
-            budget_it: consolidationData.Budget_IT_CP?.[i] || 0,
-            budget_it_4ans: consolidationData.Budget_IT_4ans?.[i] || 0,
-            it_par_agent: consolidationData.IT_Par_Agent?.[i] || 0,
-            it_par_agent_lisse: consolidationData.IT_Par_Agent_Lisse?.[i] || 0
+            postes_fixes: Number(consolidationData.Postes_Fixes?.[i]) || 0,
+            portables: Number(consolidationData.Portables?.[i]) || 0,
+            nb_postes_total: Number(consolidationData.Nb_Postes_Total?.[i]) || 0,
+            taux_equipement: Number(consolidationData.Taux_Equipement?.[i]) || 0,
+            budget_it: Number(consolidationData.Budget_IT_CP?.[i]) || 0,
+            budget_it_4ans: Number(consolidationData.Budget_IT_4ans?.[i]) || 0,
+            it_par_agent: Number(consolidationData.IT_Par_Agent?.[i]) || 0,
+            it_par_agent_lisse: Number(consolidationData.IT_Par_Agent_Lisse?.[i]) || 0
           };
         }
       }
@@ -598,6 +598,9 @@
       totaux.nb_postes_total = totaux.postes_fixes + totaux.portables;
       totaux.taux_equipement = totaux.effectif_total > 0 ? totaux.nb_postes_total / totaux.effectif_total : 0;
       totaux.it_par_agent = totaux.effectif_total > 0 ? totaux.budget_it / totaux.effectif_total : 0;
+      
+      console.log('🚗 DEBUG Véhicules - Total:', totaux.nb_vehicules, 'Vétustes:', totaux.nb_vetustes);
+      structures.forEach(s => console.log(`  ${s.sigle}: ${s.nb_vehicules} véhicules (${typeof s.nb_vehicules})`));
       totaux.it_par_agent_lisse = totaux.effectif_total > 0 ? totaux.budget_it_4ans / totaux.effectif_total : 0;
       
       const moyennes = getMoyennes(ANNEE);
