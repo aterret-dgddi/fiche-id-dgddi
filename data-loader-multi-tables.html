@@ -519,7 +519,33 @@ function handleFile(file) {
     reader.onload = (e) => {
       const wb = XLSX.read(e.target.result, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(ws);
+      
+      // FORCER la lecture de TOUTES les colonnes, même vides
+      const data = XLSX.utils.sheet_to_json(ws, {
+        defval: '',  // Valeur par défaut pour cellules vides
+        raw: false,  // Ne pas formater les valeurs
+        blankrows: false  // Ignorer lignes vides
+      });
+      
+      // DEBUG: Afficher l'en-tête brut
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      console.log('=== EN-TÊTE BRUT DU FICHIER EXCEL ===');
+      console.log('Range du fichier:', ws['!ref']);
+      
+      // Lire la première ligne (en-têtes) manuellement
+      const headers = [];
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+        const cell = ws[cellAddress];
+        const header = cell ? cell.v : `Colonne_${col}`;
+        headers.push(header);
+        console.log(`  Colonne ${col}: "${header}"`);
+      }
+      
+      console.log('Headers détectés:', headers);
+      console.log('Données après sheet_to_json:', data);
+      console.log('Première ligne keys:', data.length > 0 ? Object.keys(data[0]) : 'aucune donnée');
+      
       processData(data);
     };
     reader.readAsBinaryString(file);
