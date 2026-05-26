@@ -638,7 +638,9 @@ function getInformatiqueData(structureId, annee) {
   // ✨ OPTIMISATION : Essayer d'abord Consolidation_Structure
   const consolData = getConsolidationStructureData(structureId, annee);
   
-  if (consolData && (consolData.portables > 0 || consolData.postes_fixes > 0)) {
+  // Accepter les données si au moins un indicateur informatique est présent
+  if (consolData && (consolData.portables > 0 || consolData.postes_fixes > 0 || 
+                     consolData.nb_postes_total > 0 || consolData.budget_it_cp > 0)) {
     console.log('✓ Utilisation Consolidation_Structure pour Informatique (optimisé)');
     
     const nb_portables = consolData.portables || 0;
