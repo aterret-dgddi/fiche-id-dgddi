@@ -358,6 +358,23 @@
           console.log('  Cout_Fonctionnement_Par_Vehicule =', consolidationStructure.Cout_Fonctionnement_Par_Vehicule?.[idx]);
         }
         
+        // 🔍 DIAGNOSTIC SPÉCIFIQUE DG
+        console.log('\n🔍 RECHERCHE STRUCTURE DG:');
+        for (let i = 0; i < consolidationStructure.Structure.length; i++) {
+          const structId = consolidationStructure.Structure[i];
+          const structIdx = structures.id.findIndex(id => id === structId);
+          if (structIdx >= 0) {
+            const sigle = structures.Sigle?.[structIdx];
+            if (sigle && (sigle.includes('DGDDI') || sigle === 'DG')) {
+              console.log(`\n📍 TROUVÉ: ${sigle} - Année ${consolidationStructure.Annee[i]}`);
+              console.log('  Nb_Vehicules =', consolidationStructure.Nb_Vehicules?.[i]);
+              console.log('  Budget_Vehicules =', consolidationStructure.Budget_Vehicules?.[i]);
+              console.log('  Cout_Fonctionnement_Par_Vehicule =', consolidationStructure.Cout_Fonctionnement_Par_Vehicule?.[i]);
+              console.log('  Calcul manuel (Budget/Nb) =', consolidationStructure.Budget_Vehicules?.[i] / consolidationStructure.Nb_Vehicules?.[i]);
+            }
+          }
+        }
+        
         // Détecter la dernière année depuis Consolidation_Structure
         const annees = [...new Set(consolidationStructure.Annee.filter(a => a > 0))];
         ANNEE = Math.max(...annees);
@@ -642,6 +659,15 @@
       const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
       const rowClass = indent ? 'row-indent' : '';
       const extraClass = s.typeAffichage === 'DI_Outremer' ? 'row-di-outremer' : '';
+      
+      // 🔍 DEBUG: Logger les valeurs pour la DG
+      if (s.sigle && (s.sigle.includes('DGDDI') || s.sigle === 'DG')) {
+        console.log(`\n🔍 AFFICHAGE ${s.sigle}:`);
+        console.log('  nb_vehicules =', s.nb_vehicules);
+        console.log('  budget_vehicules =', s.budget_vehicules);
+        console.log('  cout_fonct_vehicule =', s.cout_fonct_vehicule);
+        console.log('  Type de cout_fonct_vehicule =', typeof s.cout_fonct_vehicule);
+      }
       
       return {
         rh: `
