@@ -339,17 +339,16 @@ const TABLE_CONFIG = {
   },
   'Informatique': {
     description: 'Matériel informatique par structure',
-    columns: ['Structure', 'Annee', 'Nb_Portables', 'Nb_PC_Fixes'],
+    columns: ['Structure', 'Annee', 'Nb_Portables', 'Nb_Fixes'],
     keyFields: ['Structure', 'Annee'],
     needsStructure: true,
     mapping: {
       'NbPCPortable': 'Nb_Portables',
-      'NbPCBureau': 'Nb_PC_Fixes',
-      'Nb_Fixes': 'Nb_PC_Fixes',
-      'Nb Fixes': 'Nb_PC_Fixes',
-      'NbFixes': 'Nb_PC_Fixes',
-      'PC_Fixes': 'Nb_PC_Fixes',
-      'Nb_PC_Fixes': 'Nb_PC_Fixes',
+      'NbPCBureau': 'Nb_Fixes',
+      'Nb_PC_Fixes': 'Nb_Fixes',
+      'Nb Fixes': 'Nb_Fixes',
+      'NbFixes': 'Nb_Fixes',
+      'PC_Fixes': 'Nb_Fixes',
       'Nb Portables': 'Nb_Portables',
       'NbPortables': 'Nb_Portables',
       'Portables': 'Nb_Portables'
