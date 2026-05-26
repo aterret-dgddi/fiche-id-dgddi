@@ -653,7 +653,9 @@ function getInformatiqueData(structureId, annee) {
       nb_fixes: nb_fixes,
       nb_postes_travail: nb_postes_travail,
       budget_it: budget_it,
+      budget_it_moyen_4ans: consolData.budget_it_4ans || 0,
       budget_it_par_agent: consolData.budget_it_par_agent || 0,
+      budget_it_moyen_par_agent_4ans: consolData.budget_it_par_agent_4ans || 0,
       budget_it_par_poste: nb_postes_travail > 0 ? budget_it / nb_postes_travail : 0,
       ratio_poste_agent: consolData.taux_equipement || 0,
       pct_portables: nb_postes_travail > 0 ? (nb_portables / nb_postes_travail * 100) : 0
@@ -684,7 +686,9 @@ function getInformatiqueData(structureId, annee) {
     nb_fixes: (it.Nb_Fixes && it.Nb_Fixes[idx]) || 0,
     nb_postes_travail: (it.Nb_Postes_Travail && it.Nb_Postes_Travail[idx]) || 0,
     budget_it: (it.Budget_IT_CP && it.Budget_IT_CP[idx]) || 0,
+    budget_it_moyen_4ans: (it.Budget_IT_Moyen_4ans && it.Budget_IT_Moyen_4ans[idx]) || 0,
     budget_it_par_agent: (it.Budget_IT_Par_Agent && it.Budget_IT_Par_Agent[idx]) || 0,
+    budget_it_moyen_par_agent_4ans: (it.Budget_IT_Moyen_Par_Agent_4ans && it.Budget_IT_Moyen_Par_Agent_4ans[idx]) || 0,
     budget_it_par_poste: (it.Budget_IT_Par_Poste && it.Budget_IT_Par_Poste[idx]) || 0,
     ratio_poste_agent: (it.Ratio_Poste_Agent && it.Ratio_Poste_Agent[idx]) || 0,
     pct_portables: (it.Pct_Portables && it.Pct_Portables[idx]) || 0
@@ -1522,31 +1526,6 @@ function getFraisMissionMultiAnnees(structureId, annees) {
  * @param {number} annee - Année
  * @returns {Object|null} Données informatique
  */
-function getInformatiqueData(structureId, annee) {
-  const informatique = FICHE_STATE.data.informatique;
-  if (!informatique) return null;
-  
-  const idx = informatique.id.findIndex((id, i) => 
-    informatique.Structure[i] === structureId && 
-    informatique.Annee[i] === annee
-  );
-  
-  if (idx === -1) return null;
-  
-  return {
-    nb_portables: informatique.Nb_Portables?.[idx] || 0,
-    nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
-    nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
-    budget_it_cp: informatique.Budget_IT_CP?.[idx] || 0,
-    budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
-    effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
-    ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
-    pct_portables: informatique.Pct_Portables?.[idx] || 0,
-    budget_it_par_agent: informatique.Budget_IT_Par_Agent?.[idx] || 0,
-    budget_it_moyen_par_agent_4ans: informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
-  };
-}
-
 /**
  * Récupère les moyennes consolidées pour informatique
  * @param {string} perimetre - Type de périmètre (National, DI, SCN, Outremer, Metropole)
@@ -1635,31 +1614,6 @@ function getInformatiqueMultiAnnees(structureId, annees) {
  * @param {number} annee - Année
  * @returns {Object|null} Données informatique
  */
-function getInformatiqueData(structureId, annee) {
-  const informatique = FICHE_STATE.data.informatique;
-  if (!informatique) return null;
-  
-  const idx = informatique.id.findIndex((id, i) => 
-    informatique.Structure[i] === structureId && 
-    informatique.Annee[i] === annee
-  );
-  
-  if (idx === -1) return null;
-  
-  return {
-    nb_portables: informatique.Nb_Portables?.[idx] || 0,
-    nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
-    nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
-    budget_it: informatique.Budget_IT_CP?.[idx] || 0,
-    budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
-    effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
-    ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
-    pct_portables: informatique.Pct_Portables?.[idx] || 0,
-    budget_it_par_agent: informatique.Budget_IT_Par_Agent?.[idx] || 0,
-    budget_it_moyen_par_agent_4ans: informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
-  };
-}
-
 /**
  * Récupère les moyennes consolidées pour informatique
  * @param {string} perimetre - Type de périmètre (National, DI, SCN, Outremer, Metropole)
