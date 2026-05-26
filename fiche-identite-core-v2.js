@@ -516,11 +516,33 @@ function getRHDetailParDR(structureId, annee) {
 }
 
 function getVehiculesData(structureId, annee) {
-  // ✨ Consolidation_Structure en priorité (nécessaire pour les DI ex: DI 972
-  // qui n'ont pas de ligne propre dans la table Vehicules)
+  // Priorité 1 : table Vehicules directe (contient le détail fonctionnement/investissement)
+  const veh = FICHE_STATE.data.vehicules;
+  if (veh && veh.id) {
+    const idx = veh.id.findIndex((id, i) =>
+      veh.Structure[i] === structureId &&
+      veh.Annee[i] === annee
+    );
+    if (idx !== -1) {
+      const nombre_total = veh.Nombre_Total[idx] || 0;
+      const budget_fonctionnement = veh.Budget_Fonctionnement_CP[idx] || 0;
+      return {
+        nombre_total: nombre_total,
+        nombre_vetuste: veh.Nombre_Vetuste[idx] || 0,
+        taux_vetuste: veh.Taux_Vetuste[idx] || 0,
+        budget_fonctionnement: budget_fonctionnement,
+        budget_investissement: veh.Budget_Investissement_CP[idx] || 0,
+        budget_total: veh.Budget_Total_CP[idx] || 0,
+        ratio_vehicule_agent: veh.Ratio_Vehicule_Agent_Total[idx] || 0,
+        ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0,
+        cout_fonct_vehicule: nombre_total > 0 ? budget_fonctionnement / nombre_total : 0
+      };
+    }
+  }
+
+  // Priorité 2 : Consolidation_Structure (DI sans ligne propre dans Vehicules, ex: DI 972)
   const consolData = getConsolidationStructureData(structureId, annee);
-  
-  if (consolData && consolData.nb_vehicules >= 0) {
+  if (consolData && consolData.nb_vehicules > 0) {
     return {
       nombre_total: consolData.nb_vehicules,
       nombre_vetuste: consolData.nb_vehicules_vetustes,
@@ -533,32 +555,8 @@ function getVehiculesData(structureId, annee) {
       cout_fonct_vehicule: consolData.cout_fonctionnement_vehicule || 0
     };
   }
-  
-  // ⚠️ Fallback : table Vehicules directe (DR avec ligne propre)
-  const veh = FICHE_STATE.data.vehicules;
-  if (!veh || !veh.id) return null;
-  
-  const idx = veh.id.findIndex((id, i) => 
-    veh.Structure[i] === structureId && 
-    veh.Annee[i] === annee
-  );
-  
-  if (idx === -1) return null;
-  
-  const nombre_total = veh.Nombre_Total[idx] || 0;
-  const budget_fonctionnement = veh.Budget_Fonctionnement_CP[idx] || 0;
-  
-  return {
-    nombre_total: nombre_total,
-    nombre_vetuste: veh.Nombre_Vetuste[idx] || 0,
-    taux_vetuste: veh.Taux_Vetuste[idx] || 0,
-    budget_fonctionnement: budget_fonctionnement,
-    budget_investissement: veh.Budget_Investissement_CP[idx] || 0,
-    budget_total: veh.Budget_Total_CP[idx] || 0,
-    ratio_vehicule_agent: veh.Ratio_Vehicule_Agent_Total[idx] || 0,
-    ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0,
-    cout_fonct_vehicule: nombre_total > 0 ? budget_fonctionnement / nombre_total : 0
-  };
+
+  return null;
 }
 
 function getBudgetData(structureId, annee) {
@@ -1225,10 +1223,39 @@ function getNotificationsBOPByType(structureId, annee, type) {
  * @returns {Object|null} Données frais de mission
  */
 function getFraisMissionData(structureId, annee) {
-  // ✨ Consolidation_Structure en priorité (nécessaire pour les DI ex: DI 972
-  // qui n'ont pas de ligne propre dans la table Frais_Mission)
+  // Priorité 1 : table Frais_Mission directe (contient le détail formation_transport/repas/etc.)
+  const fraisMission = FICHE_STATE.data.frais_mission;
+  if (fraisMission) {
+    const idx = fraisMission.id.findIndex((id, i) =>
+      fraisMission.Structure[i] === structureId &&
+      fraisMission.Annee[i] === annee
+    );
+    if (idx !== -1) {
+      return {
+        montant_total: fraisMission.Montant_Total?.[idx] || 0,
+        total_formation: fraisMission.Total_Formation?.[idx] || 0,
+        total_autres: fraisMission.Total_Autres?.[idx] || 0,
+        total_transport: fraisMission.Total_Transport?.[idx] || 0,
+        total_repas: fraisMission.Total_Repas?.[idx] || 0,
+        total_hebergement: fraisMission.Total_Hebergement?.[idx] || 0,
+        formation_transport: fraisMission.Formation_Transport?.[idx] || 0,
+        formation_repas: fraisMission.Formation_Repas?.[idx] || 0,
+        formation_hebergement: fraisMission.Formation_Hebergement?.[idx] || 0,
+        autres_transport: fraisMission.Autres_Transport?.[idx] || 0,
+        autres_repas: fraisMission.Autres_Repas?.[idx] || 0,
+        autres_hebergement: fraisMission.Autres_Hebergement?.[idx] || 0,
+        frais_par_agent: fraisMission.Frais_Par_Agent?.[idx] || 0,
+        formation_par_agent: fraisMission.Formation_Par_Agent?.[idx] || 0,
+        autres_par_agent: fraisMission.Autres_Par_Agent?.[idx] || 0,
+        pct_formation: fraisMission.Pct_Formation?.[idx] || 0,
+        pct_autres: fraisMission.Pct_Autres?.[idx] || 0
+      };
+    }
+  }
+
+  // Priorité 2 : Consolidation_Structure (DI sans ligne propre, ex: DI 972)
+  // Note : le sous-détail formation_transport/repas/hébergement n'est pas disponible ici
   const consolData = getConsolidationStructureData(structureId, annee);
-  
   if (consolData) {
     const transport = consolData.frais_transport || 0;
     const hebergement = consolData.frais_hebergement || 0;
@@ -1256,37 +1283,8 @@ function getFraisMissionData(structureId, annee) {
       pct_autres: montant_total > 0 ? Math.round(autres / montant_total * 1000) / 10 : 0
     };
   }
-  
-  // ⚠️ Fallback : table Frais_Mission directe (DR avec ligne propre)
-  const fraisMission = FICHE_STATE.data.frais_mission;
-  if (!fraisMission) return null;
-  
-  const idx = fraisMission.id.findIndex((id, i) => 
-    fraisMission.Structure[i] === structureId && 
-    fraisMission.Annee[i] === annee
-  );
-  
-  if (idx === -1) return null;
-  
-  return {
-    montant_total: fraisMission.Montant_Total?.[idx] || 0,
-    total_formation: fraisMission.Total_Formation?.[idx] || 0,
-    total_autres: fraisMission.Total_Autres?.[idx] || 0,
-    total_transport: fraisMission.Total_Transport?.[idx] || 0,
-    total_repas: fraisMission.Total_Repas?.[idx] || 0,
-    total_hebergement: fraisMission.Total_Hebergement?.[idx] || 0,
-    formation_transport: fraisMission.Formation_Transport?.[idx] || 0,
-    formation_repas: fraisMission.Formation_Repas?.[idx] || 0,
-    formation_hebergement: fraisMission.Formation_Hebergement?.[idx] || 0,
-    autres_transport: fraisMission.Autres_Transport?.[idx] || 0,
-    autres_repas: fraisMission.Autres_Repas?.[idx] || 0,
-    autres_hebergement: fraisMission.Autres_Hebergement?.[idx] || 0,
-    frais_par_agent: fraisMission.Frais_Par_Agent?.[idx] || 0,
-    formation_par_agent: fraisMission.Formation_Par_Agent?.[idx] || 0,
-    autres_par_agent: fraisMission.Autres_Par_Agent?.[idx] || 0,
-    pct_formation: fraisMission.Pct_Formation?.[idx] || 0,
-    pct_autres: fraisMission.Pct_Autres?.[idx] || 0
-  };
+
+  return null;
 }
 
 /**
@@ -1375,11 +1373,32 @@ function getFraisMissionMultiAnnees(structureId, annees) {
  * @returns {Object|null} Données informatique
  */
 function getInformatiqueData(structureId, annee) {
-  // ✨ Consolidation_Structure en priorité (nécessaire pour les DI ex: DI 972
-  // qui n'ont pas de ligne propre dans la table Informatique)
+  // Priorité 1 : table Informatique directe (données exactes par structure)
+  const informatique = FICHE_STATE.data.informatique;
+  if (informatique) {
+    const idx = informatique.id.findIndex((id, i) =>
+      informatique.Structure[i] === structureId &&
+      informatique.Annee[i] === annee
+    );
+    if (idx !== -1) {
+      return {
+        nb_portables: informatique.Nb_Portables?.[idx] || 0,
+        nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
+        nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
+        budget_it_cp: informatique.Budget_IT_CP?.[idx] || 0,
+        budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
+        effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
+        ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
+        pct_portables: informatique.Pct_Portables?.[idx] || 0,
+        budget_it_par_agent: informatique.Budget_IT_Par_Agent?.[idx] || 0,
+        budget_it_moyen_par_agent_4ans: informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
+      };
+    }
+  }
+
+  // Priorité 2 : Consolidation_Structure (DI sans ligne propre, ex: DI 972)
   const consolData = getConsolidationStructureData(structureId, annee);
-  
-  if (consolData && consolData.nb_postes_total >= 0) {
+  if (consolData && consolData.nb_postes_total > 0) {
     return {
       nb_portables: consolData.portables,
       nb_fixes: consolData.postes_fixes,
@@ -1395,30 +1414,8 @@ function getInformatiqueData(structureId, annee) {
       budget_it_moyen_par_agent_4ans: consolData.budget_it_par_agent_4ans
     };
   }
-  
-  // ⚠️ Fallback : table Informatique directe (DR avec ligne propre)
-  const informatique = FICHE_STATE.data.informatique;
-  if (!informatique) return null;
-  
-  const idx = informatique.id.findIndex((id, i) => 
-    informatique.Structure[i] === structureId && 
-    informatique.Annee[i] === annee
-  );
-  
-  if (idx === -1) return null;
-  
-  return {
-    nb_portables: informatique.Nb_Portables?.[idx] || 0,
-    nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
-    nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
-    budget_it_cp: informatique.Budget_IT_CP?.[idx] || 0,
-    budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
-    effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
-    ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
-    pct_portables: informatique.Pct_Portables?.[idx] || 0,
-    budget_it_par_agent: informatique.Budget_IT_Par_Agent?.[idx] || 0,
-    budget_it_moyen_par_agent_4ans: informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
-  };
+
+  return null;
 }
 
 /**
