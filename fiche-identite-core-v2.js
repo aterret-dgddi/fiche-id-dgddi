@@ -61,15 +61,12 @@ function getConsolidationStructureData(structureId, annee) {
   const consolStruct = FICHE_STATE.data.consolidation_structure;
   
   if (!consolStruct || !consolStruct.Structure) {
-    console.warn('⚠️ Table Consolidation_Structure non disponible');
     return null;
   }
   
   // Trouver la ligne correspondante
   for (let i = 0; i < consolStruct.Structure.length; i++) {
     if (consolStruct.Structure[i] === structureId && consolStruct.Annee[i] === annee) {
-      console.log(`✓ Consolidation_Structure trouvée pour structure ${structureId}, année ${annee}`);
-      
       return {
         // === RH ===
         effectif_total: consolStruct.Effectif_Total?.[i] || 0,
@@ -127,7 +124,6 @@ function getConsolidationStructureData(structureId, annee) {
     }
   }
   
-  console.warn(`⚠️ Aucune donnée Consolidation_Structure pour Structure ${structureId}, Année ${annee}`);
   return null;
 }
 
@@ -228,33 +224,10 @@ async function loadAllData() {
     FICHE_STATE.data.commentaires = commentaires;
     FICHE_STATE.data.infbud40 = infbud40;
     
-    // Debug : Afficher les colonnes de Consolidation
-    if (consolidation && consolidation.id && consolidation.id.length > 0) {
-      console.log('Colonnes Consolidation disponibles:', Object.keys(consolidation));
-      console.log('Exemple ligne Consolidation[0]:', Object.keys(consolidation).reduce((obj, key) => {
-        obj[key] = consolidation[key][0];
-        return obj;
-      }, {}));
-    }
-    
-    console.log('✓ Données chargées:', {
-      structures: structures.id.length,
-      rh: rh.id.length,
-      vehicules: vehicules.id.length,
-      frais_mission: frais_mission.id.length,
-      informatique: informatique.id.length,
-      notif_bop: notif_bop.id.length,
-      consolidation: consolidation.id.length,
-	  consolidation_structure: consolidation_structure.id.length,
-      commentaires: commentaires.id.length,
-      infbud40: infbud40.id.length
-    });
-    
     hideLoader();
     onDataLoaded();
     
   } catch (err) {
-    console.error('Erreur chargement:', err);
     showError('Erreur de chargement : ' + err.message);
   }
 }
@@ -359,18 +332,14 @@ function getRangStructure(structureId, annee, metrique = 'effectif_total') {
 function getRHData(structureId, annee) {
   const rh = FICHE_STATE.data.rh;
   
-  console.log(`getRHData appelée pour structureId=${structureId}, annee=${annee}`);
-  
-    // ✨ OPTIMISATION : Essayer d'abord Consolidation_Structure
+  // ✨ OPTIMISATION : Essayer d'abord Consolidation_Structure
   const consolData = getConsolidationStructureData(structureId, annee);
   
   if (consolData && consolData.effectif_total > 0) {
-    console.log('✓ Utilisation Consolidation_Structure (optimisé)');
     return consolData;
   }
   
   // ⚠️ FALLBACK : Calcul manuel (ancien code)
-  console.warn('⚠️ Fallback sur calcul manuel RH');
   
   // Liste des structures à agréger
   let structureIds = [structureId];
@@ -379,15 +348,9 @@ function getRHData(structureId, annee) {
   const currentStruct = FICHE_STATE.data.structures;
   const idx = currentStruct.id.indexOf(structureId);
   
-  console.log(`Structure trouvée à l'index ${idx}:`, {
-    id: structureId,
-    type: idx !== -1 ? currentStruct.Type[idx] : 'NOT FOUND'
-  });
-  
   if (idx !== -1 && currentStruct.Type[idx] === 'DI') {
     const drRattachees = getDRRattachees(structureId);
     structureIds = structureIds.concat(drRattachees);
-    console.log(`DI détectée, agrégation avec ${drRattachees.length} DR:`, structureIds);
   }
   
   // Agréger les données
@@ -553,44 +516,13 @@ function getRHDetailParDR(structureId, annee) {
 }
 
 function getVehiculesData(structureId, annee) {
-  console.log(`getVehiculesData appelée pour structureId=${structureId}, annee=${annee}`);
-  
-  // ✨ OPTIMISATION : Essayer d'abord Consolidation_Structure
-  const consolData = getConsolidationStructureData(structureId, annee);
-  
-  if (consolData && consolData.nb_vehicules > 0) {
-    console.log('✓ Utilisation Consolidation_Structure pour Véhicules (optimisé)');
-    return {
-      nombre_total: consolData.nb_vehicules,
-      nombre_vetuste: consolData.nb_vehicules_vetustes,
-      taux_vetuste: consolData.taux_vetuste,
-      budget_fonctionnement: 0,  // Pas dans Consolidation_Structure, calculé depuis budget_total
-      budget_investissement: 0,  // Pas dans Consolidation_Structure
-      budget_total: consolData.budget_vehicules || 0,
-      ratio_vehicule_agent: consolData.ratio_vehicule_agent || 0,
-      ratio_vehicule_su: consolData.ratio_vehicule_su || 0,
-      cout_fonct_vehicule: consolData.cout_fonctionnement_vehicule || 0
-    };
-  }
-  
-  // ⚠️ FALLBACK : Chercher dans la table Vehicules directe
-  console.warn('⚠️ Fallback sur table Vehicules directe');
-  
   const veh = FICHE_STATE.data.vehicules;
-  if (!veh || !veh.id) {
-    console.warn('⚠️ Table Vehicules non disponible');
-    return null;
-  }
-  
   const idx = veh.id.findIndex((id, i) => 
     veh.Structure[i] === structureId && 
     veh.Annee[i] === annee
   );
   
-  if (idx === -1) {
-    console.warn(`⚠️ Aucune donnée véhicule trouvée pour structure ${structureId}, année ${annee}`);
-    return null;
-  }
+  if (idx === -1) return null;
   
   const nombre_total = veh.Nombre_Total[idx] || 0;
   const budget_fonctionnement = veh.Budget_Fonctionnement_CP[idx] || 0;
@@ -605,93 +537,6 @@ function getVehiculesData(structureId, annee) {
     ratio_vehicule_agent: veh.Ratio_Vehicule_Agent_Total[idx] || 0,
     ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0,
     cout_fonct_vehicule: nombre_total > 0 ? budget_fonctionnement / nombre_total : 0
-  };
-}
-
-function getFraisMissionData(structureId, annee) {
-  const fm = FICHE_STATE.data.frais_mission;
-  const idx = fm.id.findIndex((id, i) => 
-    fm.Structure[i] === structureId && 
-    fm.Annee[i] === annee
-  );
-  
-  if (idx === -1) return null;
-  
-  return {
-    formation_transport: fm.Formation_Transport[idx] || 0,
-    formation_repas: fm.Formation_Repas[idx] || 0,
-    formation_hebergement: fm.Formation_Hebergement[idx] || 0,
-    autres_transport: fm.Autres_Transport[idx] || 0,
-    autres_repas: fm.Autres_Repas[idx] || 0,
-    autres_hebergement: fm.Autres_Hebergement[idx] || 0,
-    total_formation: fm.Total_Formation[idx] || 0,
-    total_autres: fm.Total_Autres[idx] || 0,
-    montant_total: fm.Montant_Total[idx] || 0,
-    frais_par_agent: fm.Frais_Par_Agent[idx] || 0,
-    pct_formation: fm.Pct_Formation[idx] || 0
-  };
-}
-
-function getInformatiqueData(structureId, annee) {
-  console.log(`getInformatiqueData appelée pour structureId=${structureId}, annee=${annee}`);
-  
-  // ✨ OPTIMISATION : Essayer d'abord Consolidation_Structure
-  const consolData = getConsolidationStructureData(structureId, annee);
-  
-  // Accepter les données si au moins un indicateur informatique est présent
-  if (consolData && (consolData.portables > 0 || consolData.postes_fixes > 0 || 
-                     consolData.nb_postes_total > 0 || consolData.budget_it_cp > 0)) {
-    console.log('✓ Utilisation Consolidation_Structure pour Informatique (optimisé)');
-    
-    const nb_portables = consolData.portables || 0;
-    const nb_fixes = consolData.postes_fixes || 0;
-    const nb_postes_travail = consolData.nb_postes_total || (nb_portables + nb_fixes);
-    const budget_it = consolData.budget_it_cp || 0;
-    
-    return {
-      nb_portables: nb_portables,
-      nb_fixes: nb_fixes,
-      nb_postes_travail: nb_postes_travail,
-      budget_it: budget_it,
-      budget_it_moyen_4ans: consolData.budget_it_4ans || 0,
-      budget_it_par_agent: consolData.budget_it_par_agent || 0,
-      budget_it_moyen_par_agent_4ans: consolData.budget_it_par_agent_4ans || 0,
-      budget_it_par_poste: nb_postes_travail > 0 ? budget_it / nb_postes_travail : 0,
-      ratio_poste_agent: consolData.taux_equipement || 0,
-      pct_portables: nb_postes_travail > 0 ? (nb_portables / nb_postes_travail * 100) : 0
-    };
-  }
-  
-  // ⚠️ FALLBACK : Chercher dans la table Informatique directe
-  console.warn('⚠️ Fallback sur table Informatique directe');
-  
-  const it = FICHE_STATE.data.informatique;
-  if (!it || !it.id) {
-    console.warn('⚠️ Table Informatique non disponible');
-    return null;
-  }
-  
-  const idx = it.id.findIndex((id, i) => 
-    it.Structure && it.Structure[i] === structureId && 
-    it.Annee && it.Annee[i] === annee
-  );
-  
-  if (idx === -1) {
-    console.warn(`⚠️ Aucune donnée informatique trouvée pour structure ${structureId}, année ${annee}`);
-    return null;
-  }
-  
-  return {
-    nb_portables: (it.Nb_Portables && it.Nb_Portables[idx]) || 0,
-    nb_fixes: (it.Nb_Fixes && it.Nb_Fixes[idx]) || 0,
-    nb_postes_travail: (it.Nb_Postes_Travail && it.Nb_Postes_Travail[idx]) || 0,
-    budget_it: (it.Budget_IT_CP && it.Budget_IT_CP[idx]) || 0,
-    budget_it_moyen_4ans: (it.Budget_IT_Moyen_4ans && it.Budget_IT_Moyen_4ans[idx]) || 0,
-    budget_it_par_agent: (it.Budget_IT_Par_Agent && it.Budget_IT_Par_Agent[idx]) || 0,
-    budget_it_moyen_par_agent_4ans: (it.Budget_IT_Moyen_Par_Agent_4ans && it.Budget_IT_Moyen_Par_Agent_4ans[idx]) || 0,
-    budget_it_par_poste: (it.Budget_IT_Par_Poste && it.Budget_IT_Par_Poste[idx]) || 0,
-    ratio_poste_agent: (it.Ratio_Poste_Agent && it.Ratio_Poste_Agent[idx]) || 0,
-    pct_portables: (it.Pct_Portables && it.Pct_Portables[idx]) || 0
   };
 }
 
@@ -1040,7 +885,6 @@ async function saveCommentaire(structureId, annee, section, commentaire) {
           Date_Modification: now
         }]
       ]);
-      console.log(`✓ Commentaire ${section} mis à jour`);
     } else {
       // INSERT
       await grist.docApi.applyUserActions([
@@ -1053,7 +897,6 @@ async function saveCommentaire(structureId, annee, section, commentaire) {
           Date_Modification: now
         }]
       ]);
-      console.log(`✓ Commentaire ${section} créé`);
     }
     
     // Recharger les commentaires
@@ -1061,49 +904,8 @@ async function saveCommentaire(structureId, annee, section, commentaire) {
     FICHE_STATE.data.commentaires = newComments;
     
   } catch (err) {
-    console.error('Erreur sauvegarde commentaire:', err);
+    // Erreur silencieuse
   }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// EXPORT PDF/HTML
-// ═══════════════════════════════════════════════════════════════
-
-function exportToPDF() {
-  // Utiliser html2pdf.js
-  const element = document.getElementById('fiche-content');
-  const opt = {
-    margin: 10,
-    filename: `fiche-identite-${FICHE_STATE.structure.sigle}-${FICHE_STATE.annee}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2 },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-  
-  html2pdf().set(opt).from(element).save();
-}
-
-function exportToHTML() {
-  const element = document.getElementById('fiche-content');
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Fiche Identité ${FICHE_STATE.structure.sigle} - ${FICHE_STATE.annee}</title>
-  <style>${document.querySelector('style').innerHTML}</style>
-</head>
-<body>
-  ${element.innerHTML}
-</body>
-</html>`;
-  
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `fiche-identite-${FICHE_STATE.structure.sigle}-${FICHE_STATE.annee}.html`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1443,16 +1245,8 @@ function getFraisMissionMoyennes(perimetre, annee) {
   const conso = getConsolidationData(perimetre, annee);
   
   if (!conso) {
-    console.warn(`⚠️ Pas de données Consolidation pour périmètre="${perimetre}" année=${annee}`);
     return null;
   }
-  
-  console.log(`✓ Consolidation trouvée pour ${perimetre} ${annee}:`, {
-    moy_frais_par_structure: conso.moy_frais_par_structure,
-    moy_frais_par_agent: conso.moy_frais_par_agent,
-    moy_formation_par_agent: conso.moy_formation_par_agent,
-    moy_autres_par_agent: conso.moy_autres_par_agent
-  });
   
   return {
     moy_frais_par_structure: conso.moy_frais_par_structure || 0,
@@ -1526,94 +1320,31 @@ function getFraisMissionMultiAnnees(structureId, annees) {
  * @param {number} annee - Année
  * @returns {Object|null} Données informatique
  */
-/**
- * Récupère les moyennes consolidées pour informatique
- * @param {string} perimetre - Type de périmètre (National, DI, SCN, Outremer, Metropole)
- * @param {number} annee - Année
- * @returns {Object|null} Moyennes consolidées
- */
-function getInformatiqueMoyennes(perimetre, annee) {
-  const consolidation = FICHE_STATE.data.consolidation;
-  if (!consolidation) return null;
+function getInformatiqueData(structureId, annee) {
+  const informatique = FICHE_STATE.data.informatique;
+  if (!informatique) return null;
   
-  const idx = consolidation.id.findIndex((id, i) => 
-    consolidation.Perimetre?.[i] === perimetre && 
-    consolidation.Annee?.[i] === annee
+  const idx = informatique.id.findIndex((id, i) => 
+    informatique.Structure[i] === structureId && 
+    informatique.Annee[i] === annee
   );
   
   if (idx === -1) return null;
   
   return {
-    moy_ratio_poste_agent: consolidation.Moy_Ratio_Poste_Agent?.[idx] || 0,
-    moy_budget_it_par_agent: consolidation.Moy_Budget_IT_Par_Agent?.[idx] || 0,
-    moy_budget_it_moyen_par_agent_4ans: consolidation.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
+    nb_portables: informatique.Nb_Portables?.[idx] || 0,
+    nb_fixes: informatique.Nb_Fixes?.[idx] || 0,
+    nb_postes_travail: informatique.Nb_Postes_Travail?.[idx] || 0,
+    budget_it_cp: informatique.Budget_IT_CP?.[idx] || 0,
+    budget_it_moyen_4ans: informatique.Budget_IT_Moyen_4ans?.[idx] || 0,
+    effectif_ref: informatique.Effectif_Ref?.[idx] || 0,
+    ratio_poste_agent: informatique.Ratio_Poste_Agent?.[idx] || 0,
+    pct_portables: informatique.Pct_Portables?.[idx] || 0,
+    budget_it_par_agent: informatique.Budget_IT_Par_Agent?.[idx] || 0,
+    budget_it_moyen_par_agent_4ans: informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
   };
 }
 
-/**
- * Détermine le périmètre de comparaison pour une structure (IT)
- * @param {number} structureId - ID de la structure
- * @returns {string} Périmètre (DI, SCN, Outremer, Metropole)
- */
-function getPerimetreInformatique(structureId) {
-  const structures = FICHE_STATE.data.structures;
-  if (!structures) return 'National';
-  
-  const idx = structures.id.indexOf(structureId);
-  if (idx === -1) return 'National';
-  
-  const type = structures.Type?.[idx];
-  const estOutremer = structures.Est_Outremer?.[idx];
-  
-  if (type === 'SCN') return 'SCN';
-  if (type === 'DI' && estOutremer) return 'Outremer';
-  if (type === 'DI' && !estOutremer) return 'Metropole';
-  if (type === 'DR') return 'Metropole';
-  
-  return 'National';
-}
-
-/**
- * Calcule l'intitulé du périmètre pour l'affichage (IT)
- * @param {string} perimetre - Code périmètre
- * @returns {string} Libellé pour affichage
- */
-function getLibellePerimetreInformatique(perimetre) {
-  const labels = {
-    'Metropole': 'DI Métropole',
-    'Outremer': 'Outre-Mer',
-    'SCN': 'SCN',
-    'National': 'National'
-  };
-  return labels[perimetre] || perimetre;
-}
-
-/**
- * Récupère les données informatique pour plusieurs années
- * @param {number} structureId - ID de la structure
- * @param {Array<number>} annees - Liste des années à récupérer
- * @returns {Array<Object>} Données par année
- */
-function getInformatiqueMultiAnnees(structureId, annees) {
-  return annees.map(annee => {
-    const data = getInformatiqueData(structureId, annee);
-    return {
-      annee: annee,
-      ...(data || {})
-    };
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MODULE INFORMATIQUE
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Récupère les données informatique pour une structure et une année
- * @param {number} structureId - ID de la structure
- * @param {number} annee - Année
- * @returns {Object|null} Données informatique
- */
 /**
  * Récupère les moyennes consolidées pour informatique
  * @param {string} perimetre - Type de périmètre (National, DI, SCN, Outremer, Metropole)
@@ -1705,7 +1436,6 @@ function refreshVehicules(structureId, annee) {
   const data = getVehiculesData(structureId, annee);
   if (!data) {
     // Afficher placeholder si pas de données - vider TOUS les champs
-    console.warn('⚠️ Pas de données Véhicules pour cette structure');
     
     document.getElementById('veh-total-value').textContent = '—';
     document.getElementById('veh-total-evol').innerHTML = '';
@@ -2385,7 +2115,6 @@ async function exportSingleStructurePDF(struct, annee) {
     pdf.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
     hideLoadingMessage(loadingDiv);
   } catch (error) {
-    console.error('Erreur PDF:', error);
     hideLoadingMessage(loadingDiv);
     alert('Erreur lors de la génération du PDF.');
   }
@@ -2425,7 +2154,6 @@ async function exportAllStructuresInOnePDF(filters) {
     hideLoadingMessage(loadingDiv);
     alert(`PDF généré avec succès avec ${structures.length} structures !`);
   } catch (error) {
-    console.error('Erreur export:', error);
     hideLoadingMessage(loadingDiv);
     alert('Erreur lors de la génération du PDF.');
   }
@@ -2480,7 +2208,6 @@ async function exportAllStructuresAsZIP(filters) {
     hideLoadingMessage(loadingDiv);
     alert(`Archive ZIP générée avec succès avec ${structures.length} PDF !`);
   } catch (error) {
-    console.error('Erreur export ZIP:', error);
     hideLoadingMessage(loadingDiv);
     alert('Erreur lors de la génération de l\'archive ZIP.');
   }
@@ -2527,7 +2254,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       img.src = url;
     });
   } catch (error) {
-    console.warn('Logo non chargé:', error);
+    // Logo non disponible - continuer sans
   }
   
   function addHeaderFooter(pageNum) {
