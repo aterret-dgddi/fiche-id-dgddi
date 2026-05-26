@@ -341,6 +341,23 @@
           consolidation_nationale: consolidationNationale.id.length
         });
         
+        // 🔍 DIAGNOSTIC : Vérifier les colonnes véhicules
+        console.log('\n🔍 DIAGNOSTIC COLONNES VÉHICULES:');
+        console.log('Colonnes disponibles dans Consolidation_Structure:', Object.keys(consolidationStructure));
+        console.log('Cout_Fonctionnement_Par_Vehicule existe?', consolidationStructure.hasOwnProperty('Cout_Fonctionnement_Par_Vehicule'));
+        console.log('Ratio_Vehicule_SU existe?', consolidationStructure.hasOwnProperty('Ratio_Vehicule_SU'));
+        
+        // Test sur première ligne
+        if (consolidationStructure.id.length > 0) {
+          const idx = 0;
+          console.log('\nValeurs ligne 0:');
+          console.log('  Nb_Vehicules =', consolidationStructure.Nb_Vehicules?.[idx]);
+          console.log('  Budget_Vehicules =', consolidationStructure.Budget_Vehicules?.[idx]);
+          console.log('  Effectif_SU =', consolidationStructure.Effectif_SU?.[idx]);
+          console.log('  Ratio_Vehicule_SU =', consolidationStructure.Ratio_Vehicule_SU?.[idx]);
+          console.log('  Cout_Fonctionnement_Par_Vehicule =', consolidationStructure.Cout_Fonctionnement_Par_Vehicule?.[idx]);
+        }
+        
         // Détecter la dernière année depuis Consolidation_Structure
         const annees = [...new Set(consolidationStructure.Annee.filter(a => a > 0))];
         ANNEE = Math.max(...annees);
