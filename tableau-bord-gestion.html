@@ -364,19 +364,20 @@
       // Chercher la ligne Perimetre='National' pour l'année donnée
       for (let i = 0; i < consolidationNationaleData.Perimetre.length; i++) {
         if (consolidationNationaleData.Perimetre[i] === 'National' && consolidationNationaleData.Annee[i] === annee) {
-          // Calculer les moyennes depuis les totaux nationaux
-          const totalEffectif = consolidationNationaleData.Total_Effectif?.[i] || 0;
-          const totalMS = consolidationNationaleData.Total_Masse_Salariale?.[i] || 0;
-          const totalVehicules = consolidationNationaleData.Total_Vehicules?.[i] || 0;
-          const totalEffectifSU = consolidationNationaleData.Total_Effectif_SU?.[i] || 0;
-          const totalBudgetVehicules = consolidationNationaleData.Total_Budget_Vehicules?.[i] || 0;
-          const totalBudgetIT = consolidationNationaleData.Total_Budget_IT?.[i] || 0;
-          
           return {
             ms_par_agent: consolidationNationaleData.Moyenne_MS_Par_Agent?.[i] || 0,
             age_moyen: consolidationNationaleData.Age_Moyen_Global?.[i] || 0,
-            cout_fonct_vehicule: totalVehicules > 0 ? totalBudgetVehicules / totalVehicules : 0,
-            ratio_vehicule_su: totalEffectifSU > 0 ? totalVehicules / totalEffectifSU : 0,
+            // TODO: Ajouter colonne Moyenne_Cout_Fonctionnement_Par_Vehicule dans table Consolidation (Grist)
+            // Pour l'instant, utilise la moyenne existante ou calcul temporaire
+            cout_fonct_vehicule: consolidationNationaleData.Moyenne_Cout_Fonctionnement_Par_Vehicule?.[i] || 
+              (consolidationNationaleData.Total_Vehicules?.[i] > 0 
+                ? consolidationNationaleData.Total_Budget_Vehicules?.[i] / consolidationNationaleData.Total_Vehicules?.[i] 
+                : 0),
+            // TODO: Ajouter colonne Moyenne_Ratio_Vehicule_SU dans table Consolidation (Grist)
+            ratio_vehicule_su: consolidationNationaleData.Moyenne_Ratio_Vehicule_SU?.[i] || 
+              (consolidationNationaleData.Total_Effectif_SU?.[i] > 0 
+                ? consolidationNationaleData.Total_Vehicules?.[i] / consolidationNationaleData.Total_Effectif_SU?.[i] 
+                : 0),
             frais_par_agent: consolidationNationaleData.Moyenne_Frais_Par_Agent?.[i] || 0,
             it_par_agent: consolidationNationaleData.Moyenne_Budget_IT_Par_Agent?.[i] || 0,
             it_par_agent_lisse: consolidationNationaleData.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[i] || 0
@@ -389,26 +390,24 @@
     function getConsolidation(structureId, annee) {
       for (let i = 0; i < consolidationData.Structure.length; i++) {
         if (consolidationData.Structure[i] === structureId && consolidationData.Annee[i] === annee) {
-          const nb_vehicules = Number(consolidationData.Nb_Vehicules?.[i]) || 0;
-          const budget_vehicules = Number(consolidationData.Budget_Vehicules?.[i]) || 0;
-          const effectif_su = Number(consolidationData.Effectif_SU?.[i]) || 0;
-          
+          // ✅ CORRECTION : Utiliser systématiquement les colonnes Grist calculées
+          // au lieu de recalculer en JavaScript (source unique de vérité)
           return {
             effectif_total: Number(consolidationData.Effectif_Total?.[i]) || 0,
-            effectif_su: effectif_su,
+            effectif_su: Number(consolidationData.Effectif_SU?.[i]) || 0,
             effectif_agco: Number(consolidationData.Effectif_AGCO?.[i]) || 0,
             effectif_autres: Number(consolidationData.Effectif_Autres?.[i]) || 0,
             age_moyen: Number(consolidationData.Age_Moyen?.[i]) || 0,
             masse_salariale: Number(consolidationData.Masse_Salariale?.[i]) || 0,
             ms_par_agent: Number(consolidationData.MS_Par_Agent?.[i]) || 0,
             
-            nb_vehicules: nb_vehicules,
+            nb_vehicules: Number(consolidationData.Nb_Vehicules?.[i]) || 0,
             nb_vetustes: Number(consolidationData.Nb_Vehicules_Vetustes?.[i]) || 0,
             taux_vetuste: Number(consolidationData.Taux_Vetuste?.[i]) || 0,
             ratio_vehicule_agent: Number(consolidationData.Ratio_Vehicule_Agent?.[i]) || 0,
-            ratio_vehicule_su: effectif_su > 0 ? nb_vehicules / effectif_su : 0,
-            budget_vehicules: budget_vehicules,
-            cout_fonct_vehicule: nb_vehicules > 0 ? budget_vehicules / nb_vehicules : 0,
+            ratio_vehicule_su: Number(consolidationData.Ratio_Vehicule_SU?.[i]) || 0,
+            budget_vehicules: Number(consolidationData.Budget_Vehicules?.[i]) || 0,
+            cout_fonct_vehicule: Number(consolidationData.Cout_Fonctionnement_Par_Vehicule?.[i]) || 0,
             
             transport: Number(consolidationData.Transport?.[i]) || 0,
             hebergement: Number(consolidationData.Hebergement?.[i]) || 0,
@@ -556,6 +555,14 @@
       
       const blocDROutremer = structures.filter(s => s.typeAffichage === 'DR_Outremer');
       const blocSCN = structures.filter(s => s.typeAffichage === 'SCN');
+      
+      // ═══════════════════════════════════════════════════════════════
+      // CALCULS AGRÉGÉS DYNAMIQUES
+      // Ces calculs sont effectués sur les structures affichées à l'écran
+      // et ne peuvent pas être précalculés dans Grist car ils dépendent
+      // des filtres utilisateur. Les calculs individuels par structure
+      // utilisent les colonnes Grist (pas de recalcul).
+      // ═══════════════════════════════════════════════════════════════
       
       // Calculer totaux globaux
       const totaux = structures.reduce((acc, s) => ({
