@@ -624,7 +624,7 @@
             <td class="number">${formatNumber(s.effectif_su)}</td>
             <td class="number">${formatNumber(s.effectif_agco)}</td>
             <td class="number">${formatNumber(s.effectif_autres)}</td>
-            <td class="number">${s.age_moyen.toFixed(1)} ans${moyennes ? formatEcartMoyenne(s.age_moyen, moyennes.age_moyen) : ''}</td>
+            <td class="number">${Number(s.age_moyen).toFixed(1)} ans${moyennes ? formatEcartMoyenne(s.age_moyen, moyennes.age_moyen) : ''}</td>
             <td class="number">${formatMilliers(s.masse_salariale)} k€</td>
             <td class="number">${formatEuro(s.ms_par_agent)}${moyennes ? formatEcartMoyenne(s.ms_par_agent, moyennes.ms_par_agent) : ''}</td>
           </tr>
@@ -634,9 +634,9 @@
             <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
             <td class="number">${formatNumber(s.nb_vehicules)}</td>
             <td class="number">${formatNumber(s.nb_vetustes)}</td>
-            <td class="number">${s.taux_vetuste.toFixed(1)} %</td>
-            <td class="number">${s.ratio_vehicule_agent.toFixed(3)}</td>
-            <td class="number">${s.ratio_vehicule_su.toFixed(3)}${moyennes ? formatEcartMoyenne(s.ratio_vehicule_su, moyennes.ratio_vehicule_su) : ''}</td>
+            <td class="number">${Number(s.taux_vetuste).toFixed(1)} %</td>
+            <td class="number">${Number(s.ratio_vehicule_agent).toFixed(3)}</td>
+            <td class="number">${Number(s.ratio_vehicule_su).toFixed(3)}${moyennes ? formatEcartMoyenne(s.ratio_vehicule_su, moyennes.ratio_vehicule_su) : ''}</td>
             <td class="number">${formatEuro(s.cout_fonct_vehicule)}${moyennes ? formatEcartMoyenne(s.cout_fonct_vehicule, moyennes.cout_fonct_vehicule) : ''}</td>
           </tr>
         `,
@@ -659,7 +659,7 @@
             <td class="number">${formatNumber(s.postes_fixes)}</td>
             <td class="number">${formatNumber(s.portables)}</td>
             <td class="number">${formatNumber(s.nb_postes_total)}</td>
-            <td class="number">${s.taux_equipement.toFixed(3)}</td>
+            <td class="number">${Number(s.taux_equipement).toFixed(3)}</td>
             <td class="number">${formatMilliers(s.budget_it)} k€</td>
             <td class="number">${formatMilliers(s.budget_it_4ans)} k€</td>
             <td class="number">${formatEuro(s.it_par_agent)}${moyennes ? formatEcartMoyenne(s.it_par_agent, moyennes.it_par_agent) : ''}</td>
@@ -717,7 +717,7 @@
                 <td class="number">${formatNumber(totaux.effectif_su)}</td>
                 <td class="number">${formatNumber(totaux.effectif_agco)}</td>
                 <td class="number">${formatNumber(totaux.effectif_autres)}</td>
-                <td class="number">${totaux.age_moyen.toFixed(1)} ans</td>
+                <td class="number">${Number(totaux.age_moyen).toFixed(1)} ans</td>
                 <td class="number">${formatMilliers(totaux.masse_salariale)} k€</td>
                 <td class="number">${formatEuro(totaux.ms_par_agent)}</td>
               </tr>
@@ -760,9 +760,9 @@
                 <td>TOTAL</td>
                 <td class="number">${formatNumber(totaux.nb_vehicules)}</td>
                 <td class="number">${formatNumber(totaux.nb_vetustes)}</td>
-                <td class="number">${totaux.taux_vetuste.toFixed(1)} %</td>
-                <td class="number">${totaux.ratio_vehicule_agent.toFixed(3)}</td>
-                <td class="number">${totaux.ratio_vehicule_su.toFixed(3)}</td>
+                <td class="number">${Number(totaux.taux_vetuste).toFixed(1)} %</td>
+                <td class="number">${Number(totaux.ratio_vehicule_agent).toFixed(3)}</td>
+                <td class="number">${Number(totaux.ratio_vehicule_su).toFixed(3)}</td>
                 <td class="number">${formatEuro(totaux.cout_fonct_vehicule)}</td>
               </tr>
             </tbody>
@@ -851,7 +851,7 @@
                 <td class="number">${formatNumber(totaux.postes_fixes)}</td>
                 <td class="number">${formatNumber(totaux.portables)}</td>
                 <td class="number">${formatNumber(totaux.nb_postes_total)}</td>
-                <td class="number">${totaux.taux_equipement.toFixed(3)}</td>
+                <td class="number">${Number(totaux.taux_equipement).toFixed(3)}</td>
                 <td class="number">${formatMilliers(totaux.budget_it)} k€</td>
                 <td class="number">${formatMilliers(totaux.budget_it_4ans)} k€</td>
                 <td class="number">${formatEuro(totaux.it_par_agent)}</td>
