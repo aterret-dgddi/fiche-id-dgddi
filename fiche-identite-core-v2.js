@@ -553,13 +553,44 @@ function getRHDetailParDR(structureId, annee) {
 }
 
 function getVehiculesData(structureId, annee) {
+  console.log(`getVehiculesData appelée pour structureId=${structureId}, annee=${annee}`);
+  
+  // ✨ OPTIMISATION : Essayer d'abord Consolidation_Structure
+  const consolData = getConsolidationStructureData(structureId, annee);
+  
+  if (consolData && consolData.nb_vehicules > 0) {
+    console.log('✓ Utilisation Consolidation_Structure pour Véhicules (optimisé)');
+    return {
+      nombre_total: consolData.nb_vehicules,
+      nombre_vetuste: consolData.nb_vehicules_vetustes,
+      taux_vetuste: consolData.taux_vetuste,
+      budget_fonctionnement: 0,  // Pas dans Consolidation_Structure, calculé depuis budget_total
+      budget_investissement: 0,  // Pas dans Consolidation_Structure
+      budget_total: consolData.budget_vehicules || 0,
+      ratio_vehicule_agent: consolData.ratio_vehicule_agent || 0,
+      ratio_vehicule_su: consolData.ratio_vehicule_su || 0,
+      cout_fonct_vehicule: consolData.cout_fonctionnement_vehicule || 0
+    };
+  }
+  
+  // ⚠️ FALLBACK : Chercher dans la table Vehicules directe
+  console.warn('⚠️ Fallback sur table Vehicules directe');
+  
   const veh = FICHE_STATE.data.vehicules;
+  if (!veh || !veh.id) {
+    console.warn('⚠️ Table Vehicules non disponible');
+    return null;
+  }
+  
   const idx = veh.id.findIndex((id, i) => 
     veh.Structure[i] === structureId && 
     veh.Annee[i] === annee
   );
   
-  if (idx === -1) return null;
+  if (idx === -1) {
+    console.warn(`⚠️ Aucune donnée véhicule trouvée pour structure ${structureId}, année ${annee}`);
+    return null;
+  }
   
   const nombre_total = veh.Nombre_Total[idx] || 0;
   const budget_fonctionnement = veh.Budget_Fonctionnement_CP[idx] || 0;
@@ -602,15 +633,49 @@ function getFraisMissionData(structureId, annee) {
 }
 
 function getInformatiqueData(structureId, annee) {
+  console.log(`getInformatiqueData appelée pour structureId=${structureId}, annee=${annee}`);
+  
+  // ✨ OPTIMISATION : Essayer d'abord Consolidation_Structure
+  const consolData = getConsolidationStructureData(structureId, annee);
+  
+  if (consolData && (consolData.portables > 0 || consolData.postes_fixes > 0)) {
+    console.log('✓ Utilisation Consolidation_Structure pour Informatique (optimisé)');
+    
+    const nb_portables = consolData.portables || 0;
+    const nb_fixes = consolData.postes_fixes || 0;
+    const nb_postes_travail = consolData.nb_postes_total || (nb_portables + nb_fixes);
+    const budget_it = consolData.budget_it_cp || 0;
+    
+    return {
+      nb_portables: nb_portables,
+      nb_fixes: nb_fixes,
+      nb_postes_travail: nb_postes_travail,
+      budget_it: budget_it,
+      budget_it_par_agent: consolData.budget_it_par_agent || 0,
+      budget_it_par_poste: nb_postes_travail > 0 ? budget_it / nb_postes_travail : 0,
+      ratio_poste_agent: consolData.taux_equipement || 0,
+      pct_portables: nb_postes_travail > 0 ? (nb_portables / nb_postes_travail * 100) : 0
+    };
+  }
+  
+  // ⚠️ FALLBACK : Chercher dans la table Informatique directe
+  console.warn('⚠️ Fallback sur table Informatique directe');
+  
   const it = FICHE_STATE.data.informatique;
-  if (!it || !it.id) return null;
+  if (!it || !it.id) {
+    console.warn('⚠️ Table Informatique non disponible');
+    return null;
+  }
   
   const idx = it.id.findIndex((id, i) => 
     it.Structure && it.Structure[i] === structureId && 
     it.Annee && it.Annee[i] === annee
   );
   
-  if (idx === -1) return null;
+  if (idx === -1) {
+    console.warn(`⚠️ Aucune donnée informatique trouvée pour structure ${structureId}, année ${annee}`);
+    return null;
+  }
   
   return {
     nb_portables: (it.Nb_Portables && it.Nb_Portables[idx]) || 0,
@@ -2575,22 +2640,22 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   if (isFirstPage) addHeaderFooter(1);
   
   const ficheBody = document.getElementById('fiche-body');
+  const sections = ficheBody.querySelectorAll('.section');
   
-  // Fonction pour capturer et ajouter un élément au PDF
-  async function captureAndAddElement(element) {
-    if (!element || element.style.display === 'none' || !element.offsetParent) return;
+  for (let section of sections) {
+    if (section.style.display === 'none' || !section.offsetParent) continue;
     
-    const elementHeight = element.offsetHeight;
-    const estimatedPdfHeight = (elementHeight * 0.264583) / 2;
+    const sectionHeight = section.offsetHeight;
+    const estimatedPdfHeight = (sectionHeight * 0.264583) / 2;
     if (estimatedPdfHeight > 60) checkPageBreak(estimatedPdfHeight);
     
-    const canvas = await html2canvas(element, {
+    const canvas = await html2canvas(section, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
-      width: element.scrollWidth,
-      height: element.scrollHeight
+      width: section.scrollWidth,
+      height: section.scrollHeight
     });
     
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
@@ -2600,20 +2665,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     checkPageBreak(imgHeight + 5);
     pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
     yPosition += imgHeight + 5;
-  }
-  
-  // 1. Capturer l'en-tête de la fiche
-  const ficheHeader = ficheBody.querySelector('.fiche-header');
-  await captureAndAddElement(ficheHeader);
-  
-  // 2. Capturer le cadre commentaire principal avec les pills
-  const mainCommentBox = document.getElementById('main-comment-box');
-  await captureAndAddElement(mainCommentBox);
-  
-  // 3. Capturer toutes les sections
-  const sections = ficheBody.querySelectorAll('.section');
-  for (let section of sections) {
-    await captureAndAddElement(section);
   }
   
   addHeaderFooter(currentPage);
