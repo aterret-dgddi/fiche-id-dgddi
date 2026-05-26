@@ -312,9 +312,15 @@ const TABLE_CONFIG = {
   },
   'Vehicules': {
     description: 'Parc automobile par structure',
-    columns: ['Structure', 'Annee', 'Nombre_Total', 'Nombre_Vetuste', 'Budget_Fonctionnement', 'Budget_Investissement'],
+    columns: ['Structure', 'Annee', 'Nombre_Total', 'Nombre_Vetuste', 'Budget_Fonctionnement_CP', 'Budget_Investissement_CP', 'Budget_Total_CP', 'Taux_Vetuste', 'Ratio_Vehicule_Agent_Total', 'Ratio_Vehicule_Agent_SU'],
     keyFields: ['Structure', 'Annee'],
-    needsStructure: true
+    needsStructure: true,
+    mapping: {
+      'Budget Fonctionnement': 'Budget_Fonctionnement_CP',
+      'Budget_Fonctionnement': 'Budget_Fonctionnement_CP',
+      'Budget Investissement': 'Budget_Investissement_CP',
+      'Budget_Investissement': 'Budget_Investissement_CP'
+    }
   },
   'Frais_Mission': {
     description: 'Frais de mission et déplacements',
@@ -437,7 +443,20 @@ document.getElementById('target-table').onchange = async (e) => {
   try {
     const data = await grist.docApi.fetchTable(tableName);
     G.existingData = data;
-    G.targetColumns = config.columns;
+    
+    // Récupérer les colonnes RÉELLES de la table Grist (pas celles de la config)
+    // Exclure 'id' et 'manualSort' qui sont des colonnes système
+    const realColumns = Object.keys(data).filter(col => col !== 'id' && col !== 'manualSort');
+    G.targetColumns = realColumns;
+    
+    console.log(`✓ Colonnes disponibles dans ${tableName}:`, realColumns);
+    
+    // Vérifier si des colonnes de la config sont manquantes
+    const missingCols = config.columns.filter(col => !realColumns.includes(col));
+    if (missingCols.length > 0) {
+      console.warn(`⚠ Colonnes manquantes dans Grist:`, missingCols);
+      setStatus(`Prêt à importer (${missingCols.length} colonne(s) manquante(s) : ${missingCols.join(', ')})`, 'info');
+    }
   } catch (err) {
     setStatus('Erreur chargement table : ' + err.message, 'error');
   }
