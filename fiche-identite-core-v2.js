@@ -516,7 +516,28 @@ function getRHDetailParDR(structureId, annee) {
 }
 
 function getVehiculesData(structureId, annee) {
+  // ✨ Consolidation_Structure en priorité (nécessaire pour les DI ex: DI 972
+  // qui n'ont pas de ligne propre dans la table Vehicules)
+  const consolData = getConsolidationStructureData(structureId, annee);
+  
+  if (consolData && consolData.nb_vehicules >= 0) {
+    return {
+      nombre_total: consolData.nb_vehicules,
+      nombre_vetuste: consolData.nb_vehicules_vetustes,
+      taux_vetuste: consolData.taux_vetuste,
+      budget_fonctionnement: 0,
+      budget_investissement: 0,
+      budget_total: consolData.budget_vehicules || 0,
+      ratio_vehicule_agent: consolData.ratio_vehicule_agent || 0,
+      ratio_vehicule_su: consolData.ratio_vehicule_su || 0,
+      cout_fonct_vehicule: consolData.cout_fonctionnement_vehicule || 0
+    };
+  }
+  
+  // ⚠️ Fallback : table Vehicules directe (DR avec ligne propre)
   const veh = FICHE_STATE.data.vehicules;
+  if (!veh || !veh.id) return null;
+  
   const idx = veh.id.findIndex((id, i) => 
     veh.Structure[i] === structureId && 
     veh.Annee[i] === annee
@@ -1204,6 +1225,39 @@ function getNotificationsBOPByType(structureId, annee, type) {
  * @returns {Object|null} Données frais de mission
  */
 function getFraisMissionData(structureId, annee) {
+  // ✨ Consolidation_Structure en priorité (nécessaire pour les DI ex: DI 972
+  // qui n'ont pas de ligne propre dans la table Frais_Mission)
+  const consolData = getConsolidationStructureData(structureId, annee);
+  
+  if (consolData) {
+    const transport = consolData.frais_transport || 0;
+    const hebergement = consolData.frais_hebergement || 0;
+    const repas = consolData.frais_repas || 0;
+    const formation = consolData.frais_formation || 0;
+    const autres = consolData.frais_autres_missions || 0;
+    const montant_total = transport + hebergement + repas + formation + autres;
+    return {
+      montant_total: montant_total,
+      total_formation: formation,
+      total_autres: autres,
+      total_transport: transport,
+      total_repas: repas,
+      total_hebergement: hebergement,
+      formation_transport: 0,
+      formation_repas: 0,
+      formation_hebergement: 0,
+      autres_transport: 0,
+      autres_repas: 0,
+      autres_hebergement: 0,
+      frais_par_agent: consolData.frais_mission_par_agent || 0,
+      formation_par_agent: 0,
+      autres_par_agent: 0,
+      pct_formation: montant_total > 0 ? Math.round(formation / montant_total * 1000) / 10 : 0,
+      pct_autres: montant_total > 0 ? Math.round(autres / montant_total * 1000) / 10 : 0
+    };
+  }
+  
+  // ⚠️ Fallback : table Frais_Mission directe (DR avec ligne propre)
   const fraisMission = FICHE_STATE.data.frais_mission;
   if (!fraisMission) return null;
   
@@ -1321,6 +1375,28 @@ function getFraisMissionMultiAnnees(structureId, annees) {
  * @returns {Object|null} Données informatique
  */
 function getInformatiqueData(structureId, annee) {
+  // ✨ Consolidation_Structure en priorité (nécessaire pour les DI ex: DI 972
+  // qui n'ont pas de ligne propre dans la table Informatique)
+  const consolData = getConsolidationStructureData(structureId, annee);
+  
+  if (consolData && consolData.nb_postes_total >= 0) {
+    return {
+      nb_portables: consolData.portables,
+      nb_fixes: consolData.postes_fixes,
+      nb_postes_travail: consolData.nb_postes_total,
+      budget_it_cp: consolData.budget_it_cp,
+      budget_it_moyen_4ans: consolData.budget_it_4ans,
+      effectif_ref: consolData.effectif_total,
+      ratio_poste_agent: consolData.taux_equipement,
+      pct_portables: consolData.nb_postes_total > 0
+        ? Math.round(consolData.portables / consolData.nb_postes_total * 1000) / 10
+        : 0,
+      budget_it_par_agent: consolData.budget_it_par_agent,
+      budget_it_moyen_par_agent_4ans: consolData.budget_it_par_agent_4ans
+    };
+  }
+  
+  // ⚠️ Fallback : table Informatique directe (DR avec ligne propre)
   const informatique = FICHE_STATE.data.informatique;
   if (!informatique) return null;
   
