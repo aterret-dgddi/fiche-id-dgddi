@@ -537,6 +537,14 @@ function processData(rows) {
   G.rawRows = rows;
   G.sourceColumns = Object.keys(rows[0]);
   
+  // DEBUG: Afficher TOUTES les colonnes détectées
+  console.log('=== COLONNES DÉTECTÉES DANS LE FICHIER ===');
+  console.log('Nombre de colonnes:', G.sourceColumns.length);
+  G.sourceColumns.forEach((col, idx) => {
+    console.log(`  ${idx+1}. "${col}" (longueur: ${col.length} caractères)`);
+  });
+  console.log('Première ligne de données:', rows[0]);
+  
   showMapping();
 }
 
@@ -550,6 +558,11 @@ function showMapping() {
   // Header
   document.getElementById('mapping-header-target').textContent = `→ Colonne ${G.targetTable}`;
   
+  // DEBUG: Afficher les colonnes cibles disponibles
+  console.log('=== COLONNES CIBLES DANS GRIST ===');
+  console.log('Colonnes disponibles:', G.targetColumns);
+  
+  // Afficher TOUTES les colonnes sources
   G.sourceColumns.forEach(srcCol => {
     const tr = document.createElement('tr');
     
@@ -566,11 +579,12 @@ function showMapping() {
     tdPreview.textContent = sampleVal ? String(sampleVal).substring(0, 50) : '';
     tr.appendChild(tdPreview);
     
-    // Select target
+    // Select target - TOUTES les colonnes de la table Grist
     const tdTarget = document.createElement('td');
     const select = document.createElement('select');
     select.innerHTML = '<option value="[Ignorer]">[Ignorer]</option>';
     
+    // Afficher TOUTES les colonnes cibles disponibles
     G.targetColumns.forEach(targetCol => {
       const opt = document.createElement('option');
       opt.value = targetCol;
@@ -578,7 +592,7 @@ function showMapping() {
       select.appendChild(opt);
     });
     
-    // Auto-mapping
+    // Auto-mapping simple
     const autoTarget = autoMapping[srcCol] || srcCol;
     if (G.targetColumns.includes(autoTarget)) {
       select.value = autoTarget;
@@ -598,7 +612,7 @@ function showMapping() {
   });
   
   document.getElementById('mapping-section').classList.add('visible');
-  setStatus(`${G.sourceColumns.length} colonnes détectées`, 'info');
+  setStatus(`${G.sourceColumns.length} colonnes détectées dans votre fichier`, 'info');
 }
 
 // Preview
