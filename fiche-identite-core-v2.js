@@ -541,14 +541,19 @@ function getVehiculesData(structureId, annee) {
   const consolData = getConsolidationStructureData(structureId, annee);
   if (consolData && consolData.nb_vehicules > 0) {
     const nombre_total = consolData.nb_vehicules;
-    const budget_fonctionnement = consolData.budget_vehicules || 0;
+    const budget_total = consolData.budget_vehicules || 0;
+    // Fonctionnement estime via cout_fonctionnement * nombre ; investissement = reste
+    const budget_fonctionnement = consolData.cout_fonctionnement_vehicule > 0
+      ? Math.round(consolData.cout_fonctionnement_vehicule * nombre_total)
+      : budget_total;
+    const budget_investissement = Math.max(0, budget_total - budget_fonctionnement);
     return {
       nombre_total,
       nombre_vetuste: consolData.nb_vehicules_vetustes || 0,
       taux_vetuste: consolData.taux_vetuste || 0,
       budget_fonctionnement,
-      budget_investissement: 0,
-      budget_total: budget_fonctionnement,
+      budget_investissement,
+      budget_total,
       ratio_vehicule_agent: consolData.ratio_vehicule_agent || 0,
       ratio_vehicule_su: consolData.ratio_vehicule_su || 0,
       cout_fonct_vehicule: consolData.cout_fonctionnement_vehicule || 0
@@ -1408,6 +1413,18 @@ function getInformatiqueData(structureId, annee) {
       ratio_poste_agent = informatique.Ratio_Poste_Agent?.[idx] || 0;
       pct_portables     = informatique.Pct_Portables?.[idx] || 0;
     }
+  }
+
+  // Fallback inventaire depuis Consolidation_Structure si table brute vide (ex: DI 972)
+  if (nb_postes_travail === 0 && consolData) {
+    nb_portables      = consolData.portables || 0;
+    nb_fixes          = consolData.postes_fixes || 0;
+    nb_postes_travail = consolData.nb_postes_total || 0;
+    effectif_ref      = consolData.effectif_total || 0;
+    ratio_poste_agent = consolData.taux_equipement || 0;
+    pct_portables     = nb_postes_travail > 0
+      ? Math.round((nb_portables / nb_postes_travail) * 1000) / 10
+      : 0;
   }
 
   // Données budget depuis Consolidation_Structure (agrégat fiable DI+DR)
