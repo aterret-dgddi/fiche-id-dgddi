@@ -1457,6 +1457,7 @@ function getInformatiqueData(structureId, annee) {
     nb_portables,
     nb_fixes,
     nb_postes_travail,
+    budget_it: budget_it_cp,          // alias pour le HTML
     budget_it_cp,
     budget_it_moyen_4ans,
     effectif_ref,
