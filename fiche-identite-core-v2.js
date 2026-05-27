@@ -17,6 +17,7 @@ const FICHE_STATE = {
     vehicules: null,
     frais_mission: null,
     informatique: null,
+    communication: null,
     notif_bop: null,
     consolidation: null,
 	consolidation_structure: null,
@@ -199,12 +200,13 @@ async function loadAllData() {
     showLoader('Chargement des données...');
     
     // Charger toutes les tables en parallèle
-    const [structures, rh, vehicules, frais_mission, informatique, notif_bop, consolidation, consolidation_structure, commentaires, infbud40] = await Promise.all([
+    const [structures, rh, vehicules, frais_mission, informatique, communication, notif_bop, consolidation, consolidation_structure, commentaires, infbud40] = await Promise.all([
       grist.docApi.fetchTable('Structures'),
       grist.docApi.fetchTable('RH'),
       grist.docApi.fetchTable('Vehicules'),
       grist.docApi.fetchTable('Frais_Mission'),
       grist.docApi.fetchTable('Informatique'),
+      grist.docApi.fetchTable('Communication').catch(() => null),
       grist.docApi.fetchTable('Notif_BOP'),
       grist.docApi.fetchTable('Consolidation'),
 	  grist.docApi.fetchTable('Consolidation_Structure'),
@@ -217,6 +219,7 @@ async function loadAllData() {
     FICHE_STATE.data.vehicules = vehicules;
     FICHE_STATE.data.frais_mission = frais_mission;
     FICHE_STATE.data.informatique = informatique;
+    FICHE_STATE.data.communication = communication;
     FICHE_STATE.data.notif_bop = notif_bop;
     FICHE_STATE.data.consolidation = consolidation;
 	FICHE_STATE.data.consolidation_structure = consolidation_structure;
@@ -2043,6 +2046,209 @@ function createVehiculesTable(structureId) {
       
       tbody.appendChild(rowMoy);
     }
+  }
+}
+
+// ============================================================================
+// MODULE COMMUNICATION
+// ============================================================================
+
+/**
+ * Récupère les données de dépenses de communication pour une structure.
+ * La table Communication contient une ligne par structure avec toutes les
+ * colonnes budgétaires (historique 2022-2025 + exécution 2026).
+ *
+ * Structure Grist attendue :
+ *   Structure (Reference), CP_2022, CP_2023, CP_2024, CP_2025,
+ *   CP_2026, EJ_2026, Cible_2026, Report_2026,
+ *   Capacite_EJ_2026, Capacite_CP_2026
+ *
+ * @param {number} structureId - ID de la structure
+ * @returns {Object|null} Données communication ou null si non disponible
+ */
+function getCommunicationData(structureId) {
+  const com = FICHE_STATE.data.communication;
+  if (!com || !com.Structure) return null;
+
+  const idx = com.Structure.indexOf(structureId);
+  if (idx === -1) return null;
+
+  const v = (col) => (com[col] ? (com[col][idx] || 0) : 0);
+
+  return {
+    cp_2022:     v('CP_2022'),
+    cp_2023:     v('CP_2023'),
+    cp_2024:     v('CP_2024'),
+    cp_2025:     v('CP_2025'),
+    cp_2026:     v('CP_2026'),
+    ej_2026:     v('EJ_2026'),
+    cible_2026:  v('Cible_2026'),
+    report_2026: v('Report_2026'),
+    cap_ej_2026: v('Capacite_EJ_2026'),
+    cap_cp_2026: v('Capacite_CP_2026')
+  };
+}
+
+/**
+ * Formate un montant en K€ entier, ou '—' si nul/absent.
+ * Utilisé spécifiquement pour les montants Communication.
+ * @param {number} val - Montant en euros
+ * @returns {string}
+ */
+function formatCommunicationMontant(val) {
+  if (val === null || val === undefined || val === 0) return '—';
+  return formatNumber(val / 1000, 0) + ' K€';
+}
+
+/**
+ * Rafraîchit la sous-section Dépenses de Communication dans la section Budget.
+ * Peuple les KPI pills, le graphique d'évolution et le tableau récapitulatif.
+ *
+ * IDs HTML attendus :
+ *   com-cp-2022, com-cp-2023, com-cp-2024, com-cp-2025
+ *   com-ej-2026, com-cp-2026, com-cible-2026,
+ *   com-report-2026, com-cap-ej-2026, com-cap-cp-2026
+ *   chart-com-evolution, table-com-body, com-commentaire
+ *
+ * @param {number} structureId - ID de la structure
+ * @param {number} annee - Année courante (pour le commentaire)
+ */
+function refreshCommunication(structureId, annee) {
+  const d = getCommunicationData(structureId);
+  const fmt = formatCommunicationMontant;
+
+  // ── Vider si pas de données ────────────────────────────────────
+  const kpiIds = [
+    'com-cp-2022', 'com-cp-2023', 'com-cp-2024', 'com-cp-2025',
+    'com-ej-2026', 'com-cp-2026', 'com-cible-2026',
+    'com-report-2026', 'com-cap-ej-2026', 'com-cap-cp-2026'
+  ];
+
+  if (!d) {
+    kpiIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '—';
+    });
+    const tbody = document.getElementById('table-com-body');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>';
+    }
+    const chartExist = Chart.getChart('chart-com-evolution');
+    if (chartExist) chartExist.destroy();
+    const ta = document.getElementById('com-commentaire');
+    if (ta) ta.value = '';
+    return;
+  }
+
+  // ── KPIs historiques 2022-2025 ─────────────────────────────────
+  document.getElementById('com-cp-2022').textContent = fmt(d.cp_2022);
+  document.getElementById('com-cp-2023').textContent = fmt(d.cp_2023);
+  document.getElementById('com-cp-2024').textContent = fmt(d.cp_2024);
+  document.getElementById('com-cp-2025').textContent = fmt(d.cp_2025);
+
+  // ── KPIs exécution 2026 ────────────────────────────────────────
+  document.getElementById('com-ej-2026').textContent     = fmt(d.ej_2026);
+  document.getElementById('com-cp-2026').textContent     = fmt(d.cp_2026);
+  document.getElementById('com-cible-2026').textContent  = fmt(d.cible_2026);
+  document.getElementById('com-report-2026').textContent = fmt(d.report_2026);
+  document.getElementById('com-cap-ej-2026').textContent = fmt(d.cap_ej_2026);
+  document.getElementById('com-cap-cp-2026').textContent = fmt(d.cap_cp_2026);
+
+  // ── Graphique évolution CP 2022-2025 + CP 2026 ─────────────────
+  const chartExist = Chart.getChart('chart-com-evolution');
+  if (chartExist) chartExist.destroy();
+
+  const ctx = document.getElementById('chart-com-evolution');
+  if (ctx) {
+    const vals    = [d.cp_2022, d.cp_2023, d.cp_2024, d.cp_2025, d.cp_2026];
+    const labels  = ['2022', '2023', '2024', '2025', 'CP 2026'];
+    const bgHisto = 'rgba(0,47,108,0.72)';
+    const bgProj  = 'rgba(19,81,168,0.45)';
+
+    const datasets = [{
+      label: 'CP (K€)',
+      data: vals.map(v => (v ? v / 1000 : null)),
+      backgroundColor: [bgHisto, bgHisto, bgHisto, bgHisto, bgProj],
+      borderColor:     ['rgb(0,47,108)', 'rgb(0,47,108)', 'rgb(0,47,108)', 'rgb(0,47,108)', 'rgb(19,81,168)'],
+      borderWidth: 1.5,
+      borderRadius: 4
+    }];
+
+    // Trait cible 2026 si disponible
+    if (d.cible_2026) {
+      datasets.push({
+        label: 'Cible 2026',
+        data: [null, null, null, null, d.cible_2026 / 1000],
+        type: 'scatter',
+        pointStyle: 'line',
+        pointRadius: 18,
+        pointBorderWidth: 2.5,
+        pointBorderColor: 'rgb(26,107,60)',
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
+        order: 0
+      });
+    }
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: datasets.length > 1,
+            position: 'top',
+            labels: { font: { size: 11 }, boxWidth: 14 }
+          },
+          tooltip: {
+            callbacks: {
+              label: (c) => c.parsed.y !== null
+                ? `${c.dataset.label} : ${formatNumber(c.parsed.y, 0)} K€`
+                : ''
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { callback: v => formatNumber(v, 0) + ' K€', font: { size: 10 } }
+          },
+          x: { ticks: { font: { size: 11 } } }
+        }
+      }
+    });
+  }
+
+  // ── Tableau récapitulatif ──────────────────────────────────────
+  const tbody = document.getElementById('table-com-body');
+  if (tbody) {
+    const tdBase = 'padding:10px 14px;text-align:right;font-size:12px;';
+    const td2026 = tdBase + 'background:#EEF2FF;';
+    tbody.innerHTML = `
+      <tr>
+        <td style="padding:10px 14px;font-weight:500;font-size:12px;">CP (dépenses)</td>
+        <td style="${tdBase}">${fmt(d.cp_2022)}</td>
+        <td style="${tdBase}">${fmt(d.cp_2023)}</td>
+        <td style="${tdBase}">${fmt(d.cp_2024)}</td>
+        <td style="${tdBase}">${fmt(d.cp_2025)}</td>
+        <td style="${td2026}">${fmt(d.ej_2026)}</td>
+        <td style="${td2026}">${fmt(d.cp_2026)}</td>
+        <td style="${td2026}color:var(--vert);font-weight:600;">${fmt(d.cible_2026)}</td>
+        <td style="${td2026}color:var(--orange);">${fmt(d.report_2026)}</td>
+        <td style="${td2026}color:#6B3FA0;">${fmt(d.cap_ej_2026)}</td>
+        <td style="${td2026}color:#6B3FA0;">${fmt(d.cap_cp_2026)}</td>
+      </tr>`;
+  }
+
+  // ── Commentaire ────────────────────────────────────────────────
+  const ta = document.getElementById('com-commentaire');
+  if (ta) {
+    ta.value = getCommentaire(structureId, annee, 'Communication');
+    ta.onblur = function() {
+      saveCommentaire(structureId, annee, 'Communication', this.value);
+    };
   }
 }
 

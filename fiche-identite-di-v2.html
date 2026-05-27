@@ -1193,7 +1193,124 @@
                   style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
                   placeholder="Ajouter un commentaire sur le budget et la consommation..."></textarea>
       </div>
-    </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           SOUS-SECTION : DÉPENSES DE COMMUNICATION
+           ══════════════════════════════════════════════════════════════ -->
+      <div style="margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--bord);">
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+          <span style="font-size:20px;">📣</span>
+          <span style="font-weight:600;font-size:14px;color:var(--rep);">Dépenses de communication</span>
+        </div>
+
+        <!-- KPIs historique 2022-2025 -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
+
+          <div class="kpi-card" style="background:var(--gris4);">
+            <div style="font-size:11px;font-weight:500;color:var(--gris2);margin-bottom:6px;">CP 2022</div>
+            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-cp-2022">—</div>
+          </div>
+
+          <div class="kpi-card" style="background:var(--gris4);">
+            <div style="font-size:11px;font-weight:500;color:var(--gris2);margin-bottom:6px;">CP 2023</div>
+            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-cp-2023">—</div>
+          </div>
+
+          <div class="kpi-card" style="background:var(--gris4);">
+            <div style="font-size:11px;font-weight:500;color:var(--gris2);margin-bottom:6px;">CP 2024</div>
+            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-cp-2024">—</div>
+          </div>
+
+          <div class="kpi-card" style="background:var(--gris4);">
+            <div style="font-size:11px;font-weight:500;color:var(--gris2);margin-bottom:6px;">CP 2025</div>
+            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-cp-2025">—</div>
+          </div>
+        </div>
+
+        <!-- KPIs exécution 2026 -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+
+          <div class="kpi-card" style="border-left:3px solid var(--rep2);">
+            <div style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">📋 EJ 2026</div>
+            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-ej-2026">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Engagements juridiques</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid var(--rep2);">
+            <div style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
+            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-cp-2026">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Paiements</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid var(--vert);">
+            <div style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">🎯 Cible 2026</div>
+            <div style="font-size:22px;font-weight:500;color:var(--vert);" id="com-cible-2026">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Objectif annuel</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid var(--orange);">
+            <div style="font-size:11px;font-weight:500;color:var(--orange);margin-bottom:6px;">↩ Reports 2026</div>
+            <div style="font-size:22px;font-weight:500;color:var(--orange);" id="com-report-2026">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Reports N-1</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
+            <div style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Cap. EJ 2026</div>
+            <div style="font-size:22px;font-weight:500;color:#6B3FA0;" id="com-cap-ej-2026">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité d'engagement</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
+            <div style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Cap. CP 2026</div>
+            <div style="font-size:22px;font-weight:500;color:#6B3FA0;" id="com-cap-cp-2026">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité de paiement</div>
+          </div>
+        </div>
+
+        <!-- Graphique évolution CP 2022-2025 + barre 2026 -->
+        <div class="chart-container" style="margin-bottom:16px;">
+          <div class="chart-title">Évolution des dépenses de communication (CP)</div>
+          <div class="chart-subtitle">Paiements 2022–2025 et exécution 2026</div>
+          <div class="chart-wrapper" style="height:200px;">
+            <canvas id="chart-com-evolution"></canvas>
+          </div>
+        </div>
+
+        <!-- Tableau récapitulatif -->
+        <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead style="background:var(--gris4);">
+              <tr>
+                <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Indicateur</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2022</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2023</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2024</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2025</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">EJ 2026</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">CP 2026</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">Cible 2026</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">Reports</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">Cap. EJ</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">Cap. CP</th>
+              </tr>
+            </thead>
+            <tbody id="table-com-body">
+              <tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Commentaire Communication -->
+        <div style="margin-top: 16px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Commentaire</label>
+          <textarea id="com-commentaire"
+                    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+                    placeholder="Ajouter un commentaire sur les dépenses de communication..."></textarea>
+        </div>
+      </div><!-- fin sous-section Communication -->
+
+    </div><!-- fin section Budget & Consommation -->
     
      <!-- SECTION FRAIS DE MISSION -->
     <!-- À insérer après la section Informatique (ligne 825) et avant la section Véhicules (ligne 828) -->
@@ -1790,6 +1907,7 @@
       // Charger les sections
       refreshRH(struct.id, annee);
       refreshBudget(struct.id, annee);
+      refreshCommunication(struct.id, annee);
       refreshFraisMission(struct.id, annee);
       refreshInformatique(struct.id, annee);
       refreshVehicules(struct.id, annee);

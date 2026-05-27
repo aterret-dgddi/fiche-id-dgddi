@@ -216,6 +216,7 @@
         <option value="Vehicules">Vehicules (Parc automobile)</option>
         <option value="Frais_Mission">Frais_Mission (Déplacements)</option>
         <option value="Informatique">Informatique (Matériel IT)</option>
+        <option value="Communication">Communication (Dépenses de communication)</option>
       </select>
       <div id="table-info" class="table-info"></div>
     </div>
@@ -352,6 +353,22 @@ const TABLE_CONFIG = {
       'Nb Portables': 'Nb_Portables',
       'NbPortables': 'Nb_Portables',
       'Portables': 'Nb_Portables'
+    }
+  },
+  'Communication': {
+    description: 'Dépenses de communication par structure (une ligne par structure)',
+    columns: ['Structure', 'CP_2022', 'CP_2023', 'CP_2024', 'CP_2025',
+              'CP_2026', 'EJ_2026', 'Cible_2026', 'Report_2026',
+              'Capacite_EJ_2026', 'Capacite_CP_2026'],
+    keyFields: ['Structure'],
+    needsStructure: true,
+    mapping: {
+      'Capacite_EJ_2026': 'Capacite_EJ_2026',
+      'Capacite_CP_2026': 'Capacite_CP_2026',
+      'Capacité_EJ_2026': 'Capacite_EJ_2026',
+      'Capacité_CP_2026': 'Capacite_CP_2026',
+      'Cap_EJ_2026': 'Capacite_EJ_2026',
+      'Cap_CP_2026': 'Capacite_CP_2026'
     }
   }
 };
