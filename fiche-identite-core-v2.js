@@ -523,17 +523,23 @@ function getVehiculesData(structureId, annee) {
     if (idx !== -1) {
       const nombre_total = veh.Nombre_Total[idx] || 0;
       const budget_fonctionnement = veh.Budget_Fonctionnement_CP[idx] || 0;
-      return {
-        nombre_total,
-        nombre_vetuste: veh.Nombre_Vetuste[idx] || 0,
-        taux_vetuste: veh.Taux_Vetuste[idx] || 0,
-        budget_fonctionnement,
-        budget_investissement: veh.Budget_Investissement_CP[idx] || 0,
-        budget_total: veh.Budget_Total_CP[idx] || 0,
-        ratio_vehicule_agent: veh.Ratio_Vehicule_Agent_Total[idx] || 0,
-        ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0,
-        cout_fonct_vehicule: nombre_total > 0 ? budget_fonctionnement / nombre_total : 0
-      };
+      const budget_total = veh.Budget_Total_CP[idx] || 0;
+      // Si ligne brute vide (0 véhicules ET 0 budget), passer en P2 Consolidation_Structure
+      if (nombre_total === 0 && budget_fonctionnement === 0 && budget_total === 0) {
+        // fall through vers P2
+      } else {
+        return {
+          nombre_total,
+          nombre_vetuste: veh.Nombre_Vetuste[idx] || 0,
+          taux_vetuste: veh.Taux_Vetuste[idx] || 0,
+          budget_fonctionnement,
+          budget_investissement: veh.Budget_Investissement_CP[idx] || 0,
+          budget_total,
+          ratio_vehicule_agent: veh.Ratio_Vehicule_Agent_Total[idx] || 0,
+          ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0,
+          cout_fonct_vehicule: nombre_total > 0 ? budget_fonctionnement / nombre_total : 0
+        };
+      }
     }
   }
 
