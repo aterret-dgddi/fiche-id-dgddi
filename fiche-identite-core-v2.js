@@ -97,7 +97,9 @@ function getConsolidationStructureData(structureId, annee) {
         taux_vetuste: consolStruct.Taux_Vetuste?.[i] || 0,
         ratio_vehicule_agent: consolStruct.Ratio_Vehicule_Agent?.[i] || 0,
         ratio_vehicule_su: consolStruct.Ratio_Vehicule_SU?.[i] || 0,
-        budget_vehicules: consolStruct.Budget_Vehicules?.[i] || 0,
+        budget_vehicules: consolStruct.Budget_Total_Vehicules?.[i] || 0,
+        budget_fonctionnement_vehicules: consolStruct.Budget_Fonctionnement_Vehicules?.[i] || 0,
+        budget_investissement_vehicules: consolStruct.Budget_Investissement_Vehicules?.[i] || 0,
         cout_fonctionnement_vehicule: consolStruct.Cout_Fonctionnement_Par_Vehicule?.[i] || 0,
         
         // === FRAIS DE MISSION ===
@@ -541,12 +543,9 @@ function getVehiculesData(structureId, annee) {
   const consolData = getConsolidationStructureData(structureId, annee);
   if (consolData && consolData.nb_vehicules > 0) {
     const nombre_total = consolData.nb_vehicules;
-    const budget_total = consolData.budget_vehicules || 0;
-    // Fonctionnement estime via cout_fonctionnement * nombre ; investissement = reste
-    const budget_fonctionnement = consolData.cout_fonctionnement_vehicule > 0
-      ? Math.round(consolData.cout_fonctionnement_vehicule * nombre_total)
-      : budget_total;
-    const budget_investissement = Math.max(0, budget_total - budget_fonctionnement);
+    const budget_total         = consolData.budget_vehicules || 0;
+    const budget_fonctionnement = consolData.budget_fonctionnement_vehicules || 0;
+    const budget_investissement = consolData.budget_investissement_vehicules || 0;
     return {
       nombre_total,
       nombre_vetuste: consolData.nb_vehicules_vetustes || 0,
@@ -1457,7 +1456,7 @@ function getInformatiqueData(structureId, annee) {
     nb_portables,
     nb_fixes,
     nb_postes_travail,
-    budget_it: budget_it_cp,          // alias pour le HTML
+    budget_it: budget_it_cp,
     budget_it_cp,
     budget_it_moyen_4ans,
     effectif_ref,
