@@ -77,15 +77,14 @@ function getConsolidationStructureData(structureId, annee) {
         masse_salariale: consolStruct.Masse_Salariale?.[i] || 0,
         ms_par_agent: consolStruct.MS_Par_Agent?.[i] || 0,
         
-        // Calculs dérivés
-        age_moyen_agco: consolStruct.Age_Moyen?.[i] || 0,
-        age_moyen_su: consolStruct.Age_Moyen?.[i] || 0,
-        age_moyen_autres: consolStruct.Age_Moyen?.[i] || 0,
+        // === RH — pourcentages et âges depuis colonnes Grist ===
         pct_agco: consolStruct.Pct_AGCO?.[i] || 0,
         pct_su: consolStruct.Pct_SU?.[i] || 0,
         pct_autres: consolStruct.Pct_Autres?.[i] || 0,
         age_moyen_agco: consolStruct.Age_Moyen_AGCO?.[i] || 0,
-        
+        age_moyen_su: consolStruct.Age_Moyen?.[i] || 0,
+        age_moyen_autres: consolStruct.Age_Moyen?.[i] || 0,
+
         // === VÉHICULES ===
         nb_vehicules: consolStruct.Nb_Vehicules?.[i] || 0,
         nb_vehicules_vetustes: consolStruct.Nb_Vehicules_Vetustes?.[i] || 0,
@@ -96,7 +95,7 @@ function getConsolidationStructureData(structureId, annee) {
         budget_fonctionnement_vehicules: consolStruct.Budget_Fonctionnement_Vehicules?.[i] || 0,
         budget_investissement_vehicules: consolStruct.Budget_Investissement_Vehicules?.[i] || 0,
         cout_fonctionnement_vehicule: consolStruct.Cout_Fonctionnement_Par_Vehicule?.[i] || 0,
-        
+
         // === FRAIS DE MISSION ===
         frais_transport: consolStruct.Transport?.[i] || 0,
         frais_hebergement: consolStruct.Hebergement?.[i] || 0,
@@ -110,7 +109,7 @@ function getConsolidationStructureData(structureId, annee) {
         pct_autres_missions: consolStruct.Pct_Autres_Missions?.[i] || 0,
         formation_par_agent: consolStruct.Formation_Par_Agent?.[i] || 0,
         autres_par_agent: consolStruct.Autres_Par_Agent?.[i] || 0,
-        
+
         // === INFORMATIQUE ===
         postes_fixes: consolStruct.Postes_Fixes?.[i] || 0,
         portables: consolStruct.Portables?.[i] || 0,
@@ -538,9 +537,9 @@ function getVehiculesData(structureId, annee) {
     }
   }
 
-  // Priorite 2 : Consolidation_Structure (ex: DI 972 sans ligne propre dans Vehicules)
+  // Priorite 2 : Consolidation_Structure (DI sans ligne propre, ex: DI 972)
+  // Condition élargie : déclencher si inventaire OU budget présent (DI 972 2022/2023 = budget sans véhicules)
   const consolData = getConsolidationStructureData(structureId, annee);
-  // Condition élargie : déclencher si nb_vehicules OU budget présent (DI 972 2022/2023 : budget sans inventaire)
   const hasBudget = consolData && (
     consolData.nb_vehicules > 0 ||
     consolData.budget_vehicules > 0 ||
