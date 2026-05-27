@@ -2447,22 +2447,66 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   if (isFirstPage) addHeaderFooter(1);
   
   const ficheBody = document.getElementById('fiche-body');
-  const sections = ficheBody.querySelectorAll('.section');
   
-  for (let section of sections) {
-    if (section.style.display === 'none' || !section.offsetParent) continue;
+  // Synchroniser les valeurs des textareas commentaire dans leurs attributs
+  // pour que html2canvas capture bien le contenu saisi
+  ficheBody.querySelectorAll('textarea').forEach(ta => {
+    ta.setAttribute('data-export-value', ta.value);
+    // Forcer la hauteur visible pour la capture
+    if (ta.value && ta.value.trim()) {
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+    }
+  });
+
+  // Construire la liste des blocs à capturer : en-tête fiche, commentaire synthèse, puis chaque section
+  const captureTargets = [];
+  
+  // 1. En-tête fiche identité
+  const ficheHeader = ficheBody.querySelector('.fiche-header');
+  if (ficheHeader) captureTargets.push(ficheHeader);
+  
+  // 2. Encadré commentaire principal (synthèse + pills) — masquer les boutons d'édition pour l'export
+  const mainCommentBox = ficheBody.querySelector('#main-comment-box');
+  if (mainCommentBox) {
+    // Masquer temporairement les boutons d'édition
+    const editBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
+    editBtns.forEach(btn => { btn.dataset.exportHidden = btn.style.display; btn.style.display = 'none'; });
     
-    const sectionHeight = section.offsetHeight;
-    const estimatedPdfHeight = (sectionHeight * 0.264583) / 2;
+    // Masquer l'éditeur de pills s'il est ouvert
+    const pillsEditor = mainCommentBox.querySelector('.pills-editor');
+    if (pillsEditor) pillsEditor.style.display = 'none';
+    
+    // Masquer le textarea d'édition si présent
+    const editTextarea = mainCommentBox.querySelector('textarea');
+    if (editTextarea) { editTextarea.dataset.exportHidden = editTextarea.style.display; editTextarea.style.display = 'none'; }
+    
+    // S'assurer que la description texte et les pills sont visibles
+    const descriptionEl = mainCommentBox.querySelector('#comment-description, .comment-description');
+    if (descriptionEl) descriptionEl.style.display = '';
+    const pillsWrapper = mainCommentBox.querySelector('.comment-pills-wrapper');
+    if (pillsWrapper) pillsWrapper.style.display = '';
+    
+    captureTargets.push(mainCommentBox);
+  }
+  
+  // 3. Toutes les sections indicateurs
+  ficheBody.querySelectorAll('.section').forEach(s => captureTargets.push(s));
+  
+  for (let element of captureTargets) {
+    if (element.style.display === 'none' || !element.offsetParent) continue;
+    
+    const elHeight = element.offsetHeight;
+    const estimatedPdfHeight = (elHeight * 0.264583) / 2;
     if (estimatedPdfHeight > 60) checkPageBreak(estimatedPdfHeight);
     
-    const canvas = await html2canvas(section, {
+    const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
-      width: section.scrollWidth,
-      height: section.scrollHeight
+      width: element.scrollWidth,
+      height: element.scrollHeight
     });
     
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
@@ -2473,6 +2517,27 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
     yPosition += imgHeight + 5;
   }
+  
+  // Restaurer les boutons d'édition et états masqués après capture
+  if (mainCommentBox) {
+    const editBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
+    editBtns.forEach(btn => {
+      if (btn.dataset.exportHidden !== undefined) { btn.style.display = btn.dataset.exportHidden; delete btn.dataset.exportHidden; }
+    });
+    const pillsEditor = mainCommentBox.querySelector('.pills-editor');
+    if (pillsEditor) pillsEditor.style.display = '';
+    const editTextarea = mainCommentBox.querySelector('textarea');
+    if (editTextarea && editTextarea.dataset.exportHidden !== undefined) {
+      editTextarea.style.display = editTextarea.dataset.exportHidden;
+      delete editTextarea.dataset.exportHidden;
+    }
+  }
+  
+  // Restaurer les hauteurs naturelles des textareas
+  ficheBody.querySelectorAll('textarea').forEach(ta => {
+    ta.removeAttribute('data-export-value');
+    ta.style.height = '';
+  });
   
   addHeaderFooter(currentPage);
   return currentPage;
@@ -2500,10 +2565,45 @@ function exportToHTML() {
   const struct = FICHE_STATE.structure;
   const styleContent = document.querySelector('style').innerHTML;
   
+  // ── Préparer le contenu pour l'export ──────────────────────────
+  // 1. Synchroniser les valeurs des textareas dans l'attribut HTML
+  //    (innerHTML ne capture pas .value JS, seulement l'attribut value)
+  ficheBody.querySelectorAll('textarea').forEach(ta => {
+    ta.setAttribute('value', ta.value); // pour les inputs simples
+    ta.textContent = ta.value;          // pour les textareas (standard HTML)
+  });
+  
+  // 2. Masquer les éléments interactifs non pertinents dans l'export
+  const elementsToHide = ficheBody.querySelectorAll(
+    '.comment-edit-btn, .comment-save-btn, .comment-cancel-btn, .pills-editor'
+  );
+  elementsToHide.forEach(el => el.setAttribute('data-export-hidden', el.style.display || ''));
+  elementsToHide.forEach(el => el.style.display = 'none');
+  
+  // 3. S'assurer que la description synthèse et les pills sont visibles
+  const commentDesc = ficheBody.querySelector('.comment-description');
+  if (commentDesc) commentDesc.style.display = '';
+  const pillsWrapper = ficheBody.querySelector('.comment-pills-wrapper');
+  if (pillsWrapper) pillsWrapper.style.display = '';
+  
+  const ficheBodyHTML = ficheBody.innerHTML;
+  
+  // ── Restaurer l'état interactif ────────────────────────────────
+  elementsToHide.forEach(el => {
+    el.style.display = el.getAttribute('data-export-hidden') || '';
+    el.removeAttribute('data-export-hidden');
+  });
+  // Restaurer les textareas (supprimer l'attribut statique qui polluerait l'interface)
+  ficheBody.querySelectorAll('textarea').forEach(ta => {
+    ta.removeAttribute('value');
+    ta.textContent = ta.value; // préserver le contenu visible
+  });
+  
   const printStyles = `
     @media print {
       body { background: white; margin: 0; padding: 0; }
-      .section, .kpi-card, .metrics-grid, .chart-container, .chart-grid {
+      .section, .kpi-card, .metrics-grid, .chart-container, .chart-grid,
+      .comment-box, .fiche-header {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
@@ -2512,8 +2612,22 @@ function exportToHTML() {
         break-inside: avoid !important;
       }
       p, .kpi-card-details { orphans: 3; widows: 3; }
+      /* Masquer les boutons d'édition à l'impression */
+      .comment-edit-btn, .comment-save-btn, .comment-cancel-btn,
+      .pills-editor, #selbar, #quick-nav { display: none !important; }
+      /* Les textareas commentaire : afficher comme du texte statique */
+      textarea {
+        border: none !important;
+        resize: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        pointer-events: none;
+      }
     }
     @page { margin: 20mm; size: A4 portrait; }
+    /* Dans l'export HTML statique : masquer les boutons interactifs */
+    .comment-edit-btn, .comment-save-btn, .comment-cancel-btn,
+    .pills-editor, #selbar, #quick-nav { display: none !important; }
   `;
   
   const html = `<!DOCTYPE html>
@@ -2525,10 +2639,7 @@ function exportToHTML() {
 </head>
 <body>
   <div style="max-width:1200px;margin:0 auto;padding:24px;">
-    <h1 style="font-family:'Marianne',serif;color:var(--rep);margin-bottom:24px;">
-      Fiche Identité ${struct.nom} (${struct.sigle}) - ${FICHE_STATE.annee}
-    </h1>
-    ${ficheBody.innerHTML}
+    ${ficheBodyHTML}
   </div>
 </body>
 </html>`;
