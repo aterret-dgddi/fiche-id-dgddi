@@ -81,7 +81,10 @@ function getConsolidationStructureData(structureId, annee) {
         age_moyen_agco: consolStruct.Age_Moyen?.[i] || 0,
         age_moyen_su: consolStruct.Age_Moyen?.[i] || 0,
         age_moyen_autres: consolStruct.Age_Moyen?.[i] || 0,
-        // pct_agco/su/autres surchargés plus bas depuis colonnes Grist dédiées
+        pct_agco: consolStruct.Pct_AGCO?.[i] || 0,
+        pct_su: consolStruct.Pct_SU?.[i] || 0,
+        pct_autres: consolStruct.Pct_Autres?.[i] || 0,
+        age_moyen_agco: consolStruct.Age_Moyen_AGCO?.[i] || 0,
         
         // === VÉHICULES ===
         nb_vehicules: consolStruct.Nb_Vehicules?.[i] || 0,
@@ -93,7 +96,7 @@ function getConsolidationStructureData(structureId, annee) {
         budget_fonctionnement_vehicules: consolStruct.Budget_Fonctionnement_Vehicules?.[i] || 0,
         budget_investissement_vehicules: consolStruct.Budget_Investissement_Vehicules?.[i] || 0,
         cout_fonctionnement_vehicule: consolStruct.Cout_Fonctionnement_Par_Vehicule?.[i] || 0,
-
+        
         // === FRAIS DE MISSION ===
         frais_transport: consolStruct.Transport?.[i] || 0,
         frais_hebergement: consolStruct.Hebergement?.[i] || 0,
@@ -107,13 +110,7 @@ function getConsolidationStructureData(structureId, annee) {
         pct_autres_missions: consolStruct.Pct_Autres_Missions?.[i] || 0,
         formation_par_agent: consolStruct.Formation_Par_Agent?.[i] || 0,
         autres_par_agent: consolStruct.Autres_Par_Agent?.[i] || 0,
-
-        // === RH POURCENTAGES (colonnes Grist) ===
-        pct_agco: consolStruct.Pct_AGCO?.[i] || 0,
-        pct_su: consolStruct.Pct_SU?.[i] || 0,
-        pct_autres: consolStruct.Pct_Autres?.[i] || 0,
-        age_moyen_agco: consolStruct.Age_Moyen_AGCO?.[i] || 0,
-
+        
         // === INFORMATIQUE ===
         postes_fixes: consolStruct.Postes_Fixes?.[i] || 0,
         portables: consolStruct.Portables?.[i] || 0,
@@ -543,17 +540,23 @@ function getVehiculesData(structureId, annee) {
 
   // Priorite 2 : Consolidation_Structure (ex: DI 972 sans ligne propre dans Vehicules)
   const consolData = getConsolidationStructureData(structureId, annee);
-  if (consolData && consolData.nb_vehicules > 0) {
+  // Condition élargie : déclencher si nb_vehicules OU budget présent (DI 972 2022/2023 : budget sans inventaire)
+  const hasBudget = consolData && (
+    consolData.nb_vehicules > 0 ||
+    consolData.budget_vehicules > 0 ||
+    consolData.budget_fonctionnement_vehicules > 0
+  );
+  if (hasBudget) {
     return {
-      nombre_total:         consolData.nb_vehicules,
-      nombre_vetuste:       consolData.nb_vehicules_vetustes || 0,
-      taux_vetuste:         consolData.taux_vetuste || 0,
+      nombre_total:          consolData.nb_vehicules || 0,
+      nombre_vetuste:        consolData.nb_vehicules_vetustes || 0,
+      taux_vetuste:          consolData.taux_vetuste || 0,
       budget_fonctionnement: consolData.budget_fonctionnement_vehicules || 0,
       budget_investissement: consolData.budget_investissement_vehicules || 0,
-      budget_total:         consolData.budget_vehicules || 0,
-      ratio_vehicule_agent: consolData.ratio_vehicule_agent || 0,
-      ratio_vehicule_su:    consolData.ratio_vehicule_su || 0,
-      cout_fonct_vehicule:  consolData.cout_fonctionnement_vehicule || 0
+      budget_total:          consolData.budget_vehicules || 0,
+      ratio_vehicule_agent:  consolData.ratio_vehicule_agent || 0,
+      ratio_vehicule_su:     consolData.ratio_vehicule_su || 0,
+      cout_fonct_vehicule:   consolData.cout_fonctionnement_vehicule || 0
     };
   }
 
@@ -2024,13 +2027,13 @@ function createVehiculesTable(structureId) {
     if (consolDerniere) {
       rowMoy.innerHTML = `
         <td style="padding:12px 16px;font-size:13px;">Moyenne ${perimetre}</td>
-        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(consolDerniere.Moy_Nb_Vehicules || 0, 0)}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(consolDerniere.moy_nb_vehicules || 0, 0)}</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;">—</td>
-        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatPercent(consolDerniere.Moy_Taux_Vetuste || 0)}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatPercent(consolDerniere.moy_taux_vetuste || 0)}</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;">—</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;">—</td>
-        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber((consolDerniere.Moy_Budget_Vehicules || 0) / 1000, 0)} K€</td>
-        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(consolDerniere.Moy_Ratio_Vehicule_Agent || 0, 3)}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber((consolDerniere.moy_budget_vehicules || 0) / 1000, 0)} K€</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(consolDerniere.moy_ratio_vehicule_agent || 0, 3)}</td>
       `;
       
       tbody.appendChild(rowMoy);
