@@ -223,11 +223,6 @@ async function loadAllData() {
     FICHE_STATE.data.commentaires = commentaires;
     FICHE_STATE.data.infbud40 = infbud40;
     
-    // Debug : Afficher les colonnes de Consolidation
-    if (consolidation && consolidation.id && consolidation.id.length > 0) {
-        return obj;
-      }, {}));
-    }
     hideLoader();
     onDataLoaded();
     
