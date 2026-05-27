@@ -69,58 +69,60 @@ function getConsolidationStructureData(structureId, annee) {
     if (consolStruct.Structure[i] === structureId && consolStruct.Annee[i] === annee) {
       return {
         // === RH ===
-        effectif_total:    consolStruct.Effectif_Total?.[i] || 0,
-        effectif_agco:     consolStruct.Effectif_AGCO?.[i] || 0,
-        effectif_su:       consolStruct.Effectif_SU?.[i] || 0,
-        effectif_autres:   consolStruct.Effectif_Autres?.[i] || 0,
-        age_moyen:         consolStruct.Age_Moyen?.[i] || 0,
-        age_moyen_agco:    consolStruct.Age_Moyen_AGCO?.[i] || 0,
-        age_moyen_su:      consolStruct.Age_Moyen?.[i] || 0,
-        age_moyen_autres:  consolStruct.Age_Moyen?.[i] || 0,
-        masse_salariale:   consolStruct.Masse_Salariale?.[i] || 0,
-        ms_par_agent:      consolStruct.MS_Par_Agent?.[i] || 0,
-        pct_agco:          consolStruct.Pct_AGCO?.[i] || 0,
-        pct_su:            consolStruct.Pct_SU?.[i] || 0,
-        pct_autres:        consolStruct.Pct_Autres?.[i] || 0,
-
+        effectif_total: consolStruct.Effectif_Total?.[i] || 0,
+        effectif_agco: consolStruct.Effectif_AGCO?.[i] || 0,
+        effectif_su: consolStruct.Effectif_SU?.[i] || 0,
+        effectif_autres: consolStruct.Effectif_Autres?.[i] || 0,
+        age_moyen: consolStruct.Age_Moyen?.[i] || 0,
+        masse_salariale: consolStruct.Masse_Salariale?.[i] || 0,
+        ms_par_agent: consolStruct.MS_Par_Agent?.[i] || 0,
+        
+        // Calculs dérivés
+        age_moyen_agco: consolStruct.Age_Moyen?.[i] || 0,
+        age_moyen_su: consolStruct.Age_Moyen?.[i] || 0,
+        age_moyen_autres: consolStruct.Age_Moyen?.[i] || 0,
+        pct_agco: consolStruct.Effectif_Total?.[i] > 0 
+          ? Math.round((consolStruct.Effectif_AGCO?.[i] || 0) / consolStruct.Effectif_Total[i] * 1000) / 10 
+          : 0,
+        pct_su: consolStruct.Effectif_Total?.[i] > 0 
+          ? Math.round((consolStruct.Effectif_SU?.[i] || 0) / consolStruct.Effectif_Total[i] * 1000) / 10 
+          : 0,
+        pct_autres: consolStruct.Effectif_Total?.[i] > 0 
+          ? Math.round((consolStruct.Effectif_Autres?.[i] || 0) / consolStruct.Effectif_Total[i] * 1000) / 10 
+          : 0,
+        
         // === VÉHICULES ===
-        nb_vehicules:                  consolStruct.Nb_Vehicules?.[i] || 0,
-        nb_vehicules_vetustes:         consolStruct.Nb_Vehicules_Vetustes?.[i] || 0,
-        taux_vetuste:                  consolStruct.Taux_Vetuste?.[i] || 0,
-        ratio_vehicule_agent:          consolStruct.Ratio_Vehicule_Agent?.[i] || 0,
-        ratio_vehicule_su:             consolStruct.Ratio_Vehicule_SU?.[i] || 0,
-        budget_vehicules:              consolStruct.Budget_Total_Vehicules?.[i] || 0,
-        budget_fonctionnement_vehicules: consolStruct.Budget_Fonctionnement_Vehicules?.[i] || 0,
-        budget_investissement_vehicules: consolStruct.Budget_Investissement_Vehicules?.[i] || 0,
-        cout_fonctionnement_vehicule:  consolStruct.Cout_Fonctionnement_Par_Vehicule?.[i] || 0,
-
+        nb_vehicules: consolStruct.Nb_Vehicules?.[i] || 0,
+        nb_vehicules_vetustes: consolStruct.Nb_Vehicules_Vetustes?.[i] || 0,
+        taux_vetuste: consolStruct.Taux_Vetuste?.[i] || 0,
+        ratio_vehicule_agent: consolStruct.Ratio_Vehicule_Agent?.[i] || 0,
+        ratio_vehicule_su: consolStruct.Ratio_Vehicule_SU?.[i] || 0,
+        budget_vehicules: consolStruct.Budget_Vehicules?.[i] || 0,
+        cout_fonctionnement_vehicule: consolStruct.Cout_Fonctionnement_Par_Vehicule?.[i] || 0,
+        
         // === FRAIS DE MISSION ===
-        frais_transport:       consolStruct.Transport?.[i] || 0,
-        frais_hebergement:     consolStruct.Hebergement?.[i] || 0,
-        frais_repas:           consolStruct.Repas?.[i] || 0,
-        frais_formation:       consolStruct.Formation?.[i] || 0,
+        frais_transport: consolStruct.Transport?.[i] || 0,
+        frais_hebergement: consolStruct.Hebergement?.[i] || 0,
+        frais_repas: consolStruct.Repas?.[i] || 0,
+        frais_formation: consolStruct.Formation?.[i] || 0,
         frais_autres_missions: consolStruct.Autres_Missions?.[i] || 0,
-        total_frais_mission:   consolStruct.Montant_Total?.[i] || 0,
-        frais_mission_par_agent:  consolStruct.Frais_Mission_Par_Agent?.[i] || 0,
-        formation_par_agent:      consolStruct.Formation_Par_Agent?.[i] || 0,
-        autres_par_agent:         consolStruct.Autres_Par_Agent?.[i] || 0,
-        pct_formation:            consolStruct.Pct_Formation?.[i] || 0,
-        pct_autres_missions:      consolStruct.Pct_Autres_Missions?.[i] || 0,
-
+        frais_mission_par_agent: consolStruct.Frais_Mission_Par_Agent?.[i] || 0,
+        total_frais_mission: (consolStruct.Transport?.[i] || 0) + 
+                            (consolStruct.Hebergement?.[i] || 0) + 
+                            (consolStruct.Repas?.[i] || 0),
+        
         // === INFORMATIQUE ===
-        postes_fixes:              consolStruct.Postes_Fixes?.[i] || 0,
-        portables:                 consolStruct.Portables?.[i] || 0,
-        nb_postes_total:           consolStruct.Nb_Postes_Total?.[i] || 0,
-        taux_equipement:           consolStruct.Taux_Equipement?.[i] || 0,
-        pct_portables:             consolStruct.Pct_Portables?.[i] || 0,
-        budget_it_cp:              consolStruct.Budget_IT_CP?.[i] || 0,
-        budget_it_4ans:            consolStruct.Budget_IT_4ans?.[i] || 0,
-        budget_it_par_agent:       consolStruct.IT_Par_Agent?.[i] || 0,
-        budget_it_par_agent_4ans:  consolStruct.IT_Par_Agent_Lisse?.[i] || 0
+        postes_fixes: consolStruct.Postes_Fixes?.[i] || 0,
+        portables: consolStruct.Portables?.[i] || 0,
+        nb_postes_total: consolStruct.Nb_Postes_Total?.[i] || 0,
+        taux_equipement: consolStruct.Taux_Equipement?.[i] || 0,
+        budget_it_cp: consolStruct.Budget_IT_CP?.[i] || 0,
+        budget_it_4ans: consolStruct.Budget_IT_4ans?.[i] || 0,
+        budget_it_par_agent: consolStruct.IT_Par_Agent?.[i] || 0,
+        budget_it_par_agent_4ans: consolStruct.IT_Par_Agent_Lisse?.[i] || 0
       };
     }
   }
-  
   return null;
 }
 
@@ -221,6 +223,11 @@ async function loadAllData() {
     FICHE_STATE.data.commentaires = commentaires;
     FICHE_STATE.data.infbud40 = infbud40;
     
+    // Debug : Afficher les colonnes de Consolidation
+    if (consolidation && consolidation.id && consolidation.id.length > 0) {
+        return obj;
+      }, {}));
+    }
     hideLoader();
     onDataLoaded();
     
@@ -328,8 +335,7 @@ function getRangStructure(structureId, annee, metrique = 'effectif_total') {
 
 function getRHData(structureId, annee) {
   const rh = FICHE_STATE.data.rh;
-  
-  // ✨ OPTIMISATION : Essayer d'abord Consolidation_Structure
+    // ✨ OPTIMISATION : Essayer d'abord Consolidation_Structure
   const consolData = getConsolidationStructureData(structureId, annee);
   
   if (consolData && consolData.effectif_total > 0) {
@@ -337,14 +343,12 @@ function getRHData(structureId, annee) {
   }
   
   // ⚠️ FALLBACK : Calcul manuel (ancien code)
-  
   // Liste des structures à agréger
   let structureIds = [structureId];
   
   // Si c'est une DI, ajouter les DR rattachées
   const currentStruct = FICHE_STATE.data.structures;
   const idx = currentStruct.id.indexOf(structureId);
-  
   if (idx !== -1 && currentStruct.Type[idx] === 'DI') {
     const drRattachees = getDRRattachees(structureId);
     structureIds = structureIds.concat(drRattachees);
@@ -513,49 +517,31 @@ function getRHDetailParDR(structureId, annee) {
 }
 
 function getVehiculesData(structureId, annee) {
-  // Priorité 1 : table Vehicules directe (contient le détail fonctionnement/investissement)
   const veh = FICHE_STATE.data.vehicules;
-  if (veh && veh.id) {
-    const idx = veh.id.findIndex((id, i) =>
-      veh.Structure[i] === structureId &&
-      veh.Annee[i] === annee
-    );
-    if (idx !== -1) {
-      const nombre_total = veh.Nombre_Total[idx] || 0;
-      const budget_fonctionnement = veh.Budget_Fonctionnement_CP[idx] || 0;
-      return {
-        nombre_total: nombre_total,
-        nombre_vetuste: veh.Nombre_Vetuste[idx] || 0,
-        taux_vetuste: veh.Taux_Vetuste[idx] || 0,
-        budget_fonctionnement: budget_fonctionnement,
-        budget_investissement: veh.Budget_Investissement_CP[idx] || 0,
-        budget_total: veh.Budget_Total_CP[idx] || 0,
-        ratio_vehicule_agent: veh.Ratio_Vehicule_Agent_Total[idx] || 0,
-        ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0,
-        cout_fonct_vehicule: nombre_total > 0 ? budget_fonctionnement / nombre_total : 0
-      };
-    }
-  }
-
-  // Priorité 2 : Consolidation_Structure (DI sans ligne propre dans Vehicules, ex: DI 972)
-  // Note : Budget_Fonctionnement et Budget_Investissement non disponibles ici (null = affichage "—")
-  const consolData = getConsolidationStructureData(structureId, annee);
-  if (consolData && consolData.nb_vehicules > 0) {
-    return {
-      nombre_total:          consolData.nb_vehicules,
-      nombre_vetuste:        consolData.nb_vehicules_vetustes,
-      taux_vetuste:          consolData.taux_vetuste,
-      budget_fonctionnement: consolData.budget_fonctionnement_vehicules || 0,
-      budget_investissement: consolData.budget_investissement_vehicules || 0,
-      budget_total:          consolData.budget_vehicules || 0,
-      ratio_vehicule_agent:  consolData.ratio_vehicule_agent || 0,
-      ratio_vehicule_su:     consolData.ratio_vehicule_su || 0,
-      cout_fonct_vehicule:   consolData.cout_fonctionnement_vehicule || 0
-    };
-  }
-
-  return null;
+  const idx = veh.id.findIndex((id, i) => 
+    veh.Structure[i] === structureId && 
+    veh.Annee[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  const nombre_total = veh.Nombre_Total[idx] || 0;
+  const budget_fonctionnement = veh.Budget_Fonctionnement_CP[idx] || 0;
+  
+  return {
+    nombre_total: nombre_total,
+    nombre_vetuste: veh.Nombre_Vetuste[idx] || 0,
+    taux_vetuste: veh.Taux_Vetuste[idx] || 0,
+    budget_fonctionnement: budget_fonctionnement,
+    budget_investissement: veh.Budget_Investissement_CP[idx] || 0,
+    budget_total: veh.Budget_Total_CP[idx] || 0,
+    ratio_vehicule_agent: veh.Ratio_Vehicule_Agent_Total[idx] || 0,
+    ratio_vehicule_su: veh.Ratio_Vehicule_Agent_SU[idx] || 0,
+    cout_fonct_vehicule: nombre_total > 0 ? budget_fonctionnement / nombre_total : 0
+  };
 }
+
+
 
 function getBudgetData(structureId, annee) {
   const notif = FICHE_STATE.data.notif_bop;
@@ -610,46 +596,50 @@ function getConsolidationData(perimetre, annee) {
     pct_agco: conso.Pct_AGCO[idx] || 0,
     pct_su: conso.Pct_SU[idx] || 0,
     
-    // === MOYENNES RH ===
-    age_moyen_global:    conso.Age_Moyen_Global?.[idx] || 0,
-    effectif_moyen:      conso.Effectif_Moyen_Par_Structure?.[idx] || 0,
-    effectif_agco_moyen: conso.Effectif_AGCO_Moyen_Par_Structure?.[idx] || 0,
-    effectif_su_moyen:   conso.Effectif_SU_Moyen_Par_Structure?.[idx] || 0,
-
+    // === MOYENNES RH (colonnes ajoutées dans Consolidation) ===
+    age_moyen_global: conso.Age_Moyen_Global?.[idx] || 0,                          // ← AJOUTÉ
+    effectif_moyen: conso.Effectif_Moyen_Par_Structure?.[idx] || 0,                // ← AJOUTÉ
+    effectif_agco_moyen: conso.Effectif_AGCO_Moyen_Par_Structure?.[idx] || 0,      // ← AJOUTÉ
+    effectif_su_moyen: conso.Effectif_SU_Moyen_Par_Structure?.[idx] || 0,          // ← AJOUTÉ
+    
     // === VÉHICULES ===
-    total_vehicules:              conso.Total_Vehicules[idx] || 0,
-    taux_vetuste_moyen:           conso.Taux_Vetuste_Moyen[idx] || 0,
-    total_budget_vehicules:       conso.Total_Budget_Vehicules[idx] || 0,
-    total_budget_fonctionnement:  conso.Total_Budget_Fonctionnement_Vehicules?.[idx] || 0,
-    total_budget_investissement:  conso.Total_Budget_Investissement_Vehicules?.[idx] || 0,
-    moy_nb_vehicules:             conso.Moy_Nb_Vehicules?.[idx] || 0,
-    moy_taux_vetuste:             conso.Moy_Taux_Vetuste?.[idx] || 0,
-    moy_budget_vehicules:         conso.Moy_Budget_Vehicules?.[idx] || 0,
-    moy_ratio_vehicule_agent:     conso.Moy_Ratio_Vehicule_Agent?.[idx] || 0,
-    moy_ratio_vehicule_su:        conso.Moy_Ratio_Vehicule_SU?.[idx] || 0,
-    moy_cout_fonct_vehicule:      conso.Moy_Cout_Fonctionnement_Par_Vehicule?.[idx] || 0,
-
-    // === BUDGET BOP ===
-    total_notif_ae:       conso.Total_Notif_AE[idx] || 0,
-    total_notif_cp:       conso.Total_Notif_CP[idx] || 0,
-    total_conso_ae:       conso.Total_Conso_AE[idx] || 0,
-    total_conso_cp:       conso.Total_Conso_CP[idx] || 0,
-    taux_conso_moyen_ae:  conso.Taux_Conso_Moyen_AE[idx] || 0,
-    taux_conso_moyen_cp:  conso.Taux_Conso_Moyen_CP[idx] || 0,
-
+    total_vehicules: conso.Total_Vehicules[idx] || 0,
+    taux_vetuste_moyen: conso.Taux_Vetuste_Moyen[idx] || 0,
+    total_budget_vehicules: conso.Total_Budget_Vehicules[idx] || 0,
+    
+    // === MOYENNES VÉHICULES (colonnes ajoutées) ===
+    moy_nb_vehicules: conso.Moy_Nb_Vehicules?.[idx] || 0,                          // ← AJOUTÉ
+    moy_taux_vetuste: conso.Moy_Taux_Vetuste?.[idx] || 0,                          // ← AJOUTÉ
+    moy_budget_vehicules: conso.Moy_Budget_Vehicules?.[idx] || 0,                  // ← AJOUTÉ
+    moy_ratio_vehicule_agent: conso.Moy_Ratio_Vehicule_Agent?.[idx] || 0,          // ← AJOUTÉ
+    moy_ratio_vehicule_su: conso.Moy_Ratio_Vehicule_SU?.[idx] || 0,                // ← AJOUTÉ
+    
+    // === BUDGET (notifs BOP) ===
+    total_notif_ae: conso.Total_Notif_AE[idx] || 0,
+    total_notif_cp: conso.Total_Notif_CP[idx] || 0,
+    total_conso_ae: conso.Total_Conso_AE[idx] || 0,
+    total_conso_cp: conso.Total_Conso_CP[idx] || 0,
+    taux_conso_moyen_ae: conso.Taux_Conso_Moyen_AE[idx] || 0,
+    taux_conso_moyen_cp: conso.Taux_Conso_Moyen_CP[idx] || 0,
+    
     // === FRAIS DE MISSION ===
-    total_frais_mission:      conso.Total_Frais_Mission[idx] || 0,
-    moyenne_frais_par_agent:  conso.Moyenne_Frais_Par_Agent[idx] || 0,
-    moy_frais_par_agent:      conso.Moyenne_Frais_Par_Agent?.[idx] || 0,
-    moy_formation_par_agent:  conso.Moy_Formation_Par_Agent?.[idx] || 0,
-    moy_autres_par_agent:     conso.Moy_Autres_Par_Agent?.[idx] || 0,
-
+    total_frais_mission: conso.Total_Frais_Mission[idx] || 0,
+    moyenne_frais_par_agent: conso.Moyenne_Frais_Par_Agent[idx] || 0,
+    
+    // === MOYENNES FRAIS DE MISSION (colonnes ajoutées) ===
+    moy_frais_par_structure: conso.Moy_Frais_Par_Structure?.[idx] || 0,         
+    moy_frais_par_agent: conso.Moy_Frais_Par_Agent?.[idx] || conso.Moyenne_Frais_Par_Agent?.[idx] || 0, // Fallback vers Moyenne_Frais_Par_Agent
+    moy_formation_par_agent: conso.Moy_Formation_Par_Agent?.[idx] || 0,         
+    moy_autres_par_agent: conso.Moy_Autres_Par_Agent?.[idx] || 0,               
+    
     // === INFORMATIQUE ===
-    total_budget_it:              conso.Total_Budget_IT[idx] || 0,
-    moyenne_budget_it_par_agent:  conso.Moyenne_Budget_IT_Par_Agent[idx] || 0,
-    moy_budget_it_par_agent:      conso.Moy_Budget_IT_Par_Agent?.[idx] || 0,
-    moy_ratio_poste_agent:        conso.Moy_Ratio_Poste_Agent?.[idx] || 0,
-    moy_budget_it_moyen_4ans:     conso.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0
+    total_budget_it: conso.Total_Budget_IT[idx] || 0,
+    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0,
+    
+    // === MOYENNES INFORMATIQUE (colonnes ajoutées) ===
+    moy_budget_it_par_agent: conso.Moy_Budget_IT_Par_Agent?.[idx] || 0,            // ← AJOUTÉ
+    moy_ratio_poste_agent: conso.Moy_Ratio_Poste_Agent?.[idx] || 0,                // ← AJOUTÉ
+    moy_budget_it_moyen_4ans: conso.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0 // ← AJOUTÉ
   };
 }
 
@@ -917,9 +907,14 @@ async function saveCommentaire(structureId, annee, section, commentaire) {
     FICHE_STATE.data.commentaires = newComments;
     
   } catch (err) {
-    // Erreur silencieuse
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT PDF/HTML
+// ═══════════════════════════════════════════════════════════════
+
+
 
 // ═══════════════════════════════════════════════════════════════
 // UI HELPERS
@@ -1217,63 +1212,35 @@ function getNotificationsBOPByType(structureId, annee, type) {
  * @returns {Object|null} Données frais de mission
  */
 function getFraisMissionData(structureId, annee) {
-  // Priorité 1 : table Frais_Mission directe (contient le détail formation_transport/repas/etc.)
   const fraisMission = FICHE_STATE.data.frais_mission;
-  if (fraisMission) {
-    const idx = fraisMission.id.findIndex((id, i) =>
-      fraisMission.Structure[i] === structureId &&
-      fraisMission.Annee[i] === annee
-    );
-    if (idx !== -1) {
-      return {
-        montant_total: fraisMission.Montant_Total?.[idx] || 0,
-        total_formation: fraisMission.Total_Formation?.[idx] || 0,
-        total_autres: fraisMission.Total_Autres?.[idx] || 0,
-        total_transport: fraisMission.Total_Transport?.[idx] || 0,
-        total_repas: fraisMission.Total_Repas?.[idx] || 0,
-        total_hebergement: fraisMission.Total_Hebergement?.[idx] || 0,
-        formation_transport: fraisMission.Formation_Transport?.[idx] || 0,
-        formation_repas: fraisMission.Formation_Repas?.[idx] || 0,
-        formation_hebergement: fraisMission.Formation_Hebergement?.[idx] || 0,
-        autres_transport: fraisMission.Autres_Transport?.[idx] || 0,
-        autres_repas: fraisMission.Autres_Repas?.[idx] || 0,
-        autres_hebergement: fraisMission.Autres_Hebergement?.[idx] || 0,
-        frais_par_agent: fraisMission.Frais_Par_Agent?.[idx] || 0,
-        formation_par_agent: fraisMission.Formation_Par_Agent?.[idx] || 0,
-        autres_par_agent: fraisMission.Autres_Par_Agent?.[idx] || 0,
-        pct_formation: fraisMission.Pct_Formation?.[idx] || 0,
-        pct_autres: fraisMission.Pct_Autres?.[idx] || 0
-      };
-    }
-  }
-
-  // Priorité 2 : Consolidation_Structure (DI sans ligne propre, ex: DI 972)
-  // Note : le sous-détail formation_transport/repas/hébergement n'est pas disponible ici
-  const consolData = getConsolidationStructureData(structureId, annee);
-  if (consolData) {
-    return {
-      montant_total:        consolData.total_frais_mission || 0,
-      total_formation:      consolData.frais_formation || 0,
-      total_autres:         consolData.frais_autres_missions || 0,
-      total_transport:      consolData.frais_transport || 0,
-      total_repas:          consolData.frais_repas || 0,
-      total_hebergement:    consolData.frais_hebergement || 0,
-      // Sous-détail formation/autres non disponible dans Consolidation_Structure
-      formation_transport:  0,
-      formation_repas:      0,
-      formation_hebergement: 0,
-      autres_transport:     0,
-      autres_repas:         0,
-      autres_hebergement:   0,
-      frais_par_agent:      consolData.frais_mission_par_agent || 0,
-      formation_par_agent:  consolData.formation_par_agent || 0,
-      autres_par_agent:     consolData.autres_par_agent || 0,
-      pct_formation:        consolData.pct_formation || 0,
-      pct_autres:           consolData.pct_autres_missions || 0
-    };
-  }
-
-  return null;
+  if (!fraisMission) return null;
+  
+  const idx = fraisMission.id.findIndex((id, i) => 
+    fraisMission.Structure[i] === structureId && 
+    fraisMission.Annee[i] === annee
+  );
+  
+  if (idx === -1) return null;
+  
+  return {
+    montant_total: fraisMission.Montant_Total?.[idx] || 0,
+    total_formation: fraisMission.Total_Formation?.[idx] || 0,
+    total_autres: fraisMission.Total_Autres?.[idx] || 0,
+    total_transport: fraisMission.Total_Transport?.[idx] || 0,
+    total_repas: fraisMission.Total_Repas?.[idx] || 0,
+    total_hebergement: fraisMission.Total_Hebergement?.[idx] || 0,
+    formation_transport: fraisMission.Formation_Transport?.[idx] || 0,
+    formation_repas: fraisMission.Formation_Repas?.[idx] || 0,
+    formation_hebergement: fraisMission.Formation_Hebergement?.[idx] || 0,
+    autres_transport: fraisMission.Autres_Transport?.[idx] || 0,
+    autres_repas: fraisMission.Autres_Repas?.[idx] || 0,
+    autres_hebergement: fraisMission.Autres_Hebergement?.[idx] || 0,
+    frais_par_agent: fraisMission.Frais_Par_Agent?.[idx] || 0,
+    formation_par_agent: fraisMission.Formation_Par_Agent?.[idx] || 0,
+    autres_par_agent: fraisMission.Autres_Par_Agent?.[idx] || 0,
+    pct_formation: fraisMission.Pct_Formation?.[idx] || 0,
+    pct_autres: fraisMission.Pct_Autres?.[idx] || 0
+  };
 }
 
 /**
@@ -1288,7 +1255,6 @@ function getFraisMissionMoyennes(perimetre, annee) {
   if (!conso) {
     return null;
   }
-  
   return {
     moy_frais_par_structure: conso.moy_frais_par_structure || 0,
     moy_frais_par_agent: conso.moy_frais_par_agent || 0,
@@ -1361,6 +1327,43 @@ function getFraisMissionMultiAnnees(structureId, annees) {
  * @param {number} annee - Année
  * @returns {Object|null} Données informatique
  */
+
+/**
+ * Récupère les moyennes consolidées pour informatique
+ * @param {string} perimetre - Type de périmètre (National, DI, SCN, Outremer, Metropole)
+ * @param {number} annee - Année
+ * @returns {Object|null} Moyennes consolidées
+ */
+
+/**
+ * Détermine le périmètre de comparaison pour une structure (IT)
+ * @param {number} structureId - ID de la structure
+ * @returns {string} Périmètre (DI, SCN, Outremer, Metropole)
+ */
+
+/**
+ * Calcule l'intitulé du périmètre pour l'affichage (IT)
+ * @param {string} perimetre - Code périmètre
+ * @returns {string} Libellé pour affichage
+ */
+
+/**
+ * Récupère les données informatique pour plusieurs années
+ * @param {number} structureId - ID de la structure
+ * @param {Array<number>} annees - Liste des années à récupérer
+ * @returns {Array<Object>} Données par année
+ */
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE INFORMATIQUE
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Récupère les données informatique pour une structure et une année
+ * @param {number} structureId - ID de la structure
+ * @param {number} annee - Année
+ * @returns {Object|null} Données informatique
+ */
 function getInformatiqueData(structureId, annee) {
   // Stratégie hybride :
   // - Inventaire postes (Nb_Portables, Nb_Fixes, etc.) : table Informatique brute
@@ -1381,12 +1384,12 @@ function getInformatiqueData(structureId, annee) {
       informatique.Annee[i] === annee
     );
     if (idx !== -1) {
-      nb_portables    = informatique.Nb_Portables?.[idx] || 0;
-      nb_fixes        = informatique.Nb_Fixes?.[idx] || 0;
+      nb_portables      = informatique.Nb_Portables?.[idx] || 0;
+      nb_fixes          = informatique.Nb_Fixes?.[idx] || 0;
       nb_postes_travail = informatique.Nb_Postes_Travail?.[idx] || 0;
-      effectif_ref    = informatique.Effectif_Ref?.[idx] || 0;
+      effectif_ref      = informatique.Effectif_Ref?.[idx] || 0;
       ratio_poste_agent = informatique.Ratio_Poste_Agent?.[idx] || 0;
-      pct_portables   = informatique.Pct_Portables?.[idx] || 0;
+      pct_portables     = informatique.Pct_Portables?.[idx] || 0;
     }
   }
 
@@ -1396,9 +1399,9 @@ function getInformatiqueData(structureId, annee) {
   let budget_it_par_agent = 0, budget_it_moyen_par_agent_4ans = 0;
 
   if (consolData) {
-    budget_it_cp               = consolData.budget_it_cp || 0;
-    budget_it_moyen_4ans       = consolData.budget_it_4ans || 0;
-    budget_it_par_agent        = consolData.budget_it_par_agent || 0;
+    budget_it_cp                   = consolData.budget_it_cp || 0;
+    budget_it_moyen_4ans           = consolData.budget_it_4ans || 0;
+    budget_it_par_agent            = consolData.budget_it_par_agent || 0;
     budget_it_moyen_par_agent_4ans = consolData.budget_it_par_agent_4ans || 0;
   } else if (informatique) {
     const idx = informatique.id.findIndex((id, i) =>
@@ -1406,9 +1409,9 @@ function getInformatiqueData(structureId, annee) {
       informatique.Annee[i] === annee
     );
     if (idx !== -1) {
-      budget_it_cp               = informatique.Budget_IT_CP?.[idx] || 0;
-      budget_it_moyen_4ans       = informatique.Budget_IT_Moyen_4ans?.[idx] || 0;
-      budget_it_par_agent        = informatique.Budget_IT_Par_Agent?.[idx] || 0;
+      budget_it_cp                   = informatique.Budget_IT_CP?.[idx] || 0;
+      budget_it_moyen_4ans           = informatique.Budget_IT_Moyen_4ans?.[idx] || 0;
+      budget_it_par_agent            = informatique.Budget_IT_Par_Agent?.[idx] || 0;
       budget_it_moyen_par_agent_4ans = informatique.Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0;
     }
   }
@@ -1521,7 +1524,6 @@ function refreshVehicules(structureId, annee) {
   const data = getVehiculesData(structureId, annee);
   if (!data) {
     // Afficher placeholder si pas de données - vider TOUS les champs
-    
     document.getElementById('veh-total-value').textContent = '—';
     document.getElementById('veh-total-evol').innerHTML = '';
     document.getElementById('veh-total-comp').innerHTML = '';
@@ -1709,16 +1711,18 @@ function refreshVehicules(structureId, annee) {
     document.getElementById('veh-cout-evol').textContent = '';
   }
   
-  // Comparaison coût vs périmètre ET national (Moy_Cout_Fonctionnement_Par_Vehicule depuis Grist)
+  // Comparaison coût vs périmètre ET national
   const compCout = [];
-  if (consol && consol.moy_cout_fonct_vehicule > 0) {
-    const ecart = data.cout_fonct_vehicule - consol.moy_cout_fonct_vehicule;
-    const ecartPct = (ecart / consol.moy_cout_fonct_vehicule) * 100;
+  if (consol && consol.moy_budget_vehicules && consol.moy_nb_vehicules && consol.moy_nb_vehicules > 0) {
+    const moyenneCout = consol.moy_budget_vehicules / consol.moy_nb_vehicules;
+    const ecart = data.cout_fonct_vehicule - moyenneCout;
+    const ecartPct = moyenneCout > 0 ? (ecart / moyenneCout) * 100 : 0;
     compCout.push(`${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}`);
   }
-  if (consolNational && consolNational.moy_cout_fonct_vehicule > 0) {
-    const ecart = data.cout_fonct_vehicule - consolNational.moy_cout_fonct_vehicule;
-    const ecartPct = (ecart / consolNational.moy_cout_fonct_vehicule) * 100;
+  if (consolNational && consolNational.moy_budget_vehicules && consolNational.moy_nb_vehicules && consolNational.moy_nb_vehicules > 0) {
+    const moyenneCout = consolNational.moy_budget_vehicules / consolNational.moy_nb_vehicules;
+    const ecart = data.cout_fonct_vehicule - moyenneCout;
+    const ecartPct = moyenneCout > 0 ? (ecart / moyenneCout) * 100 : 0;
     compCout.push(`${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs National`);
   }
   if (compCout.length > 0) {
@@ -2337,7 +2341,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       img.src = url;
     });
   } catch (error) {
-    // Logo non disponible - continuer sans
   }
   
   function addHeaderFooter(pageNum) {
