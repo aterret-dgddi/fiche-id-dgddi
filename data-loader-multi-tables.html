@@ -894,12 +894,26 @@ document.getElementById('btn-write').onclick = async () => {
     addLog(`Début écriture dans ${G.targetTable} : ${toInsert.length} insertions, ${toUpdate.length} mises à jour`);
     
     const mappedCols = Object.values(G.mapping).filter(v => v !== '[Ignorer]');
+
+    // Pour la table Communication : injecter Date_Import_2026 = aujourd'hui
+    // Grist stocke les dates en nombre de jours depuis le 1er janvier 2000 (epoch Grist)
+    const isComTable = G.targetTable === 'Communication';
+    let dateImportGrist = null;
+    if (isComTable) {
+      const msPerDay = 86400000;
+      const gristEpoch = new Date('2000-01-01T00:00:00Z').getTime();
+      dateImportGrist = Math.floor((Date.now() - gristEpoch) / msPerDay);
+      addLog(`Date_Import_2026 = ${new Date().toLocaleDateString('fr-FR')} (valeur Grist : ${dateImportGrist})`);
+    }
     
     if (toInsert.length > 0) {
       const colData = {};
       mappedCols.forEach(colName => {
         colData[colName] = toInsert.map(r => r[colName] ?? null);
       });
+      if (isComTable) {
+        colData['Date_Import_2026'] = Array(toInsert.length).fill(dateImportGrist);
+      }
       
       await grist.docApi.applyUserActions([
         ['BulkAddRecord', G.targetTable, Array(toInsert.length).fill(null), colData]
@@ -913,6 +927,9 @@ document.getElementById('btn-write').onclick = async () => {
       mappedCols.forEach(colName => {
         colData[colName] = toUpdate.map(r => r[colName] ?? null);
       });
+      if (isComTable) {
+        colData['Date_Import_2026'] = Array(toUpdate.length).fill(dateImportGrist);
+      }
       
       await grist.docApi.applyUserActions([
         ['BulkUpdateRecord', G.targetTable, ids, colData]
