@@ -1208,47 +1208,44 @@
           <span id="com-date-import" style="font-size:11px;color:var(--gris3);font-style:italic;display:none;"></span>
         </div>
 
-        <!-- 3 Pills : Cible · CP · Capacité CP -->
+        <!-- 3 Pills : Cible · CP · Disponible CP — labels mis à jour dynamiquement -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
 
           <div class="kpi-card" style="border-left:3px solid var(--vert);">
-            <div style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">🎯 Cible 2026</div>
-            <div style="font-size:20px;font-weight:600;color:var(--vert);" id="com-pill-cible-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Objectif annuel</div>
+            <div id="com-pill-cible-label" style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">Cible de dépenses 2026 (CP)</div>
+            <div style="font-size:19px;font-weight:600;color:var(--vert);" id="com-pill-cible-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">(80 % des CP 2024)</div>
           </div>
 
           <div class="kpi-card" style="border-left:3px solid var(--rep2);">
-            <div style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
-            <div style="font-size:20px;font-weight:600;color:var(--rep);" id="com-pill-cp-val">—</div>
+            <div id="com-pill-cp-label" style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
+            <div style="font-size:19px;font-weight:600;color:var(--rep);" id="com-pill-cp-val">—</div>
             <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Paiements</div>
           </div>
 
           <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
-            <div style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Capacité CP 2026</div>
-            <div style="font-size:20px;font-weight:600;color:#6B3FA0;" id="com-pill-cap-cp-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Disponible</div>
+            <div id="com-pill-cap-cp-label" style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Disponible en CP 2026</div>
+            <div style="font-size:19px;font-weight:600;color:#6B3FA0;" id="com-pill-cap-cp-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité restante</div>
           </div>
         </div>
 
-        <!-- KPI Saturation de la cible -->
+        <!-- KPI Saturation -->
         <div id="com-sat-wrap" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;background:#F9FAFB;transition:background 0.3s,border-color 0.3s;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <span style="font-size:12px;font-weight:600;color:var(--gris2);">📊 Consommation de la cible 2026</span>
+            <span id="com-sat-titre" style="font-size:12px;font-weight:600;color:var(--gris2);">Consommation par rapport à la cible 2026</span>
             <div style="display:flex;align-items:baseline;gap:8px;">
               <span id="com-sat-pct" style="font-size:22px;font-weight:700;color:var(--gris2);">—</span>
               <span id="com-sat-label" style="font-size:11px;font-weight:500;">—</span>
             </div>
           </div>
-          <!-- Barre de progression -->
           <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px;">
             <div id="com-sat-jauge" style="height:100%;border-radius:4px;width:0%;transition:width 0.5s,background 0.3s;"></div>
           </div>
-          <!-- Reste disponible -->
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
             <span style="font-size:11px;color:var(--gris2);">Reste disponible</span>
             <span id="com-sat-reste" style="font-size:13px;font-weight:600;color:var(--gris2);">—</span>
           </div>
-          <!-- Comparaisons -->
           <div style="border-top:1px solid #e5e7eb;padding-top:8px;display:flex;flex-direction:column;gap:4px;">
             <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
               <span style="color:var(--gris3);">🌍 National :</span>
@@ -1261,10 +1258,9 @@
           </div>
         </div>
 
-        <!-- Graphique évolution CP 2022-2025 + barre 2026 -->
+        <!-- Graphique -->
         <div class="chart-container" style="margin-bottom:16px;">
-          <div class="chart-title">Évolution des dépenses de communication (CP)</div>
-          <div class="chart-subtitle">Paiements 2022–2025 et exécution 2026</div>
+          <div id="com-chart-title" class="chart-title">Consommation de CP de 2022 à 2026</div>
           <div class="chart-wrapper" style="height:200px;">
             <canvas id="chart-com-evolution"></canvas>
           </div>
@@ -1272,20 +1268,25 @@
 
         <!-- Tableau récapitulatif -->
         <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;min-width:700px;">
-            <thead style="background:var(--gris4);">
-              <tr>
-                <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Indicateur</th>
-                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2022</th>
-                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2023</th>
-                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2024</th>
-                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2025</th>
-                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">EJ 2026</th>
-                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">CP 2026</th>
-                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">Cible 2026</th>
-                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">Reports</th>
-                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">Cap. EJ</th>
-                <th style="padding:10px 14px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">Cap. CP</th>
+          <table style="width:100%;border-collapse:collapse;min-width:860px;">
+            <thead>
+              <tr id="com-thead-2026">
+                <th style="background:var(--gris4);border-bottom:0.5px solid var(--bord);padding:6px 12px;"></th>
+                <th colspan="4" style="background:var(--gris4);padding:6px 12px;text-align:center;font-weight:500;font-size:11px;color:var(--gris2);border-bottom:0.5px solid var(--bord);">Historique</th>
+                <th id="com-th-2026-label" colspan="6" style="background:#D4D9F5;padding:6px 12px;text-align:center;font-weight:600;font-size:11px;color:var(--rep);border-bottom:0.5px solid var(--bord);">Consommation budgétaire 2026</th>
+              </tr>
+              <tr style="background:var(--gris4);">
+                <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Structure</th>
+                <th id="com-th-2022" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2022</th>
+                <th id="com-th-2023" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2023</th>
+                <th id="com-th-2024" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2024</th>
+                <th id="com-th-2025" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2025</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--orange);">Restes à payer<br><span style="font-weight:400;">issus 2025</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">AE 2026</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">CP 2026</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--vert);">Cible 2026<br><span style="font-weight:400;font-size:10px;">(80 % CP 2024)</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">AE</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">CP</span></th>
               </tr>
             </thead>
             <tbody id="table-com-body">

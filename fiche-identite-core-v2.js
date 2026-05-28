@@ -2195,26 +2195,51 @@ function getCommunicationSaturationStyle(taux) {
   return { color: '#1a6b3c', bg: '#F0FDF4', label: 'Consommation faible' };
 }
 
+
+/**
+ * Récupère les lignes DR filles d'une structure DI dans la table Communication.
+ * @param {number} structureId - ID de la DI parente
+ * @returns {Array<{sigle:string, data:Object}>}
+ */
+function getCommunicationLignesFilles(structureId) {
+  const com = FICHE_STATE.data.communication;
+  const structures = FICHE_STATE.data.structures;
+  if (!com || !structures) return [];
+
+  const filles = [];
+  com.Structure.forEach((sId, i) => {
+    if (com.Est_Consolide?.[i]) return;
+    const sIdx = structures.id.indexOf(sId);
+    if (sIdx === -1) return;
+    const parentId = structures.Parent?.[sIdx];
+    if (parentId !== structureId) return;
+
+    const v = (col) => (com[col] ? (com[col][i] || 0) : 0);
+    const sigle = structures.Sigle?.[sIdx] || `Structure ${sId}`;
+    filles.push({
+      sigle,
+      data: {
+        cp_2022:    v('CP_2022'),
+        cp_2023:    v('CP_2023'),
+        cp_2024:    v('CP_2024'),
+        cp_2025:    v('CP_2025'),
+        ae_2026:    v('EJ_2026'),
+        cp_2026:    v('CP_2026'),
+        cible_2026: v('Cible_2026'),
+        rap_2026:   v('Report_2026'),
+        dispo_ae:   v('Capacite_EJ_2026'),
+        dispo_cp:   v('Capacite_CP_2026')
+      }
+    });
+  });
+  filles.sort((a, b) => a.sigle.localeCompare(b.sigle));
+  return filles;
+}
+
 /**
  * Rafraîchit la sous-section Dépenses de Communication.
- *
- * Pills (3) :
- *   com-pill-cible    → Cible 2026
- *   com-pill-cp       → CP 2026 (paiements)
- *   com-pill-cap-cp   → Capacité CP 2026
- *
- * KPI saturation :
- *   com-sat-jauge     → barre de progression
- *   com-sat-pct       → taux %
- *   com-sat-reste     → montant restant €
- *   com-sat-label     → libellé qualitatif
- *   com-sat-vs-nat    → comparaison vs national
- *   com-sat-vs-per    → comparaison vs périmètre
- *
- * Autres :
- *   com-date-import   → "Données au jj/mm/aaaa"
- *   chart-com-evolution, table-com-body, com-commentaire
- *
+ * Gère les labels dynamiques avec date, les 3 pills, le KPI saturation,
+ * le graphique, et le tableau avec lignes DR filles pour DI Outremer.
  * @param {number} structureId
  * @param {number} annee
  */
@@ -2222,18 +2247,26 @@ function refreshCommunication(structureId, annee) {
   const d   = getCommunicationData(structureId);
   const fmt = formatCommunicationMontant;
 
+  const structures = FICHE_STATE.data.structures;
+  const sIdx = structures ? structures.id.indexOf(structureId) : -1;
+  const sigle = sIdx !== -1 ? (structures.Sigle?.[sIdx] || '—') : '—';
+
+  const dateFmt = (d && d.date_import && !isNaN(d.date_import))
+    ? d.date_import.toLocaleDateString('fr-FR') : null;
+  const dateSuffix = dateFmt ? ` au ${dateFmt}` : '';
+
   // ── Reset complet si pas de données ───────────────────────────
   if (!d) {
     ['com-pill-cible-val','com-pill-cp-val','com-pill-cap-cp-val',
-     'com-sat-pct','com-sat-reste','com-sat-label','com-sat-vs-nat',
-     'com-sat-vs-per','com-date-import'].forEach(id => {
+     'com-sat-pct','com-sat-reste','com-sat-label',
+     'com-sat-vs-nat','com-sat-vs-per','com-date-import'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = '—';
     });
     const jauge = document.getElementById('com-sat-jauge');
     if (jauge) jauge.style.width = '0%';
     const tbody = document.getElementById('table-com-body');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>';
+    if (tbody) tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>`;
     const chartExist = Chart.getChart('chart-com-evolution');
     if (chartExist) chartExist.destroy();
     const ta = document.getElementById('com-commentaire');
@@ -2241,98 +2274,100 @@ function refreshCommunication(structureId, annee) {
     return;
   }
 
-  // ── Pills (3) ──────────────────────────────────────────────────
-  const elCible  = document.getElementById('com-pill-cible-val');
-  const elCp     = document.getElementById('com-pill-cp-val');
-  const elCapCp  = document.getElementById('com-pill-cap-cp-val');
-  if (elCible)  elCible.textContent  = fmt(d.cible_2026);
-  if (elCp)     elCp.textContent     = fmt(d.cp_2026);
-  if (elCapCp)  elCapCp.textContent  = fmt(d.cap_cp_2026);
+  // ── Date d'import ──────────────────────────────────────────────
+  const elDate = document.getElementById('com-date-import');
+  if (elDate) {
+    if (dateFmt) { elDate.textContent = `Données au ${dateFmt}`; elDate.style.display = ''; }
+    else elDate.style.display = 'none';
+  }
+
+  // ── Labels dynamiques des pills (point 2) ─────────────────────
+  const elLabelCible = document.getElementById('com-pill-cible-label');
+  const elLabelCp    = document.getElementById('com-pill-cp-label');
+  const elLabelCap   = document.getElementById('com-pill-cap-cp-label');
+  if (elLabelCible) elLabelCible.textContent = 'Cible de dépenses 2026 (CP)';
+  if (elLabelCp)    elLabelCp.textContent    = `CP 2026${dateSuffix}`;
+  if (elLabelCap)   elLabelCap.textContent   = `Disponible en CP 2026${dateSuffix}`;
+
+  // ── Pills (3) — valeurs ────────────────────────────────────────
+  const elCible = document.getElementById('com-pill-cible-val');
+  const elCp    = document.getElementById('com-pill-cp-val');
+  const elCapCp = document.getElementById('com-pill-cap-cp-val');
+  if (elCible) elCible.textContent = fmt(d.cible_2026);
+  if (elCp)    elCp.textContent    = fmt(d.cp_2026);
+  if (elCapCp) elCapCp.textContent = fmt(d.cap_cp_2026);
+
+  // ── Titre barre de progression (point 3) ──────────────────────
+  const elSatTitre = document.getElementById('com-sat-titre');
+  if (elSatTitre) elSatTitre.textContent = `Consommation par rapport à la cible 2026${dateSuffix}`;
 
   // ── KPI Saturation ─────────────────────────────────────────────
-  const style = getCommunicationSaturationStyle(d.taux_conso);
+  const style      = getCommunicationSaturationStyle(d.taux_conso);
   const pctDisplay = d.taux_pct.toFixed(1).replace('.', ',') + ' %';
 
-  const elSatPct    = document.getElementById('com-sat-pct');
-  const elSatReste  = document.getElementById('com-sat-reste');
-  const elSatLabel  = document.getElementById('com-sat-label');
-  const elSatJauge  = document.getElementById('com-sat-jauge');
-  const elSatWrap   = document.getElementById('com-sat-wrap');
+  const elSatPct   = document.getElementById('com-sat-pct');
+  const elSatReste = document.getElementById('com-sat-reste');
+  const elSatLabel = document.getElementById('com-sat-label');
+  const elSatJauge = document.getElementById('com-sat-jauge');
+  const elSatWrap  = document.getElementById('com-sat-wrap');
 
-  if (elSatPct)   elSatPct.textContent  = pctDisplay;
+  if (elSatPct)   { elSatPct.textContent = pctDisplay; elSatPct.style.color = style.color; }
   if (elSatReste) elSatReste.textContent = fmt(d.reste_cible > 0 ? d.reste_cible : 0);
-  if (elSatLabel) {
-    elSatLabel.textContent  = style.label;
-    elSatLabel.style.color  = style.color;
-  }
-  if (elSatJauge) {
-    elSatJauge.style.width      = Math.min(d.taux_pct, 100) + '%';
-    elSatJauge.style.background = style.color;
-  }
-  if (elSatWrap) {
-    elSatWrap.style.background = style.bg;
-    elSatWrap.style.borderColor = style.color;
-  }
-  if (elSatPct) elSatPct.style.color = style.color;
+  if (elSatLabel) { elSatLabel.textContent = style.label; elSatLabel.style.color = style.color; }
+  if (elSatJauge) { elSatJauge.style.width = Math.min(d.taux_pct, 100) + '%'; elSatJauge.style.background = style.color; }
+  if (elSatWrap)  { elSatWrap.style.background = style.bg; elSatWrap.style.borderColor = style.color; }
 
   // Comparaisons vs périmètre et national
-  const perimetre   = getPerimetreCommunication(structureId);
-  const tauxNat     = getCommunicationTauxMoyen('National', annee);
-  const tauxPer     = getCommunicationTauxMoyen(perimetre, annee);
-  const libPer      = { Metropole: 'moy. DI Métropole', Outremer: 'moy. Outre-Mer', SCN: 'moy. SCN', National: 'moy. nationale' }[perimetre] || 'moy. périmètre';
+  const perimetre = getPerimetreCommunication(structureId);
+  const tauxNat   = getCommunicationTauxMoyen('National', annee);
+  const tauxPer   = getCommunicationTauxMoyen(perimetre, annee);
+  const libPer    = { Metropole: 'moy. DI Métropole', Outremer: 'moy. Outre-Mer', SCN: 'moy. SCN', National: 'moy. nationale' }[perimetre] || 'moy. périmètre';
 
-  const fmtDelta = (ref) => {
+  const fmtDelta = (ref, label) => {
     if (ref === null) return null;
     const delta = d.taux_conso - ref;
     const sign  = delta >= 0 ? '+' : '';
-    return `${sign}${(delta * 100).toFixed(1).replace('.', ',')} pts vs ${ref === tauxNat ? 'national' : libPer} (${(ref * 100).toFixed(1).replace('.', ',')} %)`;
+    return `${sign}${(delta * 100).toFixed(1).replace('.', ',')} pts vs ${label} (${(ref * 100).toFixed(1).replace('.', ',')} %)`;
   };
 
   const elVsNat = document.getElementById('com-sat-vs-nat');
   const elVsPer = document.getElementById('com-sat-vs-per');
+  const rowPer  = document.getElementById('com-sat-vs-per-row');
+
   if (elVsNat) {
-    const txt = fmtDelta(tauxNat);
+    const txt = fmtDelta(tauxNat, 'national');
     elVsNat.textContent = txt || '— (moy. nationale non disponible)';
     elVsNat.style.color = tauxNat !== null ? (d.taux_conso > tauxNat ? '#c0392b' : '#1a6b3c') : 'var(--gris3)';
   }
-  if (elVsPer && perimetre !== 'National') {
-    const txt = fmtDelta(tauxPer);
+  if (perimetre !== 'National' && elVsPer) {
+    const txt = fmtDelta(tauxPer, libPer);
     elVsPer.textContent = txt || `— (${libPer} non disponible)`;
     elVsPer.style.color = tauxPer !== null ? (d.taux_conso > tauxPer ? '#c0392b' : '#1a6b3c') : 'var(--gris3)';
-    const rowPer = document.getElementById('com-sat-vs-per-row');
     if (rowPer) rowPer.style.display = '';
   } else {
-    const rowPer = document.getElementById('com-sat-vs-per-row');
     if (rowPer) rowPer.style.display = 'none';
   }
 
-  // ── Date d'import ──────────────────────────────────────────────
-  const elDate = document.getElementById('com-date-import');
-  if (elDate) {
-    if (d.date_import && !isNaN(d.date_import)) {
-      elDate.textContent = 'Données au ' + d.date_import.toLocaleDateString('fr-FR');
-      elDate.style.display = '';
-    } else {
-      elDate.style.display = 'none';
-    }
-  }
+  // ── Titre graphique (point 4) ──────────────────────────────────
+  const elChartTitle = document.getElementById('com-chart-title');
+  if (elChartTitle) elChartTitle.textContent = 'Consommation de CP de 2022 à 2026';
 
-  // ── Graphique évolution CP 2022-2025 + CP 2026 ─────────────────
+  // ── Graphique évolution CP ─────────────────────────────────────
   const chartExist = Chart.getChart('chart-com-evolution');
   if (chartExist) chartExist.destroy();
 
   const ctx = document.getElementById('chart-com-evolution');
   if (ctx) {
-    const vals    = [d.cp_2022, d.cp_2023, d.cp_2024, d.cp_2025, d.cp_2026];
-    const labels  = ['2022', '2023', '2024', '2025', 'CP 2026'];
-    const bgHisto = 'rgba(0,47,108,0.72)';
-    const bgProj  = 'rgba(19,81,168,0.45)';
+    const vals   = [d.cp_2022, d.cp_2023, d.cp_2024, d.cp_2025, d.cp_2026];
+    const labels = ['CP 2022', 'CP 2023', 'CP 2024', 'CP 2025', `CP 2026${dateSuffix}`];
+    const bgH    = 'rgba(0,47,108,0.72)';
+    const bgP    = 'rgba(19,81,168,0.45)';
 
     const datasets = [{
       label: 'CP (€)',
       data: vals.map(v => v || null),
-      backgroundColor: [bgHisto, bgHisto, bgHisto, bgHisto, bgProj],
-      borderColor:     ['rgb(0,47,108)','rgb(0,47,108)','rgb(0,47,108)','rgb(0,47,108)','rgb(19,81,168)'],
+      backgroundColor: [bgH, bgH, bgH, bgH, bgP],
+      borderColor: ['rgb(0,47,108)','rgb(0,47,108)','rgb(0,47,108)','rgb(0,47,108)','rgb(19,81,168)'],
       borderWidth: 1.5,
       borderRadius: 4
     }];
@@ -2356,49 +2391,65 @@ function refreshCommunication(structureId, annee) {
       type: 'bar',
       data: { labels, datasets },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: datasets.length > 1, position: 'top', labels: { font: { size: 11 }, boxWidth: 14 } },
-          tooltip: {
-            callbacks: {
-              label: (c) => c.parsed.y !== null
-                ? `${c.dataset.label} : ${fmt(c.parsed.y)}`
-                : ''
-            }
-          }
+          tooltip: { callbacks: { label: (c) => c.parsed.y !== null ? `${c.dataset.label} : ${fmt(c.parsed.y)}` : '' } }
         },
         scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { callback: v => fmt(v), font: { size: 10 } }
-          },
-          x: { ticks: { font: { size: 11 } } }
+          y: { beginAtZero: true, ticks: { callback: v => fmt(v), font: { size: 10 } } },
+          x: { ticks: { font: { size: 10 } } }
         }
       }
     });
   }
 
-  // ── Tableau récapitulatif ──────────────────────────────────────
+  // ── Tableau récapitulatif (points 5–9) ────────────────────────
   const tbody = document.getElementById('table-com-body');
-  if (tbody) {
-    const tdBase = 'padding:10px 14px;text-align:right;font-size:12px;';
-    const td2026 = tdBase + 'background:#EEF2FF;';
-    tbody.innerHTML = `
-      <tr>
-        <td style="padding:10px 14px;font-weight:500;font-size:12px;">CP (dépenses)</td>
-        <td style="${tdBase}">${fmt(d.cp_2022)}</td>
-        <td style="${tdBase}">${fmt(d.cp_2023)}</td>
-        <td style="${tdBase}">${fmt(d.cp_2024)}</td>
-        <td style="${tdBase}">${fmt(d.cp_2025)}</td>
-        <td style="${td2026}">${fmt(d.ej_2026)}</td>
-        <td style="${td2026}">${fmt(d.cp_2026)}</td>
-        <td style="${td2026}color:var(--vert);font-weight:600;">${fmt(d.cible_2026)}</td>
-        <td style="${td2026}color:var(--orange);">${fmt(d.report_2026)}</td>
-        <td style="${td2026}color:#6B3FA0;">${fmt(d.cap_ej_2026)}</td>
-        <td style="${td2026}color:#6B3FA0;">${fmt(d.cap_cp_2026)}</td>
-      </tr>`;
-  }
+  if (!tbody) return;
+
+  // Chapeau colonnes 2026 (point 6)
+  const th2026label = document.getElementById('com-th-2026-label');
+  if (th2026label) th2026label.textContent = `Consommation budgétaire 2026${dateSuffix}`;
+
+  // En-têtes CP "Année" (point 5)
+  ['2022','2023','2024','2025'].forEach(yr => {
+    const th = document.getElementById(`com-th-${yr}`);
+    if (th) th.textContent = `CP ${yr}`;
+  });
+
+  const tdS  = 'padding:8px 12px;font-weight:600;font-size:12px;';
+  const tdN  = 'padding:8px 12px;text-align:right;font-size:12px;';
+  const td26 = tdN + 'background:#EEF2FF;';
+
+  const buildRow = (rowSigle, rowData, isChild) => {
+    const indent = isChild ? 'padding-left:22px;color:var(--gris2);' : '';
+    return `<tr>
+      <td style="${tdS}${indent}">${isChild ? '↳ ' : ''}${rowSigle}</td>
+      <td style="${tdN}">${fmt(rowData.cp_2022)}</td>
+      <td style="${tdN}">${fmt(rowData.cp_2023)}</td>
+      <td style="${tdN}">${fmt(rowData.cp_2024)}</td>
+      <td style="${tdN}">${fmt(rowData.cp_2025)}</td>
+      <td style="${td26}color:var(--orange);">${fmt(rowData.rap_2026)}</td>
+      <td style="${td26}">${fmt(rowData.ae_2026)}</td>
+      <td style="${td26}">${fmt(rowData.cp_2026)}</td>
+      <td style="${td26}color:var(--vert);font-weight:600;">${fmt(rowData.cible_2026)}</td>
+      <td style="${td26}color:#6B3FA0;">${fmt(rowData.dispo_ae)}</td>
+      <td style="${td26}color:#6B3FA0;">${fmt(rowData.dispo_cp)}</td>
+    </tr>`;
+  };
+
+  const mainData = {
+    cp_2022: d.cp_2022, cp_2023: d.cp_2023, cp_2024: d.cp_2024, cp_2025: d.cp_2025,
+    ae_2026: d.ej_2026, cp_2026: d.cp_2026, cible_2026: d.cible_2026,
+    rap_2026: d.report_2026, dispo_ae: d.cap_ej_2026, dispo_cp: d.cap_cp_2026
+  };
+
+  let html = buildRow(sigle, mainData, false);
+  getCommunicationLignesFilles(structureId).forEach(f => {
+    html += buildRow(f.sigle, f.data, true);
+  });
+  tbody.innerHTML = html;
 
   // ── Commentaire ────────────────────────────────────────────────
   const ta = document.getElementById('com-commentaire');
@@ -2409,6 +2460,7 @@ function refreshCommunication(structureId, annee) {
     };
   }
 }
+
 
 // ============================================================================
 // MODULE EXPORT PDF/HTML
