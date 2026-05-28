@@ -901,9 +901,11 @@ document.getElementById('btn-write').onclick = async () => {
     let dateImportGrist = null;
     if (isComTable) {
       const today = new Date();
-      // Grist type Date attend un timestamp en secondes depuis l'epoch Unix (1970)
-      dateImportGrist = Math.floor(Date.now() / 1000);
-      addLog(`Date_Import_2026 = ${today.toLocaleDateString('fr-FR')} (valeur Grist : ${dateImportGrist})`);
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const yyyy = today.getFullYear();
+      dateImportGrist = `${dd}-${mm}-${yyyy}`;
+      addLog(`Date_Import_2026 = ${dateImportGrist}`);
     }
     
     if (toInsert.length > 0) {
@@ -914,6 +916,8 @@ document.getElementById('btn-write').onclick = async () => {
       if (isComTable) {
         colData['Date_Import_2026'] = Array(toInsert.length).fill(dateImportGrist);
       }
+      addLog(`INSERT colData keys: ${Object.keys(colData).join(', ')}`);
+      addLog(`Date_Import_2026 valeur envoyée: ${colData['Date_Import_2026']?.[0]}`);
       
       await grist.docApi.applyUserActions([
         ['BulkAddRecord', G.targetTable, Array(toInsert.length).fill(null), colData]
@@ -930,6 +934,9 @@ document.getElementById('btn-write').onclick = async () => {
       if (isComTable) {
         colData['Date_Import_2026'] = Array(toUpdate.length).fill(dateImportGrist);
       }
+      addLog(`UPDATE colData keys: ${Object.keys(colData).join(', ')}`);
+      addLog(`Date_Import_2026 valeur envoyée: ${colData['Date_Import_2026']?.[0]}`);
+      addLog(`IDs mis à jour: ${ids.join(', ')}`);
       
       await grist.docApi.applyUserActions([
         ['BulkUpdateRecord', G.targetTable, ids, colData]
