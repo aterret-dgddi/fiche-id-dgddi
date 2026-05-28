@@ -2102,11 +2102,18 @@ function getCommunicationData(structureId) {
   const taux_grist = v('Taux_Conso_2026');
   const taux       = taux_grist || (cible_2026 ? cp_2026 / cible_2026 : 0);
 
-  // Date d'import : Grist type Date renvoie des secondes depuis epoch Unix
+  // Date d'import : Grist renvoie la chaîne au format MM-DD-YYYY
   const dateRaw = vs('Date_Import_2026');
   let date_import = null;
-  if (dateRaw && dateRaw > 0) {
-    date_import = new Date(dateRaw * 1000); // secondes → millisecondes
+  if (dateRaw) {
+    if (typeof dateRaw === 'string' && dateRaw.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      // Format DD-MM-YYYY
+      const [dd, mm, yyyy] = dateRaw.split('-');
+      date_import = new Date(+yyyy, +mm - 1, +dd);
+    } else if (typeof dateRaw === 'number' && dateRaw > 0) {
+      // Fallback timestamp secondes
+      date_import = new Date(dateRaw * 1000);
+    }
   }
 
   return {
