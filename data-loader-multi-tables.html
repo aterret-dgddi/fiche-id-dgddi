@@ -901,8 +901,14 @@ document.getElementById('btn-write').onclick = async () => {
     let dateImportGrist = null;
     if (isComTable) {
       const msPerDay = 86400000;
-      dateImportGrist = Math.floor(Date.now() / msPerDay);
-      addLog(`Date_Import_2026 = ${new Date().toLocaleDateString('fr-FR')} (valeur Grist : ${dateImportGrist})`);
+      const today = new Date();
+      // Grist Date = jours depuis epoch Unix (si type Date)
+      // Grist Text = chaîne ISO (si type Text)
+      // On envoie les deux formats selon ce que la colonne accepte :
+      // D'abord on tente le nombre de jours ; si la colonne est Text, Grist stockera le nombre comme texte.
+      // Pour forcer une date lisible, on envoie la chaîne ISO YYYY-MM-DD.
+      dateImportGrist = today.toISOString().slice(0, 10); // "2026-05-28"
+      addLog(`Date_Import_2026 = ${today.toLocaleDateString('fr-FR')} → "${dateImportGrist}"`);
     }
     
     if (toInsert.length > 0) {
