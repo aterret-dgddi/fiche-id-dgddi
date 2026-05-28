@@ -2055,84 +2055,185 @@ function createVehiculesTable(structureId) {
 
 /**
  * Récupère les données de dépenses de communication pour une structure.
- * La table Communication contient une ligne par structure avec toutes les
- * colonnes budgétaires (historique 2022-2025 + exécution 2026).
+ * Pour les DI Outremer (ex. DI 972), utilise la ligne Est_Consolide=true
+ * qui agrège automatiquement DI + DR rattachées dans Grist.
  *
- * Structure Grist attendue :
- *   Structure (Reference), CP_2022, CP_2023, CP_2024, CP_2025,
- *   CP_2026, EJ_2026, Cible_2026, Report_2026,
- *   Capacite_EJ_2026, Capacite_CP_2026
+ * Colonnes Grist attendues :
+ *   Structure (Reference), Est_Consolide (Toggle), Date_Import_2026 (Date),
+ *   CP_2022, CP_2023, CP_2024, CP_2025, CP_2026, EJ_2026,
+ *   Cible_2026, Report_2026, Capacite_EJ_2026, Capacite_CP_2026,
+ *   Taux_Conso_2026 (formule Grist), Taux_Conso_2026_Pct (formule Grist)
  *
  * @param {number} structureId - ID de la structure
- * @returns {Object|null} Données communication ou null si non disponible
+ * @returns {Object|null}
  */
 function getCommunicationData(structureId) {
   const com = FICHE_STATE.data.communication;
   if (!com || !com.Structure) return null;
 
-  const idx = com.Structure.indexOf(structureId);
+  // Pour les DI Outremer : chercher d'abord la ligne consolidée
+  const structures = FICHE_STATE.data.structures;
+  const sIdx = structures ? structures.id.indexOf(structureId) : -1;
+  const isOutremerDI = sIdx !== -1
+    && structures.Type?.[sIdx] === 'DI'
+    && structures.Est_Outremer?.[sIdx];
+
+  let idx = -1;
+  if (isOutremerDI && com.Est_Consolide) {
+    // Chercher la ligne consolidée pour cette structure
+    idx = com.Structure.findIndex((s, i) => s === structureId && com.Est_Consolide[i]);
+  }
+  // Fallback : ligne normale (non consolidée)
+  if (idx === -1) {
+    idx = com.Structure.findIndex((s, i) => s === structureId && !com.Est_Consolide?.[i]);
+  }
+  // Dernier recours : n'importe quelle ligne pour cette structure
+  if (idx === -1) {
+    idx = com.Structure.indexOf(structureId);
+  }
   if (idx === -1) return null;
 
-  const v = (col) => (com[col] ? (com[col][idx] || 0) : 0);
+  const v  = (col) => (com[col] ? (com[col][idx] || 0) : 0);
+  const vs = (col) => (com[col] ? (com[col][idx] || null) : null);
+
+  // Taux depuis Grist si disponible, sinon calcul local
+  const cp_2026    = v('CP_2026');
+  const cible_2026 = v('Cible_2026');
+  const taux_grist = v('Taux_Conso_2026');
+  const taux       = taux_grist || (cible_2026 ? cp_2026 / cible_2026 : 0);
+
+  // Date d'import : timestamp Grist (secondes) ou null
+  const dateRaw = vs('Date_Import_2026');
+  let date_import = null;
+  if (dateRaw) {
+    // Grist stocke les dates en jours depuis epoch (si type Date)
+    // ou en secondes (si DateTime). On normalise.
+    const ts = dateRaw > 1e9 ? dateRaw * 1000 : dateRaw * 86400000;
+    date_import = new Date(ts);
+  }
 
   return {
-    cp_2022:     v('CP_2022'),
-    cp_2023:     v('CP_2023'),
-    cp_2024:     v('CP_2024'),
-    cp_2025:     v('CP_2025'),
-    cp_2026:     v('CP_2026'),
-    ej_2026:     v('EJ_2026'),
-    cible_2026:  v('Cible_2026'),
-    report_2026: v('Report_2026'),
-    cap_ej_2026: v('Capacite_EJ_2026'),
-    cap_cp_2026: v('Capacite_CP_2026')
+    cp_2022:      v('CP_2022'),
+    cp_2023:      v('CP_2023'),
+    cp_2024:      v('CP_2024'),
+    cp_2025:      v('CP_2025'),
+    cp_2026,
+    ej_2026:      v('EJ_2026'),
+    cible_2026,
+    report_2026:  v('Report_2026'),
+    cap_ej_2026:  v('Capacite_EJ_2026'),
+    cap_cp_2026:  v('Capacite_CP_2026'),
+    taux_conso:   taux,
+    taux_pct:     Math.round(taux * 1000) / 10,   // 1 décimale
+    reste_cible:  cible_2026 - cp_2026,           // = Capacite_CP_2026 normalement
+    date_import,
+    est_consolide: com.Est_Consolide ? !!com.Est_Consolide[idx] : false
   };
 }
 
 /**
- * Formate un montant en K€ entier, ou '—' si nul/absent.
- * Utilisé spécifiquement pour les montants Communication.
+ * Récupère le taux de consommation Communication moyen d'un périmètre
+ * depuis la table Consolidation (colonne Moy_Taux_Conso_Com).
+ * @param {string} perimetre - 'National', 'Metropole', 'Outremer', 'SCN'
+ * @param {number} annee
+ * @returns {number|null} taux en décimal ou null
+ */
+function getCommunicationTauxMoyen(perimetre, annee) {
+  const conso = FICHE_STATE.data.consolidation;
+  if (!conso || !conso.Perimetre) return null;
+  const idx = conso.id.findIndex((_, i) =>
+    conso.Perimetre[i] === perimetre && conso.Annee[i] === annee
+  );
+  if (idx === -1) return null;
+  return conso.Moy_Taux_Conso_Com?.[idx] ?? null;
+}
+
+/**
+ * Détermine le périmètre de comparaison pour Communication.
+ * Même logique que Frais de Mission.
+ * @param {number} structureId
+ * @returns {string}
+ */
+function getPerimetreCommunication(structureId) {
+  const structures = FICHE_STATE.data.structures;
+  if (!structures) return 'National';
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1) return 'National';
+  const type       = structures.Type?.[idx];
+  const estOutremer = structures.Est_Outremer?.[idx];
+  if (type === 'SCN')                    return 'SCN';
+  if (type === 'DI' && estOutremer)      return 'Outremer';
+  if (type === 'DI' && !estOutremer)     return 'Metropole';
+  return 'National';
+}
+
+/**
+ * Formate un montant en € entier (sans conversion K€).
+ * Affiche '—' si nul/absent.
  * @param {number} val - Montant en euros
  * @returns {string}
  */
 function formatCommunicationMontant(val) {
   if (val === null || val === undefined || val === 0) return '—';
-  return formatNumber(val / 1000, 0) + ' K€';
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency', currency: 'EUR',
+    minimumFractionDigits: 0, maximumFractionDigits: 0
+  }).format(val);
 }
 
 /**
- * Rafraîchit la sous-section Dépenses de Communication dans la section Budget.
- * Peuple les KPI pills, le graphique d'évolution et le tableau récapitulatif.
+ * Retourne couleur et libellé selon le taux de consommation CP/Cible.
+ *   < 50 %  → vert   (faible consommation)
+ *   50-80 % → orange (consommation modérée)
+ *   > 80 %  → rouge  (proche saturation)
+ * @param {number} taux - en décimal (0-1+)
+ * @returns {{color: string, bg: string, label: string}}
+ */
+function getCommunicationSaturationStyle(taux) {
+  if (taux >= 0.80) return { color: '#c0392b', bg: '#FEF2F2', label: 'Proche saturation' };
+  if (taux >= 0.50) return { color: '#d35400', bg: '#FFF7ED', label: 'En cours de consommation' };
+  return { color: '#1a6b3c', bg: '#F0FDF4', label: 'Consommation faible' };
+}
+
+/**
+ * Rafraîchit la sous-section Dépenses de Communication.
  *
- * IDs HTML attendus :
- *   com-cp-2022, com-cp-2023, com-cp-2024, com-cp-2025
- *   com-ej-2026, com-cp-2026, com-cible-2026,
- *   com-report-2026, com-cap-ej-2026, com-cap-cp-2026
+ * Pills (3) :
+ *   com-pill-cible    → Cible 2026
+ *   com-pill-cp       → CP 2026 (paiements)
+ *   com-pill-cap-cp   → Capacité CP 2026
+ *
+ * KPI saturation :
+ *   com-sat-jauge     → barre de progression
+ *   com-sat-pct       → taux %
+ *   com-sat-reste     → montant restant €
+ *   com-sat-label     → libellé qualitatif
+ *   com-sat-vs-nat    → comparaison vs national
+ *   com-sat-vs-per    → comparaison vs périmètre
+ *
+ * Autres :
+ *   com-date-import   → "Données au jj/mm/aaaa"
  *   chart-com-evolution, table-com-body, com-commentaire
  *
- * @param {number} structureId - ID de la structure
- * @param {number} annee - Année courante (pour le commentaire)
+ * @param {number} structureId
+ * @param {number} annee
  */
 function refreshCommunication(structureId, annee) {
-  const d = getCommunicationData(structureId);
+  const d   = getCommunicationData(structureId);
   const fmt = formatCommunicationMontant;
 
-  // ── Vider si pas de données ────────────────────────────────────
-  const kpiIds = [
-    'com-cp-2022', 'com-cp-2023', 'com-cp-2024', 'com-cp-2025',
-    'com-ej-2026', 'com-cp-2026', 'com-cible-2026',
-    'com-report-2026', 'com-cap-ej-2026', 'com-cap-cp-2026'
-  ];
-
+  // ── Reset complet si pas de données ───────────────────────────
   if (!d) {
-    kpiIds.forEach(id => {
+    ['com-pill-cible-val','com-pill-cp-val','com-pill-cap-cp-val',
+     'com-sat-pct','com-sat-reste','com-sat-label','com-sat-vs-nat',
+     'com-sat-vs-per','com-date-import'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = '—';
     });
+    const jauge = document.getElementById('com-sat-jauge');
+    if (jauge) jauge.style.width = '0%';
     const tbody = document.getElementById('table-com-body');
-    if (tbody) {
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>';
-    }
+    if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>';
     const chartExist = Chart.getChart('chart-com-evolution');
     if (chartExist) chartExist.destroy();
     const ta = document.getElementById('com-commentaire');
@@ -2140,19 +2241,81 @@ function refreshCommunication(structureId, annee) {
     return;
   }
 
-  // ── KPIs historiques 2022-2025 ─────────────────────────────────
-  document.getElementById('com-cp-2022').textContent = fmt(d.cp_2022);
-  document.getElementById('com-cp-2023').textContent = fmt(d.cp_2023);
-  document.getElementById('com-cp-2024').textContent = fmt(d.cp_2024);
-  document.getElementById('com-cp-2025').textContent = fmt(d.cp_2025);
+  // ── Pills (3) ──────────────────────────────────────────────────
+  const elCible  = document.getElementById('com-pill-cible-val');
+  const elCp     = document.getElementById('com-pill-cp-val');
+  const elCapCp  = document.getElementById('com-pill-cap-cp-val');
+  if (elCible)  elCible.textContent  = fmt(d.cible_2026);
+  if (elCp)     elCp.textContent     = fmt(d.cp_2026);
+  if (elCapCp)  elCapCp.textContent  = fmt(d.cap_cp_2026);
 
-  // ── KPIs exécution 2026 ────────────────────────────────────────
-  document.getElementById('com-ej-2026').textContent     = fmt(d.ej_2026);
-  document.getElementById('com-cp-2026').textContent     = fmt(d.cp_2026);
-  document.getElementById('com-cible-2026').textContent  = fmt(d.cible_2026);
-  document.getElementById('com-report-2026').textContent = fmt(d.report_2026);
-  document.getElementById('com-cap-ej-2026').textContent = fmt(d.cap_ej_2026);
-  document.getElementById('com-cap-cp-2026').textContent = fmt(d.cap_cp_2026);
+  // ── KPI Saturation ─────────────────────────────────────────────
+  const style = getCommunicationSaturationStyle(d.taux_conso);
+  const pctDisplay = d.taux_pct.toFixed(1).replace('.', ',') + ' %';
+
+  const elSatPct    = document.getElementById('com-sat-pct');
+  const elSatReste  = document.getElementById('com-sat-reste');
+  const elSatLabel  = document.getElementById('com-sat-label');
+  const elSatJauge  = document.getElementById('com-sat-jauge');
+  const elSatWrap   = document.getElementById('com-sat-wrap');
+
+  if (elSatPct)   elSatPct.textContent  = pctDisplay;
+  if (elSatReste) elSatReste.textContent = fmt(d.reste_cible > 0 ? d.reste_cible : 0);
+  if (elSatLabel) {
+    elSatLabel.textContent  = style.label;
+    elSatLabel.style.color  = style.color;
+  }
+  if (elSatJauge) {
+    elSatJauge.style.width      = Math.min(d.taux_pct, 100) + '%';
+    elSatJauge.style.background = style.color;
+  }
+  if (elSatWrap) {
+    elSatWrap.style.background = style.bg;
+    elSatWrap.style.borderColor = style.color;
+  }
+  if (elSatPct) elSatPct.style.color = style.color;
+
+  // Comparaisons vs périmètre et national
+  const perimetre   = getPerimetreCommunication(structureId);
+  const tauxNat     = getCommunicationTauxMoyen('National', annee);
+  const tauxPer     = getCommunicationTauxMoyen(perimetre, annee);
+  const libPer      = { Metropole: 'moy. DI Métropole', Outremer: 'moy. Outre-Mer', SCN: 'moy. SCN', National: 'moy. nationale' }[perimetre] || 'moy. périmètre';
+
+  const fmtDelta = (ref) => {
+    if (ref === null) return null;
+    const delta = d.taux_conso - ref;
+    const sign  = delta >= 0 ? '+' : '';
+    return `${sign}${(delta * 100).toFixed(1).replace('.', ',')} pts vs ${ref === tauxNat ? 'national' : libPer} (${(ref * 100).toFixed(1).replace('.', ',')} %)`;
+  };
+
+  const elVsNat = document.getElementById('com-sat-vs-nat');
+  const elVsPer = document.getElementById('com-sat-vs-per');
+  if (elVsNat) {
+    const txt = fmtDelta(tauxNat);
+    elVsNat.textContent = txt || '— (moy. nationale non disponible)';
+    elVsNat.style.color = tauxNat !== null ? (d.taux_conso > tauxNat ? '#c0392b' : '#1a6b3c') : 'var(--gris3)';
+  }
+  if (elVsPer && perimetre !== 'National') {
+    const txt = fmtDelta(tauxPer);
+    elVsPer.textContent = txt || `— (${libPer} non disponible)`;
+    elVsPer.style.color = tauxPer !== null ? (d.taux_conso > tauxPer ? '#c0392b' : '#1a6b3c') : 'var(--gris3)';
+    const rowPer = document.getElementById('com-sat-vs-per-row');
+    if (rowPer) rowPer.style.display = '';
+  } else {
+    const rowPer = document.getElementById('com-sat-vs-per-row');
+    if (rowPer) rowPer.style.display = 'none';
+  }
+
+  // ── Date d'import ──────────────────────────────────────────────
+  const elDate = document.getElementById('com-date-import');
+  if (elDate) {
+    if (d.date_import && !isNaN(d.date_import)) {
+      elDate.textContent = 'Données au ' + d.date_import.toLocaleDateString('fr-FR');
+      elDate.style.display = '';
+    } else {
+      elDate.style.display = 'none';
+    }
+  }
 
   // ── Graphique évolution CP 2022-2025 + CP 2026 ─────────────────
   const chartExist = Chart.getChart('chart-com-evolution');
@@ -2166,19 +2329,18 @@ function refreshCommunication(structureId, annee) {
     const bgProj  = 'rgba(19,81,168,0.45)';
 
     const datasets = [{
-      label: 'CP (K€)',
-      data: vals.map(v => (v ? v / 1000 : null)),
+      label: 'CP (€)',
+      data: vals.map(v => v || null),
       backgroundColor: [bgHisto, bgHisto, bgHisto, bgHisto, bgProj],
-      borderColor:     ['rgb(0,47,108)', 'rgb(0,47,108)', 'rgb(0,47,108)', 'rgb(0,47,108)', 'rgb(19,81,168)'],
+      borderColor:     ['rgb(0,47,108)','rgb(0,47,108)','rgb(0,47,108)','rgb(0,47,108)','rgb(19,81,168)'],
       borderWidth: 1.5,
       borderRadius: 4
     }];
 
-    // Trait cible 2026 si disponible
     if (d.cible_2026) {
       datasets.push({
         label: 'Cible 2026',
-        data: [null, null, null, null, d.cible_2026 / 1000],
+        data: [null, null, null, null, d.cible_2026],
         type: 'scatter',
         pointStyle: 'line',
         pointRadius: 18,
@@ -2197,15 +2359,11 @@ function refreshCommunication(structureId, annee) {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            display: datasets.length > 1,
-            position: 'top',
-            labels: { font: { size: 11 }, boxWidth: 14 }
-          },
+          legend: { display: datasets.length > 1, position: 'top', labels: { font: { size: 11 }, boxWidth: 14 } },
           tooltip: {
             callbacks: {
               label: (c) => c.parsed.y !== null
-                ? `${c.dataset.label} : ${formatNumber(c.parsed.y, 0)} K€`
+                ? `${c.dataset.label} : ${fmt(c.parsed.y)}`
                 : ''
             }
           }
@@ -2213,7 +2371,7 @@ function refreshCommunication(structureId, annee) {
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { callback: v => formatNumber(v, 0) + ' K€', font: { size: 10 } }
+            ticks: { callback: v => fmt(v), font: { size: 10 } }
           },
           x: { ticks: { font: { size: 11 } } }
         }

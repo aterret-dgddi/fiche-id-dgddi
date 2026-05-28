@@ -1199,72 +1199,65 @@
            ══════════════════════════════════════════════════════════════ -->
       <div style="margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--bord);">
 
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
-          <span style="font-size:20px;">📣</span>
-          <span style="font-weight:600;font-size:14px;color:var(--rep);">Dépenses de communication</span>
+        <!-- En-tête + date d'import -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:20px;">📣</span>
+            <span style="font-weight:600;font-size:14px;color:var(--rep);">Dépenses de communication</span>
+          </div>
+          <span id="com-date-import" style="font-size:11px;color:var(--gris3);font-style:italic;display:none;"></span>
         </div>
 
-        <!-- KPIs historique 2022-2025 -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
+        <!-- 3 Pills : Cible · CP · Capacité CP -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
 
-          <div class="kpi-card" style="background:var(--gris4);">
-            <div style="font-size:11px;font-weight:500;color:var(--gris2);margin-bottom:6px;">CP 2022</div>
-            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-cp-2022">—</div>
-          </div>
-
-          <div class="kpi-card" style="background:var(--gris4);">
-            <div style="font-size:11px;font-weight:500;color:var(--gris2);margin-bottom:6px;">CP 2023</div>
-            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-cp-2023">—</div>
-          </div>
-
-          <div class="kpi-card" style="background:var(--gris4);">
-            <div style="font-size:11px;font-weight:500;color:var(--gris2);margin-bottom:6px;">CP 2024</div>
-            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-cp-2024">—</div>
-          </div>
-
-          <div class="kpi-card" style="background:var(--gris4);">
-            <div style="font-size:11px;font-weight:500;color:var(--gris2);margin-bottom:6px;">CP 2025</div>
-            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-cp-2025">—</div>
-          </div>
-        </div>
-
-        <!-- KPIs exécution 2026 -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
-
-          <div class="kpi-card" style="border-left:3px solid var(--rep2);">
-            <div style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">📋 EJ 2026</div>
-            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-ej-2026">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Engagements juridiques</div>
+          <div class="kpi-card" style="border-left:3px solid var(--vert);">
+            <div style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">🎯 Cible 2026</div>
+            <div style="font-size:20px;font-weight:600;color:var(--vert);" id="com-pill-cible-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Objectif annuel</div>
           </div>
 
           <div class="kpi-card" style="border-left:3px solid var(--rep2);">
             <div style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
-            <div style="font-size:22px;font-weight:500;color:var(--rep);" id="com-cp-2026">—</div>
+            <div style="font-size:20px;font-weight:600;color:var(--rep);" id="com-pill-cp-val">—</div>
             <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Paiements</div>
           </div>
 
-          <div class="kpi-card" style="border-left:3px solid var(--vert);">
-            <div style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">🎯 Cible 2026</div>
-            <div style="font-size:22px;font-weight:500;color:var(--vert);" id="com-cible-2026">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Objectif annuel</div>
-          </div>
-
-          <div class="kpi-card" style="border-left:3px solid var(--orange);">
-            <div style="font-size:11px;font-weight:500;color:var(--orange);margin-bottom:6px;">↩ Reports 2026</div>
-            <div style="font-size:22px;font-weight:500;color:var(--orange);" id="com-report-2026">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Reports N-1</div>
-          </div>
-
           <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
-            <div style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Cap. EJ 2026</div>
-            <div style="font-size:22px;font-weight:500;color:#6B3FA0;" id="com-cap-ej-2026">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité d'engagement</div>
+            <div style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Capacité CP 2026</div>
+            <div style="font-size:20px;font-weight:600;color:#6B3FA0;" id="com-pill-cap-cp-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Disponible</div>
           </div>
+        </div>
 
-          <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
-            <div style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Cap. CP 2026</div>
-            <div style="font-size:22px;font-weight:500;color:#6B3FA0;" id="com-cap-cp-2026">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité de paiement</div>
+        <!-- KPI Saturation de la cible -->
+        <div id="com-sat-wrap" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;background:#F9FAFB;transition:background 0.3s,border-color 0.3s;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span style="font-size:12px;font-weight:600;color:var(--gris2);">📊 Consommation de la cible 2026</span>
+            <div style="display:flex;align-items:baseline;gap:8px;">
+              <span id="com-sat-pct" style="font-size:22px;font-weight:700;color:var(--gris2);">—</span>
+              <span id="com-sat-label" style="font-size:11px;font-weight:500;">—</span>
+            </div>
+          </div>
+          <!-- Barre de progression -->
+          <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px;">
+            <div id="com-sat-jauge" style="height:100%;border-radius:4px;width:0%;transition:width 0.5s,background 0.3s;"></div>
+          </div>
+          <!-- Reste disponible -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:11px;color:var(--gris2);">Reste disponible</span>
+            <span id="com-sat-reste" style="font-size:13px;font-weight:600;color:var(--gris2);">—</span>
+          </div>
+          <!-- Comparaisons -->
+          <div style="border-top:1px solid #e5e7eb;padding-top:8px;display:flex;flex-direction:column;gap:4px;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+              <span style="color:var(--gris3);">🌍 National :</span>
+              <span id="com-sat-vs-nat" style="font-weight:500;">—</span>
+            </div>
+            <div id="com-sat-vs-per-row" style="display:flex;align-items:center;gap:6px;font-size:11px;">
+              <span style="color:var(--gris3);">📍 Périmètre :</span>
+              <span id="com-sat-vs-per" style="font-weight:500;">—</span>
+            </div>
           </div>
         </div>
 
@@ -1278,8 +1271,8 @@
         </div>
 
         <!-- Tableau récapitulatif -->
-        <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
-          <table style="width:100%;border-collapse:collapse;">
+        <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;min-width:700px;">
             <thead style="background:var(--gris4);">
               <tr>
                 <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Indicateur</th>
