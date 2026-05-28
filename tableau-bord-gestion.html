@@ -343,21 +343,24 @@
     let consolidationData = [];
     let structuresData = [];
     let consolidationNationaleData = null;
+    let communicationData = null;
 
     async function init() {
       try {
         await grist.ready();
         
         // Charger les données
-        const [consolidationStructure, structures, consolidationNationale] = await Promise.all([
+        const [consolidationStructure, structures, consolidationNationale, communication] = await Promise.all([
           grist.docApi.fetchTable('Consolidation_Structure'),
           grist.docApi.fetchTable('Structures'),
-          grist.docApi.fetchTable('Consolidation')
+          grist.docApi.fetchTable('Consolidation'),
+          grist.docApi.fetchTable('Communication').catch(() => null)
         ]);
         
         consolidationData = consolidationStructure;
         structuresData = structures;
         consolidationNationaleData = consolidationNationale;
+        communicationData = communication;
         
         console.log('✅ Données chargées:', {
           consolidation_structure: consolidationStructure.id.length,
@@ -675,6 +678,7 @@
         ${renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
         ${renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
         ${renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
+        ${renderCommunicationSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
       `;
     }
 
@@ -933,6 +937,146 @@
                 <td class="number">${formatMilliers(totaux.budget_it_4ans)} k€</td>
                 <td class="number">${formatEuro(totaux.it_par_agent)}</td>
                 <td class="number">${formatEuro(totaux.it_par_agent_lisse)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // SECTION DÉPENSES DE COMMUNICATION
+    // ══════════════════════════════════════════════════════════════
+
+    function getComData(structureId) {
+      if (!communicationData || !communicationData.Structure) return null;
+      // Chercher la ligne consolidée en priorité (DI Outremer)
+      let idx = -1;
+      if (communicationData.Est_Consolide) {
+        idx = communicationData.Structure.findIndex((s, i) =>
+          s === structureId && communicationData.Est_Consolide[i]);
+      }
+      // Fallback : ligne non consolidée
+      if (idx === -1) {
+        idx = communicationData.Structure.findIndex((s, i) =>
+          s === structureId && !communicationData.Est_Consolide?.[i]);
+      }
+      if (idx === -1) idx = communicationData.Structure.indexOf(structureId);
+      if (idx === -1) return null;
+
+      const v = (col) => communicationData[col] ? (communicationData[col][idx] || 0) : 0;
+      const cp_2024    = v('CP_2024');
+      const cp_2025    = v('CP_2025');
+      const cp_2026    = v('CP_2026');
+      const cible_2026 = v('Cible_2026');
+      const taux_grist = v('Taux_Conso_2026');
+      const taux       = taux_grist || (cible_2026 ? cp_2026 / cible_2026 : 0);
+      return { cp_2022: v('CP_2022'), cp_2023: v('CP_2023'), cp_2024, cp_2025, cp_2026,
+               ej_2026: v('EJ_2026'), cible_2026, cap_cp_2026: v('Capacite_CP_2026'), taux_conso: taux };
+    }
+
+    function fmtCom(val) {
+      if (!val) return '—';
+      if (Math.abs(val) >= 1000) return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(val / 1000)) + ' K€';
+      return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(val) + ' €';
+    }
+
+    function tauxBadge(taux) {
+      if (!taux) return '';
+      const pct = Math.round(taux * 1000) / 10;
+      const color = taux >= 0.80 ? '#c0392b' : taux >= 0.50 ? '#d35400' : '#1a6b3c';
+      const bg    = taux >= 0.80 ? '#FEF2F2' : taux >= 0.50 ? '#FFF7ED' : '#F0FDF4';
+      return `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;background:${bg};color:${color};">${pct.toFixed(1)} %</span>`;
+    }
+
+    function renderCommunicationSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN) {
+      if (!communicationData) {
+        return `
+          <div class="section">
+            <div class="section-header">
+              <div class="section-icon">📣</div>
+              <div class="section-title">Dépenses de Communication</div>
+            </div>
+            <p style="color:var(--gris3);font-style:italic;text-align:center;padding:20px;">
+              ⚠️ Table <code>Communication</code> non disponible dans Grist.
+            </p>
+          </div>`;
+      }
+
+      let rows = '';
+      const totaux = { cp_2022: 0, cp_2023: 0, cp_2024: 0, cp_2025: 0, cp_2026: 0, ej_2026: 0, cible_2026: 0, cap_cp_2026: 0 };
+
+      const allBlocs = [blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN];
+      allBlocs.forEach(bloc => bloc.forEach((s, bIdx) => {
+        const indent = (bloc === blocOutremer && bIdx > 0);
+        const d = getComData(s.id);
+        const badgeClass = getBadgeClass(s.typeAffichage);
+        const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
+        const rowClass = indent ? 'row-indent' : '';
+        const extraClass = s.typeAffichage === 'DI_Outremer' ? 'row-di-outremer' : '';
+
+        if (d) {
+          totaux.cp_2022     += d.cp_2022;
+          totaux.cp_2023     += d.cp_2023;
+          totaux.cp_2024     += d.cp_2024;
+          totaux.cp_2025     += d.cp_2025;
+          totaux.cp_2026     += d.cp_2026;
+          totaux.ej_2026     += d.ej_2026;
+          totaux.cible_2026  += d.cible_2026;
+          totaux.cap_cp_2026 += d.cap_cp_2026;
+        }
+
+        rows += `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td class="number">${d ? fmtCom(d.cp_2022) : '—'}</td>
+            <td class="number">${d ? fmtCom(d.cp_2023) : '—'}</td>
+            <td class="number">${d ? fmtCom(d.cp_2024) : '—'}</td>
+            <td class="number">${d ? fmtCom(d.cp_2025) : '—'}</td>
+            <td class="number" style="color:var(--vert);font-weight:600;">${d ? fmtCom(d.cible_2026) : '—'}</td>
+            <td class="number">${d ? fmtCom(d.cp_2026) : '—'}</td>
+            <td class="number">${d ? fmtCom(d.ej_2026) : '—'}</td>
+            <td class="number">${d ? fmtCom(d.cap_cp_2026) : '—'}</td>
+            <td class="number">${d ? tauxBadge(d.taux_conso) : '—'}</td>
+          </tr>`;
+      }));
+
+      const tauxTotal = totaux.cible_2026 ? totaux.cp_2026 / totaux.cible_2026 : 0;
+
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">📣</div>
+            <div class="section-title">Dépenses de Communication</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th class="number">CP 2022</th>
+                <th class="number">CP 2023</th>
+                <th class="number">CP 2024</th>
+                <th class="number">CP 2025</th>
+                <th class="number" style="color:var(--vert);">Cible 2026</th>
+                <th class="number">CP 2026</th>
+                <th class="number">EJ 2026</th>
+                <th class="number">Disponible CP</th>
+                <th class="number">Taux conso.</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+              <tr class="row-total">
+                <td>TOTAL</td>
+                <td class="number">${fmtCom(totaux.cp_2022)}</td>
+                <td class="number">${fmtCom(totaux.cp_2023)}</td>
+                <td class="number">${fmtCom(totaux.cp_2024)}</td>
+                <td class="number">${fmtCom(totaux.cp_2025)}</td>
+                <td class="number" style="color:var(--vert);font-weight:700;">${fmtCom(totaux.cible_2026)}</td>
+                <td class="number">${fmtCom(totaux.cp_2026)}</td>
+                <td class="number">${fmtCom(totaux.ej_2026)}</td>
+                <td class="number">${fmtCom(totaux.cap_cp_2026)}</td>
+                <td class="number">${tauxBadge(tauxTotal)}</td>
               </tr>
             </tbody>
           </table>
