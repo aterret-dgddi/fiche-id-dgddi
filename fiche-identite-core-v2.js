@@ -2102,14 +2102,11 @@ function getCommunicationData(structureId) {
   const taux_grist = v('Taux_Conso_2026');
   const taux       = taux_grist || (cible_2026 ? cp_2026 / cible_2026 : 0);
 
-  // Date d'import : timestamp Grist (secondes) ou null
+  // Date d'import : Grist type Date renvoie des secondes depuis epoch Unix
   const dateRaw = vs('Date_Import_2026');
   let date_import = null;
-  if (dateRaw) {
-    // Grist stocke les dates en jours depuis epoch (si type Date)
-    // ou en secondes (si DateTime). On normalise.
-    const ts = dateRaw > 1e9 ? dateRaw * 1000 : dateRaw * 86400000;
-    date_import = new Date(ts);
+  if (dateRaw && dateRaw > 0) {
+    date_import = new Date(dateRaw * 1000); // secondes → millisecondes
   }
 
   return {

@@ -900,15 +900,10 @@ document.getElementById('btn-write').onclick = async () => {
     const isComTable = G.targetTable === 'Communication';
     let dateImportGrist = null;
     if (isComTable) {
-      const msPerDay = 86400000;
       const today = new Date();
-      // Grist Date = jours depuis epoch Unix (si type Date)
-      // Grist Text = chaîne ISO (si type Text)
-      // On envoie les deux formats selon ce que la colonne accepte :
-      // D'abord on tente le nombre de jours ; si la colonne est Text, Grist stockera le nombre comme texte.
-      // Pour forcer une date lisible, on envoie la chaîne ISO YYYY-MM-DD.
-      dateImportGrist = today.toISOString().slice(0, 10); // "2026-05-28"
-      addLog(`Date_Import_2026 = ${today.toLocaleDateString('fr-FR')} → "${dateImportGrist}"`);
+      // Grist type Date attend un timestamp en secondes depuis l'epoch Unix (1970)
+      dateImportGrist = Math.floor(Date.now() / 1000);
+      addLog(`Date_Import_2026 = ${today.toLocaleDateString('fr-FR')} (valeur Grist : ${dateImportGrist})`);
     }
     
     if (toInsert.length > 0) {
