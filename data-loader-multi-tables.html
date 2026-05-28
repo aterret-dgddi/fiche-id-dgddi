@@ -901,8 +901,7 @@ document.getElementById('btn-write').onclick = async () => {
     let dateImportGrist = null;
     if (isComTable) {
       const msPerDay = 86400000;
-      const gristEpoch = new Date('2000-01-01T00:00:00Z').getTime();
-      dateImportGrist = Math.floor((Date.now() - gristEpoch) / msPerDay);
+      dateImportGrist = Math.floor(Date.now() / msPerDay);
       addLog(`Date_Import_2026 = ${new Date().toLocaleDateString('fr-FR')} (valeur Grist : ${dateImportGrist})`);
     }
     
