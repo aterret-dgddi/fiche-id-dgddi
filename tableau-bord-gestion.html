@@ -971,8 +971,20 @@
       const cible_2026 = v('Cible_2026');
       const taux_grist = v('Taux_Conso_2026');
       const taux       = taux_grist || (cible_2026 ? cp_2026 / cible_2026 : 0);
+      // Date d'import : format DD-MM-YYYY (chaîne) ou timestamp secondes
+      const dateRaw = communicationData.Date_Import_2026 ? (communicationData.Date_Import_2026[idx] || null) : null;
+      let date_import_str = null;
+      if (dateRaw) {
+        if (typeof dateRaw === 'string' && dateRaw.match(/^\d{2}-\d{2}-\d{4}$/)) {
+          date_import_str = dateRaw; // déjà DD-MM-YYYY
+        } else if (typeof dateRaw === 'number' && dateRaw > 0) {
+          const d = new Date(dateRaw * 1000);
+          date_import_str = d.toLocaleDateString('fr-FR');
+        }
+      }
       return { cp_2022: v('CP_2022'), cp_2023: v('CP_2023'), cp_2024, cp_2025, cp_2026,
-               ej_2026: v('EJ_2026'), cible_2026, cap_cp_2026: v('Capacite_CP_2026'), taux_conso: taux };
+               ej_2026: v('EJ_2026'), cible_2026, cap_cp_2026: v('Capacite_CP_2026'),
+               taux_conso: taux, date_import: date_import_str };
     }
 
     function fmtCom(val) {
@@ -1044,6 +1056,7 @@
             <td class="number">${d ? fmtCom(d.cp_2024) : '—'}</td>
             <td class="number">${d ? fmtCom(d.cp_2025) : '—'}</td>
             <td class="number" style="color:var(--vert);font-weight:600;">${d ? fmtCom(d.cible_2026) : '—'}</td>
+            <td class="number">${d ? fmtCom(d.cp_2026) : '—'}${d && d.date_import ? `<br><span style="font-size:10px;color:var(--gris3);font-weight:400;">au ${d.date_import}</span>` : ''}</td>
             <td style="min-width:140px;padding:8px 10px;">${progressBar}</td>
           </tr>`;
       }));
@@ -1117,6 +1130,7 @@
                   <th class="number">CP 2024</th>
                   <th class="number">CP 2025</th>
                   <th class="number" style="color:var(--vert);">Cible 2026</th>
+                  <th class="number">CP 2026</th>
                   <th>% atteint</th>
                 </tr>
               </thead>
@@ -1127,6 +1141,7 @@
                   <td class="number">${fmtCom(totaux.cp_2024)}</td>
                   <td class="number">${fmtCom(totaux.cp_2025)}</td>
                   <td class="number" style="color:var(--vert);font-weight:700;">${fmtCom(totaux.cible_2026)}</td>
+                  <td class="number">${fmtCom(totaux.cp_2026)}</td>
                   <td style="padding:8px 10px;">${totalBar}</td>
                 </tr>
               </tbody>
