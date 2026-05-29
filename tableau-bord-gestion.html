@@ -463,10 +463,9 @@
       const anneesValides = ANNEES_DISPO.filter(a => getTotauxAnnee(a) !== null);
       if (anneesValides.length === 0) return '';
 
-      const sN = getTotauxAnnee(anneesValides[anneesValides.length - 1]);
+      const sN  = getTotauxAnnee(anneesValides[anneesValides.length - 1]);
       const sN1 = anneesValides.length >= 2 ? getTotauxAnnee(anneesValides[anneesValides.length - 2]) : null;
       const sPremiere = getTotauxAnnee(anneesValides[0]);
-      const annN = anneesValides[anneesValides.length - 1];
       const annN1 = anneesValides.length >= 2 ? anneesValides[anneesValides.length - 2] : null;
       const annDep = anneesValides[0];
 
@@ -485,33 +484,60 @@
         return ` — <span style="color:${c};">${s}${p.toFixed(1)}% depuis ${annDep}</span>`;
       };
 
-      const fmtMS = v => v >= 1e9 ? (v/1e9).toFixed(2)+' Md€' : (v/1e6).toFixed(1)+' M€';
+      const fmtMS  = v  => v >= 1e9 ? (v/1e9).toFixed(2)+' Md€' : (v/1e6).toFixed(1)+' M€';
+      const fmtEur = v  => Math.round(v).toLocaleString('fr-FR') + ' €';
+      const fmtInt = v  => Math.round(v).toLocaleString('fr-FR');
+
+      // Tableau de données historiques sous chaque sparkline
+      const makeHistoRow = (formatFn, field) => {
+        return anneesValides.map(a => {
+          const s = getTotauxAnnee(a);
+          const val = s ? s[field] : null;
+          const isLast = (a === anneesValides[anneesValides.length - 1]);
+          return `<div style="text-align:center;">
+            <div style="font-size:9px;color:var(--gris3);font-weight:600;">${a}</div>
+            <div style="font-size:10px;font-weight:${isLast ? '700' : '500'};color:${isLast ? 'var(--gris1)' : 'var(--gris2)'};">${val !== null ? formatFn(val) : '—'}</div>
+          </div>`;
+        }).join('');
+      };
 
       return `
       <div class="kpi-strip">
         <div class="kpi-evol-card" style="border-left-color:var(--rep2);">
           <div class="kpi-evol-label">ETPT Global</div>
-          <div class="kpi-evol-value">${Math.round(sN.etpt).toLocaleString('fr-FR')}</div>
+          <div class="kpi-evol-value">${fmtInt(sN.etpt)}</div>
           <div class="kpi-evol-sub">${evol(sN.etpt, sN1?.etpt, annN1)}${evolDepuis(sN.etpt, sPremiere?.etpt, annDep)}</div>
           <div class="spark-wrap"><canvas id="spark-etpt"></canvas></div>
+          <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+            ${makeHistoRow(fmtInt, 'etpt')}
+          </div>
         </div>
         <div class="kpi-evol-card" style="border-left-color:var(--orange);">
           <div class="kpi-evol-label">Âge Moyen</div>
           <div class="kpi-evol-value">${sN.age_moyen.toFixed(1)} ans</div>
           <div class="kpi-evol-sub">${evol(sN.age_moyen, sN1?.age_moyen, annN1)}${evolDepuis(sN.age_moyen, sPremiere?.age_moyen, annDep)}</div>
           <div class="spark-wrap"><canvas id="spark-age"></canvas></div>
+          <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+            ${makeHistoRow(v => v.toFixed(1)+' ans', 'age_moyen')}
+          </div>
         </div>
         <div class="kpi-evol-card" style="border-left-color:var(--vert);">
           <div class="kpi-evol-label">Masse Salariale</div>
           <div class="kpi-evol-value" style="font-size:20px;">${fmtMS(sN.ms)}</div>
           <div class="kpi-evol-sub">${evol(sN.ms, sN1?.ms, annN1)}${evolDepuis(sN.ms, sPremiere?.ms, annDep)}</div>
           <div class="spark-wrap"><canvas id="spark-ms"></canvas></div>
+          <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+            ${makeHistoRow(fmtMS, 'ms')}
+          </div>
         </div>
         <div class="kpi-evol-card" style="border-left-color:var(--rouge);">
           <div class="kpi-evol-label">MS / Agent</div>
-          <div class="kpi-evol-value" style="font-size:20px;">${Math.round(sN.ms_agent).toLocaleString('fr-FR')} €</div>
+          <div class="kpi-evol-value" style="font-size:20px;">${fmtEur(sN.ms_agent)}</div>
           <div class="kpi-evol-sub">${evol(sN.ms_agent, sN1?.ms_agent, annN1)}${evolDepuis(sN.ms_agent, sPremiere?.ms_agent, annDep)}</div>
           <div class="spark-wrap"><canvas id="spark-ms-agent"></canvas></div>
+          <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+            ${makeHistoRow(fmtEur, 'ms_agent')}
+          </div>
         </div>
       </div>`;
     }
@@ -1112,36 +1138,50 @@
           <div class="section-header">
             <div class="section-icon">🛃</div>
             <div class="section-title">Ressources Humaines</div>
-            <span style="margin-left:auto;font-size:11px;color:var(--gris3);">▶ Cliquez sur une DI pour voir ses DR</span>
           </div>
           ${renderKPIEvolution()}
-          <table>
-            <thead>
-              <tr>
-                <th>Structure</th>
-                <th class="number">Effectif Total</th>
-                <th class="number">Effectif SU</th>
-                <th class="number">Effectif AGCO</th>
-                <th class="number">Effectif Autres</th>
-                <th class="number">Âge Moyen</th>
-                <th class="number">Masse Salariale</th>
-                <th class="number">MS / Agent</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-              <tr class="row-total">
-                <td>TOTAL</td>
-                <td class="number">${formatNumber(totaux.effectif_total)}</td>
-                <td class="number">${formatNumber(totaux.effectif_su)}</td>
-                <td class="number">${formatNumber(totaux.effectif_agco)}</td>
-                <td class="number">${formatNumber(totaux.effectif_autres)}</td>
-                <td class="number">${Number(totaux.age_moyen).toFixed(1)} ans</td>
-                <td class="number">${formatMilliers(totaux.masse_salariale)} k€</td>
-                <td class="number">${formatEuro(totaux.ms_par_agent)}</td>
-              </tr>
-            </tbody>
-          </table>
+
+          <button id="rh-toggle-btn" onclick="(function(){
+            var w   = document.getElementById('rh-table-wrapper');
+            var btn = document.getElementById('rh-toggle-btn');
+            var open = w.style.display !== 'none';
+            w.style.display = open ? 'none' : 'block';
+            btn.innerHTML = open ? '&#9654;&nbsp; Voir le détail par structure' : '&#9660;&nbsp; Masquer le détail';
+          })()"
+          style="background:none;border:1px solid var(--bord);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gris2);cursor:pointer;margin-bottom:12px;">
+            &#9660;&nbsp; Masquer le détail
+          </button>
+
+          <div id="rh-table-wrapper">
+            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Structure</th>
+                  <th class="number">Effectif Total</th>
+                  <th class="number">Effectif SU</th>
+                  <th class="number">Effectif AGCO</th>
+                  <th class="number">Effectif Autres</th>
+                  <th class="number">Âge Moyen</th>
+                  <th class="number">Masse Salariale</th>
+                  <th class="number">MS / Agent</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+                <tr class="row-total">
+                  <td>TOTAL</td>
+                  <td class="number">${formatNumber(totaux.effectif_total)}</td>
+                  <td class="number">${formatNumber(totaux.effectif_su)}</td>
+                  <td class="number">${formatNumber(totaux.effectif_agco)}</td>
+                  <td class="number">${formatNumber(totaux.effectif_autres)}</td>
+                  <td class="number">${Number(totaux.age_moyen).toFixed(1)} ans</td>
+                  <td class="number">${formatMilliers(totaux.masse_salariale)} k€</td>
+                  <td class="number">${formatEuro(totaux.ms_par_agent)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
     }
