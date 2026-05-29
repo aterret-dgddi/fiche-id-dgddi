@@ -1283,7 +1283,7 @@
           </button>
 
           <div id="rh-table-wrapper" style="display:none;">
-            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées</div>
+            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées — <strong>Données 2025</strong></div>
             <table>
               <thead>
                 <tr>
@@ -1438,7 +1438,7 @@
           </button>
 
           <div id="veh-table-wrapper" style="display:none;">
-            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées</div>
+            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées — <strong>Données 2025</strong></div>
             <table>
               <thead>
                 <tr>
@@ -1519,24 +1519,8 @@
         const fmtKEur = v => (v >= 1e6 ? (v/1e6).toFixed(1)+' M€' : Math.round(v/1e3).toLocaleString('fr-FR')+' k€');
         const fmtEur  = v => Math.round(v).toLocaleString('fr-FR') + ' €';
 
-        // Mini barre T/H/R pour la card récap
-        const mkBar = (t, h, r) => {
-          const tot = t + h + r;
-          if (!tot) return '';
-          const pt = (t/tot*100).toFixed(0), ph = (h/tot*100).toFixed(0), pr = (r/tot*100).toFixed(0);
-          return `<div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:4px;">
-            ${t > 0 ? `<div style="flex:${pt};background:var(--rep2);" title="Transport ${pt}%"></div>` : ''}
-            ${h > 0 ? `<div style="flex:${ph};background:var(--vert);" title="Hébergement ${ph}%"></div>` : ''}
-            ${r > 0 ? `<div style="flex:${pr};background:var(--orange);" title="Repas ${pr}%"></div>` : ''}
-          </div>
-          <div style="display:flex;gap:6px;margin-top:3px;font-size:9px;color:var(--gris2);">
-            <span style="color:var(--rep2);">▪ T ${pt}%</span>
-            <span style="color:var(--vert);">▪ H ${ph}%</span>
-            <span style="color:var(--orange);">▪ R ${pr}%</span>
-          </div>`;
-        };
-
-        const makeHistoRow = (formatFn, getVal) => anneesValides.map(a => {
+        // ── KPI 1 & 2 : Formation + Autres avec sparklines ──────────
+        const makeHistoRow2 = (formatFn, getVal) => anneesValides.map(a => {
           const sv = getTotauxMissionsAnnee(a);
           const val = sv ? getVal(sv) : null;
           const isLast = (a === anneesValides[anneesValides.length - 1]);
@@ -1546,16 +1530,62 @@
           </div>`;
         }).join('');
 
+        // ── KPI 3 : Frais global Formation + Autres empilés ─────────
+        const totalFmN  = sN.formation + sN.autres_missions;
+        const totalFmN1 = sN1 ? sN1.formation + sN1.autres_missions : null;
+        const totalFmDep = sDep ? sDep.formation + sDep.autres_missions : null;
+        const pctForm = totalFmN > 0 ? (sN.formation / totalFmN * 100).toFixed(0) : 0;
+        const pctAut  = totalFmN > 0 ? (100 - +pctForm).toFixed(0) : 0;
+
+        const kpiGlobalHisto = anneesValides.map(a => {
+          const sv = getTotauxMissionsAnnee(a);
+          if (!sv) return `<div style="text-align:center;"><div style="font-size:9px;color:var(--gris3);font-weight:600;">${a}</div><div style="font-size:10px;color:var(--gris2);">—</div></div>`;
+          const tot = sv.formation + sv.autres_missions;
+          const isLast = (a === anneesValides[anneesValides.length - 1]);
+          return `<div style="text-align:center;">
+            <div style="font-size:9px;color:var(--gris3);font-weight:600;">${a}</div>
+            <div style="font-size:10px;font-weight:${isLast ? '700' : '500'};color:${isLast ? 'var(--gris1)' : 'var(--gris2)'};">${fmtKEur(tot)}</div>
+          </div>`;
+        }).join('');
+
+        // ── KPI 4 : Barres verticales 100% T/H/R par année ──────────
+        const BAR_HEIGHT = 80;
+        const stackBars = anneesValides.map(a => {
+          const sv = getTotauxMissionsAnnee(a);
+          if (!sv) return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+            <div style="height:${BAR_HEIGHT}px;display:flex;align-items:flex-end;"></div>
+            <div style="font-size:9px;color:var(--gris3);">${a}</div>
+          </div>`;
+          const tot = sv.transport + sv.hebergement + sv.repas;
+          const pt = tot ? (sv.transport/tot*100).toFixed(1) : 0;
+          const ph = tot ? (sv.hebergement/tot*100).toFixed(1) : 0;
+          const pr = tot ? (sv.repas/tot*100).toFixed(1) : 0;
+          const isLast = (a === anneesValides[anneesValides.length - 1]);
+          const opacity = isLast ? '1' : '0.65';
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;">
+            <div style="width:28px;height:${BAR_HEIGHT}px;display:flex;flex-direction:column-reverse;border-radius:3px;overflow:hidden;opacity:${opacity};"
+                 title="Transport ${pt}% · Hébergement ${ph}% · Repas ${pr}%">
+              <div style="flex:${pt};background:var(--rep2);"></div>
+              <div style="flex:${ph};background:var(--vert);"></div>
+              <div style="flex:${pr};background:var(--orange);"></div>
+            </div>
+            <div style="font-size:9px;color:var(--gris${isLast ? '2' : '3'});font-weight:${isLast ? '700' : '500'};">${a}</div>
+            <div style="font-size:8px;color:var(--rep2);">${pt}%</div>
+            <div style="font-size:8px;color:var(--vert);">${ph}%</div>
+            <div style="font-size:8px;color:var(--orange);">${pr}%</div>
+          </div>`;
+        }).join('');
+
         kpiStrip = `
-        <div class="kpi-strip">
+        <div class="kpi-strip" style="grid-template-columns: repeat(4, 1fr);">
 
           <div class="kpi-evol-card" style="border-left-color:var(--rep2);">
-            <div class="kpi-evol-label">Total Formation</div>
+            <div class="kpi-evol-label">Formation</div>
             <div class="kpi-evol-value" style="font-size:20px;">${fmtKEur(sN.formation)}</div>
             <div class="kpi-evol-sub">${evol(sN.formation, sN1?.formation, annN1)}${evolDepuis(sN.formation, sDep?.formation, annDep)}</div>
             <div class="spark-wrap"><canvas id="spark-fm-formation"></canvas></div>
             <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
-              ${makeHistoRow(fmtKEur, s => s.formation)}
+              ${makeHistoRow2(fmtKEur, s => s.formation)}
             </div>
           </div>
 
@@ -1565,30 +1595,77 @@
             <div class="kpi-evol-sub">${evol(sN.autres_missions, sN1?.autres_missions, annN1)}${evolDepuis(sN.autres_missions, sDep?.autres_missions, annDep)}</div>
             <div class="spark-wrap"><canvas id="spark-fm-autres"></canvas></div>
             <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
-              ${makeHistoRow(fmtKEur, s => s.autres_missions)}
+              ${makeHistoRow2(fmtKEur, s => s.autres_missions)}
             </div>
           </div>
 
           <div class="kpi-evol-card" style="border-left-color:var(--orange);">
-            <div class="kpi-evol-label">Frais Moyen / Agent</div>
-            <div class="kpi-evol-value" style="font-size:20px;">${fmtEur(sN.frais_par_agent)}</div>
-            <div class="kpi-evol-sub">${evol(sN.frais_par_agent, sN1?.frais_par_agent, annN1)}${evolDepuis(sN.frais_par_agent, sDep?.frais_par_agent, annDep)}${moyennes ? formatEcartMoyenne(sN.frais_par_agent, moyennes.frais_par_agent) : ''}</div>
-            <div class="spark-wrap"><canvas id="spark-fm-agent"></canvas></div>
-            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
-              ${makeHistoRow(fmtEur, s => s.frais_par_agent)}
+            <div class="kpi-evol-label">Total Frais de Déplacement</div>
+            <div class="kpi-evol-value" style="font-size:18px;">${fmtKEur(totalFmN)}</div>
+            <div class="kpi-evol-sub">${evol(totalFmN, totalFmN1, annN1)}${evolDepuis(totalFmN, totalFmDep, annDep)}</div>
+            <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:6px 0 2px;">
+              <div style="flex:${pctForm};background:var(--rep2);"></div>
+              <div style="flex:${pctAut};background:#6B3FA0;"></div>
+            </div>
+            <div style="display:flex;gap:8px;font-size:9px;margin-bottom:6px;">
+              <span style="color:var(--rep2);">▪ Formation ${pctForm}%</span>
+              <span style="color:#6B3FA0;">▪ Autres ${pctAut}%</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:4px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${kpiGlobalHisto}
             </div>
           </div>
 
           <div class="kpi-evol-card" style="border-left-color:var(--vert);">
-            <div class="kpi-evol-label">Répartition T / H / R</div>
-            <div class="kpi-evol-value" style="font-size:14px;margin-top:4px;">${fmtKEur(sN.transport + sN.hebergement + sN.repas)}</div>
-            <div class="kpi-evol-sub" style="min-height:0;"></div>
-            ${mkBar(sN.transport, sN.hebergement, sN.repas)}
-            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:8px;border-top:1px solid var(--bord);padding-top:5px;">
-              ${makeHistoRow(fmtKEur, s => s.transport + s.hebergement + s.repas)}
+            <div class="kpi-evol-label">Répartition Transport / Hébergement / Repas</div>
+            <div style="display:flex;gap:4px;align-items:flex-end;justify-content:center;margin:8px 0 4px;padding:0 4px;">
+              ${stackBars}
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:9px;margin-top:4px;border-top:1px solid var(--bord);padding-top:5px;">
+              <span style="color:var(--rep2);">▪ Transport</span>
+              <span style="color:var(--vert);">▪ Hébergement</span>
+              <span style="color:var(--orange);">▪ Repas</span>
             </div>
           </div>
 
+        </div>`;
+      }
+
+      // KPI frais/agent séparé (card compacte sous le strip)
+      let kpiAgentCard = '';
+      if (anneesValides.length > 0) {
+        const sN_ = getTotauxMissionsAnnee(anneesValides[anneesValides.length - 1]);
+        const sN1_ = anneesValides.length >= 2 ? getTotauxMissionsAnnee(anneesValides[anneesValides.length - 2]) : null;
+        const sDep_ = getTotauxMissionsAnnee(anneesValides[0]);
+        const annN1_ = anneesValides.length >= 2 ? anneesValides[anneesValides.length - 2] : null;
+        const annDep_ = anneesValides[0];
+        const fE = v => Math.round(v).toLocaleString('fr-FR') + ' €';
+        const evolFa = (vN, vN1, annRef) => {
+          if (!vN1 || vN1 === 0 || !annRef) return '';
+          const p = ((vN - vN1) / vN1 * 100), s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 0.5 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+          return `<span style="color:${c};font-weight:700;">${s}${p.toFixed(1)}%</span> vs ${annRef}`;
+        };
+        const evolFaD = (vN, vD, aD) => {
+          if (!vD || vD === 0 || vD === vN) return '';
+          const p = ((vN - vD) / vD * 100), s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 1 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+          return ` — <span style="color:${c};">${s}${p.toFixed(1)}% depuis ${aD}</span>`;
+        };
+        const histoFa = anneesValides.map(a => {
+          const sv = getTotauxMissionsAnnee(a); const val = sv ? sv.frais_par_agent : null;
+          const isLast = (a === anneesValides[anneesValides.length - 1]);
+          return `<div style="text-align:center;"><div style="font-size:9px;color:var(--gris3);font-weight:600;">${a}</div><div style="font-size:10px;font-weight:${isLast?'700':'500'};color:${isLast?'var(--gris1)':'var(--gris2)'};">${val!==null?fE(val):'—'}</div></div>`;
+        }).join('');
+        kpiAgentCard = `
+        <div style="display:grid;grid-template-columns:minmax(200px,280px);margin-bottom:14px;">
+          <div class="kpi-evol-card" style="border-left-color:var(--orange);">
+            <div class="kpi-evol-label">Frais Moyen / Agent</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fE(sN_.frais_par_agent)}</div>
+            <div class="kpi-evol-sub">${evolFa(sN_.frais_par_agent, sN1_?.frais_par_agent, annN1_)}${evolFaD(sN_.frais_par_agent, sDep_?.frais_par_agent, annDep_)}${moyennes ? formatEcartMoyenne(sN_.frais_par_agent, moyennes.frais_par_agent) : ''}</div>
+            <div class="spark-wrap"><canvas id="spark-fm-agent"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">${histoFa}</div>
+          </div>
         </div>`;
       }
 
@@ -1600,6 +1677,7 @@
           </div>
 
           ${kpiStrip}
+          ${kpiAgentCard}
 
           <button id="fm-toggle-btn" onclick="(function(){
             var w   = document.getElementById('fm-table-wrapper');
@@ -1613,14 +1691,14 @@
           </button>
 
           <div id="fm-table-wrapper" style="display:none;">
-            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées</div>
+            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées — <strong>Données 2025</strong></div>
             <table>
               <thead>
                 <tr>
                   <th>Structure</th>
-                  <th style="width: 35%;">Répartition T/H/R</th>
-                  <th class="number">Total Formation</th>
-                  <th class="number">Total Autres Missions</th>
+                  <th style="width: 38%;">Répartition Transport / Hébergement / Repas</th>
+                  <th class="number">Formation</th>
+                  <th class="number">Autres Missions</th>
                   <th class="number">Frais Moyen / Agent</th>
                 </tr>
               </thead>
@@ -1755,7 +1833,7 @@
           </button>
 
           <div id="it-table-wrapper" style="display:none;">
-            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées</div>
+            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées — <strong>Données 2025</strong></div>
             <table>
               <thead>
                 <tr>
@@ -1923,6 +2001,12 @@
             <div style="font-size:11px;color:var(--gris3);margin-top:4px;">Enveloppe totale</div>
           </div>
 
+          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid var(--rep2);">
+            <div style="font-size:10px;font-weight:700;color:var(--rep2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Montant Consommé (CP)</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtCom(totaux.cp_2026)}</div>
+            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">Dépenses engagées 2026</div>
+          </div>
+
           <div style="background:${tStyle.bg};border-radius:8px;padding:14px 16px;border-left:3px solid ${tStyle.border};">
             <div style="font-size:10px;font-weight:700;color:${tStyle.color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">% Consommé (CP)</div>
             <div style="font-size:22px;font-weight:700;color:${tStyle.color};line-height:1.1;">${(tauxTotal*100).toFixed(1)} %</div>
@@ -1964,6 +2048,8 @@
           </div>
 
           ${kpis}
+
+          ${dateImportCommune ? `<div style="font-size:11px;color:var(--gris2);margin-bottom:14px;">📅 Données CP 2026 au <strong>${dateImportCommune}</strong></div>` : ''}
 
           <button id="comm-toggle-btn" onclick="(function(){
             var w = document.getElementById('comm-table-wrapper');
