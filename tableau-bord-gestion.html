@@ -1003,8 +1003,9 @@
           </div>`;
       }
 
+      // ── Agréger les totaux ─────────────────────────────────────────
+      const totaux = { cp_2024: 0, cp_2025: 0, cp_2026: 0, ej_2026: 0, cible_2026: 0, cap_cp_2026: 0 };
       let rows = '';
-      const totaux = { cp_2022: 0, cp_2023: 0, cp_2024: 0, cp_2025: 0, cp_2026: 0, ej_2026: 0, cible_2026: 0, cap_cp_2026: 0 };
 
       const allBlocs = [blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN];
       allBlocs.forEach(bloc => bloc.forEach((s, bIdx) => {
@@ -1016,8 +1017,6 @@
         const extraClass = s.typeAffichage === 'DI_Outremer' ? 'row-di-outremer' : '';
 
         if (d) {
-          totaux.cp_2022     += d.cp_2022;
-          totaux.cp_2023     += d.cp_2023;
           totaux.cp_2024     += d.cp_2024;
           totaux.cp_2025     += d.cp_2025;
           totaux.cp_2026     += d.cp_2026;
@@ -1026,22 +1025,69 @@
           totaux.cap_cp_2026 += d.cap_cp_2026;
         }
 
+        // Barre de progression inline
+        const pct = (d && d.cible_2026) ? Math.min(d.taux_conso * 100, 100) : 0;
+        const barColor = !d ? '#9ca3af'
+          : d.taux_conso >= 0.80 ? '#c0392b'
+          : d.taux_conso >= 0.50 ? '#d35400' : '#1a6b3c';
+        const progressBar = d ? `
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+              <div style="width:${pct.toFixed(1)}%;height:100%;background:${barColor};border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px;font-weight:600;color:${barColor};min-width:38px;text-align:right;">${(d.taux_conso*100).toFixed(1)} %</span>
+          </div>` : '—';
+
         rows += `
           <tr class="${rowClass} ${extraClass}">
             <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
-            <td class="number">${d ? fmtCom(d.cp_2022) : '—'}</td>
-            <td class="number">${d ? fmtCom(d.cp_2023) : '—'}</td>
             <td class="number">${d ? fmtCom(d.cp_2024) : '—'}</td>
             <td class="number">${d ? fmtCom(d.cp_2025) : '—'}</td>
             <td class="number" style="color:var(--vert);font-weight:600;">${d ? fmtCom(d.cible_2026) : '—'}</td>
-            <td class="number">${d ? fmtCom(d.cp_2026) : '—'}</td>
-            <td class="number">${d ? fmtCom(d.ej_2026) : '—'}</td>
-            <td class="number">${d ? fmtCom(d.cap_cp_2026) : '—'}</td>
-            <td class="number">${d ? tauxBadge(d.taux_conso) : '—'}</td>
+            <td style="min-width:140px;padding:8px 10px;">${progressBar}</td>
           </tr>`;
       }));
 
-      const tauxTotal = totaux.cible_2026 ? totaux.cp_2026 / totaux.cible_2026 : 0;
+      // ── KPIs globaux ──────────────────────────────────────────────
+      const tauxTotal  = totaux.cible_2026 ? totaux.cp_2026 / totaux.cible_2026 : 0;
+      const tStyle     = tauxTotal >= 0.80 ? {color:'#c0392b',bg:'#FEF2F2',border:'#c0392b'}
+                       : tauxTotal >= 0.50 ? {color:'#d35400',bg:'#FFF7ED',border:'#d35400'}
+                       :                    {color:'#1a6b3c',bg:'#F0FDF4',border:'#22c55e'};
+      const pctBar     = Math.min(tauxTotal * 100, 100).toFixed(1);
+
+      const kpis = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px;">
+
+          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid var(--vert);">
+            <div style="font-size:10px;font-weight:700;color:var(--vert);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Cible 2026</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtCom(totaux.cible_2026)}</div>
+            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">Enveloppe totale</div>
+          </div>
+
+          <div style="background:${tStyle.bg};border-radius:8px;padding:14px 16px;border-left:3px solid ${tStyle.border};">
+            <div style="font-size:10px;font-weight:700;color:${tStyle.color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">% Consommé (CP)</div>
+            <div style="font-size:22px;font-weight:700;color:${tStyle.color};line-height:1.1;">${(tauxTotal*100).toFixed(1)} %</div>
+            <div style="height:5px;background:rgba(0,0,0,.1);border-radius:3px;margin-top:8px;overflow:hidden;">
+              <div style="width:${pctBar}%;height:100%;background:${tStyle.color};border-radius:3px;"></div>
+            </div>
+          </div>
+
+          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid #6B3FA0;">
+            <div style="font-size:10px;font-weight:700;color:#6B3FA0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Disponible CP</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtCom(totaux.cap_cp_2026)}</div>
+            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">Reste à consommer</div>
+          </div>
+
+        </div>`;
+
+      // ── Ligne totale barre ─────────────────────────────────────────
+      const totalBar = `
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+            <div style="width:${pctBar}%;height:100%;background:${tStyle.color};border-radius:3px;"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:${tStyle.color};min-width:38px;text-align:right;">${(tauxTotal*100).toFixed(1)} %</span>
+        </div>`;
 
       return `
         <div class="section">
@@ -1049,37 +1095,43 @@
             <div class="section-icon">📣</div>
             <div class="section-title">Dépenses de Communication</div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Structure</th>
-                <th class="number">CP 2022</th>
-                <th class="number">CP 2023</th>
-                <th class="number">CP 2024</th>
-                <th class="number">CP 2025</th>
-                <th class="number" style="color:var(--vert);">Cible 2026</th>
-                <th class="number">CP 2026</th>
-                <th class="number">EJ 2026</th>
-                <th class="number">Disponible CP</th>
-                <th class="number">Taux conso.</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-              <tr class="row-total">
-                <td>TOTAL</td>
-                <td class="number">${fmtCom(totaux.cp_2022)}</td>
-                <td class="number">${fmtCom(totaux.cp_2023)}</td>
-                <td class="number">${fmtCom(totaux.cp_2024)}</td>
-                <td class="number">${fmtCom(totaux.cp_2025)}</td>
-                <td class="number" style="color:var(--vert);font-weight:700;">${fmtCom(totaux.cible_2026)}</td>
-                <td class="number">${fmtCom(totaux.cp_2026)}</td>
-                <td class="number">${fmtCom(totaux.ej_2026)}</td>
-                <td class="number">${fmtCom(totaux.cap_cp_2026)}</td>
-                <td class="number">${tauxBadge(tauxTotal)}</td>
-              </tr>
-            </tbody>
-          </table>
+
+          ${kpis}
+
+          <button id="comm-toggle-btn" onclick="(function(){
+            var w = document.getElementById('comm-table-wrapper');
+            var btn = document.getElementById('comm-toggle-btn');
+            var open = w.style.display !== 'none';
+            w.style.display = open ? 'none' : 'block';
+            btn.innerHTML = open ? '▶&nbsp; Voir le détail par structure' : '▼&nbsp; Masquer le détail';
+          })()"
+          style="background:none;border:1px solid var(--bord);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gris2);cursor:pointer;margin-bottom:12px;">
+            ▶&nbsp; Voir le détail par structure
+          </button>
+
+          <div id="comm-table-wrapper" style="display:none;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Structure</th>
+                  <th class="number">CP 2024</th>
+                  <th class="number">CP 2025</th>
+                  <th class="number" style="color:var(--vert);">Cible 2026</th>
+                  <th>% atteint</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+                <tr class="row-total">
+                  <td>TOTAL</td>
+                  <td class="number">${fmtCom(totaux.cp_2024)}</td>
+                  <td class="number">${fmtCom(totaux.cp_2025)}</td>
+                  <td class="number" style="color:var(--vert);font-weight:700;">${fmtCom(totaux.cible_2026)}</td>
+                  <td style="padding:8px 10px;">${totalBar}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
     }
