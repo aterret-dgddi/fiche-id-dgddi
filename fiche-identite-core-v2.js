@@ -618,62 +618,62 @@ function getConsolidationData(perimetre, annee) {
   const n = (col) => Number(conso[col]?.[idx]) || 0;
   return {
     // === RH ===
-    nb_structures:               n('Nb_Structures'),
-    total_effectif:              n('Total_Effectif'),
-    total_effectif_agco:         n('Total_Effectif_AGCO'),
-    total_effectif_su:           n('Total_Effectif_SU'),
-    total_effectif_autres:       n('Total_Effectif_Autres'),
-    total_masse_salariale:       n('Total_Masse_Salariale'),
-    moyenne_ms_par_agent:        n('Moyenne_MS_Par_Agent'),
-    pct_agco:                    n('Pct_AGCO'),
-    pct_su:                      n('Pct_SU'),
-    age_moyen_global:            n('Age_Moyen_Global'),
-    effectif_moyen:              n('Effectif_Moyen_Par_Structure'),
-    effectif_agco_moyen:         n('Effectif_AGCO_Moyen_Par_Structure'),
-    effectif_su_moyen:           n('Effectif_SU_Moyen_Par_Structure'),
+    nb_structures:                n('Nb_Structures'),
+    total_effectif:               n('Total_Effectif'),
+    total_effectif_agco:          n('Total_Effectif_AGCO'),
+    total_effectif_su:            n('Total_Effectif_SU'),
+    total_effectif_autres:        n('Total_Effectif_Autres'),
+    total_masse_salariale:        n('Total_Masse_Salariale'),
+    moyenne_ms_par_agent:         n('Moyenne_MS_Par_Agent'),
+    pct_agco:                     n('Pct_AGCO'),
+    pct_su:                       n('Pct_SU'),
+    age_moyen_global:             n('Age_Moyen_Global'),
+    effectif_moyen:               n('Effectif_Moyen_Par_Structure'),
+    effectif_agco_moyen:          n('Effectif_AGCO_Moyen_Par_Structure'),
+    effectif_su_moyen:            n('Effectif_SU_Moyen_Par_Structure'),
 
     // === VÉHICULES ===
-    total_vehicules:             n('Total_Vehicules'),
-    total_vehicules_vetustes:    n('Total_Vehicules_Vetustes'),
-    taux_vetuste_moyen:          n('Taux_Vetuste_Moyen'),
-    ratio_vehicule_agent:        n('Ratio_Vehicule_Agent'),
-    total_budget_vehicules:      n('Total_Budget_Vehicules'),
-    total_budget_fonct_vehicules:n('Total_Budget_Fonctionnement_Vehicules'),
-    moy_nb_vehicules:            n('Moy_Nb_Vehicules'),
-    moy_taux_vetuste:            n('Moy_Taux_Vetuste'),
-    moy_budget_vehicules:        n('Moy_Budget_Vehicules'),
-    moy_ratio_vehicule_agent:    n('Moy_Ratio_Vehicule_Agent'),
-    moy_ratio_vehicule_su:       n('Moy_Ratio_Vehicule_SU'),
-    moy_cout_fonct_vehicule:     n('Moy_Cout_Fonctionnement_Par_Vehicule'),
+    total_vehicules:              n('Total_Vehicules'),
+    total_vehicules_vetustes:     n('Total_Vehicules_Vetustes'),
+    taux_vetuste_moyen:           n('Taux_Vetuste_Moyen'),
+    ratio_vehicule_agent:         n('Ratio_Vehicule_Agent'),
+    total_budget_vehicules:       n('Total_Budget_Vehicules'),
+    total_budget_fonct_vehicules: n('Total_Budget_Fonctionnement_Vehicules'),
+    moy_nb_vehicules:             n('Moy_Nb_Vehicules'),
+    moy_taux_vetuste:             n('Moy_Taux_Vetuste'),
+    moy_budget_vehicules:         n('Moy_Budget_Vehicules'),
+    moy_ratio_vehicule_agent:     n('Moy_Ratio_Vehicule_Agent'),
+    moy_ratio_vehicule_su:        n('Moy_Ratio_Vehicule_SU'),
+    moy_cout_fonct_vehicule:      n('Moy_Cout_Fonctionnement_Par_Vehicule'),
 
     // === BUDGET (notifs BOP) ===
-    total_notif_ae:              n('Total_Notif_AE'),
-    total_notif_cp:              n('Total_Notif_CP'),
-    total_conso_ae:              n('Total_Conso_AE'),
-    total_conso_cp:              n('Total_Conso_CP'),
-    taux_conso_moyen_ae:         n('Taux_Conso_Moyen_AE'),
-    taux_conso_moyen_cp:         n('Taux_Conso_Moyen_CP'),
+    total_notif_ae:               n('Total_Notif_AE'),
+    total_notif_cp:               n('Total_Notif_CP'),
+    total_conso_ae:               n('Total_Conso_AE'),
+    total_conso_cp:               n('Total_Conso_CP'),
+    taux_conso_moyen_ae:          n('Taux_Conso_Moyen_AE'),
+    taux_conso_moyen_cp:          n('Taux_Conso_Moyen_CP'),
 
     // === FRAIS DE MISSION ===
-    total_frais_mission:         n('Total_Frais_Mission'),
-    total_transport:             n('Total_Transport'),
-    total_hebergement:           n('Total_Hebergement'),
-    total_repas:                 n('Total_Repas'),
-    total_formation:             n('Total_Formation'),
-    total_autres_missions:       n('Total_Autres_Missions'),
-    moyenne_frais_par_agent:     n('Moyenne_Frais_Par_Agent'),
-    moy_frais_par_structure:     n('Moy_Frais_Par_Structure'),
-    moy_frais_par_agent:         n('Moyenne_Frais_Par_Agent'),
-    moy_formation_par_agent:     n('Moy_Formation_Par_Agent'),
-    moy_autres_par_agent:        n('Moy_Autres_Par_Agent'),
+    total_frais_mission:          n('Total_Frais_Mission'),
+    total_transport:              n('Total_Transport'),
+    total_hebergement:            n('Total_Hebergement'),
+    total_repas:                  n('Total_Repas'),
+    total_formation:              n('Total_Formation'),
+    total_autres_missions:        n('Total_Autres_Missions'),
+    moyenne_frais_par_agent:      n('Moyenne_Frais_Par_Agent'),
+    moy_frais_par_structure:      n('Moy_Frais_Par_Structure'),
+    moy_frais_par_agent:          n('Moyenne_Frais_Par_Agent'),
+    moy_formation_par_agent:      n('Moy_Formation_Par_Agent'),
+    moy_autres_par_agent:         n('Moy_Autres_Par_Agent'),
 
     // === INFORMATIQUE ===
-    total_budget_it:             n('Total_Budget_IT'),
-    total_budget_it_4ans:        n('Total_Budget_IT_4ans'),
-    moyenne_budget_it_par_agent: n('Moyenne_Budget_IT_Par_Agent'),
-    moy_budget_it_par_agent:     n('Moyenne_Budget_IT_Par_Agent'),
-    moy_ratio_poste_agent:       n('Moy_Ratio_Poste_Agent'),
-    moy_budget_it_moyen_4ans:    n('Moy_Budget_IT_Moyen_Par_Agent_4ans'),
+    total_budget_it:              n('Total_Budget_IT'),
+    total_budget_it_4ans:         n('Total_Budget_IT_4ans'),
+    moyenne_budget_it_par_agent:  n('Moyenne_Budget_IT_Par_Agent'),
+    moy_budget_it_par_agent:      n('Moyenne_Budget_IT_Par_Agent'),
+    moy_ratio_poste_agent:        n('Moy_Ratio_Poste_Agent'),
+    moy_budget_it_moyen_4ans:     n('Moy_Budget_IT_Moyen_Par_Agent_4ans'),
   };
 }
 
@@ -1640,9 +1640,9 @@ function refreshVehicules(structureId, annee) {
   }
   
   // Comparaison vs périmètre (utilise Moy_Nb_Vehicules)
-  if (consol && consol.Moy_Nb_Vehicules && consol.Moy_Nb_Vehicules > 0) {
-    const ecart = data.nombre_total - consol.Moy_Nb_Vehicules;
-    const ecartPct = (ecart / consol.Moy_Nb_Vehicules) * 100;
+  if (consol && consol.moy_nb_vehicules && consol.moy_nb_vehicules > 0) {
+    const ecart = data.nombre_total - consol.moy_nb_vehicules;
+    const ecartPct = (ecart / consol.moy_nb_vehicules) * 100;
     document.getElementById('veh-total-comp').innerHTML = `
       <span style="color:var(--gris2);">
         ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs moyenne ${perimetre}
@@ -1689,9 +1689,9 @@ function refreshVehicules(structureId, annee) {
   }
   
   // Comparaison budget vs périmètre (utilise Moy_Budget_Vehicules)
-  if (consol && consol.Moy_Budget_Vehicules && consol.Moy_Budget_Vehicules > 0) {
-    const ecart = data.budget_total - consol.Moy_Budget_Vehicules;
-    const ecartPct = (ecart / consol.Moy_Budget_Vehicules) * 100;
+  if (consol && consol.moy_budget_vehicules && consol.moy_budget_vehicules > 0) {
+    const ecart = data.budget_total - consol.moy_budget_vehicules;
+    const ecartPct = (ecart / consol.moy_budget_vehicules) * 100;
     document.getElementById('veh-budget-comp').innerHTML = `
       <span style="color:var(--gris2);">
         ${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}
@@ -1756,18 +1756,16 @@ function refreshVehicules(structureId, annee) {
     document.getElementById('veh-cout-evol').textContent = '';
   }
   
-  // Comparaison coût vs périmètre ET national
+  // Comparaison coût vs périmètre ET national — lit Moy_Cout_Fonctionnement_Par_Vehicule depuis Grist
   const compCout = [];
-  if (consol && consol.moy_budget_vehicules && consol.moy_nb_vehicules && consol.moy_nb_vehicules > 0) {
-    const moyenneCout = consol.moy_budget_vehicules / consol.moy_nb_vehicules;
-    const ecart = data.cout_fonct_vehicule - moyenneCout;
-    const ecartPct = moyenneCout > 0 ? (ecart / moyenneCout) * 100 : 0;
+  if (consol && consol.moy_cout_fonct_vehicule && consol.moy_cout_fonct_vehicule > 0) {
+    const ecart = data.cout_fonct_vehicule - consol.moy_cout_fonct_vehicule;
+    const ecartPct = (ecart / consol.moy_cout_fonct_vehicule) * 100;
     compCout.push(`${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}`);
   }
-  if (consolNational && consolNational.moy_budget_vehicules && consolNational.moy_nb_vehicules && consolNational.moy_nb_vehicules > 0) {
-    const moyenneCout = consolNational.moy_budget_vehicules / consolNational.moy_nb_vehicules;
-    const ecart = data.cout_fonct_vehicule - moyenneCout;
-    const ecartPct = moyenneCout > 0 ? (ecart / moyenneCout) * 100 : 0;
+  if (consolNational && consolNational.moy_cout_fonct_vehicule && consolNational.moy_cout_fonct_vehicule > 0) {
+    const ecart = data.cout_fonct_vehicule - consolNational.moy_cout_fonct_vehicule;
+    const ecartPct = (ecart / consolNational.moy_cout_fonct_vehicule) * 100;
     compCout.push(`${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs National`);
   }
   if (compCout.length > 0) {
