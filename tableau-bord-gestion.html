@@ -1056,7 +1056,7 @@
             <td class="number">${d ? fmtCom(d.cp_2024) : '—'}</td>
             <td class="number">${d ? fmtCom(d.cp_2025) : '—'}</td>
             <td class="number" style="color:var(--vert);font-weight:600;">${d ? fmtCom(d.cible_2026) : '—'}</td>
-            <td class="number">${d ? fmtCom(d.cp_2026) : '—'}${d && d.date_import ? `<br><span style="font-size:10px;color:var(--gris3);font-weight:400;">au ${d.date_import}</span>` : ''}</td>
+            <td class="number">${d ? fmtCom(d.cp_2026) : '—'}</td>
             <td style="min-width:140px;padding:8px 10px;">${progressBar}</td>
           </tr>`;
       }));
@@ -1093,6 +1093,14 @@
 
         </div>`;
 
+      // ── Date d'import commune (première valeur non nulle) ──────────
+      let dateImportCommune = null;
+      allBlocs.forEach(bloc => bloc.forEach(s => {
+        if (dateImportCommune) return;
+        const d = getComData(s.id);
+        if (d && d.date_import) dateImportCommune = d.date_import;
+      }));
+
       // ── Ligne totale barre ─────────────────────────────────────────
       const totalBar = `
         <div style="display:flex;align-items:center;gap:6px;">
@@ -1123,6 +1131,7 @@
           </button>
 
           <div id="comm-table-wrapper" style="display:none;">
+            ${dateImportCommune ? `<div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">📅 Données CP 2026 au <strong style="color:var(--gris2);">${dateImportCommune}</strong></div>` : ''}
             <table>
               <thead>
                 <tr>
