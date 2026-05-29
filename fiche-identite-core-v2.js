@@ -615,61 +615,65 @@ function getConsolidationData(perimetre, annee) {
   
   if (idx === -1) return null;
   
+  const n = (col) => Number(conso[col]?.[idx]) || 0;
   return {
     // === RH ===
-    nb_structures: conso.Nb_Structures[idx] || 0,
-    total_effectif: conso.Total_Effectif[idx] || 0,
-    total_effectif_agco: conso.Total_Effectif_AGCO[idx] || 0,
-    total_effectif_su: conso.Total_Effectif_SU[idx] || 0,
-    total_masse_salariale: conso.Total_Masse_Salariale[idx] || 0,
-    moyenne_ms_par_agent: conso.Moyenne_MS_Par_Agent[idx] || 0,
-    pct_agco: conso.Pct_AGCO[idx] || 0,
-    pct_su: conso.Pct_SU[idx] || 0,
-    
-    // === MOYENNES RH (colonnes ajoutées dans Consolidation) ===
-    age_moyen_global: conso.Age_Moyen_Global?.[idx] || 0,                          // ← AJOUTÉ
-    effectif_moyen: conso.Effectif_Moyen_Par_Structure?.[idx] || 0,                // ← AJOUTÉ
-    effectif_agco_moyen: conso.Effectif_AGCO_Moyen_Par_Structure?.[idx] || 0,      // ← AJOUTÉ
-    effectif_su_moyen: conso.Effectif_SU_Moyen_Par_Structure?.[idx] || 0,          // ← AJOUTÉ
-    
+    nb_structures:               n('Nb_Structures'),
+    total_effectif:              n('Total_Effectif'),
+    total_effectif_agco:         n('Total_Effectif_AGCO'),
+    total_effectif_su:           n('Total_Effectif_SU'),
+    total_effectif_autres:       n('Total_Effectif_Autres'),
+    total_masse_salariale:       n('Total_Masse_Salariale'),
+    moyenne_ms_par_agent:        n('Moyenne_MS_Par_Agent'),
+    pct_agco:                    n('Pct_AGCO'),
+    pct_su:                      n('Pct_SU'),
+    age_moyen_global:            n('Age_Moyen_Global'),
+    effectif_moyen:              n('Effectif_Moyen_Par_Structure'),
+    effectif_agco_moyen:         n('Effectif_AGCO_Moyen_Par_Structure'),
+    effectif_su_moyen:           n('Effectif_SU_Moyen_Par_Structure'),
+
     // === VÉHICULES ===
-    total_vehicules: conso.Total_Vehicules[idx] || 0,
-    taux_vetuste_moyen: conso.Taux_Vetuste_Moyen[idx] || 0,
-    total_budget_vehicules: conso.Total_Budget_Vehicules[idx] || 0,
-    
-    // === MOYENNES VÉHICULES (colonnes ajoutées) ===
-    moy_nb_vehicules: conso.Moy_Nb_Vehicules?.[idx] || 0,                          // ← AJOUTÉ
-    moy_taux_vetuste: conso.Moy_Taux_Vetuste?.[idx] || 0,                          // ← AJOUTÉ
-    moy_budget_vehicules: conso.Moy_Budget_Vehicules?.[idx] || 0,                  // ← AJOUTÉ
-    moy_ratio_vehicule_agent: conso.Moy_Ratio_Vehicule_Agent?.[idx] || 0,          // ← AJOUTÉ
-    moy_ratio_vehicule_su: conso.Moy_Ratio_Vehicule_SU?.[idx] || 0,                // ← AJOUTÉ
-    
+    total_vehicules:             n('Total_Vehicules'),
+    total_vehicules_vetustes:    n('Total_Vehicules_Vetustes'),
+    taux_vetuste_moyen:          n('Taux_Vetuste_Moyen'),
+    ratio_vehicule_agent:        n('Ratio_Vehicule_Agent'),
+    total_budget_vehicules:      n('Total_Budget_Vehicules'),
+    total_budget_fonct_vehicules:n('Total_Budget_Fonctionnement_Vehicules'),
+    moy_nb_vehicules:            n('Moy_Nb_Vehicules'),
+    moy_taux_vetuste:            n('Moy_Taux_Vetuste'),
+    moy_budget_vehicules:        n('Moy_Budget_Vehicules'),
+    moy_ratio_vehicule_agent:    n('Moy_Ratio_Vehicule_Agent'),
+    moy_ratio_vehicule_su:       n('Moy_Ratio_Vehicule_SU'),
+    moy_cout_fonct_vehicule:     n('Moy_Cout_Fonctionnement_Par_Vehicule'),
+
     // === BUDGET (notifs BOP) ===
-    total_notif_ae: conso.Total_Notif_AE[idx] || 0,
-    total_notif_cp: conso.Total_Notif_CP[idx] || 0,
-    total_conso_ae: conso.Total_Conso_AE[idx] || 0,
-    total_conso_cp: conso.Total_Conso_CP[idx] || 0,
-    taux_conso_moyen_ae: conso.Taux_Conso_Moyen_AE[idx] || 0,
-    taux_conso_moyen_cp: conso.Taux_Conso_Moyen_CP[idx] || 0,
-    
+    total_notif_ae:              n('Total_Notif_AE'),
+    total_notif_cp:              n('Total_Notif_CP'),
+    total_conso_ae:              n('Total_Conso_AE'),
+    total_conso_cp:              n('Total_Conso_CP'),
+    taux_conso_moyen_ae:         n('Taux_Conso_Moyen_AE'),
+    taux_conso_moyen_cp:         n('Taux_Conso_Moyen_CP'),
+
     // === FRAIS DE MISSION ===
-    total_frais_mission: conso.Total_Frais_Mission[idx] || 0,
-    moyenne_frais_par_agent: conso.Moyenne_Frais_Par_Agent[idx] || 0,
-    
-    // === MOYENNES FRAIS DE MISSION (colonnes ajoutées) ===
-    moy_frais_par_structure: conso.Moy_Frais_Par_Structure?.[idx] || 0,         
-    moy_frais_par_agent: conso.Moy_Frais_Par_Agent?.[idx] || conso.Moyenne_Frais_Par_Agent?.[idx] || 0, // Fallback vers Moyenne_Frais_Par_Agent
-    moy_formation_par_agent: conso.Moy_Formation_Par_Agent?.[idx] || 0,         
-    moy_autres_par_agent: conso.Moy_Autres_Par_Agent?.[idx] || 0,               
-    
+    total_frais_mission:         n('Total_Frais_Mission'),
+    total_transport:             n('Total_Transport'),
+    total_hebergement:           n('Total_Hebergement'),
+    total_repas:                 n('Total_Repas'),
+    total_formation:             n('Total_Formation'),
+    total_autres_missions:       n('Total_Autres_Missions'),
+    moyenne_frais_par_agent:     n('Moyenne_Frais_Par_Agent'),
+    moy_frais_par_structure:     n('Moy_Frais_Par_Structure'),
+    moy_frais_par_agent:         n('Moyenne_Frais_Par_Agent'),
+    moy_formation_par_agent:     n('Moy_Formation_Par_Agent'),
+    moy_autres_par_agent:        n('Moy_Autres_Par_Agent'),
+
     // === INFORMATIQUE ===
-    total_budget_it: conso.Total_Budget_IT[idx] || 0,
-    moyenne_budget_it_par_agent: conso.Moyenne_Budget_IT_Par_Agent[idx] || 0,
-    
-    // === MOYENNES INFORMATIQUE (colonnes ajoutées) ===
-    moy_budget_it_par_agent: conso.Moy_Budget_IT_Par_Agent?.[idx] || 0,            // ← AJOUTÉ
-    moy_ratio_poste_agent: conso.Moy_Ratio_Poste_Agent?.[idx] || 0,                // ← AJOUTÉ
-    moy_budget_it_moyen_4ans: conso.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[idx] || 0 // ← AJOUTÉ
+    total_budget_it:             n('Total_Budget_IT'),
+    total_budget_it_4ans:        n('Total_Budget_IT_4ans'),
+    moyenne_budget_it_par_agent: n('Moyenne_Budget_IT_Par_Agent'),
+    moy_budget_it_par_agent:     n('Moyenne_Budget_IT_Par_Agent'),
+    moy_ratio_poste_agent:       n('Moy_Ratio_Poste_Agent'),
+    moy_budget_it_moyen_4ans:    n('Moy_Budget_IT_Moyen_Par_Agent_4ans'),
   };
 }
 
