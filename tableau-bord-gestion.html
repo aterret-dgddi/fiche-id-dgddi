@@ -463,35 +463,22 @@
     // HELPERS MULTI-ANNÉES pour KPI véhicules
     // ═══════════════════════════════════════════════════════
 
-    function getConsolidationVehiculesAnnee(structureId, annee) {
-      for (let i = 0; i < consolidationData.Structure.length; i++) {
-        if (consolidationData.Structure[i] === structureId && consolidationData.Annee[i] === annee) {
-          return {
-            nb_vehicules:   Number(consolidationData.Nb_Vehicules?.[i]) || 0,
-            nb_vetustes:    Number(consolidationData.Nb_Vehicules_Vetustes?.[i]) || 0,
-            budget_vehicules: Number(consolidationData.Budget_Vehicules?.[i]) || 0,
-            effectif_total: Number(consolidationData.Effectif_Total?.[i]) || 0,
-            effectif_su:    Number(consolidationData.Effectif_SU?.[i]) || 0,
-          };
-        }
-      }
-      return null;
-    }
-
     function getTotauxVehiculesAnnee(annee) {
-      let nb = 0, nbVetustes = 0, budget = 0, etpt = 0, etptSU = 0;
+      let nb = 0, nbVetustes = 0, budget = 0, etpt = 0, etptSU = 0, hasData = false;
       for (let i = 0; i < structuresData.id.length; i++) {
         const ta = structuresData.Type_Affichage?.[i];
         if (!['DI_Hexagone','DI_Outremer','DR_Antilles','DR_Outremer','SCN'].includes(ta)) continue;
-        const c = getConsolidationVehiculesAnnee(structuresData.id[i], annee);
-        if (!c || c.nb_vehicules === 0) continue;
-        nb       += c.nb_vehicules;
+        const c = getConsolidation(structuresData.id[i], annee);
+        if (!c) continue;
+        if (c.nb_vehicules === 0 && c.budget_vehicules === 0) continue;
+        hasData = true;
+        nb         += c.nb_vehicules;
         nbVetustes += c.nb_vetustes;
-        budget   += c.budget_vehicules;
-        etpt     += c.effectif_total;
-        etptSU   += c.effectif_su;
+        budget     += c.budget_vehicules;
+        etpt       += c.effectif_total;
+        etptSU     += c.effectif_su;
       }
-      if (nb === 0) return null;
+      if (!hasData || nb === 0) return null;
       return {
         nb,
         nb_vetustes: nbVetustes,
@@ -1225,10 +1212,10 @@
             btn.innerHTML = open ? '&#9654;&nbsp; Voir le détail par structure' : '&#9660;&nbsp; Masquer le détail';
           })()"
           style="background:none;border:1px solid var(--bord);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gris2);cursor:pointer;margin-bottom:12px;">
-            &#9660;&nbsp; Masquer le détail
+            &#9654;&nbsp; Voir le détail par structure
           </button>
 
-          <div id="rh-table-wrapper">
+          <div id="rh-table-wrapper" style="display:none;">
             <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées</div>
             <table>
               <thead>
