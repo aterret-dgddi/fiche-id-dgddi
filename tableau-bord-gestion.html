@@ -459,6 +459,50 @@
       return { etpt, age_moyen: sumAge / etpt, ms, ms_agent: ms / etpt };
     }
 
+    // ═══════════════════════════════════════════════════════
+    // HELPERS MULTI-ANNÉES pour KPI véhicules
+    // ═══════════════════════════════════════════════════════
+
+    function getConsolidationVehiculesAnnee(structureId, annee) {
+      for (let i = 0; i < consolidationData.Structure.length; i++) {
+        if (consolidationData.Structure[i] === structureId && consolidationData.Annee[i] === annee) {
+          return {
+            nb_vehicules:   Number(consolidationData.Nb_Vehicules?.[i]) || 0,
+            nb_vetustes:    Number(consolidationData.Nb_Vehicules_Vetustes?.[i]) || 0,
+            budget_vehicules: Number(consolidationData.Budget_Vehicules?.[i]) || 0,
+            effectif_total: Number(consolidationData.Effectif_Total?.[i]) || 0,
+            effectif_su:    Number(consolidationData.Effectif_SU?.[i]) || 0,
+          };
+        }
+      }
+      return null;
+    }
+
+    function getTotauxVehiculesAnnee(annee) {
+      let nb = 0, nbVetustes = 0, budget = 0, etpt = 0, etptSU = 0;
+      for (let i = 0; i < structuresData.id.length; i++) {
+        const ta = structuresData.Type_Affichage?.[i];
+        if (!['DI_Hexagone','DI_Outremer','DR_Antilles','DR_Outremer','SCN'].includes(ta)) continue;
+        const c = getConsolidationVehiculesAnnee(structuresData.id[i], annee);
+        if (!c || c.nb_vehicules === 0) continue;
+        nb       += c.nb_vehicules;
+        nbVetustes += c.nb_vetustes;
+        budget   += c.budget_vehicules;
+        etpt     += c.effectif_total;
+        etptSU   += c.effectif_su;
+      }
+      if (nb === 0) return null;
+      return {
+        nb,
+        nb_vetustes: nbVetustes,
+        taux_vetuste: nb > 0 ? (nbVetustes / nb * 100) : 0,
+        ratio_agent: etpt > 0 ? nb / etpt : 0,
+        ratio_su:    etptSU > 0 ? nb / etptSU : 0,
+        budget,
+        cout_fonct:  nb > 0 ? budget / nb : 0,
+      };
+    }
+
     function renderKPIEvolution() {
       const anneesValides = ANNEES_DISPO.filter(a => getTotauxAnnee(a) !== null);
       if (anneesValides.length === 0) return '';
@@ -573,6 +617,37 @@
       makeChart('spark-age',      series.map(s => s.age_moyen),'rgb(192,90,0)');
       makeChart('spark-ms',       series.map(s => s.ms/1e6),   'rgb(26,107,60)');
       makeChart('spark-ms-agent', series.map(s => s.ms_agent), 'rgb(181,32,32)');
+    }
+
+    function drawSparklinesVehicules() {
+      const anneesValides = ANNEES_DISPO.filter(a => getTotauxVehiculesAnnee(a) !== null);
+      if (anneesValides.length < 2) return;
+      const labels = anneesValides.map(String);
+
+      const makeChart = (id, data, color) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const existing = Chart.getChart(el);
+        if (existing) existing.destroy();
+        new Chart(el.getContext('2d'), {
+          type: 'line',
+          data: { labels, datasets: [{ data, borderColor: color, borderWidth: 2,
+            backgroundColor: color.replace('rgb','rgba').replace(')',',0.10)'),
+            fill: true, tension: 0.4,
+            pointRadius: 3, pointHoverRadius: 5,
+            pointBackgroundColor: color, pointBorderColor: '#fff', pointBorderWidth: 1.5 }]},
+          options: {
+            responsive: false, animation: false,
+            plugins: { legend:{ display:false }, tooltip:{ enabled:true }},
+            scales: { x:{ display:false }, y:{ display:false, beginAtZero: false }}
+          }
+        });
+      };
+
+      makeChart('spark-veh-total',    anneesValides.map(a => { const s=getTotauxVehiculesAnnee(a); return s?s.nb:null; }),         'rgb(19,81,168)');
+      makeChart('spark-veh-vetuste',  anneesValides.map(a => { const s=getTotauxVehiculesAnnee(a); return s?s.taux_vetuste:null; }),'rgb(192,90,0)');
+      makeChart('spark-veh-ratio-su', anneesValides.map(a => { const s=getTotauxVehiculesAnnee(a); return s?s.ratio_su:null; }),    'rgb(107,63,160)');
+      makeChart('spark-veh-cout',     anneesValides.map(a => { const s=getTotauxVehiculesAnnee(a); return s?s.cout_fonct:null; }),  'rgb(26,107,60)');
     }
 
     // ═══════════════════════════════════════════════════════
@@ -724,6 +799,7 @@
         
         // Dessiner les sparklines après injection DOM
         setTimeout(drawSparklines, 60);
+        setTimeout(drawSparklinesVehicules, 120);
         
       } catch (error) {
         console.error('❌ Erreur initialisation:', error);
@@ -1188,38 +1264,153 @@
 
     function renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
       const rows = buildSectionRows('vehicules', blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes);
-      
+
+      // ── KPI évolution multi-années ────────────────────────────────
+      const anneesValides = ANNEES_DISPO.filter(a => getTotauxVehiculesAnnee(a) !== null);
+      let kpiStrip = '';
+
+      if (anneesValides.length > 0) {
+        const sN   = getTotauxVehiculesAnnee(anneesValides[anneesValides.length - 1]);
+        const sN1  = anneesValides.length >= 2 ? getTotauxVehiculesAnnee(anneesValides[anneesValides.length - 2]) : null;
+        const sDep = getTotauxVehiculesAnnee(anneesValides[0]);
+        const annN1  = anneesValides.length >= 2 ? anneesValides[anneesValides.length - 2] : null;
+        const annDep = anneesValides[0];
+
+        const evol = (vN, vN1, annRef) => {
+          if (!vN1 || vN1 === 0 || !annRef) return '';
+          const p = ((vN - vN1) / vN1 * 100);
+          const s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 0.5 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+          return `<span style="color:${c};font-weight:700;">${s}${p.toFixed(1)}%</span> vs ${annRef}`;
+        };
+        const evolDepuis = (vN, vDep, annDep) => {
+          if (!vDep || vDep === 0 || vDep === vN) return '';
+          const p = ((vN - vDep) / vDep * 100);
+          const s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 1 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+          return ` — <span style="color:${c};">${s}${p.toFixed(1)}% depuis ${annDep}</span>`;
+        };
+        // Pour vétusté et ratio SU : hausse = mauvais (rouge), baisse = bon (vert)
+        // Pour total et coût aussi : hausse = rouge, baisse = vert (parcimonieux)
+        const evolVet = (vN, vN1, annRef) => {
+          if (!vN1 || vN1 === 0 || !annRef) return '';
+          const p = ((vN - vN1) / vN1 * 100);
+          const s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 0.5 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+          return `<span style="color:${c};font-weight:700;">${s}${p.toFixed(1)}%</span> vs ${annRef}`;
+        };
+
+        const fmtNb  = v => Math.round(v).toLocaleString('fr-FR');
+        const fmtPct = v => v.toFixed(1) + ' %';
+        const fmtRatio = v => v.toFixed(3);
+        const fmtKEur  = v => (v / 1000).toFixed(0) + ' k€';
+
+        const makeHistoRow = (formatFn, getVal) => {
+          return anneesValides.map(a => {
+            const sv = getTotauxVehiculesAnnee(a);
+            const val = sv ? getVal(sv) : null;
+            const isLast = (a === anneesValides[anneesValides.length - 1]);
+            return `<div style="text-align:center;">
+              <div style="font-size:9px;color:var(--gris3);font-weight:600;">${a}</div>
+              <div style="font-size:10px;font-weight:${isLast ? '700' : '500'};color:${isLast ? 'var(--gris1)' : 'var(--gris2)'};">${val !== null ? formatFn(val) : '—'}</div>
+            </div>`;
+          }).join('');
+        };
+
+        kpiStrip = `
+        <div class="kpi-strip">
+
+          <div class="kpi-evol-card" style="border-left-color:var(--rep2);">
+            <div class="kpi-evol-label">Parc Global</div>
+            <div class="kpi-evol-value">${fmtNb(sN.nb)}</div>
+            <div class="kpi-evol-sub">${evol(sN.nb, sN1?.nb, annN1)}${evolDepuis(sN.nb, sDep?.nb, annDep)}</div>
+            <div class="spark-wrap"><canvas id="spark-veh-total"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtNb, s => s.nb)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:var(--orange);">
+            <div class="kpi-evol-label">Taux de Vétusté</div>
+            <div class="kpi-evol-value">${fmtPct(sN.taux_vetuste)}</div>
+            <div class="kpi-evol-sub">${evolVet(sN.taux_vetuste, sN1?.taux_vetuste, annN1)}${evolDepuis(sN.taux_vetuste, sDep?.taux_vetuste, annDep)}</div>
+            <div class="spark-wrap"><canvas id="spark-veh-vetuste"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtPct, s => s.taux_vetuste)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:#6B3FA0;">
+            <div class="kpi-evol-label">Ratio / Agent SU</div>
+            <div class="kpi-evol-value">${fmtRatio(sN.ratio_su)}</div>
+            <div class="kpi-evol-sub">${evol(sN.ratio_su, sN1?.ratio_su, annN1)}${evolDepuis(sN.ratio_su, sDep?.ratio_su, annDep)}</div>
+            <div class="spark-wrap"><canvas id="spark-veh-ratio-su"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtRatio, s => s.ratio_su)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:var(--vert);">
+            <div class="kpi-evol-label">Coût Fonct. / Véh.</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${Math.round(sN.cout_fonct).toLocaleString('fr-FR')} €</div>
+            <div class="kpi-evol-sub">${evolVet(sN.cout_fonct, sN1?.cout_fonct, annN1)}${evolDepuis(sN.cout_fonct, sDep?.cout_fonct, annDep)}</div>
+            <div class="spark-wrap"><canvas id="spark-veh-cout"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(v => Math.round(v).toLocaleString('fr-FR')+' €', s => s.cout_fonct)}
+            </div>
+          </div>
+
+        </div>`;
+      }
+
       return `
         <div class="section">
           <div class="section-header">
             <div class="section-icon">🚗</div>
             <div class="section-title">Parc Véhicules</div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Structure</th>
-                <th class="number">Nb Véhicules</th>
-                <th class="number">Vétustes</th>
-                <th class="number">Taux Vétusté</th>
-                <th class="number">Ratio / Agent</th>
-                <th class="number">Ratio / Agent SU</th>
-                <th class="number">Coût Fonct. / Véh.</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-              <tr class="row-total">
-                <td>TOTAL</td>
-                <td class="number">${formatNumber(totaux.nb_vehicules)}</td>
-                <td class="number">${formatNumber(totaux.nb_vetustes)}</td>
-                <td class="number">${Number(totaux.taux_vetuste).toFixed(1)} %</td>
-                <td class="number">${Number(totaux.ratio_vehicule_agent).toFixed(3)}</td>
-                <td class="number">${Number(totaux.ratio_vehicule_su).toFixed(3)}</td>
-                <td class="number">${formatEuro(totaux.cout_fonct_vehicule)}</td>
-              </tr>
-            </tbody>
-          </table>
+
+          ${kpiStrip}
+
+          <button id="veh-toggle-btn" onclick="(function(){
+            var w   = document.getElementById('veh-table-wrapper');
+            var btn = document.getElementById('veh-toggle-btn');
+            var open = w.style.display !== 'none';
+            w.style.display = open ? 'none' : 'block';
+            btn.innerHTML = open ? '&#9654;&nbsp; Voir le détail par structure' : '&#9660;&nbsp; Masquer le détail';
+          })()"
+          style="background:none;border:1px solid var(--bord);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gris2);cursor:pointer;margin-bottom:12px;">
+            &#9654;&nbsp; Voir le détail par structure
+          </button>
+
+          <div id="veh-table-wrapper" style="display:none;">
+            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Structure</th>
+                  <th class="number">Nb Véhicules</th>
+                  <th class="number">Vétustes</th>
+                  <th class="number">Taux Vétusté</th>
+                  <th class="number">Ratio / Agent</th>
+                  <th class="number">Ratio / Agent SU</th>
+                  <th class="number">Coût Fonct. / Véh.</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+                <tr class="row-total">
+                  <td>TOTAL</td>
+                  <td class="number">${formatNumber(totaux.nb_vehicules)}</td>
+                  <td class="number">${formatNumber(totaux.nb_vetustes)}</td>
+                  <td class="number">${Number(totaux.taux_vetuste).toFixed(1)} %</td>
+                  <td class="number">${Number(totaux.ratio_vehicule_agent).toFixed(3)}</td>
+                  <td class="number">${Number(totaux.ratio_vehicule_su).toFixed(3)}</td>
+                  <td class="number">${formatEuro(totaux.cout_fonct_vehicule)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
     }
