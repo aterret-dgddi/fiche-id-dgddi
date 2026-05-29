@@ -5,864 +5,1482 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tableau de Bord de Gestion - DGDDI</title>
   
+  <!-- Fonts -->
   <link href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/icons/icons.min.css" rel="stylesheet">
+  
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
+  
   <style>
-    @font-face { font-family:'Marianne'; src:url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Light.woff2') format('woff2'); font-weight:300; }
-    @font-face { font-family:'Marianne'; src:url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Regular.woff2') format('woff2'); font-weight:400; }
-    @font-face { font-family:'Marianne'; src:url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Medium.woff2') format('woff2'); font-weight:500; }
-    @font-face { font-family:'Marianne'; src:url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Bold.woff2') format('woff2'); font-weight:700; }
-    @font-face { font-family:'Marianne'; src:url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Heavy.woff2') format('woff2'); font-weight:800; }
+    @font-face {
+  font-family: 'Marianne';
+  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Light.woff2') format('woff2');
+  font-weight: 300; font-style: normal;
+}
+@font-face {
+  font-family: 'Marianne';
+  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal;
+}
+@font-face {
+  font-family: 'Marianne';
+  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Medium.woff2') format('woff2');
+  font-weight: 500; font-style: normal;
+}
+@font-face {
+  font-family: 'Marianne';
+  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Bold.woff2') format('woff2');
+  font-weight: 700; font-style: normal;
+}
+@font-face {
+  font-family: 'Marianne';
+  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Heavy.woff2') format('woff2');
+  font-weight: 800; font-style: normal;
+}
 
     :root {
-      --rep: #002F6C; --rep2: #1351A8; --rep-pale: #E6ECF8;
-      --rouge: #B52020; --vert: #1A6B3C; --orange: #C05A00; --jaune: #8A6800;
-      --gris1: #1E2D3D; --gris2: #4A5A6A; --gris3: #8A9BAA; --gris4: #EEF2F7;
-      --blanc: #FFFFFF; --bord: #CDD6E4;
-      --shadow: 0 2px 8px rgba(0,30,80,.10); --shadow-lg: 0 8px 32px rgba(0,20,70,.22);
+      --rep: #002F6C;
+      --rep2: #1351A8;
+      --rep-pale: #E6ECF8;
+      --rouge: #B52020;
+      --vert: #1A6B3C;
+      --orange: #C05A00;
+      --jaune: #8A6800;
+      --gris1: #1E2D3D;
+      --gris2: #4A5A6A;
+      --gris3: #8A9BAA;
+      --gris4: #EEF2F7;
+      --blanc: #FFFFFF;
+      --bord: #CDD6E4;
+      --shadow: 0 2px 8px rgba(0,30,80,.10);
+      --shadow-lg: 0 8px 32px rgba(0,20,70,.22);
     }
 
-    * { margin:0; padding:0; box-sizing:border-box; }
-    html { font-size:13px; }
-    body { font-family:'Marianne',sans-serif; background:#F2F5FA; color:var(--gris1); line-height:1.5; padding:20px; }
-    .container { max-width:1800px; margin:0 auto; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 13px; }
+    body {
+      font-family: 'Marianne', sans-serif;
+      background: #F2F5FA;
+      color: var(--gris1);
+      line-height: 1.5;
+      padding: 20px;
+    }
 
+    .container {
+      max-width: 1800px;
+      margin: 0 auto;
+    }
+
+    /* ══════════════════════════════════ */
     /* HEADER */
+    /* ══════════════════════════════════ */
     .fiche-header {
-      background:var(--blanc); border-radius:12px; padding:24px 32px; margin-bottom:24px;
-      box-shadow:var(--shadow); display:flex; align-items:center; gap:24px;
+      background: var(--blanc);
+      border-radius: 12px;
+      padding: 24px 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 24px;
     }
-    .fiche-header-logo img { height:80px; width:auto; display:block; }
-    .fiche-header-content { flex:1; display:flex; flex-direction:column; gap:8px; }
-    .fiche-header-title { font-size:28px; font-weight:800; color:var(--rep); letter-spacing:-0.5px; }
-    .fiche-header-subtitle { font-size:15px; color:var(--gris2); font-weight:500; }
 
-    /* ══════════════════════ KPI CARDS ══════════════════════ */
-    .kpi-strip {
-      display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;
+    .fiche-header-logo img {
+      height: 80px;
+      width: auto;
+      display: block;
     }
-    .kpi-card-global {
-      background:var(--blanc); border-radius:12px; padding:20px 24px;
-      box-shadow:var(--shadow); border-top:4px solid var(--rep2);
-      display:flex; flex-direction:column; gap:6px;
-    }
-    .kpi-card-global-label {
-      font-size:10px; font-weight:700; text-transform:uppercase;
-      letter-spacing:0.6px; color:var(--gris2);
-    }
-    .kpi-card-global-value {
-      font-size:28px; font-weight:800; color:var(--rep); letter-spacing:-0.5px;
-    }
-    .kpi-card-global-evol {
-      font-size:11px; font-weight:600; color:var(--gris2); margin-bottom:4px;
-    }
-    .kpi-card-global-chart { width:100%; height:60px; }
-    .evol-pos { color:var(--vert); }
-    .evol-neg { color:var(--rouge); }
-    .evol-neu { color:var(--gris3); }
 
+    .fiche-header-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .fiche-header-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--rep);
+      letter-spacing: -0.5px;
+    }
+
+    .fiche-header-subtitle {
+      font-size: 15px;
+      color: var(--gris2);
+      font-weight: 500;
+    }
+
+    /* ══════════════════════════════════ */
     /* SECTIONS */
-    .section { background:var(--blanc); border-radius:12px; padding:24px; margin-bottom:24px; box-shadow:var(--shadow); }
-    .section-header { display:flex; align-items:center; gap:16px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--gris4); }
-    .section-icon { font-size:32px; width:48px; height:48px; display:flex; align-items:center; justify-content:center; background:var(--rep-pale); border-radius:10px; }
-    .section-title { font-size:22px; font-weight:700; color:var(--gris1); }
-    .section-header-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+    /* ══════════════════════════════════ */
+    .section {
+      background: var(--blanc);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
 
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--gris4);
+    }
+
+    .section-icon {
+      font-size: 32px;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--rep-pale);
+      border-radius: 10px;
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--gris1);
+    }
+
+    /* ══════════════════════════════════ */
     /* TABLEAUX */
-    table { width:100%; border-collapse:collapse; font-size:12px; }
+    /* ══════════════════════════════════ */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
     thead th {
-      background:var(--gris4); padding:12px 10px; text-align:left;
-      font-size:11px; font-weight:700; color:var(--gris2);
-      text-transform:uppercase; letter-spacing:0.5px; border-bottom:2px solid var(--bord);
+      background: var(--gris4);
+      padding: 12px 10px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gris2);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid var(--bord);
     }
-    thead th:first-child { border-top-left-radius:8px; }
-    thead th:last-child { border-top-right-radius:8px; }
-    tbody tr { border-bottom:1px solid var(--gris4); transition:background-color 0.15s; }
-    tbody tr:hover { background-color:#FAFBFC; }
-    tbody tr:last-child { border-bottom:none; }
-    tbody td { padding:12px 10px; color:var(--gris1); }
-    tbody td:first-child { font-weight:600; color:var(--gris1); }
-    .number { text-align:right; font-variant-numeric:tabular-nums; }
 
+    thead th:first-child {
+      border-top-left-radius: 8px;
+    }
+
+    thead th:last-child {
+      border-top-right-radius: 8px;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--gris4);
+      transition: background-color 0.15s;
+    }
+
+    tbody tr:hover {
+      background-color: #FAFBFC;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody td {
+      padding: 12px 10px;
+      color: var(--gris1);
+    }
+
+    tbody td:first-child {
+      font-weight: 600;
+      color: var(--gris1);
+    }
+
+    .number {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ══════════════════════════════════ */
     /* BADGES */
-    .badge { display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700; margin-right:8px; text-transform:uppercase; letter-spacing:0.3px; }
-    .badge-dg { background:var(--rep-pale); color:var(--rep); }
-    .badge-di { background:#D1FAE5; color:var(--vert); }
-    .badge-dr { background:#E0E7FF; color:#3730A3; }
-    .badge-scn { background:#FEF3C7; color:var(--jaune); }
-
-    /* BARRES RÉPARTITION */
-    .percent-bar-container { display:flex; align-items:center; gap:10px; }
-    .percent-bar { flex:1; height:24px; background:var(--gris4); border-radius:6px; overflow:hidden; display:flex; }
-    .bar-segment { height:100%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:white; transition:all 0.3s; }
-    .bar-transport { background:var(--rep2); }
-    .bar-hebergement { background:var(--vert); }
-    .bar-repas { background:var(--orange); }
-    .percent-label { font-size:12px; color:var(--gris2); min-width:80px; text-align:right; font-weight:600; }
-
-    /* LIGNES SPÉCIALES */
-    .row-total { font-weight:700; background:var(--gris4) !important; border-top:2px solid var(--bord) !important; }
-    .row-indent td:first-child { padding-left:32px !important; }
-    .row-di-outremer { background:#ECFDF5 !important; font-weight:600; }
-
-    /* ══════════════════════ DÉPLIABLE ══════════════════════ */
-    .row-parent { cursor:pointer; }
-    .row-parent:hover { background:#F0F4FF !important; }
-    .toggle-btn {
-      display:inline-flex; align-items:center; justify-content:center;
-      width:18px; height:18px; border-radius:4px; background:var(--rep-pale);
-      color:var(--rep2); font-size:10px; font-weight:700; margin-right:6px;
-      transition:transform 0.2s; user-select:none; flex-shrink:0;
+    /* ══════════════════════════════════ */
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      margin-right: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
-    .toggle-btn.open { transform:rotate(90deg); }
-    .row-child { transition:opacity 0.2s; }
-    .row-child.hidden { display:none; }
-    .child-indent td:first-child { padding-left:44px !important; font-weight:400; }
 
+    .badge-dg { background: var(--rep-pale); color: var(--rep); }
+    .badge-di { background: #D1FAE5; color: var(--vert); }
+    .badge-dr { background: #E0E7FF; color: #3730A3; }
+    .badge-scn { background: #FEF3C7; color: var(--jaune); }
+
+    /* ══════════════════════════════════ */
+    /* BARRES DE RÉPARTITION */
+    /* ══════════════════════════════════ */
+    .percent-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .percent-bar {
+      flex: 1;
+      height: 24px;
+      background: var(--gris4);
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .bar-segment {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: white;
+      transition: all 0.3s;
+    }
+
+    .bar-transport { background: var(--rep2); }
+    .bar-hebergement { background: var(--vert); }
+    .bar-repas { background: var(--orange); }
+
+    .percent-label {
+      font-size: 12px;
+      color: var(--gris2);
+      min-width: 80px;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    /* ══════════════════════════════════ */
+    /* LIGNES SPÉCIALES */
+    /* ══════════════════════════════════ */
+    .row-total {
+      font-weight: 700;
+      background: var(--gris4) !important;
+      border-top: 2px solid var(--bord) !important;
+    }
+
+    .row-indent {
+      padding-left: 32px !important;
+    }
+
+    .row-di-outremer {
+      background: #ECFDF5 !important;
+      font-weight: 600;
+    }
+
+    /* ══════════════════════════════════ */
+    /* KPI ÉVOLUTION GLOBALE */
+    /* ══════════════════════════════════ */
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .kpi-evol-card {
+      background: var(--gris4);
+      border-radius: 10px;
+      padding: 14px 16px 12px;
+      border-left: 4px solid var(--rep2);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .kpi-evol-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--gris2);
+      margin-bottom: 2px;
+    }
+    .kpi-evol-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--rep);
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+    .kpi-evol-sub {
+      font-size: 10px;
+      color: var(--gris2);
+      min-height: 14px;
+      margin-bottom: 6px;
+    }
+    .spark-wrap {
+      position: relative;
+      height: 56px;
+      width: 100%;
+    }
+    .spark-wrap canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* ══════════════════════════════════ */
+    /* TABLEAU DÉPLIABLE */
+    /* ══════════════════════════════════ */
+    .row-parent-di { cursor: pointer; }
+    .row-parent-di:hover { background: #F0F4FF !important; }
+    .toggle-arrow {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px; height: 16px;
+      border-radius: 3px;
+      background: var(--rep-pale);
+      color: var(--rep2);
+      font-size: 9px;
+      font-weight: 700;
+      margin-right: 5px;
+      transition: transform 0.18s;
+      user-select: none;
+      flex-shrink: 0;
+      vertical-align: middle;
+    }
+    .toggle-arrow.open { transform: rotate(90deg); }
+    .row-dr-child.hidden { display: none; }
+    .row-dr-child td:first-child { padding-left: 40px !important; font-weight: 400; color: var(--gris2); }
+
+    /* ══════════════════════════════════ */
     /* LOADING / ERROR */
-    .loading { text-align:center; padding:60px 20px; color:var(--gris2); font-size:16px; }
-    .error { background:#FEE; color:var(--rouge); padding:20px; border-radius:8px; margin:20px 0; border-left:4px solid var(--rouge); font-weight:500; }
+    /* ══════════════════════════════════ */
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--gris2);
+      font-size: 16px;
+    }
 
-    @media(max-width:768px) {
-      .fiche-header { flex-direction:column; text-align:center; }
-      table { font-size:11px; }
-      thead th, tbody td { padding:10px 8px; }
-      .kpi-strip { grid-template-columns:1fr 1fr; }
+    .error {
+      background: #FEE;
+      color: var(--rouge);
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border-left: 4px solid var(--rouge);
+      font-weight: 500;
+    }
+
+    /* ══════════════════════════════════ */
+    /* RESPONSIVE */
+    /* ══════════════════════════════════ */
+    @media (max-width: 768px) {
+      .fiche-header {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      table {
+        font-size: 11px;
+      }
+
+      thead th, tbody td {
+        padding: 10px 8px;
+      }
     }
   </style>
 </head>
 <body>
-<div class="container">
-  <div class="fiche-header">
-    <div class="fiche-header-logo">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg" alt="Logo des Douanes Françaises">
+  <div class="container">
+    <div class="fiche-header">
+      <div class="fiche-header-logo">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg" 
+             alt="Logo des Douanes Françaises">
+      </div>
+      <div class="fiche-header-content">
+        <h1 class="fiche-header-title">Tableau de Bord de Gestion</h1>
+        <div class="fiche-header-subtitle">Direction Générale des Douanes et Droits Indirects • Synthèse <span id="anneeAffichee">2024</span></div>
+      </div>
     </div>
-    <div class="fiche-header-content">
-      <h1 class="fiche-header-title">Tableau de Bord de Gestion</h1>
-      <div class="fiche-header-subtitle">Direction Générale des Douanes et Droits Indirects • Synthèse <span id="anneeAffichee">2024</span></div>
-    </div>
+
+    <div id="loading" class="loading">Chargement des données...</div>
+    <div id="content" style="display: none;"></div>
   </div>
 
-  <div id="loading" class="loading">Chargement des données…</div>
-  <div id="content" style="display:none;"></div>
-</div>
+  <script>
+    let ANNEE = 2024;
+    let consolidationData = [];
+    let structuresData = [];
+    let consolidationNationaleData = null;
+    let communicationData = null;
+    let ANNEES_DISPO = [];
+    // État dépliage: "section-structId" => true(ouvert)/false(fermé)
+    const expandedState = {};
 
-<script>
-  let ANNEE = 2024;
-  let ANNEES_DISPO = [];
-  let consolidationData = [];
-  let structuresData = [];
-  let consolidationNationaleData = null;
+    // ═══════════════════════════════════════════════════════
+    // HELPERS MULTI-ANNÉES pour KPI évolution
+    // ═══════════════════════════════════════════════════════
 
-  // État des dépliages : clé = "section-structureId", valeur = true/false (déplié)
-  const expandedState = {};
-
-  async function init() {
-    try {
-      await grist.ready();
-
-      const [consolidationStructure, structures, consolidationNationale] = await Promise.all([
-        grist.docApi.fetchTable('Consolidation_Structure'),
-        grist.docApi.fetchTable('Structures'),
-        grist.docApi.fetchTable('Consolidation')
-      ]);
-
-      consolidationData = consolidationStructure;
-      structuresData = structures;
-      consolidationNationaleData = consolidationNationale;
-
-      // Détecter toutes les années disponibles
-      ANNEES_DISPO = [...new Set(consolidationStructure.Annee.filter(a => a > 0))].sort();
-      ANNEE = Math.max(...ANNEES_DISPO);
-      document.getElementById('anneeAffichee').textContent = ANNEE;
-
-      render();
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-
-    } catch (error) {
-      console.error('❌ Erreur initialisation:', error);
-      document.getElementById('loading').innerHTML =
-        `<div class="error">Erreur de chargement : ${error.message}</div>`;
-    }
-  }
-
-  // ════════════════════════════════════════════════
-  // DONNÉES
-  // ════════════════════════════════════════════════
-
-  function getMoyennes(annee) {
-    if (!consolidationNationaleData) return null;
-    for (let i = 0; i < consolidationNationaleData.Perimetre.length; i++) {
-      if (consolidationNationaleData.Perimetre[i] === 'National' && consolidationNationaleData.Annee[i] === annee) {
-        return {
-          ms_par_agent: consolidationNationaleData.Moyenne_MS_Par_Agent?.[i] || 0,
-          age_moyen: consolidationNationaleData.Age_Moyen_Global?.[i] || 0,
-          cout_fonct_vehicule: consolidationNationaleData.Moyenne_Cout_Fonctionnement_Par_Vehicule?.[i] ||
-            (consolidationNationaleData.Total_Vehicules?.[i] > 0
-              ? consolidationNationaleData.Total_Budget_Vehicules?.[i] / consolidationNationaleData.Total_Vehicules?.[i] : 0),
-          ratio_vehicule_su: consolidationNationaleData.Moyenne_Ratio_Vehicule_SU?.[i] ||
-            (consolidationNationaleData.Total_Effectif_SU?.[i] > 0
-              ? consolidationNationaleData.Total_Vehicules?.[i] / consolidationNationaleData.Total_Effectif_SU?.[i] : 0),
-          frais_par_agent: consolidationNationaleData.Moyenne_Frais_Par_Agent?.[i] || 0,
-          it_par_agent: consolidationNationaleData.Moyenne_Budget_IT_Par_Agent?.[i] || 0,
-          it_par_agent_lisse: consolidationNationaleData.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[i] || 0
-        };
+    function getConsolidationAnnee(structureId, annee) {
+      // Version allégée : uniquement les champs RH pour les sparklines
+      for (let i = 0; i < consolidationData.Structure.length; i++) {
+        if (consolidationData.Structure[i] === structureId && consolidationData.Annee[i] === annee) {
+          return {
+            effectif_total: Number(consolidationData.Effectif_Total?.[i]) || 0,
+            age_moyen: Number(consolidationData.Age_Moyen?.[i]) || 0,
+            masse_salariale: Number(consolidationData.Masse_Salariale?.[i]) || 0,
+          };
+        }
       }
+      return null;
     }
-    return null;
-  }
 
-  function getConsolidation(structureId, annee) {
-    for (let i = 0; i < consolidationData.Structure.length; i++) {
-      if (consolidationData.Structure[i] === structureId && consolidationData.Annee[i] === annee) {
-        return {
-          effectif_total: Number(consolidationData.Effectif_Total?.[i]) || 0,
-          effectif_su: Number(consolidationData.Effectif_SU?.[i]) || 0,
-          effectif_agco: Number(consolidationData.Effectif_AGCO?.[i]) || 0,
-          effectif_autres: Number(consolidationData.Effectif_Autres?.[i]) || 0,
-          age_moyen: Number(consolidationData.Age_Moyen?.[i]) || 0,
-          masse_salariale: Number(consolidationData.Masse_Salariale?.[i]) || 0,
-          ms_par_agent: Number(consolidationData.MS_Par_Agent?.[i]) || 0,
-          nb_vehicules: Number(consolidationData.Nb_Vehicules?.[i]) || 0,
-          nb_vetustes: Number(consolidationData.Nb_Vehicules_Vetustes?.[i]) || 0,
-          taux_vetuste: Number(consolidationData.Taux_Vetuste?.[i]) || 0,
-          ratio_vehicule_agent: Number(consolidationData.Ratio_Vehicule_Agent?.[i]) || 0,
-          ratio_vehicule_su: Number(consolidationData.Ratio_Vehicule_SU?.[i]) || 0,
-          budget_vehicules: Number(consolidationData.Budget_Vehicules?.[i]) || 0,
-          cout_fonct_vehicule: Number(consolidationData.Cout_Fonctionnement_Par_Vehicule?.[i]) || 0,
-          transport: Number(consolidationData.Transport?.[i]) || 0,
-          hebergement: Number(consolidationData.Hebergement?.[i]) || 0,
-          repas: Number(consolidationData.Repas?.[i]) || 0,
-          formation: Number(consolidationData.Formation?.[i]) || 0,
-          autres_missions: Number(consolidationData.Autres_Missions?.[i]) || 0,
-          frais_par_agent: Number(consolidationData.Frais_Mission_Par_Agent?.[i]) || 0,
-          postes_fixes: Number(consolidationData.Postes_Fixes?.[i]) || 0,
-          portables: Number(consolidationData.Portables?.[i]) || 0,
-          nb_postes_total: Number(consolidationData.Nb_Postes_Total?.[i]) || 0,
-          taux_equipement: Number(consolidationData.Taux_Equipement?.[i]) || 0,
-          budget_it: Number(consolidationData.Budget_IT_CP?.[i]) || 0,
-          budget_it_4ans: Number(consolidationData.Budget_IT_4ans?.[i]) || 0,
-          it_par_agent: Number(consolidationData.IT_Par_Agent?.[i]) || 0,
-          it_par_agent_lisse: Number(consolidationData.IT_Par_Agent_Lisse?.[i]) || 0
-        };
+    function getTotauxAnnee(annee) {
+      // Totaux consolidés pour l'année, sur toutes les structures visibles (hors DG)
+      let etpt = 0, sumAge = 0, ms = 0;
+      for (let i = 0; i < structuresData.id.length; i++) {
+        const ta = structuresData.Type_Affichage?.[i];
+        if (!['DI_Hexagone','DI_Outremer','DR_Antilles','DR_Outremer','SCN'].includes(ta)) continue;
+        const conso = getConsolidationAnnee(structuresData.id[i], annee);
+        if (!conso || conso.effectif_total === 0) continue;
+        etpt += conso.effectif_total;
+        sumAge += conso.age_moyen * conso.effectif_total;
+        ms += conso.masse_salariale;
       }
+      if (etpt === 0) return null;
+      return { etpt, age_moyen: sumAge / etpt, ms, ms_agent: ms / etpt };
     }
-    return null;
-  }
 
-  function getStructuresAffichees(annee) {
-    annee = annee || ANNEE;
-    const structures = [];
-    for (let i = 0; i < structuresData.id.length; i++) {
-      const typeAffichage = structuresData.Type_Affichage?.[i];
-      if (['DG', 'DI_Hexagone', 'DI_Outremer', 'DR_Antilles', 'DR_Outremer', 'SCN'].includes(typeAffichage)) {
-        const structId = structuresData.id[i];
-        const conso = getConsolidation(structId, annee);
-        if (conso) {
-          structures.push({
-            id: structId,
+    function renderKPIEvolution() {
+      const anneesValides = ANNEES_DISPO.filter(a => getTotauxAnnee(a) !== null);
+      if (anneesValides.length === 0) return '';
+
+      const sN = getTotauxAnnee(anneesValides[anneesValides.length - 1]);
+      const sN1 = anneesValides.length >= 2 ? getTotauxAnnee(anneesValides[anneesValides.length - 2]) : null;
+      const sPremiere = getTotauxAnnee(anneesValides[0]);
+      const annN = anneesValides[anneesValides.length - 1];
+      const annN1 = anneesValides.length >= 2 ? anneesValides[anneesValides.length - 2] : null;
+      const annDep = anneesValides[0];
+
+      const evol = (vN, vN1, annRef) => {
+        if (!vN1 || vN1 === 0 || !annRef) return '';
+        const p = ((vN - vN1) / vN1 * 100);
+        const s = p > 0 ? '+' : '';
+        const c = Math.abs(p) < 0.5 ? '#8A9BAA' : (p > 0 ? '#1A6B3C' : '#B52020');
+        return `<span style="color:${c};font-weight:700;">${s}${p.toFixed(1)}%</span> vs ${annRef}`;
+      };
+      const evolDepuis = (vN, vDep, annDep) => {
+        if (!vDep || vDep === 0 || vDep === vN) return '';
+        const p = ((vN - vDep) / vDep * 100);
+        const s = p > 0 ? '+' : '';
+        const c = Math.abs(p) < 1 ? '#8A9BAA' : (p > 0 ? '#1A6B3C' : '#B52020');
+        return ` — <span style="color:${c};">${s}${p.toFixed(1)}% depuis ${annDep}</span>`;
+      };
+
+      const fmtMS = v => v >= 1e9 ? (v/1e9).toFixed(2)+' Md€' : (v/1e6).toFixed(1)+' M€';
+
+      return `
+      <div class="kpi-strip">
+        <div class="kpi-evol-card" style="border-left-color:var(--rep2);">
+          <div class="kpi-evol-label">ETPT Global</div>
+          <div class="kpi-evol-value">${Math.round(sN.etpt).toLocaleString('fr-FR')}</div>
+          <div class="kpi-evol-sub">${evol(sN.etpt, sN1?.etpt, annN1)}${evolDepuis(sN.etpt, sPremiere?.etpt, annDep)}</div>
+          <div class="spark-wrap"><canvas id="spark-etpt"></canvas></div>
+        </div>
+        <div class="kpi-evol-card" style="border-left-color:var(--orange);">
+          <div class="kpi-evol-label">Âge Moyen</div>
+          <div class="kpi-evol-value">${sN.age_moyen.toFixed(1)} ans</div>
+          <div class="kpi-evol-sub">${evol(sN.age_moyen, sN1?.age_moyen, annN1)}${evolDepuis(sN.age_moyen, sPremiere?.age_moyen, annDep)}</div>
+          <div class="spark-wrap"><canvas id="spark-age"></canvas></div>
+        </div>
+        <div class="kpi-evol-card" style="border-left-color:var(--vert);">
+          <div class="kpi-evol-label">Masse Salariale</div>
+          <div class="kpi-evol-value" style="font-size:20px;">${fmtMS(sN.ms)}</div>
+          <div class="kpi-evol-sub">${evol(sN.ms, sN1?.ms, annN1)}${evolDepuis(sN.ms, sPremiere?.ms, annDep)}</div>
+          <div class="spark-wrap"><canvas id="spark-ms"></canvas></div>
+        </div>
+        <div class="kpi-evol-card" style="border-left-color:var(--rouge);">
+          <div class="kpi-evol-label">MS / Agent</div>
+          <div class="kpi-evol-value" style="font-size:20px;">${Math.round(sN.ms_agent).toLocaleString('fr-FR')} €</div>
+          <div class="kpi-evol-sub">${evol(sN.ms_agent, sN1?.ms_agent, annN1)}${evolDepuis(sN.ms_agent, sPremiere?.ms_agent, annDep)}</div>
+          <div class="spark-wrap"><canvas id="spark-ms-agent"></canvas></div>
+        </div>
+      </div>`;
+    }
+
+    function drawSparklines() {
+      const anneesValides = ANNEES_DISPO.filter(a => getTotauxAnnee(a) !== null);
+      if (anneesValides.length < 2) return;
+      const labels = anneesValides.map(String);
+      const series = anneesValides.map(a => getTotauxAnnee(a));
+
+      const makeChart = (id, data, color) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        // Détruire si existant
+        const existing = Chart.getChart(el);
+        if (existing) existing.destroy();
+        new Chart(el.getContext('2d'), {
+          type: 'line',
+          data: { labels, datasets: [{ data, borderColor: color, borderWidth: 2,
+            backgroundColor: color.replace('rgb','rgba').replace(')',',0.10)'),
+            fill: true, tension: 0.4,
+            pointRadius: 3, pointHoverRadius: 5,
+            pointBackgroundColor: color, pointBorderColor: '#fff', pointBorderWidth: 1.5 }]},
+          options: {
+            responsive: false, animation: false,
+            plugins: { legend:{ display:false }, tooltip:{ enabled:true }},
+            scales: { x:{ display:false }, y:{ display:false, beginAtZero: false }}
+          }
+        });
+      };
+
+      makeChart('spark-etpt',     series.map(s => s.etpt),     'rgb(19,81,168)');
+      makeChart('spark-age',      series.map(s => s.age_moyen),'rgb(192,90,0)');
+      makeChart('spark-ms',       series.map(s => s.ms/1e6),   'rgb(26,107,60)');
+      makeChart('spark-ms-agent', series.map(s => s.ms_agent), 'rgb(181,32,32)');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // HELPERS DÉPLIAGE DR sous DI
+    // ═══════════════════════════════════════════════════════
+
+    function getDREnfants(diId) {
+      const enfants = [];
+      for (let i = 0; i < structuresData.id.length; i++) {
+        const parent = structuresData.Parent?.[i];
+        const type   = structuresData.Type?.[i];
+        const ta     = structuresData.Type_Affichage?.[i];
+        // DR rattachées à cette DI, excluant DR déjà dans les blocs visibles (Antilles, Outremer)
+        if (parent === diId && type === 'DR' && !['DR_Outremer','DR_Antilles'].includes(ta)) {
+          const conso = getConsolidation(structuresData.id[i], ANNEE);
+          if (conso) enfants.push({
+            id: structuresData.id[i],
             sigle: structuresData.Sigle?.[i] || '',
             nom: structuresData.Nom?.[i] || '',
-            type: structuresData.Type?.[i] || '',
-            typeAffichage,
-            parent: structuresData.Parent?.[i],
-            ...conso
+            type: 'DR', typeAffichage: 'DR_Child', parent: diId, ...conso
           });
         }
       }
+      return enfants.sort((a,b) => a.sigle.localeCompare(b.sigle));
     }
-    structures.sort((a, b) => {
-      const order = { DG:0, DI_Hexagone:1, DI_Outremer:1, DR_Antilles:2, DR_Outremer:2, SCN:3 };
-      const diff = (order[a.typeAffichage] || 99) - (order[b.typeAffichage] || 99);
-      return diff !== 0 ? diff : (a.sigle || '').localeCompare(b.sigle || '');
-    });
-    return structures;
-  }
 
-  // Retrouver les DR enfants d'une DI dans la liste des structures de l'année en cours
-  function getDREnfants(diId) {
-    // On cherche dans structuresData les structures dont Parent == diId et Type == 'DR'
-    const enfants = [];
-    for (let i = 0; i < structuresData.id.length; i++) {
-      const parent = structuresData.Parent?.[i];
-      const type = structuresData.Type?.[i];
-      const typeAffichage = structuresData.Type_Affichage?.[i];
-      // Ne pas inclure les DR déjà visibles (DR_Outremer, DR_Antilles)
-      if (parent === diId && type === 'DR' && !['DR_Outremer', 'DR_Antilles'].includes(typeAffichage)) {
-        const structId = structuresData.id[i];
-        const conso = getConsolidation(structId, ANNEE);
-        if (conso) {
-          enfants.push({
-            id: structId,
-            sigle: structuresData.Sigle?.[i] || '',
-            nom: structuresData.Nom?.[i] || '',
-            type: 'DR',
-            typeAffichage: 'DR_Child',
-            parent: diId,
-            ...conso
-          });
+    function toggleDR(event, section, diId) {
+      event.stopPropagation();
+      const key = section + '-' + diId;
+      const wasOpen = expandedState[key] !== false; // défaut ouvert
+      expandedState[key] = !wasOpen;
+      document.querySelectorAll(`.row-dr-child[data-section="${section}"][data-parent="${diId}"]`)
+        .forEach(tr => tr.classList.toggle('hidden', wasOpen));
+      const btn = document.querySelector(`.row-parent-di[data-section="${section}"][data-id="${diId}"] .toggle-arrow`);
+      if (btn) btn.classList.toggle('open', !wasOpen);
+    }
+
+    function renderDRChildRow(dr, section, moyennes) {
+      const isOpen = expandedState[section + '-' + dr.parent] !== false;
+      const hiddenClass = isOpen ? '' : 'hidden';
+      return {
+        rh: `<tr class="row-dr-child ${hiddenClass}" data-section="${section}" data-parent="${dr.parent}">
+          <td><span class="badge badge-dr">DR</span>${dr.sigle}</td>
+          <td class="number">${formatNumber(dr.effectif_total)}</td>
+          <td class="number">${formatNumber(dr.effectif_su)}</td>
+          <td class="number">${formatNumber(dr.effectif_agco)}</td>
+          <td class="number">${formatNumber(dr.effectif_autres)}</td>
+          <td class="number">${Number(dr.age_moyen).toFixed(1)} ans</td>
+          <td class="number">${formatMilliers(dr.masse_salariale)} k€</td>
+          <td class="number">${formatEuro(dr.ms_par_agent)}</td>
+        </tr>`,
+        vehicules: `<tr class="row-dr-child ${hiddenClass}" data-section="${section}" data-parent="${dr.parent}">
+          <td><span class="badge badge-dr">DR</span>${dr.sigle}</td>
+          <td class="number">${formatNumber(dr.nb_vehicules)}</td>
+          <td class="number">${formatNumber(dr.nb_vetustes)}</td>
+          <td class="number">${Number(dr.taux_vetuste).toFixed(1)} %</td>
+          <td class="number">${Number(dr.ratio_vehicule_agent).toFixed(3)}</td>
+          <td class="number">${Number(dr.ratio_vehicule_su).toFixed(3)}</td>
+          <td class="number">${formatEuro(dr.cout_fonct_vehicule)}</td>
+        </tr>`,
+        missions: `<tr class="row-dr-child ${hiddenClass}" data-section="${section}" data-parent="${dr.parent}">
+          <td><span class="badge badge-dr">DR</span>${dr.sigle}</td>
+          <td><div class="percent-bar-container">${renderPercentBar(dr.transport, dr.hebergement, dr.repas)}</div></td>
+          <td class="number">${formatMilliers(dr.formation)} k€</td>
+          <td class="number">${formatMilliers(dr.autres_missions)} k€</td>
+          <td class="number">${formatEuro(dr.frais_par_agent)}</td>
+        </tr>`,
+        it: `<tr class="row-dr-child ${hiddenClass}" data-section="${section}" data-parent="${dr.parent}">
+          <td><span class="badge badge-dr">DR</span>${dr.sigle}</td>
+          <td class="number">${formatNumber(dr.postes_fixes)}</td>
+          <td class="number">${formatNumber(dr.portables)}</td>
+          <td class="number">${formatNumber(dr.nb_postes_total)}</td>
+          <td class="number">${Number(dr.taux_equipement).toFixed(3)}</td>
+          <td class="number">${formatMilliers(dr.budget_it)} k€</td>
+          <td class="number">${formatMilliers(dr.budget_it_4ans)} k€</td>
+          <td class="number">${formatEuro(dr.it_par_agent)}</td>
+          <td class="number">${formatEuro(dr.it_par_agent_lisse)}</td>
+        </tr>`
+      };
+    }
+
+    async function init() {
+      try {
+        await grist.ready();
+        
+        // Charger les données
+        const [consolidationStructure, structures, consolidationNationale, communication] = await Promise.all([
+          grist.docApi.fetchTable('Consolidation_Structure'),
+          grist.docApi.fetchTable('Structures'),
+          grist.docApi.fetchTable('Consolidation'),
+          grist.docApi.fetchTable('Communication').catch(() => null)
+        ]);
+        
+        consolidationData = consolidationStructure;
+        structuresData = structures;
+        consolidationNationaleData = consolidationNationale;
+        communicationData = communication;
+        
+        console.log('✅ Données chargées:', {
+          consolidation_structure: consolidationStructure.id.length,
+          structures: structures.id.length,
+          consolidation_nationale: consolidationNationale.id.length
+        });
+        
+        // 🔍 DIAGNOSTIC : Vérifier les colonnes véhicules
+        console.log('\n🔍 DIAGNOSTIC COLONNES VÉHICULES:');
+        console.log('Colonnes disponibles dans Consolidation_Structure:', Object.keys(consolidationStructure));
+        console.log('Cout_Fonctionnement_Par_Vehicule existe?', consolidationStructure.hasOwnProperty('Cout_Fonctionnement_Par_Vehicule'));
+        console.log('Ratio_Vehicule_SU existe?', consolidationStructure.hasOwnProperty('Ratio_Vehicule_SU'));
+        
+        // Test sur première ligne
+        if (consolidationStructure.id.length > 0) {
+          const idx = 0;
+          console.log('\nValeurs ligne 0:');
+          console.log('  Nb_Vehicules =', consolidationStructure.Nb_Vehicules?.[idx]);
+          console.log('  Budget_Vehicules =', consolidationStructure.Budget_Vehicules?.[idx]);
+          console.log('  Effectif_SU =', consolidationStructure.Effectif_SU?.[idx]);
+          console.log('  Ratio_Vehicule_SU =', consolidationStructure.Ratio_Vehicule_SU?.[idx]);
+          console.log('  Cout_Fonctionnement_Par_Vehicule =', consolidationStructure.Cout_Fonctionnement_Par_Vehicule?.[idx]);
         }
+        
+        // 🔍 DIAGNOSTIC SPÉCIFIQUE DG
+        console.log('\n🔍 RECHERCHE STRUCTURE DG:');
+        for (let i = 0; i < consolidationStructure.Structure.length; i++) {
+          const structId = consolidationStructure.Structure[i];
+          const structIdx = structures.id.findIndex(id => id === structId);
+          if (structIdx >= 0) {
+            const sigle = structures.Sigle?.[structIdx];
+            if (sigle && (sigle.includes('DGDDI') || sigle === 'DG')) {
+              console.log(`\n📍 TROUVÉ: ${sigle} - Année ${consolidationStructure.Annee[i]}`);
+              console.log('  Nb_Vehicules =', consolidationStructure.Nb_Vehicules?.[i]);
+              console.log('  Budget_Vehicules =', consolidationStructure.Budget_Vehicules?.[i]);
+              console.log('  Cout_Fonctionnement_Par_Vehicule =', consolidationStructure.Cout_Fonctionnement_Par_Vehicule?.[i]);
+              console.log('  Calcul manuel (Budget/Nb) =', consolidationStructure.Budget_Vehicules?.[i] / consolidationStructure.Nb_Vehicules?.[i]);
+            }
+          }
+        }
+        
+        // Détecter les années disponibles
+        const annees = [...new Set(consolidationStructure.Annee.filter(a => a > 0))].sort((a,b) => a-b);
+        ANNEES_DISPO = annees;
+        ANNEE = Math.max(...annees);
+        document.getElementById('anneeAffichee').textContent = ANNEE;
+        
+        render();
+        
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+        
+        // Dessiner les sparklines après injection DOM
+        setTimeout(drawSparklines, 60);
+        
+      } catch (error) {
+        console.error('❌ Erreur initialisation:', error);
+        document.getElementById('loading').innerHTML = 
+          `<div class="error">Erreur de chargement : ${error.message}<br><br>Vérifiez que la table Consolidation_Structure existe et est remplie.</div>`;
       }
     }
-    return enfants.sort((a, b) => (a.sigle || '').localeCompare(b.sigle || ''));
-  }
 
-  // ════════════════════════════════════════════════
-  // KPI GLOBAUX AVEC SPARKLINES
-  // ════════════════════════════════════════════════
-
-  // Calculer les totaux consolidés pour une année donnée (hors DG pour éviter double-comptage)
-  function getTotauxAnnee(annee) {
-    const structs = getStructuresAffichees(annee).filter(s => s.typeAffichage !== 'DG');
-    if (structs.length === 0) return null;
-    const t = structs.reduce((acc, s) => ({
-      effectif_total: acc.effectif_total + s.effectif_total,
-      masse_salariale: acc.masse_salariale + s.masse_salariale,
-      sum_age: acc.sum_age + (s.age_moyen * s.effectif_total),
-    }), { effectif_total:0, masse_salariale:0, sum_age:0 });
-    t.age_moyen = t.effectif_total > 0 ? t.sum_age / t.effectif_total : 0;
-    t.ms_par_agent = t.effectif_total > 0 ? t.masse_salariale / t.effectif_total : 0;
-    return t;
-  }
-
-  function renderKPIEvolution() {
-    // Calculer série temporelle pour chaque année disponible
-    const series = {};
-    ANNEES_DISPO.forEach(a => { series[a] = getTotauxAnnee(a); });
-
-    const anneesValides = ANNEES_DISPO.filter(a => series[a] !== null);
-    if (anneesValides.length === 0) return '';
-
-    const derniere = series[ANNEE];
-    const avantDerniere = anneesValides.length >= 2 ? series[anneesValides[anneesValides.length - 2]] : null;
-    const premiere = series[anneesValides[0]];
-
-    const makeEvol = (valN, valN1, suffix='') => {
-      if (!valN1 || valN1 === 0) return '<span class="evol-neu">—</span>';
-      const pct = ((valN - valN1) / valN1 * 100);
-      const signe = pct > 0 ? '+' : '';
-      const cls = Math.abs(pct) < 0.5 ? 'evol-neu' : (pct > 0 ? 'evol-pos' : 'evol-neg');
-      return `<span class="${cls}">${signe}${pct.toFixed(1)}%${suffix} vs ${avantDerniere ? anneesValides[anneesValides.length - 2] : ''}</span>`;
-    };
-
-    const makeEvolDepuis = (valN, valDep, annDep, suffix='') => {
-      if (!valDep || valDep === 0) return '';
-      const pct = ((valN - valDep) / valDep * 100);
-      const signe = pct > 0 ? '+' : '';
-      const cls = Math.abs(pct) < 1 ? 'evol-neu' : (pct > 0 ? 'evol-pos' : 'evol-neg');
-      return `<span class="${cls}" style="font-size:10px;">(${signe}${pct.toFixed(1)}% depuis ${annDep})</span>`;
-    };
-
-    // On passe les données de série en JSON pour les charts
-    const etptSeries = anneesValides.map(a => series[a].effectif_total);
-    const ageSeries = anneesValides.map(a => series[a].age_moyen);
-    const msSeries = anneesValides.map(a => series[a].masse_salariale / 1000); // k€
-    const msAgentSeries = anneesValides.map(a => series[a].ms_par_agent);
-
-    return `
-    <div class="kpi-strip">
-
-      <!-- KPI 1 : ETPT -->
-      <div class="kpi-card-global">
-        <div class="kpi-card-global-label">ETPT Global</div>
-        <div class="kpi-card-global-value">${formatNumber(derniere.effectif_total)}</div>
-        <div class="kpi-card-global-evol">
-          ${makeEvol(derniere.effectif_total, avantDerniere?.effectif_total)}
-          ${makeEvolDepuis(derniere.effectif_total, premiere?.effectif_total, anneesValides[0])}
-        </div>
-        <canvas class="kpi-card-global-chart" id="spark-etpt"></canvas>
-      </div>
-
-      <!-- KPI 2 : Âge moyen -->
-      <div class="kpi-card-global" style="border-top-color:var(--orange);">
-        <div class="kpi-card-global-label">Âge Moyen</div>
-        <div class="kpi-card-global-value">${Number(derniere.age_moyen).toFixed(1)} ans</div>
-        <div class="kpi-card-global-evol">
-          ${makeEvol(derniere.age_moyen, avantDerniere?.age_moyen)}
-          ${makeEvolDepuis(derniere.age_moyen, premiere?.age_moyen, anneesValides[0])}
-        </div>
-        <canvas class="kpi-card-global-chart" id="spark-age"></canvas>
-      </div>
-
-      <!-- KPI 3 : Masse salariale -->
-      <div class="kpi-card-global" style="border-top-color:var(--vert);">
-        <div class="kpi-card-global-label">Masse Salariale</div>
-        <div class="kpi-card-global-value" style="font-size:22px;">${formatMilliers(derniere.masse_salariale)} M€</div>
-        <div class="kpi-card-global-evol">
-          ${makeEvol(derniere.masse_salariale, avantDerniere?.masse_salariale)}
-          ${makeEvolDepuis(derniere.masse_salariale, premiere?.masse_salariale, anneesValides[0])}
-        </div>
-        <canvas class="kpi-card-global-chart" id="spark-ms"></canvas>
-      </div>
-
-      <!-- KPI 4 : MS / Agent -->
-      <div class="kpi-card-global" style="border-top-color:var(--rouge);">
-        <div class="kpi-card-global-label">MS / Agent</div>
-        <div class="kpi-card-global-value" style="font-size:22px;">${formatEuro(derniere.ms_par_agent)}</div>
-        <div class="kpi-card-global-evol">
-          ${makeEvol(derniere.ms_par_agent, avantDerniere?.ms_par_agent)}
-          ${makeEvolDepuis(derniere.ms_par_agent, premiere?.ms_par_agent, anneesValides[0])}
-        </div>
-        <canvas class="kpi-card-global-chart" id="spark-ms-agent"></canvas>
-      </div>
-
-    </div>`;
-  }
-
-  function drawSparklines() {
-    const anneesValides = ANNEES_DISPO.filter(a => {
-      const t = getTotauxAnnee(a);
-      return t !== null;
-    });
-
-    const series = {};
-    anneesValides.forEach(a => { series[a] = getTotauxAnnee(a); });
-
-    const labels = anneesValides.map(String);
-    const etptData = anneesValides.map(a => series[a].effectif_total);
-    const ageData = anneesValides.map(a => series[a].age_moyen);
-    const msData = anneesValides.map(a => series[a].masse_salariale / 1000000);
-    const msAgentData = anneesValides.map(a => series[a].ms_par_agent);
-
-    const sparkOpts = (color) => ({
-      type: 'line',
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        animation: false,
-        plugins: { legend:{ display:false }, tooltip:{ enabled:true,
-          callbacks:{ title: items => items[0].label }
-        }},
-        scales: {
-          x: { display:false },
-          y: { display:false, beginAtZero:false }
-        },
-        elements: {
-          line: { tension:0.4, borderWidth:2, borderColor:color, fill:true,
-            backgroundColor: color.replace(')', ',0.12)').replace('rgb', 'rgba') },
-          point: { radius:3, hoverRadius:5, backgroundColor:color, borderColor:'white', borderWidth:1.5 }
+    function getMoyennes(annee) {
+      if (!consolidationNationaleData) return null;
+      
+      // Chercher la ligne Perimetre='National' pour l'année donnée
+      for (let i = 0; i < consolidationNationaleData.Perimetre.length; i++) {
+        if (consolidationNationaleData.Perimetre[i] === 'National' && consolidationNationaleData.Annee[i] === annee) {
+          return {
+            ms_par_agent: consolidationNationaleData.Moyenne_MS_Par_Agent?.[i] || 0,
+            age_moyen: consolidationNationaleData.Age_Moyen_Global?.[i] || 0,
+            // TODO: Ajouter colonne Moyenne_Cout_Fonctionnement_Par_Vehicule dans table Consolidation (Grist)
+            // Pour l'instant, utilise la moyenne existante ou calcul temporaire
+            cout_fonct_vehicule: consolidationNationaleData.Moyenne_Cout_Fonctionnement_Par_Vehicule?.[i] || 
+              (consolidationNationaleData.Total_Vehicules?.[i] > 0 
+                ? consolidationNationaleData.Total_Budget_Vehicules?.[i] / consolidationNationaleData.Total_Vehicules?.[i] 
+                : 0),
+            // TODO: Ajouter colonne Moyenne_Ratio_Vehicule_SU dans table Consolidation (Grist)
+            ratio_vehicule_su: consolidationNationaleData.Moyenne_Ratio_Vehicule_SU?.[i] || 
+              (consolidationNationaleData.Total_Effectif_SU?.[i] > 0 
+                ? consolidationNationaleData.Total_Vehicules?.[i] / consolidationNationaleData.Total_Effectif_SU?.[i] 
+                : 0),
+            frais_par_agent: consolidationNationaleData.Moyenne_Frais_Par_Agent?.[i] || 0,
+            it_par_agent: consolidationNationaleData.Moyenne_Budget_IT_Par_Agent?.[i] || 0,
+            it_par_agent_lisse: consolidationNationaleData.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[i] || 0
+          };
         }
       }
-    });
+      return null;
+    }
 
-    const makeChart = (id, data, color) => {
-      const canvas = document.getElementById(id);
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      new Chart(ctx, {
-        ...sparkOpts(color),
-        data: {
-          labels,
-          datasets: [{ data }]
+    function getConsolidation(structureId, annee) {
+      for (let i = 0; i < consolidationData.Structure.length; i++) {
+        if (consolidationData.Structure[i] === structureId && consolidationData.Annee[i] === annee) {
+          // ✅ CORRECTION : Utiliser systématiquement les colonnes Grist calculées
+          // au lieu de recalculer en JavaScript (source unique de vérité)
+          return {
+            effectif_total: Number(consolidationData.Effectif_Total?.[i]) || 0,
+            effectif_su: Number(consolidationData.Effectif_SU?.[i]) || 0,
+            effectif_agco: Number(consolidationData.Effectif_AGCO?.[i]) || 0,
+            effectif_autres: Number(consolidationData.Effectif_Autres?.[i]) || 0,
+            age_moyen: Number(consolidationData.Age_Moyen?.[i]) || 0,
+            masse_salariale: Number(consolidationData.Masse_Salariale?.[i]) || 0,
+            ms_par_agent: Number(consolidationData.MS_Par_Agent?.[i]) || 0,
+            
+            nb_vehicules: Number(consolidationData.Nb_Vehicules?.[i]) || 0,
+            nb_vetustes: Number(consolidationData.Nb_Vehicules_Vetustes?.[i]) || 0,
+            taux_vetuste: Number(consolidationData.Taux_Vetuste?.[i]) || 0,
+            ratio_vehicule_agent: Number(consolidationData.Ratio_Vehicule_Agent?.[i]) || 0,
+            ratio_vehicule_su: Number(consolidationData.Ratio_Vehicule_SU?.[i]) || 0,
+            budget_vehicules: Number(consolidationData.Budget_Vehicules?.[i]) || 0,
+            cout_fonct_vehicule: Number(consolidationData.Cout_Fonctionnement_Par_Vehicule?.[i]) || 0,
+            
+            transport: Number(consolidationData.Transport?.[i]) || 0,
+            hebergement: Number(consolidationData.Hebergement?.[i]) || 0,
+            repas: Number(consolidationData.Repas?.[i]) || 0,
+            formation: Number(consolidationData.Formation?.[i]) || 0,
+            autres_missions: Number(consolidationData.Autres_Missions?.[i]) || 0,
+            frais_par_agent: Number(consolidationData.Frais_Mission_Par_Agent?.[i]) || 0,
+            
+            postes_fixes: Number(consolidationData.Postes_Fixes?.[i]) || 0,
+            portables: Number(consolidationData.Portables?.[i]) || 0,
+            nb_postes_total: Number(consolidationData.Nb_Postes_Total?.[i]) || 0,
+            taux_equipement: Number(consolidationData.Taux_Equipement?.[i]) || 0,
+            budget_it: Number(consolidationData.Budget_IT_CP?.[i]) || 0,
+            budget_it_4ans: Number(consolidationData.Budget_IT_4ans?.[i]) || 0,
+            it_par_agent: Number(consolidationData.IT_Par_Agent?.[i]) || 0,
+            it_par_agent_lisse: Number(consolidationData.IT_Par_Agent_Lisse?.[i]) || 0
+          };
         }
+      }
+      return null;
+    }
+
+    function getStructuresAffichees() {
+      const structures = [];
+      
+      for (let i = 0; i < structuresData.id.length; i++) {
+        const typeAffichage = structuresData.Type_Affichage?.[i];
+        
+        // Filtrer selon Type_Affichage (incluant 'DG' maintenant!)
+        if (['DG', 'DI_Hexagone', 'DI_Outremer', 'DR_Antilles', 'DR_Outremer', 'SCN'].includes(typeAffichage)) {
+          const structId = structuresData.id[i];
+          const conso = getConsolidation(structId, ANNEE);
+          
+          if (conso) {
+            structures.push({
+              id: structId,
+              sigle: structuresData.Sigle?.[i] || '',
+              nom: structuresData.Nom?.[i] || '',
+              type: structuresData.Type?.[i] || '',
+              typeAffichage: typeAffichage,
+              parent: structuresData.Parent?.[i],
+              ...conso
+            });
+          }
+        }
+      }
+      
+      // Trier : DG > DI > DR > SCN
+      structures.sort((a, b) => {
+        const order = {
+          'DG': 0,
+          'DI_Hexagone': 1,
+          'DI_Outremer': 1,
+          'DR_Antilles': 2,
+          'DR_Outremer': 2,
+          'SCN': 3
+        };
+        
+        const orderA = order[a.typeAffichage] || 99;
+        const orderB = order[b.typeAffichage] || 99;
+        
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.sigle || '').localeCompare(b.sigle || '');
       });
-    };
-
-    makeChart('spark-etpt', etptData, 'rgb(19,81,168)');
-    makeChart('spark-age', ageData, 'rgb(192,90,0)');
-    makeChart('spark-ms', msData, 'rgb(26,107,60)');
-    makeChart('spark-ms-agent', msAgentData, 'rgb(181,32,32)');
-  }
-
-  // ════════════════════════════════════════════════
-  // FORMATAGE
-  // ════════════════════════════════════════════════
-  function formatNumber(num) {
-    if (!num && num !== 0) return '—';
-    return Math.round(num).toLocaleString('fr-FR');
-  }
-  function formatMilliers(num) {
-    if (!num && num !== 0) return '—';
-    return (num / 1000000).toFixed(1);
-  }
-  function formatMilliersK(num) {
-    if (!num && num !== 0) return '—';
-    return (num / 1000).toFixed(0);
-  }
-  function formatEuro(num) {
-    if (!num && num !== 0) return '—';
-    return Math.round(num).toLocaleString('fr-FR') + ' €';
-  }
-  function formatEcartMoyenne(valeur, moyenne) {
-    if (!moyenne || moyenne === 0) return '';
-    const ecart = ((valeur - moyenne) / moyenne * 100);
-    const signe = ecart > 0 ? '+' : '';
-    const couleur = Math.abs(ecart) < 5 ? 'var(--gris3)' : (ecart > 0 ? 'var(--rouge)' : 'var(--vert)');
-    return `<span style="font-size:10px;color:${couleur};margin-left:4px;">(${signe}${ecart.toFixed(1)}%)</span>`;
-  }
-  function renderPercentBar(transport, hebergement, repas) {
-    const total = transport + hebergement + repas;
-    if (total === 0) return '<div class="percent-bar"></div><span class="percent-label">—</span>';
-    const pctT = (transport / total * 100).toFixed(1);
-    const pctH = (hebergement / total * 100).toFixed(1);
-    const pctR = (repas / total * 100).toFixed(1);
-    return `<div class="percent-bar">
-      ${transport > 0 ? `<div class="bar-segment bar-transport" style="width:${pctT}%">${pctT}%</div>` : ''}
-      ${hebergement > 0 ? `<div class="bar-segment bar-hebergement" style="width:${pctH}%">${pctH}%</div>` : ''}
-      ${repas > 0 ? `<div class="bar-segment bar-repas" style="width:${pctR}%">${pctR}%</div>` : ''}
-    </div><span class="percent-label">${formatMilliersK(total)} k€</span>`;
-  }
-
-  // ════════════════════════════════════════════════
-  // BADGE / ROW
-  // ════════════════════════════════════════════════
-  function getBadgeClass(typeAffichage) {
-    if (typeAffichage === 'DG') return 'badge-dg';
-    if (typeAffichage === 'DR_Child') return 'badge-dr';
-    if (typeAffichage.startsWith('DI')) return 'badge-di';
-    if (typeAffichage.startsWith('DR')) return 'badge-dr';
-    if (typeAffichage === 'SCN') return 'badge-scn';
-    return 'badge-di';
-  }
-  function getBadgeLabel(typeAffichage, type) {
-    if (typeAffichage === 'DG') return 'DG';
-    if (typeAffichage === 'DI_Outremer') return 'DI';
-    if (typeAffichage === 'DI_Hexagone') return 'DI';
-    if (typeAffichage === 'DR_Antilles') return 'DR';
-    if (typeAffichage === 'DR_Outremer') return 'DR';
-    if (typeAffichage === 'DR_Child') return 'DR';
-    return type;
-  }
-
-  // ════════════════════════════════════════════════
-  // RENDU LIGNE avec dépliage
-  // ════════════════════════════════════════════════
-  function renderStructureRow(s, section, indent=false, isParent=false, moyennes=null) {
-    const badgeClass = getBadgeClass(s.typeAffichage);
-    const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
-    const extraClass = s.typeAffichage === 'DI_Outremer' ? 'row-di-outremer' : '';
-    const indentClass = indent ? 'row-indent' : '';
-    const isOpen = expandedState[section + '-' + s.id] !== false; // défaut: ouvert
-
-    let toggleHtml = '';
-    let rowClass = '';
-    let childClass = '';
-    if (isParent) {
-      toggleHtml = `<span class="toggle-btn ${isOpen ? 'open' : ''}" onclick="toggleRow(event,'${section}','${s.id}')">▶</span>`;
-      rowClass = 'row-parent';
+      
+      console.log('📊 Structures affichées:', structures.length, structures.map(s => s.sigle));
+      return structures;
     }
 
-    const cellName = `<td ${isParent ? `onclick="toggleRow(event,'${section}','${s.id}')"` : ''} style="${indent ? 'padding-left:32px;' : ''}">
-      ${toggleHtml}<span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}
-    </td>`;
+    function getBadgeClass(typeAffichage) {
+      if (typeAffichage === 'DG') return 'badge-dg';
+      if (typeAffichage.startsWith('DI')) return 'badge-di';
+      if (typeAffichage.startsWith('DR')) return 'badge-dr';
+      if (typeAffichage === 'SCN') return 'badge-scn';
+      return 'badge-di';
+    }
 
-    return {
-      rh: `<tr class="${rowClass} ${extraClass}" data-section="${section}" data-id="${s.id}">
-        ${cellName}
-        <td class="number">${formatNumber(s.effectif_total)}</td>
-        <td class="number">${formatNumber(s.effectif_su)}</td>
-        <td class="number">${formatNumber(s.effectif_agco)}</td>
-        <td class="number">${formatNumber(s.effectif_autres)}</td>
-        <td class="number">${Number(s.age_moyen).toFixed(1)} ans${moyennes ? formatEcartMoyenne(s.age_moyen, moyennes.age_moyen) : ''}</td>
-        <td class="number">${formatMilliersK(s.masse_salariale)} k€</td>
-        <td class="number">${formatEuro(s.ms_par_agent)}${moyennes ? formatEcartMoyenne(s.ms_par_agent, moyennes.ms_par_agent) : ''}</td>
-      </tr>`,
-      vehicules: `<tr class="${rowClass} ${extraClass}" data-section="${section}" data-id="${s.id}">
-        ${cellName}
-        <td class="number">${formatNumber(s.nb_vehicules)}</td>
-        <td class="number">${formatNumber(s.nb_vetustes)}</td>
-        <td class="number">${Number(s.taux_vetuste).toFixed(1)} %</td>
-        <td class="number">${Number(s.ratio_vehicule_agent).toFixed(3)}</td>
-        <td class="number">${Number(s.ratio_vehicule_su).toFixed(3)}${moyennes ? formatEcartMoyenne(s.ratio_vehicule_su, moyennes.ratio_vehicule_su) : ''}</td>
-        <td class="number">${formatEuro(s.cout_fonct_vehicule)}${moyennes ? formatEcartMoyenne(s.cout_fonct_vehicule, moyennes.cout_fonct_vehicule) : ''}</td>
-      </tr>`,
-      missions: `<tr class="${rowClass} ${extraClass}" data-section="${section}" data-id="${s.id}">
-        ${cellName}
-        <td><div class="percent-bar-container">${renderPercentBar(s.transport, s.hebergement, s.repas)}</div></td>
-        <td class="number">${formatMilliersK(s.formation)} k€</td>
-        <td class="number">${formatMilliersK(s.autres_missions)} k€</td>
-        <td class="number">${formatEuro(s.frais_par_agent)}${moyennes ? formatEcartMoyenne(s.frais_par_agent, moyennes.frais_par_agent) : ''}</td>
-      </tr>`,
-      it: `<tr class="${rowClass} ${extraClass}" data-section="${section}" data-id="${s.id}">
-        ${cellName}
-        <td class="number">${formatNumber(s.postes_fixes)}</td>
-        <td class="number">${formatNumber(s.portables)}</td>
-        <td class="number">${formatNumber(s.nb_postes_total)}</td>
-        <td class="number">${Number(s.taux_equipement).toFixed(3)}</td>
-        <td class="number">${formatMilliersK(s.budget_it)} k€</td>
-        <td class="number">${formatMilliersK(s.budget_it_4ans)} k€</td>
-        <td class="number">${formatEuro(s.it_par_agent)}${moyennes ? formatEcartMoyenne(s.it_par_agent, moyennes.it_par_agent) : ''}</td>
-        <td class="number">${formatEuro(s.it_par_agent_lisse)}${moyennes ? formatEcartMoyenne(s.it_par_agent_lisse, moyennes.it_par_agent_lisse) : ''}</td>
-      </tr>`
-    };
-  }
+    function getBadgeLabel(typeAffichage, type) {
+      if (typeAffichage === 'DG') return 'DG';
+      if (typeAffichage === 'DI_Outremer') return 'DI';
+      if (typeAffichage === 'DI_Hexagone') return 'DI';
+      if (typeAffichage === 'DR_Antilles') return 'DR';
+      if (typeAffichage === 'DR_Outremer') return 'DR';
+      return type;
+    }
 
-  // Ligne enfant (DR sous DI)
-  function renderChildRow(s, section, moyennes=null) {
-    const badgeClass = 'badge-dr';
-    const stateKey = section + '-' + s.parent;
-    const isOpen = expandedState[stateKey] !== false;
-    const hiddenClass = isOpen ? '' : 'hidden';
+    function formatNumber(num) {
+      if (!num && num !== 0) return '—';
+      return Math.round(num).toLocaleString('fr-FR');
+    }
 
-    const cellName = `<td style="padding-left:44px; font-weight:400;">
-      <span class="badge ${badgeClass}">DR</span>${s.sigle}
-    </td>`;
+    function formatMilliers(num) {
+      if (!num && num !== 0) return '—';
+      return (num / 1000).toFixed(0);
+    }
 
-    return {
-      rh: `<tr class="row-child ${hiddenClass}" data-section="${section}" data-parent="${s.parent}">
-        ${cellName}
-        <td class="number">${formatNumber(s.effectif_total)}</td>
-        <td class="number">${formatNumber(s.effectif_su)}</td>
-        <td class="number">${formatNumber(s.effectif_agco)}</td>
-        <td class="number">${formatNumber(s.effectif_autres)}</td>
-        <td class="number">${Number(s.age_moyen).toFixed(1)} ans</td>
-        <td class="number">${formatMilliersK(s.masse_salariale)} k€</td>
-        <td class="number">${formatEuro(s.ms_par_agent)}</td>
-      </tr>`,
-      vehicules: `<tr class="row-child ${hiddenClass}" data-section="${section}" data-parent="${s.parent}">
-        ${cellName}
-        <td class="number">${formatNumber(s.nb_vehicules)}</td>
-        <td class="number">${formatNumber(s.nb_vetustes)}</td>
-        <td class="number">${Number(s.taux_vetuste).toFixed(1)} %</td>
-        <td class="number">${Number(s.ratio_vehicule_agent).toFixed(3)}</td>
-        <td class="number">${Number(s.ratio_vehicule_su).toFixed(3)}</td>
-        <td class="number">${formatEuro(s.cout_fonct_vehicule)}</td>
-      </tr>`,
-      missions: `<tr class="row-child ${hiddenClass}" data-section="${section}" data-parent="${s.parent}">
-        ${cellName}
-        <td><div class="percent-bar-container">${renderPercentBar(s.transport, s.hebergement, s.repas)}</div></td>
-        <td class="number">${formatMilliersK(s.formation)} k€</td>
-        <td class="number">${formatMilliersK(s.autres_missions)} k€</td>
-        <td class="number">${formatEuro(s.frais_par_agent)}</td>
-      </tr>`,
-      it: `<tr class="row-child ${hiddenClass}" data-section="${section}" data-parent="${s.parent}">
-        ${cellName}
-        <td class="number">${formatNumber(s.postes_fixes)}</td>
-        <td class="number">${formatNumber(s.portables)}</td>
-        <td class="number">${formatNumber(s.nb_postes_total)}</td>
-        <td class="number">${Number(s.taux_equipement).toFixed(3)}</td>
-        <td class="number">${formatMilliersK(s.budget_it)} k€</td>
-        <td class="number">${formatMilliersK(s.budget_it_4ans)} k€</td>
-        <td class="number">${formatEuro(s.it_par_agent)}</td>
-        <td class="number">${formatEuro(s.it_par_agent_lisse)}</td>
-      </tr>`
-    };
-  }
+    function formatEuro(num) {
+      if (!num && num !== 0) return '—';
+      return Math.round(num).toLocaleString('fr-FR') + ' €';
+    }
 
-  // Toggle dépliage
-  function toggleRow(event, section, structureId) {
-    event.stopPropagation();
-    const key = section + '-' + structureId;
-    const wasOpen = expandedState[key] !== false;
-    expandedState[key] = !wasOpen;
+    function formatEcartMoyenne(valeur, moyenne) {
+      if (!moyenne || moyenne === 0) return '';
+      const ecart = ((valeur - moyenne) / moyenne * 100);
+      const signe = ecart > 0 ? '+' : '';
+      const couleur = Math.abs(ecart) < 5 ? 'var(--gris3)' : (ecart > 0 ? 'var(--rouge)' : 'var(--vert)');
+      return `<span style="font-size: 10px; color: ${couleur}; margin-left: 4px;">(${signe}${ecart.toFixed(1)}%)</span>`;
+    }
 
-    // Trouver toutes les lignes enfants de ce parent dans cette section
-    document.querySelectorAll(`tr.row-child[data-section="${section}"][data-parent="${structureId}"]`).forEach(row => {
-      row.classList.toggle('hidden', wasOpen);
-    });
-
-    // Faire tourner le bouton
-    const btn = document.querySelector(`tr[data-section="${section}"][data-id="${structureId}"] .toggle-btn`);
-    if (btn) btn.classList.toggle('open', !wasOpen);
-  }
-
-  function buildRows(section, structures, blocs, moyennes) {
-    const { blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN } = blocs;
-    let rows = '';
-
-    const addStruct = (s, indent=false) => {
-      const drEnfants = (s.typeAffichage === 'DI_Hexagone') ? getDREnfants(s.id) : [];
-      const isParent = drEnfants.length > 0;
-      rows += renderStructureRow(s, section, indent, isParent, moyennes)[section];
-      drEnfants.forEach(dr => { rows += renderChildRow(dr, section, moyennes)[section]; });
-    };
-
-    blocDG.forEach(s => addStruct(s));
-    blocDIMetropole.forEach(s => addStruct(s));
-    blocOutremer.forEach((s, idx) => addStruct(s, idx > 0));
-    blocDROutremer.forEach(s => addStruct(s));
-    blocSCN.forEach(s => addStruct(s));
-
-    return rows;
-  }
-
-  // ════════════════════════════════════════════════
-  // SECTIONS
-  // ════════════════════════════════════════════════
-
-  function renderRHSection(blocs, totaux, moyennes) {
-    const rows = buildRows('rh', blocs, blocs, moyennes);
-    return `<div class="section">
-      <div class="section-header">
-        <div class="section-icon">🛃</div>
-        <div class="section-title">Ressources Humaines</div>
-        <div class="section-header-actions" style="font-size:11px;color:var(--gris3);">
-          Cliquez sur une DI pour déplier ses DR
+    function renderPercentBar(transport, hebergement, repas) {
+      const total = transport + hebergement + repas;
+      if (total === 0) return '<div class="percent-bar"></div><span class="percent-label">—</span>';
+      
+      const pctTransport = (transport / total * 100).toFixed(1);
+      const pctHebergement = (hebergement / total * 100).toFixed(1);
+      const pctRepas = (repas / total * 100).toFixed(1);
+      
+      return `
+        <div class="percent-bar">
+          ${transport > 0 ? `<div class="bar-segment bar-transport" style="width: ${pctTransport}%">${pctTransport}%</div>` : ''}
+          ${hebergement > 0 ? `<div class="bar-segment bar-hebergement" style="width: ${pctHebergement}%">${pctHebergement}%</div>` : ''}
+          ${repas > 0 ? `<div class="bar-segment bar-repas" style="width: ${pctRepas}%">${pctRepas}%</div>` : ''}
         </div>
-      </div>
-      ${renderKPIEvolution()}
-      <table>
-        <thead>
-          <tr>
-            <th>Structure</th><th class="number">Effectif Total</th><th class="number">Effectif SU</th>
-            <th class="number">Effectif AGCO</th><th class="number">Effectif Autres</th>
-            <th class="number">Âge Moyen</th><th class="number">Masse Salariale</th><th class="number">MS / Agent</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr class="row-total">
-          <td>TOTAL</td>
-          <td class="number">${formatNumber(totaux.effectif_total)}</td>
-          <td class="number">${formatNumber(totaux.effectif_su)}</td>
-          <td class="number">${formatNumber(totaux.effectif_agco)}</td>
-          <td class="number">${formatNumber(totaux.effectif_autres)}</td>
-          <td class="number">${Number(totaux.age_moyen).toFixed(1)} ans</td>
-          <td class="number">${formatMilliersK(totaux.masse_salariale)} k€</td>
-          <td class="number">${formatEuro(totaux.ms_par_agent)}</td>
-        </tr></tfoot>
-      </table>
-    </div>`;
-  }
-
-  function renderVehiculesSection(blocs, totaux, moyennes) {
-    const rows = buildRows('vehicules', blocs, blocs, moyennes);
-    return `<div class="section">
-      <div class="section-header"><div class="section-icon">🚗</div><div class="section-title">Parc Véhicules</div></div>
-      <table>
-        <thead><tr>
-          <th>Structure</th><th class="number">Nb Véhicules</th><th class="number">Vétustes</th>
-          <th class="number">Taux Vétusté</th><th class="number">Ratio / Agent</th>
-          <th class="number">Ratio / Agent SU</th><th class="number">Coût Fonct. / Véh.</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr class="row-total">
-          <td>TOTAL</td>
-          <td class="number">${formatNumber(totaux.nb_vehicules)}</td>
-          <td class="number">${formatNumber(totaux.nb_vetustes)}</td>
-          <td class="number">${Number(totaux.taux_vetuste).toFixed(1)} %</td>
-          <td class="number">${Number(totaux.ratio_vehicule_agent).toFixed(3)}</td>
-          <td class="number">${Number(totaux.ratio_vehicule_su).toFixed(3)}</td>
-          <td class="number">${formatEuro(totaux.cout_fonct_vehicule)}</td>
-        </tr></tfoot>
-      </table>
-    </div>`;
-  }
-
-  function renderFraisMissionSection(blocs, totaux, moyennes) {
-    const rows = buildRows('missions', blocs, blocs, moyennes);
-    return `<div class="section">
-      <div class="section-header"><div class="section-icon">✈️</div><div class="section-title">Frais de Mission</div></div>
-      <table>
-        <thead><tr>
-          <th>Structure</th><th style="width:35%;">Répartition T/H/R</th>
-          <th class="number">Total Formation</th><th class="number">Total Autres Missions</th>
-          <th class="number">Frais Moyen / Agent</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr class="row-total">
-          <td>TOTAL</td>
-          <td><div class="percent-bar-container">${renderPercentBar(totaux.transport, totaux.hebergement, totaux.repas)}</div></td>
-          <td class="number">${formatMilliersK(totaux.formation)} k€</td>
-          <td class="number">${formatMilliersK(totaux.autres_missions)} k€</td>
-          <td class="number">${formatEuro(totaux.frais_par_agent)}</td>
-        </tr></tfoot>
-      </table>
-    </div>`;
-  }
-
-  function renderInformatiqueSection(blocs, totaux, moyennes) {
-    const rows = buildRows('it', blocs, blocs, moyennes);
-    return `<div class="section">
-      <div class="section-header"><div class="section-icon">💻</div><div class="section-title">Informatique</div></div>
-      <table>
-        <thead><tr>
-          <th>Structure</th><th class="number">Postes Fixes</th><th class="number">Portables</th>
-          <th class="number">Total Postes</th><th class="number">Taux Équip.</th>
-          <th class="number">Budget</th><th class="number">Budget Moy. 4 ans</th>
-          <th class="number">Coût / Agent</th><th class="number">Coût / Agent Lissé</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr class="row-total">
-          <td>TOTAL</td>
-          <td class="number">${formatNumber(totaux.postes_fixes)}</td>
-          <td class="number">${formatNumber(totaux.portables)}</td>
-          <td class="number">${formatNumber(totaux.nb_postes_total)}</td>
-          <td class="number">${Number(totaux.taux_equipement).toFixed(3)}</td>
-          <td class="number">${formatMilliersK(totaux.budget_it)} k€</td>
-          <td class="number">${formatMilliersK(totaux.budget_it_4ans)} k€</td>
-          <td class="number">${formatEuro(totaux.it_par_agent)}</td>
-          <td class="number">${formatEuro(totaux.it_par_agent_lisse)}</td>
-        </tr></tfoot>
-      </table>
-    </div>`;
-  }
-
-  // ════════════════════════════════════════════════
-  // RENDER PRINCIPAL
-  // ════════════════════════════════════════════════
-  function render() {
-    const structures = getStructuresAffichees();
-
-    if (structures.length === 0) {
-      document.getElementById('content').innerHTML =
-        '<div class="error">Aucune structure trouvée. Vérifiez que la table Consolidation_Structure est remplie.</div>';
-      return;
+        <span class="percent-label">${formatMilliers(total)} k€</span>
+      `;
     }
 
-    const blocDG = structures.filter(s => s.typeAffichage === 'DG');
-    const blocDIMetropole = structures.filter(s => s.typeAffichage === 'DI_Hexagone');
-    const diOutremer = structures.find(s => s.typeAffichage === 'DI_Outremer');
-    const drAntilles = structures.filter(s => s.typeAffichage === 'DR_Antilles');
-    const blocOutremer = diOutremer ? [diOutremer, ...drAntilles] : drAntilles;
-    const blocDROutremer = structures.filter(s => s.typeAffichage === 'DR_Outremer');
-    const blocSCN = structures.filter(s => s.typeAffichage === 'SCN');
-    const blocs = { blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN };
+    function render() {
+      const structures = getStructuresAffichees();
+      
+      if (structures.length === 0) {
+        document.getElementById('content').innerHTML = 
+          '<div class="error">Aucune structure trouvée. Vérifiez que la table Consolidation_Structure est remplie et que Type_Affichage est défini dans Structures.</div>';
+        return;
+      }
+      
+      // Séparer les structures par bloc
+      const blocDG = structures.filter(s => s.typeAffichage === 'DG');
+      const blocDIMetropole = structures.filter(s => s.typeAffichage === 'DI_Hexagone');
+      
+      // Bloc Outremer : DI 972 + DR Antilles
+      const diOutremer = structures.find(s => s.typeAffichage === 'DI_Outremer');
+      const drAntilles = structures.filter(s => s.typeAffichage === 'DR_Antilles');
+      const blocOutremer = diOutremer ? [diOutremer, ...drAntilles] : drAntilles;
+      
+      const blocDROutremer = structures.filter(s => s.typeAffichage === 'DR_Outremer');
+      const blocSCN = structures.filter(s => s.typeAffichage === 'SCN');
+      
+      // ═══════════════════════════════════════════════════════════════
+      // CALCULS AGRÉGÉS DYNAMIQUES
+      // Ces calculs sont effectués sur les structures affichées à l'écran
+      // et ne peuvent pas être précalculés dans Grist car ils dépendent
+      // des filtres utilisateur. Les calculs individuels par structure
+      // utilisent les colonnes Grist (pas de recalcul).
+      // ═══════════════════════════════════════════════════════════════
+      
+      // Calculer totaux globaux
+      const totaux = structures.reduce((acc, s) => ({
+        effectif_total: acc.effectif_total + s.effectif_total,
+        effectif_su: acc.effectif_su + s.effectif_su,
+        effectif_agco: acc.effectif_agco + s.effectif_agco,
+        effectif_autres: acc.effectif_autres + s.effectif_autres,
+        masse_salariale: acc.masse_salariale + s.masse_salariale,
+        sum_age: acc.sum_age + (s.age_moyen * s.effectif_total),
+        
+        nb_vehicules: acc.nb_vehicules + s.nb_vehicules,
+        nb_vetustes: acc.nb_vetustes + s.nb_vetustes,
+        budget_vehicules: acc.budget_vehicules + s.budget_vehicules,
+        
+        transport: acc.transport + s.transport,
+        hebergement: acc.hebergement + s.hebergement,
+        repas: acc.repas + s.repas,
+        formation: acc.formation + s.formation,
+        autres_missions: acc.autres_missions + s.autres_missions,
+        
+        postes_fixes: acc.postes_fixes + s.postes_fixes,
+        portables: acc.portables + s.portables,
+        budget_it: acc.budget_it + s.budget_it,
+        budget_it_4ans: acc.budget_it_4ans + s.budget_it_4ans
+      }), {
+        effectif_total: 0, effectif_su: 0, effectif_agco: 0, effectif_autres: 0,
+        masse_salariale: 0, sum_age: 0,
+        nb_vehicules: 0, nb_vetustes: 0, budget_vehicules: 0,
+        transport: 0, hebergement: 0, repas: 0, formation: 0, autres_missions: 0,
+        postes_fixes: 0, portables: 0, budget_it: 0, budget_it_4ans: 0
+      });
+      
+      totaux.age_moyen = totaux.effectif_total > 0 ? totaux.sum_age / totaux.effectif_total : 0;
+      totaux.ms_par_agent = totaux.effectif_total > 0 ? totaux.masse_salariale / totaux.effectif_total : 0;
+      totaux.ratio_vehicule_agent = totaux.effectif_total > 0 ? totaux.nb_vehicules / totaux.effectif_total : 0;
+      totaux.ratio_vehicule_su = totaux.effectif_su > 0 ? totaux.nb_vehicules / totaux.effectif_su : 0;
+      totaux.taux_vetuste = totaux.nb_vehicules > 0 ? (totaux.nb_vetustes / totaux.nb_vehicules * 100) : 0;
+      totaux.cout_fonct_vehicule = totaux.nb_vehicules > 0 ? totaux.budget_vehicules / totaux.nb_vehicules : 0;
+      totaux.frais_par_agent = totaux.effectif_total > 0 ? (totaux.transport + totaux.hebergement + totaux.repas) / totaux.effectif_total : 0;
+      totaux.nb_postes_total = totaux.postes_fixes + totaux.portables;
+      totaux.taux_equipement = totaux.effectif_total > 0 ? totaux.nb_postes_total / totaux.effectif_total : 0;
+      totaux.it_par_agent = totaux.effectif_total > 0 ? totaux.budget_it / totaux.effectif_total : 0;
+      
+      console.log('🚗 DEBUG Véhicules - Total:', totaux.nb_vehicules, 'Vétustes:', totaux.nb_vetustes);
+      structures.forEach(s => console.log(`  ${s.sigle}: ${s.nb_vehicules} véhicules (${typeof s.nb_vehicules})`));
+      totaux.it_par_agent_lisse = totaux.effectif_total > 0 ? totaux.budget_it_4ans / totaux.effectif_total : 0;
+      
+      const moyennes = getMoyennes(ANNEE);
+      
+      document.getElementById('content').innerHTML = `
+        ${renderRHSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
+        ${renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
+        ${renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
+        ${renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
+        ${renderCommunicationSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
+      `;
+    }
 
-    // Totaux (sur toutes les structures affichées)
-    const totaux = structures.reduce((acc, s) => ({
-      effectif_total: acc.effectif_total + s.effectif_total,
-      effectif_su: acc.effectif_su + s.effectif_su,
-      effectif_agco: acc.effectif_agco + s.effectif_agco,
-      effectif_autres: acc.effectif_autres + s.effectif_autres,
-      masse_salariale: acc.masse_salariale + s.masse_salariale,
-      sum_age: acc.sum_age + (s.age_moyen * s.effectif_total),
-      nb_vehicules: acc.nb_vehicules + s.nb_vehicules,
-      nb_vetustes: acc.nb_vetustes + s.nb_vetustes,
-      budget_vehicules: acc.budget_vehicules + s.budget_vehicules,
-      transport: acc.transport + s.transport,
-      hebergement: acc.hebergement + s.hebergement,
-      repas: acc.repas + s.repas,
-      formation: acc.formation + s.formation,
-      autres_missions: acc.autres_missions + s.autres_missions,
-      postes_fixes: acc.postes_fixes + s.postes_fixes,
-      portables: acc.portables + s.portables,
-      budget_it: acc.budget_it + s.budget_it,
-      budget_it_4ans: acc.budget_it_4ans + s.budget_it_4ans
-    }), {
-      effectif_total:0, effectif_su:0, effectif_agco:0, effectif_autres:0, masse_salariale:0, sum_age:0,
-      nb_vehicules:0, nb_vetustes:0, budget_vehicules:0,
-      transport:0, hebergement:0, repas:0, formation:0, autres_missions:0,
-      postes_fixes:0, portables:0, budget_it:0, budget_it_4ans:0
-    });
+    function renderStructureRow(s, indent = false, moyennes = null) {
+      const badgeClass = getBadgeClass(s.typeAffichage);
+      const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
+      const rowClass = indent ? 'row-indent' : '';
+      const extraClass = s.typeAffichage === 'DI_Outremer' ? 'row-di-outremer' : '';
+      
+      // 🔍 DEBUG: Logger les valeurs pour la DG
+      if (s.sigle && (s.sigle.includes('DGDDI') || s.sigle === 'DG')) {
+        console.log(`\n🔍 AFFICHAGE ${s.sigle}:`);
+        console.log('  nb_vehicules =', s.nb_vehicules);
+        console.log('  budget_vehicules =', s.budget_vehicules);
+        console.log('  cout_fonct_vehicule =', s.cout_fonct_vehicule);
+        console.log('  Type de cout_fonct_vehicule =', typeof s.cout_fonct_vehicule);
+      }
+      
+      return {
+        rh: `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td class="number">${formatNumber(s.effectif_total)}</td>
+            <td class="number">${formatNumber(s.effectif_su)}</td>
+            <td class="number">${formatNumber(s.effectif_agco)}</td>
+            <td class="number">${formatNumber(s.effectif_autres)}</td>
+            <td class="number">${Number(s.age_moyen).toFixed(1)} ans${moyennes ? formatEcartMoyenne(s.age_moyen, moyennes.age_moyen) : ''}</td>
+            <td class="number">${formatMilliers(s.masse_salariale)} k€</td>
+            <td class="number">${formatEuro(s.ms_par_agent)}${moyennes ? formatEcartMoyenne(s.ms_par_agent, moyennes.ms_par_agent) : ''}</td>
+          </tr>
+        `,
+        vehicules: `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td class="number">${formatNumber(s.nb_vehicules)}</td>
+            <td class="number">${formatNumber(s.nb_vetustes)}</td>
+            <td class="number">${Number(s.taux_vetuste).toFixed(1)} %</td>
+            <td class="number">${Number(s.ratio_vehicule_agent).toFixed(3)}</td>
+            <td class="number">${Number(s.ratio_vehicule_su).toFixed(3)}${moyennes ? formatEcartMoyenne(s.ratio_vehicule_su, moyennes.ratio_vehicule_su) : ''}</td>
+            <td class="number">${formatEuro(s.cout_fonct_vehicule)}${moyennes ? formatEcartMoyenne(s.cout_fonct_vehicule, moyennes.cout_fonct_vehicule) : ''}</td>
+          </tr>
+        `,
+        missions: `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td>
+              <div class="percent-bar-container">
+                ${renderPercentBar(s.transport, s.hebergement, s.repas)}
+              </div>
+            </td>
+            <td class="number">${formatMilliers(s.formation)} k€</td>
+            <td class="number">${formatMilliers(s.autres_missions)} k€</td>
+            <td class="number">${formatEuro(s.frais_par_agent)}${moyennes ? formatEcartMoyenne(s.frais_par_agent, moyennes.frais_par_agent) : ''}</td>
+          </tr>
+        `,
+        it: `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td class="number">${formatNumber(s.postes_fixes)}</td>
+            <td class="number">${formatNumber(s.portables)}</td>
+            <td class="number">${formatNumber(s.nb_postes_total)}</td>
+            <td class="number">${Number(s.taux_equipement).toFixed(3)}</td>
+            <td class="number">${formatMilliers(s.budget_it)} k€</td>
+            <td class="number">${formatMilliers(s.budget_it_4ans)} k€</td>
+            <td class="number">${formatEuro(s.it_par_agent)}${moyennes ? formatEcartMoyenne(s.it_par_agent, moyennes.it_par_agent) : ''}</td>
+            <td class="number">${formatEuro(s.it_par_agent_lisse)}${moyennes ? formatEcartMoyenne(s.it_par_agent_lisse, moyennes.it_par_agent_lisse) : ''}</td>
+          </tr>
+        `
+      };
+    }
 
-    totaux.age_moyen = totaux.effectif_total > 0 ? totaux.sum_age / totaux.effectif_total : 0;
-    totaux.ms_par_agent = totaux.effectif_total > 0 ? totaux.masse_salariale / totaux.effectif_total : 0;
-    totaux.ratio_vehicule_agent = totaux.effectif_total > 0 ? totaux.nb_vehicules / totaux.effectif_total : 0;
-    totaux.ratio_vehicule_su = totaux.effectif_su > 0 ? totaux.nb_vehicules / totaux.effectif_su : 0;
-    totaux.taux_vetuste = totaux.nb_vehicules > 0 ? (totaux.nb_vetustes / totaux.nb_vehicules * 100) : 0;
-    totaux.cout_fonct_vehicule = totaux.nb_vehicules > 0 ? totaux.budget_vehicules / totaux.nb_vehicules : 0;
-    totaux.frais_par_agent = totaux.effectif_total > 0 ? (totaux.transport + totaux.hebergement + totaux.repas) / totaux.effectif_total : 0;
-    totaux.nb_postes_total = totaux.postes_fixes + totaux.portables;
-    totaux.taux_equipement = totaux.effectif_total > 0 ? totaux.nb_postes_total / totaux.effectif_total : 0;
-    totaux.it_par_agent = totaux.effectif_total > 0 ? totaux.budget_it / totaux.effectif_total : 0;
-    totaux.it_par_agent_lisse = totaux.effectif_total > 0 ? totaux.budget_it_4ans / totaux.effectif_total : 0;
+    function buildSectionRows(section, blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes) {
+      let rows = '';
+      const addRow = (s, indent) => {
+        const drEnfants = (s.typeAffichage === 'DI_Hexagone') ? getDREnfants(s.id) : [];
+        if (drEnfants.length > 0) {
+          // Ligne DI parent avec toggle
+          rows += renderStructureRowToggle(s, section, moyennes)[section];
+          drEnfants.forEach(dr => { rows += renderDRChildRow(dr, section, moyennes)[section]; });
+        } else {
+          rows += renderStructureRow(s, indent, moyennes)[section];
+        }
+      };
+      blocDG.forEach(s => addRow(s, false));
+      blocDIMetropole.forEach(s => addRow(s, false));
+      blocOutremer.forEach((s, idx) => addRow(s, idx > 0));
+      blocDROutremer.forEach(s => addRow(s, false));
+      blocSCN.forEach(s => addRow(s, false));
+      return rows;
+    }
 
-    const moyennes = getMoyennes(ANNEE);
+    // Variante renderStructureRow pour DI parent avec bouton toggle
+    function renderStructureRowToggle(s, section, moyennes) {
+      const isOpen = expandedState[section+'-'+s.id] !== false;
+      const arrow = `<span class="toggle-arrow ${isOpen ? 'open' : ''}" onclick="toggleDR(event,'${section}','${s.id}')">&#9654;</span>`;
+      const trAttr = `class="row-parent-di" data-section="${section}" data-id="${s.id}"`;
+      const cell1 = `<td><span class="badge badge-di">DI</span>${arrow}${s.sigle}</td>`;
+      return {
+        rh: `<tr ${trAttr}>
+          ${cell1}
+          <td class="number">${formatNumber(s.effectif_total)}</td>
+          <td class="number">${formatNumber(s.effectif_su)}</td>
+          <td class="number">${formatNumber(s.effectif_agco)}</td>
+          <td class="number">${formatNumber(s.effectif_autres)}</td>
+          <td class="number">${Number(s.age_moyen).toFixed(1)} ans${moyennes ? formatEcartMoyenne(s.age_moyen, moyennes.age_moyen) : ''}</td>
+          <td class="number">${formatMilliers(s.masse_salariale)} k€</td>
+          <td class="number">${formatEuro(s.ms_par_agent)}${moyennes ? formatEcartMoyenne(s.ms_par_agent, moyennes.ms_par_agent) : ''}</td>
+        </tr>`,
+        vehicules: `<tr ${trAttr}>
+          ${cell1}
+          <td class="number">${formatNumber(s.nb_vehicules)}</td>
+          <td class="number">${formatNumber(s.nb_vetustes)}</td>
+          <td class="number">${Number(s.taux_vetuste).toFixed(1)} %</td>
+          <td class="number">${Number(s.ratio_vehicule_agent).toFixed(3)}</td>
+          <td class="number">${Number(s.ratio_vehicule_su).toFixed(3)}${moyennes ? formatEcartMoyenne(s.ratio_vehicule_su, moyennes.ratio_vehicule_su) : ''}</td>
+          <td class="number">${formatEuro(s.cout_fonct_vehicule)}${moyennes ? formatEcartMoyenne(s.cout_fonct_vehicule, moyennes.cout_fonct_vehicule) : ''}</td>
+        </tr>`,
+        missions: `<tr ${trAttr}>
+          ${cell1}
+          <td><div class="percent-bar-container">${renderPercentBar(s.transport, s.hebergement, s.repas)}</div></td>
+          <td class="number">${formatMilliers(s.formation)} k€</td>
+          <td class="number">${formatMilliers(s.autres_missions)} k€</td>
+          <td class="number">${formatEuro(s.frais_par_agent)}${moyennes ? formatEcartMoyenne(s.frais_par_agent, moyennes.frais_par_agent) : ''}</td>
+        </tr>`,
+        it: `<tr ${trAttr}>
+          ${cell1}
+          <td class="number">${formatNumber(s.postes_fixes)}</td>
+          <td class="number">${formatNumber(s.portables)}</td>
+          <td class="number">${formatNumber(s.nb_postes_total)}</td>
+          <td class="number">${Number(s.taux_equipement).toFixed(3)}</td>
+          <td class="number">${formatMilliers(s.budget_it)} k€</td>
+          <td class="number">${formatMilliers(s.budget_it_4ans)} k€</td>
+          <td class="number">${formatEuro(s.it_par_agent)}${moyennes ? formatEcartMoyenne(s.it_par_agent, moyennes.it_par_agent) : ''}</td>
+          <td class="number">${formatEuro(s.it_par_agent_lisse)}${moyennes ? formatEcartMoyenne(s.it_par_agent_lisse, moyennes.it_par_agent_lisse) : ''}</td>
+        </tr>`
+      };
+    }
 
-    document.getElementById('content').innerHTML = `
-      ${renderRHSection(blocs, totaux, moyennes)}
-      ${renderVehiculesSection(blocs, totaux, moyennes)}
-      ${renderFraisMissionSection(blocs, totaux, moyennes)}
-      ${renderInformatiqueSection(blocs, totaux, moyennes)}
-    `;
+    function renderRHSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
+      const rows = buildSectionRows('rh', blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes);
+      
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">🛃</div>
+            <div class="section-title">Ressources Humaines</div>
+            <span style="margin-left:auto;font-size:11px;color:var(--gris3);">▶ Cliquez sur une DI pour voir ses DR</span>
+          </div>
+          ${renderKPIEvolution()}
+          <table>
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th class="number">Effectif Total</th>
+                <th class="number">Effectif SU</th>
+                <th class="number">Effectif AGCO</th>
+                <th class="number">Effectif Autres</th>
+                <th class="number">Âge Moyen</th>
+                <th class="number">Masse Salariale</th>
+                <th class="number">MS / Agent</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+              <tr class="row-total">
+                <td>TOTAL</td>
+                <td class="number">${formatNumber(totaux.effectif_total)}</td>
+                <td class="number">${formatNumber(totaux.effectif_su)}</td>
+                <td class="number">${formatNumber(totaux.effectif_agco)}</td>
+                <td class="number">${formatNumber(totaux.effectif_autres)}</td>
+                <td class="number">${Number(totaux.age_moyen).toFixed(1)} ans</td>
+                <td class="number">${formatMilliers(totaux.masse_salariale)} k€</td>
+                <td class="number">${formatEuro(totaux.ms_par_agent)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
 
-    // Dessiner les sparklines après injection du DOM
-    setTimeout(() => drawSparklines(), 50);
-  }
+    function renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
+      const rows = buildSectionRows('vehicules', blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes);
+      
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">🚗</div>
+            <div class="section-title">Parc Véhicules</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th class="number">Nb Véhicules</th>
+                <th class="number">Vétustes</th>
+                <th class="number">Taux Vétusté</th>
+                <th class="number">Ratio / Agent</th>
+                <th class="number">Ratio / Agent SU</th>
+                <th class="number">Coût Fonct. / Véh.</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+              <tr class="row-total">
+                <td>TOTAL</td>
+                <td class="number">${formatNumber(totaux.nb_vehicules)}</td>
+                <td class="number">${formatNumber(totaux.nb_vetustes)}</td>
+                <td class="number">${Number(totaux.taux_vetuste).toFixed(1)} %</td>
+                <td class="number">${Number(totaux.ratio_vehicule_agent).toFixed(3)}</td>
+                <td class="number">${Number(totaux.ratio_vehicule_su).toFixed(3)}</td>
+                <td class="number">${formatEuro(totaux.cout_fonct_vehicule)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
 
-  init();
-</script>
+    function renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
+      const rows = buildSectionRows('missions', blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes);
+      
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">✈️</div>
+            <div class="section-title">Frais de Mission</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th style="width: 35%;">Répartition T/H/R</th>
+                <th class="number">Total Formation</th>
+                <th class="number">Total Autres Missions</th>
+                <th class="number">Frais Moyen / Agent</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+              <tr class="row-total">
+                <td>TOTAL</td>
+                <td>
+                  <div class="percent-bar-container">
+                    ${renderPercentBar(totaux.transport, totaux.hebergement, totaux.repas)}
+                  </div>
+                </td>
+                <td class="number">${formatMilliers(totaux.formation)} k€</td>
+                <td class="number">${formatMilliers(totaux.autres_missions)} k€</td>
+                <td class="number">${formatEuro(totaux.frais_par_agent)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
+      const rows = buildSectionRows('it', blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes);
+      
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">💻</div>
+            <div class="section-title">Informatique</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th class="number">Postes Fixes</th>
+                <th class="number">Portables</th>
+                <th class="number">Total Postes</th>
+                <th class="number">Taux Équip.</th>
+                <th class="number">Budget</th>
+                <th class="number">Budget Moy. 4 ans</th>
+                <th class="number">Coût / Agent</th>
+                <th class="number">Coût / Agent Lissé</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+              <tr class="row-total">
+                <td>TOTAL</td>
+                <td class="number">${formatNumber(totaux.postes_fixes)}</td>
+                <td class="number">${formatNumber(totaux.portables)}</td>
+                <td class="number">${formatNumber(totaux.nb_postes_total)}</td>
+                <td class="number">${Number(totaux.taux_equipement).toFixed(3)}</td>
+                <td class="number">${formatMilliers(totaux.budget_it)} k€</td>
+                <td class="number">${formatMilliers(totaux.budget_it_4ans)} k€</td>
+                <td class="number">${formatEuro(totaux.it_par_agent)}</td>
+                <td class="number">${formatEuro(totaux.it_par_agent_lisse)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // SECTION DÉPENSES DE COMMUNICATION
+    // ══════════════════════════════════════════════════════════════
+
+    function getComData(structureId) {
+      if (!communicationData || !communicationData.Structure) return null;
+      // Chercher la ligne consolidée en priorité (DI Outremer)
+      let idx = -1;
+      if (communicationData.Est_Consolide) {
+        idx = communicationData.Structure.findIndex((s, i) =>
+          s === structureId && communicationData.Est_Consolide[i]);
+      }
+      // Fallback : ligne non consolidée
+      if (idx === -1) {
+        idx = communicationData.Structure.findIndex((s, i) =>
+          s === structureId && !communicationData.Est_Consolide?.[i]);
+      }
+      if (idx === -1) idx = communicationData.Structure.indexOf(structureId);
+      if (idx === -1) return null;
+
+      const v = (col) => communicationData[col] ? (communicationData[col][idx] || 0) : 0;
+      const cp_2024    = v('CP_2024');
+      const cp_2025    = v('CP_2025');
+      const cp_2026    = v('CP_2026');
+      const cible_2026 = v('Cible_2026');
+      const taux_grist = v('Taux_Conso_2026');
+      const taux       = taux_grist || (cible_2026 ? cp_2026 / cible_2026 : 0);
+      // Date d'import : format DD-MM-YYYY (chaîne) ou timestamp secondes
+      const dateRaw = communicationData.Date_Import_2026 ? (communicationData.Date_Import_2026[idx] || null) : null;
+      let date_import_str = null;
+      if (dateRaw) {
+        if (typeof dateRaw === 'string' && dateRaw.match(/^\d{2}-\d{2}-\d{4}$/)) {
+          date_import_str = dateRaw; // déjà DD-MM-YYYY
+        } else if (typeof dateRaw === 'number' && dateRaw > 0) {
+          const d = new Date(dateRaw * 1000);
+          date_import_str = d.toLocaleDateString('fr-FR');
+        }
+      }
+      return { cp_2022: v('CP_2022'), cp_2023: v('CP_2023'), cp_2024, cp_2025, cp_2026,
+               ej_2026: v('EJ_2026'), cible_2026, cap_cp_2026: v('Capacite_CP_2026'),
+               taux_conso: taux, date_import: date_import_str };
+    }
+
+    function fmtCom(val) {
+      if (!val) return '—';
+      if (Math.abs(val) >= 1000) return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(val / 1000)) + ' K€';
+      return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(val) + ' €';
+    }
+
+    function tauxBadge(taux) {
+      if (!taux) return '';
+      const pct = Math.round(taux * 1000) / 10;
+      const color = taux >= 0.80 ? '#c0392b' : taux >= 0.50 ? '#d35400' : '#1a6b3c';
+      const bg    = taux >= 0.80 ? '#FEF2F2' : taux >= 0.50 ? '#FFF7ED' : '#F0FDF4';
+      return `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;background:${bg};color:${color};">${pct.toFixed(1)} %</span>`;
+    }
+
+    function renderCommunicationSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN) {
+      if (!communicationData) {
+        return `
+          <div class="section">
+            <div class="section-header">
+              <div class="section-icon">📣</div>
+              <div class="section-title">Dépenses de Communication</div>
+            </div>
+            <p style="color:var(--gris3);font-style:italic;text-align:center;padding:20px;">
+              ⚠️ Table <code>Communication</code> non disponible dans Grist.
+            </p>
+          </div>`;
+      }
+
+      // ── Agréger les totaux ─────────────────────────────────────────
+      const totaux = { cp_2024: 0, cp_2025: 0, cp_2026: 0, ej_2026: 0, cible_2026: 0, cap_cp_2026: 0 };
+      let rows = '';
+
+      const allBlocs = [blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN];
+      allBlocs.forEach(bloc => bloc.forEach((s, bIdx) => {
+        const indent = (bloc === blocOutremer && bIdx > 0);
+        const d = getComData(s.id);
+        const badgeClass = getBadgeClass(s.typeAffichage);
+        const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
+        const rowClass = indent ? 'row-indent' : '';
+        const extraClass = s.typeAffichage === 'DI_Outremer' ? 'row-di-outremer' : '';
+
+        if (d) {
+          totaux.cp_2024     += d.cp_2024;
+          totaux.cp_2025     += d.cp_2025;
+          totaux.cp_2026     += d.cp_2026;
+          totaux.ej_2026     += d.ej_2026;
+          totaux.cible_2026  += d.cible_2026;
+          totaux.cap_cp_2026 += d.cap_cp_2026;
+        }
+
+        // Barre de progression inline
+        const pct = (d && d.cible_2026) ? Math.min(d.taux_conso * 100, 100) : 0;
+        const barColor = !d ? '#9ca3af'
+          : d.taux_conso >= 0.80 ? '#c0392b'
+          : d.taux_conso >= 0.50 ? '#d35400' : '#1a6b3c';
+        const progressBar = d ? `
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+              <div style="width:${pct.toFixed(1)}%;height:100%;background:${barColor};border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px;font-weight:600;color:${barColor};min-width:38px;text-align:right;">${(d.taux_conso*100).toFixed(1)} %</span>
+          </div>` : '—';
+
+        rows += `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td class="number">${d ? fmtCom(d.cp_2024) : '—'}</td>
+            <td class="number">${d ? fmtCom(d.cp_2025) : '—'}</td>
+            <td class="number" style="color:var(--vert);font-weight:600;">${d ? fmtCom(d.cible_2026) : '—'}</td>
+            <td class="number">${d ? fmtCom(d.cp_2026) : '—'}</td>
+            <td style="min-width:140px;padding:8px 10px;">${progressBar}</td>
+          </tr>`;
+      }));
+
+      // ── KPIs globaux ──────────────────────────────────────────────
+      const tauxTotal  = totaux.cible_2026 ? totaux.cp_2026 / totaux.cible_2026 : 0;
+      const tStyle     = tauxTotal >= 0.80 ? {color:'#c0392b',bg:'#FEF2F2',border:'#c0392b'}
+                       : tauxTotal >= 0.50 ? {color:'#d35400',bg:'#FFF7ED',border:'#d35400'}
+                       :                    {color:'#1a6b3c',bg:'#F0FDF4',border:'#22c55e'};
+      const pctBar     = Math.min(tauxTotal * 100, 100).toFixed(1);
+
+      const kpis = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px;">
+
+          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid var(--vert);">
+            <div style="font-size:10px;font-weight:700;color:var(--vert);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Cible 2026</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtCom(totaux.cible_2026)}</div>
+            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">Enveloppe totale</div>
+          </div>
+
+          <div style="background:${tStyle.bg};border-radius:8px;padding:14px 16px;border-left:3px solid ${tStyle.border};">
+            <div style="font-size:10px;font-weight:700;color:${tStyle.color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">% Consommé (CP)</div>
+            <div style="font-size:22px;font-weight:700;color:${tStyle.color};line-height:1.1;">${(tauxTotal*100).toFixed(1)} %</div>
+            <div style="height:5px;background:rgba(0,0,0,.1);border-radius:3px;margin-top:8px;overflow:hidden;">
+              <div style="width:${pctBar}%;height:100%;background:${tStyle.color};border-radius:3px;"></div>
+            </div>
+          </div>
+
+          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid #6B3FA0;">
+            <div style="font-size:10px;font-weight:700;color:#6B3FA0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Disponible CP</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtCom(totaux.cap_cp_2026)}</div>
+            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">Reste à consommer</div>
+          </div>
+
+        </div>`;
+
+      // ── Date d'import commune (première valeur non nulle) ──────────
+      let dateImportCommune = null;
+      allBlocs.forEach(bloc => bloc.forEach(s => {
+        if (dateImportCommune) return;
+        const d = getComData(s.id);
+        if (d && d.date_import) dateImportCommune = d.date_import;
+      }));
+
+      // ── Ligne totale barre ─────────────────────────────────────────
+      const totalBar = `
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+            <div style="width:${pctBar}%;height:100%;background:${tStyle.color};border-radius:3px;"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:${tStyle.color};min-width:38px;text-align:right;">${(tauxTotal*100).toFixed(1)} %</span>
+        </div>`;
+
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">📣</div>
+            <div class="section-title">Dépenses de Communication</div>
+          </div>
+
+          ${kpis}
+
+          <button id="comm-toggle-btn" onclick="(function(){
+            var w = document.getElementById('comm-table-wrapper');
+            var btn = document.getElementById('comm-toggle-btn');
+            var open = w.style.display !== 'none';
+            w.style.display = open ? 'none' : 'block';
+            btn.innerHTML = open ? '▶&nbsp; Voir le détail par structure' : '▼&nbsp; Masquer le détail';
+          })()"
+          style="background:none;border:1px solid var(--bord);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gris2);cursor:pointer;margin-bottom:12px;">
+            ▶&nbsp; Voir le détail par structure
+          </button>
+
+          <div id="comm-table-wrapper" style="display:none;">
+            ${dateImportCommune ? `<div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">📅 Données CP 2026 au <strong style="color:var(--gris2);">${dateImportCommune}</strong></div>` : ''}
+            <table>
+              <thead>
+                <tr>
+                  <th>Structure</th>
+                  <th class="number">CP 2024</th>
+                  <th class="number">CP 2025</th>
+                  <th class="number" style="color:var(--vert);">Cible 2026</th>
+                  <th class="number">CP 2026</th>
+                  <th>% atteint</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+                <tr class="row-total">
+                  <td>TOTAL</td>
+                  <td class="number">${fmtCom(totaux.cp_2024)}</td>
+                  <td class="number">${fmtCom(totaux.cp_2025)}</td>
+                  <td class="number" style="color:var(--vert);font-weight:700;">${fmtCom(totaux.cible_2026)}</td>
+                  <td class="number">${fmtCom(totaux.cp_2026)}</td>
+                  <td style="padding:8px 10px;">${totalBar}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    init();
+  </script>
 </body>
 </html>
