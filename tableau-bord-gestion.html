@@ -464,29 +464,38 @@
     // ═══════════════════════════════════════════════════════
 
     function getTotauxVehiculesAnnee(annee) {
-      let nb = 0, nbVetustes = 0, budget = 0, etpt = 0, etptSU = 0, hasData = false;
+      let nb = 0, nbVetustes = 0, etpt = 0, etptSU = 0, hasData = false;
       for (let i = 0; i < structuresData.id.length; i++) {
         const ta = structuresData.Type_Affichage?.[i];
         if (!['DI_Hexagone','DI_Outremer','DR_Antilles','DR_Outremer','SCN'].includes(ta)) continue;
         const c = getConsolidation(structuresData.id[i], annee);
-        if (!c) continue;
-        if (c.nb_vehicules === 0 && c.budget_vehicules === 0) continue;
+        if (!c || c.nb_vehicules === 0) continue;
         hasData = true;
         nb         += c.nb_vehicules;
         nbVetustes += c.nb_vetustes;
-        budget     += c.budget_vehicules;
         etpt       += c.effectif_total;
         etptSU     += c.effectif_su;
       }
       if (!hasData || nb === 0) return null;
+
+      // Coût fonctionnement / véhicule : lire depuis Consolidation (perimetre National)
+      let cout_fonct = 0;
+      if (consolidationNationaleData) {
+        for (let i = 0; i < consolidationNationaleData.Perimetre.length; i++) {
+          if (consolidationNationaleData.Perimetre[i] === 'National' && consolidationNationaleData.Annee[i] === annee) {
+            cout_fonct = Number(consolidationNationaleData.Moy_Cout_Fonctionnement_Par_Vehicule?.[i]) || 0;
+            break;
+          }
+        }
+      }
+
       return {
         nb,
         nb_vetustes: nbVetustes,
         taux_vetuste: nb > 0 ? (nbVetustes / nb * 100) : 0,
         ratio_agent: etpt > 0 ? nb / etpt : 0,
         ratio_su:    etptSU > 0 ? nb / etptSU : 0,
-        budget,
-        cout_fonct:  nb > 0 ? budget / nb : 0,
+        cout_fonct,
       };
     }
 
