@@ -488,6 +488,22 @@
       };
     }
 
+    function getTotauxITAnnee(annee) {
+      // ✅ Lit depuis Consolidation (périmètre National) — source unique de vérité Grist
+      const i = getNationalRow(annee);
+      if (i === null) return null;
+      const d = consolidationNationaleData;
+      const budget = Number(d.Total_Budget_IT?.[i]) || 0;
+      const it_par_agent = Number(d.Moyenne_Budget_IT_Par_Agent?.[i]) || 0;
+      if (budget === 0 && it_par_agent === 0) return null;
+      return {
+        budget,
+        budget_4ans:    Number(d.Total_Budget_IT_4ans?.[i])              || 0,
+        it_par_agent,
+        it_par_agent_lisse: Number(d.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[i]) || 0,
+      };
+    }
+
     function renderKPIEvolution() {
       const anneesValides = ANNEES_DISPO.filter(a => getTotauxAnnee(a) !== null);
       if (anneesValides.length === 0) return '';
@@ -633,6 +649,67 @@
       makeChart('spark-veh-vetuste',  anneesValides.map(a => { const s=getTotauxVehiculesAnnee(a); return s?s.taux_vetuste:null; }),'rgb(192,90,0)');
       makeChart('spark-veh-ratio-su', anneesValides.map(a => { const s=getTotauxVehiculesAnnee(a); return s?s.ratio_su:null; }),    'rgb(107,63,160)');
       makeChart('spark-veh-cout',     anneesValides.map(a => { const s=getTotauxVehiculesAnnee(a); return s?s.cout_fonct:null; }),  'rgb(26,107,60)');
+    }
+
+    function drawSparklinesMissions() {
+      const anneesValides = ANNEES_DISPO.filter(a => getTotauxMissionsAnnee(a) !== null);
+      if (anneesValides.length < 2) return;
+      const labels = anneesValides.map(String);
+
+      const makeChart = (id, data, color) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const existing = Chart.getChart(el);
+        if (existing) existing.destroy();
+        new Chart(el.getContext('2d'), {
+          type: 'line',
+          data: { labels, datasets: [{ data, borderColor: color, borderWidth: 2,
+            backgroundColor: color.replace('rgb','rgba').replace(')',',0.10)'),
+            fill: true, tension: 0.4,
+            pointRadius: 3, pointHoverRadius: 5,
+            pointBackgroundColor: color, pointBorderColor: '#fff', pointBorderWidth: 1.5 }]},
+          options: {
+            responsive: false, animation: false,
+            plugins: { legend:{ display:false }, tooltip:{ enabled:true }},
+            scales: { x:{ display:false }, y:{ display:false, beginAtZero: false }}
+          }
+        });
+      };
+
+      makeChart('spark-fm-formation', anneesValides.map(a => { const s=getTotauxMissionsAnnee(a); return s?s.formation/1e3:null; }),         'rgb(19,81,168)');
+      makeChart('spark-fm-autres',    anneesValides.map(a => { const s=getTotauxMissionsAnnee(a); return s?s.autres_missions/1e3:null; }),    'rgb(107,63,160)');
+      makeChart('spark-fm-agent',     anneesValides.map(a => { const s=getTotauxMissionsAnnee(a); return s?s.frais_par_agent:null; }),        'rgb(192,90,0)');
+    }
+
+    function drawSparklinesIT() {
+      const anneesValides = ANNEES_DISPO.filter(a => getTotauxITAnnee(a) !== null);
+      if (anneesValides.length < 2) return;
+      const labels = anneesValides.map(String);
+
+      const makeChart = (id, data, color) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const existing = Chart.getChart(el);
+        if (existing) existing.destroy();
+        new Chart(el.getContext('2d'), {
+          type: 'line',
+          data: { labels, datasets: [{ data, borderColor: color, borderWidth: 2,
+            backgroundColor: color.replace('rgb','rgba').replace(')',',0.10)'),
+            fill: true, tension: 0.4,
+            pointRadius: 3, pointHoverRadius: 5,
+            pointBackgroundColor: color, pointBorderColor: '#fff', pointBorderWidth: 1.5 }]},
+          options: {
+            responsive: false, animation: false,
+            plugins: { legend:{ display:false }, tooltip:{ enabled:true }},
+            scales: { x:{ display:false }, y:{ display:false, beginAtZero: false }}
+          }
+        });
+      };
+
+      makeChart('spark-it-budget',    anneesValides.map(a => { const s=getTotauxITAnnee(a); return s?s.budget/1e3:null; }),         'rgb(19,81,168)');
+      makeChart('spark-it-b4ans',     anneesValides.map(a => { const s=getTotauxITAnnee(a); return s?s.budget_4ans/1e3:null; }),     'rgb(107,63,160)');
+      makeChart('spark-it-agent',     anneesValides.map(a => { const s=getTotauxITAnnee(a); return s?s.it_par_agent:null; }),        'rgb(192,90,0)');
+      makeChart('spark-it-lisse',     anneesValides.map(a => { const s=getTotauxITAnnee(a); return s?s.it_par_agent_lisse:null; }), 'rgb(26,107,60)');
     }
 
     // ═══════════════════════════════════════════════════════
@@ -785,6 +862,8 @@
         // Dessiner les sparklines après injection DOM
         setTimeout(drawSparklines, 60);
         setTimeout(drawSparklinesVehicules, 120);
+        setTimeout(drawSparklinesMissions, 150);
+        setTimeout(drawSparklinesIT, 180);
         
       } catch (error) {
         console.error('❌ Erreur initialisation:', error);
@@ -1390,82 +1469,323 @@
       `;
     }
 
+    function getTotauxMissionsAnnee(annee) {
+      const i = getNationalRow(annee);
+      if (i === null) return null;
+      const d = consolidationNationaleData;
+      const formation = Number(d.Total_Formation?.[i]) || 0;
+      const autres    = Number(d.Total_Autres_Missions?.[i]) || 0;
+      const frais_agent = Number(d.Moyenne_Frais_Par_Agent?.[i]) || 0;
+      if (formation === 0 && autres === 0 && frais_agent === 0) return null;
+      return {
+        formation,
+        autres_missions: autres,
+        frais_par_agent: frais_agent,
+        transport:   Number(d.Total_Transport?.[i])   || 0,
+        hebergement: Number(d.Total_Hebergement?.[i]) || 0,
+        repas:       Number(d.Total_Repas?.[i])       || 0,
+      };
+    }
+
     function renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
       const rows = buildSectionRows('missions', blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes);
-      
+
+      // ── KPI évolution multi-années ────────────────────────────────
+      const anneesValides = ANNEES_DISPO.filter(a => getTotauxMissionsAnnee(a) !== null);
+      let kpiStrip = '';
+
+      if (anneesValides.length > 0) {
+        const sN   = getTotauxMissionsAnnee(anneesValides[anneesValides.length - 1]);
+        const sN1  = anneesValides.length >= 2 ? getTotauxMissionsAnnee(anneesValides[anneesValides.length - 2]) : null;
+        const sDep = getTotauxMissionsAnnee(anneesValides[0]);
+        const annN1  = anneesValides.length >= 2 ? anneesValides[anneesValides.length - 2] : null;
+        const annDep = anneesValides[0];
+
+        const evol = (vN, vN1, annRef) => {
+          if (!vN1 || vN1 === 0 || !annRef) return '';
+          const p = ((vN - vN1) / vN1 * 100);
+          const s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 0.5 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+          return `<span style="color:${c};font-weight:700;">${s}${p.toFixed(1)}%</span> vs ${annRef}`;
+        };
+        const evolDepuis = (vN, vDep, annDep) => {
+          if (!vDep || vDep === 0 || vDep === vN) return '';
+          const p = ((vN - vDep) / vDep * 100);
+          const s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 1 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+          return ` — <span style="color:${c};">${s}${p.toFixed(1)}% depuis ${annDep}</span>`;
+        };
+
+        const fmtKEur = v => (v >= 1e6 ? (v/1e6).toFixed(1)+' M€' : Math.round(v/1e3).toLocaleString('fr-FR')+' k€');
+        const fmtEur  = v => Math.round(v).toLocaleString('fr-FR') + ' €';
+
+        // Mini barre T/H/R pour la card récap
+        const mkBar = (t, h, r) => {
+          const tot = t + h + r;
+          if (!tot) return '';
+          const pt = (t/tot*100).toFixed(0), ph = (h/tot*100).toFixed(0), pr = (r/tot*100).toFixed(0);
+          return `<div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:4px;">
+            ${t > 0 ? `<div style="flex:${pt};background:var(--rep2);" title="Transport ${pt}%"></div>` : ''}
+            ${h > 0 ? `<div style="flex:${ph};background:var(--vert);" title="Hébergement ${ph}%"></div>` : ''}
+            ${r > 0 ? `<div style="flex:${pr};background:var(--orange);" title="Repas ${pr}%"></div>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;margin-top:3px;font-size:9px;color:var(--gris2);">
+            <span style="color:var(--rep2);">▪ T ${pt}%</span>
+            <span style="color:var(--vert);">▪ H ${ph}%</span>
+            <span style="color:var(--orange);">▪ R ${pr}%</span>
+          </div>`;
+        };
+
+        const makeHistoRow = (formatFn, getVal) => anneesValides.map(a => {
+          const sv = getTotauxMissionsAnnee(a);
+          const val = sv ? getVal(sv) : null;
+          const isLast = (a === anneesValides[anneesValides.length - 1]);
+          return `<div style="text-align:center;">
+            <div style="font-size:9px;color:var(--gris3);font-weight:600;">${a}</div>
+            <div style="font-size:10px;font-weight:${isLast ? '700' : '500'};color:${isLast ? 'var(--gris1)' : 'var(--gris2)'};">${val !== null ? formatFn(val) : '—'}</div>
+          </div>`;
+        }).join('');
+
+        kpiStrip = `
+        <div class="kpi-strip">
+
+          <div class="kpi-evol-card" style="border-left-color:var(--rep2);">
+            <div class="kpi-evol-label">Total Formation</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fmtKEur(sN.formation)}</div>
+            <div class="kpi-evol-sub">${evol(sN.formation, sN1?.formation, annN1)}${evolDepuis(sN.formation, sDep?.formation, annDep)}</div>
+            <div class="spark-wrap"><canvas id="spark-fm-formation"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtKEur, s => s.formation)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:#6B3FA0;">
+            <div class="kpi-evol-label">Autres Missions</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fmtKEur(sN.autres_missions)}</div>
+            <div class="kpi-evol-sub">${evol(sN.autres_missions, sN1?.autres_missions, annN1)}${evolDepuis(sN.autres_missions, sDep?.autres_missions, annDep)}</div>
+            <div class="spark-wrap"><canvas id="spark-fm-autres"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtKEur, s => s.autres_missions)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:var(--orange);">
+            <div class="kpi-evol-label">Frais Moyen / Agent</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fmtEur(sN.frais_par_agent)}</div>
+            <div class="kpi-evol-sub">${evol(sN.frais_par_agent, sN1?.frais_par_agent, annN1)}${evolDepuis(sN.frais_par_agent, sDep?.frais_par_agent, annDep)}${moyennes ? formatEcartMoyenne(sN.frais_par_agent, moyennes.frais_par_agent) : ''}</div>
+            <div class="spark-wrap"><canvas id="spark-fm-agent"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtEur, s => s.frais_par_agent)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:var(--vert);">
+            <div class="kpi-evol-label">Répartition T / H / R</div>
+            <div class="kpi-evol-value" style="font-size:14px;margin-top:4px;">${fmtKEur(sN.transport + sN.hebergement + sN.repas)}</div>
+            <div class="kpi-evol-sub" style="min-height:0;"></div>
+            ${mkBar(sN.transport, sN.hebergement, sN.repas)}
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:8px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtKEur, s => s.transport + s.hebergement + s.repas)}
+            </div>
+          </div>
+
+        </div>`;
+      }
+
       return `
         <div class="section">
           <div class="section-header">
             <div class="section-icon">✈️</div>
             <div class="section-title">Frais de Mission</div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Structure</th>
-                <th style="width: 35%;">Répartition T/H/R</th>
-                <th class="number">Total Formation</th>
-                <th class="number">Total Autres Missions</th>
-                <th class="number">Frais Moyen / Agent</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-              <tr class="row-total">
-                <td>TOTAL</td>
-                <td>
-                  <div class="percent-bar-container">
-                    ${renderPercentBar(totaux.transport, totaux.hebergement, totaux.repas)}
-                  </div>
-                </td>
-                <td class="number">${formatMilliers(totaux.formation)} k€</td>
-                <td class="number">${formatMilliers(totaux.autres_missions)} k€</td>
-                <td class="number">${formatEuro(totaux.frais_par_agent)}</td>
-              </tr>
-            </tbody>
-          </table>
+
+          ${kpiStrip}
+
+          <button id="fm-toggle-btn" onclick="(function(){
+            var w   = document.getElementById('fm-table-wrapper');
+            var btn = document.getElementById('fm-toggle-btn');
+            var open = w.style.display !== 'none';
+            w.style.display = open ? 'none' : 'block';
+            btn.innerHTML = open ? '&#9654;&nbsp; Voir le détail par structure' : '&#9660;&nbsp; Masquer le détail';
+          })()"
+          style="background:none;border:1px solid var(--bord);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gris2);cursor:pointer;margin-bottom:12px;">
+            &#9654;&nbsp; Voir le détail par structure
+          </button>
+
+          <div id="fm-table-wrapper" style="display:none;">
+            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Structure</th>
+                  <th style="width: 35%;">Répartition T/H/R</th>
+                  <th class="number">Total Formation</th>
+                  <th class="number">Total Autres Missions</th>
+                  <th class="number">Frais Moyen / Agent</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+                <tr class="row-total">
+                  <td>TOTAL</td>
+                  <td>
+                    <div class="percent-bar-container">
+                      ${renderPercentBar(totaux.transport, totaux.hebergement, totaux.repas)}
+                    </div>
+                  </td>
+                  <td class="number">${formatMilliers(totaux.formation)} k€</td>
+                  <td class="number">${formatMilliers(totaux.autres_missions)} k€</td>
+                  <td class="number">${formatEuro(totaux.frais_par_agent)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
     }
 
     function renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes) {
       const rows = buildSectionRows('it', blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes);
-      
+
+      // ── KPI évolution multi-années ────────────────────────────────
+      const anneesValides = ANNEES_DISPO.filter(a => getTotauxITAnnee(a) !== null);
+      let kpiStrip = '';
+
+      if (anneesValides.length > 0) {
+        const sN   = getTotauxITAnnee(anneesValides[anneesValides.length - 1]);
+        const sN1  = anneesValides.length >= 2 ? getTotauxITAnnee(anneesValides[anneesValides.length - 2]) : null;
+        const sDep = getTotauxITAnnee(anneesValides[0]);
+        const annN1  = anneesValides.length >= 2 ? anneesValides[anneesValides.length - 2] : null;
+        const annDep = anneesValides[0];
+
+        const evol = (vN, vN1, annRef) => {
+          if (!vN1 || vN1 === 0 || !annRef) return '';
+          const p = ((vN - vN1) / vN1 * 100);
+          const s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 0.5 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+          return `<span style="color:${c};font-weight:700;">${s}${p.toFixed(1)}%</span> vs ${annN1}`;
+        };
+        const evolDepuis = (vN, vDep, annDep) => {
+          if (!vDep || vDep === 0 || vDep === vN) return '';
+          const p = ((vN - vDep) / vDep * 100);
+          const s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 1 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+          return ` — <span style="color:${c};">${s}${p.toFixed(1)}% depuis ${annDep}</span>`;
+        };
+
+        const fmtKEur = v => (v >= 1e6 ? (v/1e6).toFixed(1)+' M€' : Math.round(v/1e3).toLocaleString('fr-FR')+' k€');
+        const fmtEur  = v => Math.round(v).toLocaleString('fr-FR') + ' €';
+
+        const makeHistoRow = (formatFn, getVal) => {
+          return anneesValides.map(a => {
+            const sv = getTotauxITAnnee(a);
+            const val = sv ? getVal(sv) : null;
+            const isLast = (a === anneesValides[anneesValides.length - 1]);
+            return `<div style="text-align:center;">
+              <div style="font-size:9px;color:var(--gris3);font-weight:600;">${a}</div>
+              <div style="font-size:10px;font-weight:${isLast ? '700' : '500'};color:${isLast ? 'var(--gris1)' : 'var(--gris2)'};">${val !== null ? formatFn(val) : '—'}</div>
+            </div>`;
+          }).join('');
+        };
+
+        kpiStrip = `
+        <div class="kpi-strip">
+
+          <div class="kpi-evol-card" style="border-left-color:var(--rep2);">
+            <div class="kpi-evol-label">Budget IT (CP)</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fmtKEur(sN.budget)}</div>
+            <div class="kpi-evol-sub">${evol(sN.budget, sN1?.budget, annN1)}${evolDepuis(sN.budget, sDep?.budget, annDep)}</div>
+            <div class="spark-wrap"><canvas id="spark-it-budget"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtKEur, s => s.budget)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:#6B3FA0;">
+            <div class="kpi-evol-label">Budget Moyen 4 ans</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fmtKEur(sN.budget_4ans)}</div>
+            <div class="kpi-evol-sub">${evol(sN.budget_4ans, sN1?.budget_4ans, annN1)}${evolDepuis(sN.budget_4ans, sDep?.budget_4ans, annDep)}</div>
+            <div class="spark-wrap"><canvas id="spark-it-b4ans"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtKEur, s => s.budget_4ans)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:var(--orange);">
+            <div class="kpi-evol-label">Coût IT / Agent</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fmtEur(sN.it_par_agent)}</div>
+            <div class="kpi-evol-sub">${evol(sN.it_par_agent, sN1?.it_par_agent, annN1)}${evolDepuis(sN.it_par_agent, sDep?.it_par_agent, annDep)}${moyennes ? formatEcartMoyenne(sN.it_par_agent, moyennes.it_par_agent) : ''}</div>
+            <div class="spark-wrap"><canvas id="spark-it-agent"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtEur, s => s.it_par_agent)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:var(--vert);">
+            <div class="kpi-evol-label">Coût / Agent Lissé</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fmtEur(sN.it_par_agent_lisse)}</div>
+            <div class="kpi-evol-sub">${evol(sN.it_par_agent_lisse, sN1?.it_par_agent_lisse, annN1)}${evolDepuis(sN.it_par_agent_lisse, sDep?.it_par_agent_lisse, annDep)}${moyennes ? formatEcartMoyenne(sN.it_par_agent_lisse, moyennes.it_par_agent_lisse) : ''}</div>
+            <div class="spark-wrap"><canvas id="spark-it-lisse"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtEur, s => s.it_par_agent_lisse)}
+            </div>
+          </div>
+
+        </div>`;
+      }
+
       return `
         <div class="section">
           <div class="section-header">
             <div class="section-icon">💻</div>
             <div class="section-title">Informatique</div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Structure</th>
-                <th class="number">Postes Fixes</th>
-                <th class="number">Portables</th>
-                <th class="number">Total Postes</th>
-                <th class="number">Taux Équip.</th>
-                <th class="number">Budget</th>
-                <th class="number">Budget Moy. 4 ans</th>
-                <th class="number">Coût / Agent</th>
-                <th class="number">Coût / Agent Lissé</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-              <tr class="row-total">
-                <td>TOTAL</td>
-                <td class="number">${formatNumber(totaux.postes_fixes)}</td>
-                <td class="number">${formatNumber(totaux.portables)}</td>
-                <td class="number">${formatNumber(totaux.nb_postes_total)}</td>
-                <td class="number">${Number(totaux.taux_equipement).toFixed(3)}</td>
-                <td class="number">${formatMilliers(totaux.budget_it)} k€</td>
-                <td class="number">${formatMilliers(totaux.budget_it_4ans)} k€</td>
-                <td class="number">${formatEuro(totaux.it_par_agent)}</td>
-                <td class="number">${formatEuro(totaux.it_par_agent_lisse)}</td>
-              </tr>
-            </tbody>
-          </table>
+
+          ${kpiStrip}
+
+          <button id="it-toggle-btn" onclick="(function(){
+            var w   = document.getElementById('it-table-wrapper');
+            var btn = document.getElementById('it-toggle-btn');
+            var open = w.style.display !== 'none';
+            w.style.display = open ? 'none' : 'block';
+            btn.innerHTML = open ? '&#9654;&nbsp; Voir le détail par structure' : '&#9660;&nbsp; Masquer le détail';
+          })()"
+          style="background:none;border:1px solid var(--bord);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gris2);cursor:pointer;margin-bottom:12px;">
+            &#9654;&nbsp; Voir le détail par structure
+          </button>
+
+          <div id="it-table-wrapper" style="display:none;">
+            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Structure</th>
+                  <th class="number">Postes Fixes</th>
+                  <th class="number">Portables</th>
+                  <th class="number">Total Postes</th>
+                  <th class="number">Taux Équip.</th>
+                  <th class="number">Budget</th>
+                  <th class="number">Budget Moy. 4 ans</th>
+                  <th class="number">Coût / Agent</th>
+                  <th class="number">Coût / Agent Lissé</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+                <tr class="row-total">
+                  <td>TOTAL</td>
+                  <td class="number">${formatNumber(totaux.postes_fixes)}</td>
+                  <td class="number">${formatNumber(totaux.portables)}</td>
+                  <td class="number">${formatNumber(totaux.nb_postes_total)}</td>
+                  <td class="number">${Number(totaux.taux_equipement).toFixed(3)}</td>
+                  <td class="number">${formatMilliers(totaux.budget_it)} k€</td>
+                  <td class="number">${formatMilliers(totaux.budget_it_4ans)} k€</td>
+                  <td class="number">${formatEuro(totaux.it_par_agent)}</td>
+                  <td class="number">${formatEuro(totaux.it_par_agent_lisse)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
     }
