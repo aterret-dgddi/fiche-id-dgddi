@@ -2322,11 +2322,86 @@
           return false;
         }
 
-        addHeaderFooter(1);
+        // ── PAGE DE GARDE ───────────────────────────────────────────
+        loadingDiv.querySelector('div:last-child').textContent = 'Génération de la page de garde...';
 
-        // Capturer chaque section du contenu
-        const sections = container.querySelectorAll('.section, .fiche-header');
-        const targets = [container.querySelector('.fiche-header')];
+        // Fond pleine page bleu DGDDI
+        pdf.setFillColor(0, 47, 108);
+        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+
+        // Bande décorative dorée en bas
+        pdf.setFillColor(200, 160, 60);
+        pdf.rect(0, pageHeight - 18, pageWidth, 4, 'F');
+
+        // Bande blanche fine au-dessus de la dorée
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, pageHeight - 22, pageWidth, 1.5, 'F');
+
+        // Logo centré (zone haute)
+        if (logoData) {
+          const lw = 38, lh = 38;
+          const lx = (pageWidth - lw) / 2;
+          pdf.addImage(logoData, 'PNG', lx, 58, lw, lh);
+        }
+
+        // Ligne séparatrice blanche sous le logo
+        pdf.setDrawColor(255, 255, 255);
+        pdf.setLineWidth(0.6);
+        pdf.setGState(pdf.GState({ opacity: 0.35 }));
+        pdf.line(40, 106, pageWidth - 40, 106);
+        pdf.setGState(pdf.GState({ opacity: 1 }));
+
+        // Titre principal
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(22);
+        pdf.setFont('helvetica', 'bold');
+        const titre1 = 'TABLEAU DE BORD';
+        const titre2 = 'DE GESTION';
+        pdf.text(titre1, pageWidth / 2, 124, { align: 'center' });
+        pdf.text(titre2, pageWidth / 2, 134, { align: 'center' });
+
+        // Sous-titre
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(180, 200, 240);
+        pdf.text('Direction Générale des Douanes et Droits Indirects', pageWidth / 2, 146, { align: 'center' });
+
+        // Badge année — rectangle arrondi simulé
+        const anneeStr = String(ANNEE);
+        pdf.setFillColor(255, 255, 255);
+        const badgeW = 48, badgeH = 14;
+        const badgeX = (pageWidth - badgeW) / 2;
+        pdf.roundedRect(badgeX, 158, badgeW, badgeH, 3, 3, 'F');
+        pdf.setTextColor(0, 47, 108);
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Synthèse ' + anneeStr, pageWidth / 2, 167.5, { align: 'center' });
+
+        // Bloc informatif bas de page
+        pdf.setFillColor(255, 255, 255);
+        pdf.setGState(pdf.GState({ opacity: 0.07 }));
+        pdf.rect(30, pageHeight - 62, pageWidth - 60, 34, 'F');
+        pdf.setGState(pdf.GState({ opacity: 1 }));
+
+        pdf.setTextColor(180, 200, 240);
+        pdf.setFontSize(8.5);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text('Document généré le ' + dateExport, pageWidth / 2, pageHeight - 46, { align: 'center' });
+        pdf.text('Usage interne — Données à caractère confidentiel', pageWidth / 2, pageHeight - 38, { align: 'center' });
+
+        // Numéro de page couverture (discret, sans header/footer)
+        pdf.setTextColor(100, 130, 180);
+        pdf.setFontSize(7.5);
+        pdf.text('DGDDI — Direction Générale des Douanes et Droits Indirects', pageWidth / 2, pageHeight - 8, { align: 'center' });
+
+        // ── PAGES CONTENU (à partir de la page 2) ───────────────────
+        pdf.addPage();
+        currentPage = 2;
+        yPosition = margin + headerHeight + 5;
+        addHeaderFooter(currentPage);
+
+        // Capturer chaque section du contenu (on saute le fiche-header redondant avec la couverture)
+        const targets = [];
         container.querySelectorAll('.section').forEach(s => targets.push(s));
 
         for (const el of targets) {
