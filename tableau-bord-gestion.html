@@ -2193,27 +2193,27 @@
         #export-bar { display: none !important; }
       `;
 
-      const html = \`<!DOCTYPE html>
+      const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Tableau de Bord de Gestion DGDDI - \${annee}</title>
+  <title>Tableau de Bord de Gestion DGDDI - ${annee}</title>
   <link href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/icons/icons.min.css" rel="stylesheet">
-  <style>\${styleContent}\${printStyles}</style>
+  <style>${styleContent}${printStyles}</style>
 </head>
 <body>
   <div class="container" style="max-width:1200px;margin:0 auto;">
-    \${containerHTML}
+    ${containerHTML}
   </div>
-  <p style="text-align:right;font-size:10px;color:#888;margin:16px 20px 0;font-family:sans-serif;">Exporté le \${dateExport}</p>
+  <p style="text-align:right;font-size:10px;color:#888;margin:16px 20px 0;font-family:sans-serif;">Exporté le ${dateExport}</p>
 </body>
-</html>\`;
+</html>`;
 
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = \`tableau-bord-gestion-\${annee}.html\`;
+      a.download = `tableau-bord-gestion-${annee}.html`;
       a.click();
       URL.revokeObjectURL(url);
     }
