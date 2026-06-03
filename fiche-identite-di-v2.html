@@ -1305,7 +1305,74 @@
       </div><!-- fin sous-section Communication -->
 
     </div><!-- fin section Budget & Consommation -->
-    
+
+    <!-- SECTION FONCTIONNEMENT COURANT -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🏛️</div>
+        <div class="section-title">Fonctionnement courant</div>
+      </div>
+
+      <!-- 4 KPI Pills -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:24px;">
+
+        <!-- PILL 1 : Évolution CP total 4 ans -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">Évolution CP total 2022→2025</div>
+          <div id="fonct-pill-evol">—</div>
+          <div id="fonct-pill-evol-detail" class="kpi-card-details"></div>
+        </div>
+
+        <!-- PILL 2 : Évolution part maîtrisable -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">Évolution part maîtrisable</div>
+          <div id="fonct-pill-pct-m">—</div>
+          <div id="fonct-pill-pct-m-detail" class="kpi-card-details"></div>
+        </div>
+
+        <!-- PILL 3 : Maîtrisable / agent 2025 -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">Maîtrisable / agent 2025</div>
+          <div id="fonct-pill-agent-2025">—</div>
+          <div id="fonct-pill-agent-2025-detail" class="kpi-card-details"></div>
+        </div>
+
+        <!-- PILL 4 : Maîtrisable / agent lissé 4 ans -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">Maîtrisable / agent (moy. 4 ans)</div>
+          <div id="fonct-pill-agent-4ans">—</div>
+          <div id="fonct-pill-agent-4ans-detail" class="kpi-card-details"></div>
+        </div>
+
+      </div>
+
+      <!-- Tableau multi-années -->
+      <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;margin-bottom:20px;">
+        <table style="width:100%;border-collapse:collapse;min-width:520px;">
+          <thead>
+            <tr style="background:var(--gris4);">
+              <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Indicateur</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2022</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2023</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2024</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:600;font-size:12px;border-bottom:0.5px solid var(--bord);color:var(--rep);">2025</th>
+            </tr>
+          </thead>
+          <tbody id="fonct-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Commentaire -->
+      <div style="margin-top:4px;">
+        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Commentaire</label>
+        <textarea id="fonct-commentaire"
+                  style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
+                  placeholder="Ajouter un commentaire sur le fonctionnement courant..."></textarea>
+      </div>
+    </div><!-- fin section Fonctionnement courant -->
+
      <!-- SECTION FRAIS DE MISSION -->
     <!-- À insérer après la section Informatique (ligne 825) et avant la section Véhicules (ligne 828) -->
     
@@ -1902,6 +1969,7 @@
       refreshRH(struct.id, annee);
       refreshBudget(struct.id, annee);
       refreshCommunication(struct.id, annee);
+      refreshFonctionnement(struct.id, annee);
       refreshFraisMission(struct.id, annee);
       refreshInformatique(struct.id, annee);
       refreshVehicules(struct.id, annee);

@@ -18,6 +18,7 @@ const FICHE_STATE = {
     frais_mission: null,
     informatique: null,
     communication: null,
+    fonctionnement: null,
     notif_bop: null,
     consolidation: null,
 	consolidation_structure: null,
@@ -200,13 +201,14 @@ async function loadAllData() {
     showLoader('Chargement des données...');
     
     // Charger toutes les tables en parallèle
-    const [structures, rh, vehicules, frais_mission, informatique, communication, notif_bop, consolidation, consolidation_structure, commentaires, infbud40] = await Promise.all([
+    const [structures, rh, vehicules, frais_mission, informatique, communication, fonctionnement, notif_bop, consolidation, consolidation_structure, commentaires, infbud40] = await Promise.all([
       grist.docApi.fetchTable('Structures'),
       grist.docApi.fetchTable('RH'),
       grist.docApi.fetchTable('Vehicules'),
       grist.docApi.fetchTable('Frais_Mission'),
       grist.docApi.fetchTable('Informatique'),
       grist.docApi.fetchTable('Communication').catch(() => null),
+      grist.docApi.fetchTable('Fonctionnement').catch(() => null),
       grist.docApi.fetchTable('Notif_BOP'),
       grist.docApi.fetchTable('Consolidation'),
 	  grist.docApi.fetchTable('Consolidation_Structure'),
@@ -220,6 +222,7 @@ async function loadAllData() {
     FICHE_STATE.data.frais_mission = frais_mission;
     FICHE_STATE.data.informatique = informatique;
     FICHE_STATE.data.communication = communication;
+    FICHE_STATE.data.fonctionnement = fonctionnement;
     FICHE_STATE.data.notif_bop = notif_bop;
     FICHE_STATE.data.consolidation = consolidation;
 	FICHE_STATE.data.consolidation_structure = consolidation_structure;
@@ -674,6 +677,11 @@ function getConsolidationData(perimetre, annee) {
     moy_budget_it_par_agent:      n('Moyenne_Budget_IT_Par_Agent'),
     moy_ratio_poste_agent:        n('Moy_Ratio_Poste_Agent'),
     moy_budget_it_moyen_4ans:     n('Moy_Budget_IT_Moyen_Par_Agent_4ans'),
+
+    // === FONCTIONNEMENT ===
+    moy_fonct_par_agent:          n('Moy_Fonct_CP_Par_Agent'),
+    moy_fonct_par_agent_4ans:     n('Moy_Fonct_Par_Agent_4ans'),
+    moy_pct_maitrisable:          n('Moy_Pct_Maitrisable'),
   };
 }
 
@@ -2463,6 +2471,244 @@ function refreshCommunication(structureId, annee) {
     ta.value = getCommentaire(structureId, annee, 'Communication');
     ta.onblur = function() {
       saveCommentaire(structureId, annee, 'Communication', this.value);
+    };
+  }
+}
+
+
+// ============================================================================
+// MODULE FONCTIONNEMENT COURANT
+// ============================================================================
+
+/**
+ * Récupère les données de fonctionnement courant pour une structure.
+ * La table Fonctionnement a une ligne par structure (pas de dimension Annee).
+ * Pour DI 972 : cherche d'abord la ligne Est_Consolide=true.
+ * @param {number} structureId
+ * @returns {Object|null}
+ */
+function getFonctionnementData(structureId) {
+  const fon = FICHE_STATE.data.fonctionnement;
+  if (!fon || !fon.Structure) return null;
+
+  const structures = FICHE_STATE.data.structures;
+  const sIdx = structures ? structures.id.indexOf(structureId) : -1;
+  const isOutremerDI = sIdx !== -1
+    && structures.Type?.[sIdx] === 'DI'
+    && structures.Est_Outremer?.[sIdx];
+
+  let idx = -1;
+  if (isOutremerDI && fon.Est_Consolide) {
+    idx = fon.Structure.findIndex((s, i) => s === structureId && fon.Est_Consolide[i]);
+  }
+  if (idx === -1) {
+    idx = fon.Structure.findIndex((s, i) => s === structureId && !fon.Est_Consolide?.[i]);
+  }
+  if (idx === -1) {
+    idx = fon.Structure.indexOf(structureId);
+  }
+  if (idx === -1) return null;
+
+  const v = (col) => (fon[col] ? (fon[col][idx] || 0) : 0);
+
+  return {
+    cp_2022:              v('CP_2022'),
+    cp_2023:              v('CP_2023'),
+    cp_2024:              v('CP_2024'),
+    cp_2025:              v('CP_2025'),
+    cp_2022_m:            v('CP_2022_maitrisable'),
+    cp_2023_m:            v('CP_2023_maitrisable'),
+    cp_2024_m:            v('CP_2024_maitrisable'),
+    cp_2025_m:            v('CP_2025_maitrisable'),
+    evol_cp_4ans:         v('Evol_CP_4ans'),
+    evol_pct_maitrisable: v('Evol_Pct_Maitrisable'),
+    pct_m_2022:           v('Pct_maitrisable_2022'),
+    pct_m_2023:           v('Pct_maitrisable_2023'),
+    pct_m_2024:           v('Pct_maitrisable_2024'),
+    pct_m_2025:           v('Pct_maitrisable_2025'),
+    fonct_agent_2022:     v('Fonct_agent_2022'),
+    fonct_agent_2023:     v('Fonct_agent_2023'),
+    fonct_agent_2024:     v('Fonct_agent_2024'),
+    fonct_agent_2025:     v('Fonct_agent_2025'),
+    fonct_agent_4ans:     v('Fonct_agent_4ans'),
+  };
+}
+
+/**
+ * Détermine le périmètre de comparaison pour Fonctionnement.
+ * @param {number} structureId
+ * @returns {string}
+ */
+function getPerimetreFonctionnement(structureId) {
+  const structures = FICHE_STATE.data.structures;
+  if (!structures) return 'National';
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1) return 'National';
+  const type        = structures.Type?.[idx];
+  const estOutremer = structures.Est_Outremer?.[idx];
+  if (type === 'SCN')                   return 'SCN';
+  if (type === 'DI' && estOutremer)     return 'DI_Outremer';
+  if (type === 'DI' && !estOutremer)    return 'DI_Hexagone';
+  if (type === 'DR' && estOutremer)     return 'DR_Outremer';
+  return 'National';
+}
+
+/**
+ * Formate un montant Fonctionnement en K€.
+ * @param {number} val - Montant en euros
+ * @returns {string}
+ */
+function formatFonctMontant(val) {
+  if (!val) return '—';
+  return new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(Math.round(val / 1000)) + ' K€';
+}
+
+/**
+ * Rafraîchit la section Fonctionnement courant.
+ * @param {number} structureId
+ * @param {number} annee
+ */
+function refreshFonctionnement(structureId, annee) {
+  const d = getFonctionnementData(structureId);
+  const sigle = (() => {
+    const s = FICHE_STATE.data.structures;
+    const i = s ? s.id.indexOf(structureId) : -1;
+    return i !== -1 ? (s.Sigle?.[i] || '') : '';
+  })();
+
+  // ── Données absentes ───────────────────────────────────────────
+  if (!d) {
+    ['fonct-pill-evol', 'fonct-pill-pct-m', 'fonct-pill-agent-2025', 'fonct-pill-agent-4ans'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '—';
+    });
+    const tbody = document.getElementById('fonct-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>';
+    return;
+  }
+
+  // ── Helper comparaison vs moyenne ─────────────────────────────
+  const perimetre = getPerimetreFonctionnement(structureId);
+  const consoNat = getConsolidationData('National', annee);
+  const consoPer = getConsolidationData(perimetre, annee);
+
+  function buildComparison(val, moyNat, moyPer, labelNat, labelPer, inverser) {
+    if (!moyNat && !moyPer) return '';
+    let html = '';
+    [{ moy: moyNat, label: labelNat }, { moy: moyPer, label: labelPer }].forEach(({ moy, label }) => {
+      if (!moy) return;
+      const diff = ((val - moy) / moy) * 100;
+      const absDiff = Math.abs(diff);
+      if (absDiff < 1) { html += `<div style="font-size:10px;color:var(--gris3);">${label} : données similaires</div>`; return; }
+      const enHaut = diff > 0;
+      // Pour les dépenses : être au-dessus est défavorable (inverser=true)
+      const mauvais = inverser ? enHaut : !enHaut;
+      const color = mauvais ? 'var(--rouge)' : 'var(--vert)';
+      const sign = enHaut ? '+' : '';
+      html += `<div style="font-size:10px;color:${color};">${label} : ${sign}${absDiff.toFixed(1)} %</div>`;
+    });
+    return html;
+  }
+
+  // ── PILL 1 : Évolution CP total 2022→2025 ────────────────────
+  const pill1 = document.getElementById('fonct-pill-evol');
+  if (pill1) {
+    const evol = d.evol_cp_4ans;
+    const sign = evol >= 0 ? '+' : '';
+    const color = evol > 5 ? 'var(--rouge)' : evol < -5 ? 'var(--vert)' : 'var(--gris2)';
+    pill1.innerHTML = `<span style="font-size:22px;font-weight:700;color:${color};">${sign}${evol.toFixed(1)} %</span>`;
+    const detail = document.getElementById('fonct-pill-evol-detail');
+    if (detail) detail.innerHTML =
+      `<div style="font-size:11px;color:var(--gris3);">${formatFonctMontant(d.cp_2022)} → ${formatFonctMontant(d.cp_2025)}</div>`;
+  }
+
+  // ── PILL 2 : Évolution part maîtrisable ──────────────────────
+  const pill2 = document.getElementById('fonct-pill-pct-m');
+  if (pill2) {
+    const evol = d.evol_pct_maitrisable;
+    const sign = evol >= 0 ? '+' : '';
+    const color = evol > 2 ? 'var(--rouge)' : evol < -2 ? 'var(--vert)' : 'var(--gris2)';
+    pill2.innerHTML = `<span style="font-size:22px;font-weight:700;color:${color};">${sign}${evol.toFixed(1)} pt</span>`;
+    const detail = document.getElementById('fonct-pill-pct-m-detail');
+    if (detail) detail.innerHTML =
+      `<div style="font-size:11px;color:var(--gris3);">${d.pct_m_2022.toFixed(1)} % → ${d.pct_m_2025.toFixed(1)} %</div>`;
+  }
+
+  // ── PILL 3 : Dépense maîtrisable / agent 2025 ────────────────
+  const pill3 = document.getElementById('fonct-pill-agent-2025');
+  if (pill3) {
+    const val = d.fonct_agent_2025;
+    pill3.innerHTML = `<span style="font-size:22px;font-weight:700;color:var(--rep);">${formatCurrency(val)}</span>`;
+    const detail = document.getElementById('fonct-pill-agent-2025-detail');
+    if (detail) detail.innerHTML = buildComparison(
+      val,
+      consoNat?.moy_fonct_par_agent,
+      consoPer?.moy_fonct_par_agent,
+      '🌍 National', '📍 Périmètre', true
+    );
+  }
+
+  // ── PILL 4 : Dépense maîtrisable / agent lissée 4 ans ────────
+  const pill4 = document.getElementById('fonct-pill-agent-4ans');
+  if (pill4) {
+    const val = d.fonct_agent_4ans;
+    pill4.innerHTML = `<span style="font-size:22px;font-weight:700;color:var(--rep);">${formatCurrency(val)}</span>`;
+    const detail = document.getElementById('fonct-pill-agent-4ans-detail');
+    if (detail) detail.innerHTML = buildComparison(
+      val,
+      consoNat?.moy_fonct_par_agent_4ans,
+      consoPer?.moy_fonct_par_agent_4ans,
+      '🌍 National', '📍 Périmètre', true
+    );
+  }
+
+  // ── Tableau multi-années ──────────────────────────────────────
+  const tbody = document.getElementById('fonct-tbody');
+  if (tbody) {
+    const fmt = formatFonctMontant;
+    const fmtPct = (v) => v ? v.toFixed(1) + ' %' : '—';
+    const fmtEur = (v) => v ? formatCurrency(v) : '—';
+
+    tbody.innerHTML = `
+      <tr>
+        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">CP total fonctionnement</td>
+        <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2022)}</td>
+        <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2023)}</td>
+        <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2024)}</td>
+        <td style="padding:8px 12px;text-align:right;font-weight:600;">${fmt(d.cp_2025)}</td>
+      </tr>
+      <tr style="background:var(--gris4);">
+        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">dont maîtrisable</td>
+        <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2022_m)}</td>
+        <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2023_m)}</td>
+        <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2024_m)}</td>
+        <td style="padding:8px 12px;text-align:right;font-weight:600;">${fmt(d.cp_2025_m)}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">% maîtrisable</td>
+        <td style="padding:8px 12px;text-align:right;">${fmtPct(d.pct_m_2022)}</td>
+        <td style="padding:8px 12px;text-align:right;">${fmtPct(d.pct_m_2023)}</td>
+        <td style="padding:8px 12px;text-align:right;">${fmtPct(d.pct_m_2024)}</td>
+        <td style="padding:8px 12px;text-align:right;font-weight:600;">${fmtPct(d.pct_m_2025)}</td>
+      </tr>
+      <tr style="background:var(--gris4);">
+        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">Maîtrisable / agent</td>
+        <td style="padding:8px 12px;text-align:right;">${fmtEur(d.fonct_agent_2022)}</td>
+        <td style="padding:8px 12px;text-align:right;">${fmtEur(d.fonct_agent_2023)}</td>
+        <td style="padding:8px 12px;text-align:right;">${fmtEur(d.fonct_agent_2024)}</td>
+        <td style="padding:8px 12px;text-align:right;font-weight:600;">${fmtEur(d.fonct_agent_2025)}</td>
+      </tr>`;
+  }
+
+  // ── Commentaire ────────────────────────────────────────────────
+  const ta = document.getElementById('fonct-commentaire');
+  if (ta) {
+    ta.value = getCommentaire(structureId, annee, 'Fonctionnement');
+    ta.onblur = function() {
+      saveCommentaire(structureId, annee, 'Fonctionnement', this.value);
     };
   }
 }
