@@ -2268,15 +2268,8 @@
         descriptionEl.style.display = 'none';
         descriptionEl.parentNode.insertBefore(textareaEl, descriptionEl);
         
-        // Initialiser EasyMDE sur le textarea dynamique
-        // On récupère la valeur Markdown brute depuis Grist (pas le textContent HTML)
-        const comments = FICHE_STATE.data.commentaires;
-        const synthIdx = comments ? comments.id.findIndex((id, i) =>
-          comments.Structure[i] === structureId &&
-          comments.Annee[i] === annee &&
-          comments.Section[i] === 'Synthese'
-        ) : -1;
-        const mdRaw = synthIdx !== -1 ? (comments.Commentaire?.[synthIdx] || '') : '';
+        // Initialiser EasyMDE — réutiliser `comments` et `idx` déjà déclarés plus haut
+        const mdRaw = idx !== -1 ? (comments.Commentaire?.[idx] || '') : '';
         
         initMDE('synthese-mde-textarea', mdRaw, null);
         
