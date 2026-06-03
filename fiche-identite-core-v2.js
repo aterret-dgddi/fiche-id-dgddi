@@ -1014,6 +1014,12 @@ function initMDE(textareaId, initialValue, onSave) {
     'F11': function() {}
   });
 
+  // Bug EasyMDE : initialValue='' ne vide pas CodeMirror si un contenu existait.
+  // On force le setValue après montage pour garantir la valeur initiale.
+  if (!initialValue) {
+    mde.codemirror.setValue('');
+  }
+
   _mdeInstances[textareaId] = mde;
   return mde;
 }
@@ -1063,7 +1069,6 @@ function mdToHtml(md) {
  */
 function initSectionMDE(textareaId, structureId, annee, section) {
   const initialValue = getCommentaire(structureId, annee, section);
-  console.log('[MDE]', section, 'structureId=', structureId, 'valeur=', initialValue.substring(0, 60));
   initMDE(textareaId, initialValue, (value) => {
     saveCommentaire(structureId, annee, section, value);
   });
