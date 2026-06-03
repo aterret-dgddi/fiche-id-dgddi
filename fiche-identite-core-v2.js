@@ -2567,17 +2567,46 @@ function formatFonctMontant(val) {
 }
 
 /**
+ * Construit le bloc de comparaison vs National et vs Périmètre.
+ * Pour les dépenses : au-dessus de la moyenne = défavorable (inverser=true).
+ * @param {number} val - Valeur de la structure
+ * @param {number|null} moyNat - Moyenne nationale
+ * @param {number|null} moyPer - Moyenne périmètre
+ * @param {boolean} inverser - true si au-dessus = défavorable
+ * @returns {string} HTML
+ */
+function buildFonctComparison(val, moyNat, moyPer, inverser) {
+  if (!val) return '';
+  let html = '';
+
+  [
+    { moy: moyNat, label: '🌍 National' },
+    { moy: moyPer, label: '📍 Périmètre' }
+  ].forEach(({ moy, label }) => {
+    if (!moy) return;
+    const diff = ((val - moy) / moy) * 100;
+    const absDiff = Math.abs(diff);
+    if (absDiff < 1) {
+      html += `<div style="font-size:10px;color:var(--gris3);">${label} : données similaires</div>`;
+      return;
+    }
+    const enHaut = diff > 0;
+    const mauvais = inverser ? enHaut : !enHaut;
+    const color = mauvais ? 'var(--rouge)' : 'var(--vert)';
+    const sign = enHaut ? '+' : '';
+    html += `<div style="font-size:10px;color:${color};">${label} : ${sign}${absDiff.toFixed(1)} %</div>`;
+  });
+
+  return html;
+}
+
+/**
  * Rafraîchit la section Fonctionnement courant.
  * @param {number} structureId
  * @param {number} annee
  */
 function refreshFonctionnement(structureId, annee) {
   const d = getFonctionnementData(structureId);
-  const sigle = (() => {
-    const s = FICHE_STATE.data.structures;
-    const i = s ? s.id.indexOf(structureId) : -1;
-    return i !== -1 ? (s.Sigle?.[i] || '') : '';
-  })();
 
   // ── Données absentes ───────────────────────────────────────────
   if (!d) {
@@ -2586,89 +2615,82 @@ function refreshFonctionnement(structureId, annee) {
       if (el) el.textContent = '—';
     });
     const tbody = document.getElementById('fonct-tbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>';
     return;
   }
 
-  // ── Helper comparaison vs moyenne ─────────────────────────────
+  // ── Moyennes de comparaison depuis Consolidation ──────────────
   const perimetre = getPerimetreFonctionnement(structureId);
-  const consoNat = getConsolidationData('National', annee);
-  const consoPer = getConsolidationData(perimetre, annee);
-
-  function buildComparison(val, moyNat, moyPer, labelNat, labelPer, inverser) {
-    if (!moyNat && !moyPer) return '';
-    let html = '';
-    [{ moy: moyNat, label: labelNat }, { moy: moyPer, label: labelPer }].forEach(({ moy, label }) => {
-      if (!moy) return;
-      const diff = ((val - moy) / moy) * 100;
-      const absDiff = Math.abs(diff);
-      if (absDiff < 1) { html += `<div style="font-size:10px;color:var(--gris3);">${label} : données similaires</div>`; return; }
-      const enHaut = diff > 0;
-      // Pour les dépenses : être au-dessus est défavorable (inverser=true)
-      const mauvais = inverser ? enHaut : !enHaut;
-      const color = mauvais ? 'var(--rouge)' : 'var(--vert)';
-      const sign = enHaut ? '+' : '';
-      html += `<div style="font-size:10px;color:${color};">${label} : ${sign}${absDiff.toFixed(1)} %</div>`;
-    });
-    return html;
-  }
+  const consoNat  = getConsolidationData('National', annee);
+  const consoPer  = perimetre !== 'National' ? getConsolidationData(perimetre, annee) : null;
 
   // ── PILL 1 : Évolution CP total 2022→2025 ────────────────────
+  // Pas de comparaison : c'est une évolution propre à la structure
   const pill1 = document.getElementById('fonct-pill-evol');
   if (pill1) {
     const evol = d.evol_cp_4ans;
-    const sign = evol >= 0 ? '+' : '';
+    const sign  = evol >= 0 ? '+' : '';
     const color = evol > 5 ? 'var(--rouge)' : evol < -5 ? 'var(--vert)' : 'var(--gris2)';
     pill1.innerHTML = `<span style="font-size:22px;font-weight:700;color:${color};">${sign}${evol.toFixed(1)} %</span>`;
-    const detail = document.getElementById('fonct-pill-evol-detail');
-    if (detail) detail.innerHTML =
+    const det = document.getElementById('fonct-pill-evol-detail');
+    if (det) det.innerHTML =
       `<div style="font-size:11px;color:var(--gris3);">${formatFonctMontant(d.cp_2022)} → ${formatFonctMontant(d.cp_2025)}</div>`;
   }
 
-  // ── PILL 2 : Évolution part maîtrisable ──────────────────────
+  // ── PILL 2 : Part maîtrisable 2025 + comparaison ─────────────
   const pill2 = document.getElementById('fonct-pill-pct-m');
   if (pill2) {
-    const evol = d.evol_pct_maitrisable;
-    const sign = evol >= 0 ? '+' : '';
-    const color = evol > 2 ? 'var(--rouge)' : evol < -2 ? 'var(--vert)' : 'var(--gris2)';
-    pill2.innerHTML = `<span style="font-size:22px;font-weight:700;color:${color};">${sign}${evol.toFixed(1)} pt</span>`;
-    const detail = document.getElementById('fonct-pill-pct-m-detail');
-    if (detail) detail.innerHTML =
-      `<div style="font-size:11px;color:var(--gris3);">${d.pct_m_2022.toFixed(1)} % → ${d.pct_m_2025.toFixed(1)} %</div>`;
+    const pct   = d.pct_m_2025;
+    const evol  = d.evol_pct_maitrisable;
+    const sign  = evol >= 0 ? '+' : '';
+    const colorEvol = evol > 2 ? 'var(--rouge)' : evol < -2 ? 'var(--vert)' : 'var(--gris3)';
+    pill2.innerHTML = `<span style="font-size:22px;font-weight:700;color:var(--rep);">${pct.toFixed(1)} %</span>`;
+    const det = document.getElementById('fonct-pill-pct-m-detail');
+    if (det) {
+      const evolHtml = `<div style="font-size:10px;color:${colorEvol};">Évolution : ${sign}${evol.toFixed(1)} pt (2022→2025)</div>`;
+      // Comparaison du niveau % vs moyenne — être plus maîtrisable est favorable (inverser=false)
+      const cmpHtml = buildFonctComparison(
+        pct,
+        consoNat?.moy_pct_maitrisable || null,
+        consoPer?.moy_pct_maitrisable || null,
+        false
+      );
+      det.innerHTML = evolHtml + cmpHtml;
+    }
   }
 
-  // ── PILL 3 : Dépense maîtrisable / agent 2025 ────────────────
+  // ── PILL 3 : Maîtrisable / agent 2025 + comparaison ──────────
   const pill3 = document.getElementById('fonct-pill-agent-2025');
   if (pill3) {
     const val = d.fonct_agent_2025;
     pill3.innerHTML = `<span style="font-size:22px;font-weight:700;color:var(--rep);">${formatCurrency(val)}</span>`;
-    const detail = document.getElementById('fonct-pill-agent-2025-detail');
-    if (detail) detail.innerHTML = buildComparison(
+    const det = document.getElementById('fonct-pill-agent-2025-detail');
+    if (det) det.innerHTML = buildFonctComparison(
       val,
-      consoNat?.moy_fonct_par_agent,
-      consoPer?.moy_fonct_par_agent,
-      '🌍 National', '📍 Périmètre', true
+      consoNat?.moy_fonct_par_agent || null,
+      consoPer?.moy_fonct_par_agent || null,
+      true  // dépense : au-dessus = défavorable
     );
   }
 
-  // ── PILL 4 : Dépense maîtrisable / agent lissée 4 ans ────────
+  // ── PILL 4 : Maîtrisable / agent lissée 4 ans + comparaison ──
   const pill4 = document.getElementById('fonct-pill-agent-4ans');
   if (pill4) {
     const val = d.fonct_agent_4ans;
     pill4.innerHTML = `<span style="font-size:22px;font-weight:700;color:var(--rep);">${formatCurrency(val)}</span>`;
-    const detail = document.getElementById('fonct-pill-agent-4ans-detail');
-    if (detail) detail.innerHTML = buildComparison(
+    const det = document.getElementById('fonct-pill-agent-4ans-detail');
+    if (det) det.innerHTML = buildFonctComparison(
       val,
-      consoNat?.moy_fonct_par_agent_4ans,
-      consoPer?.moy_fonct_par_agent_4ans,
-      '🌍 National', '📍 Périmètre', true
+      consoNat?.moy_fonct_par_agent_4ans || null,
+      consoPer?.moy_fonct_par_agent_4ans || null,
+      true  // dépense : au-dessus = défavorable
     );
   }
 
   // ── Tableau multi-années ──────────────────────────────────────
   const tbody = document.getElementById('fonct-tbody');
   if (tbody) {
-    const fmt = formatFonctMontant;
+    const fmt    = formatFonctMontant;
     const fmtPct = (v) => v ? v.toFixed(1) + ' %' : '—';
     const fmtEur = (v) => v ? formatCurrency(v) : '—';
 
