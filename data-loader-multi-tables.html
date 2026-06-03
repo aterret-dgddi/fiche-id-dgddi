@@ -217,6 +217,7 @@
         <option value="Frais_Mission">Frais_Mission (Déplacements)</option>
         <option value="Informatique">Informatique (Matériel IT)</option>
         <option value="Communication">Communication (Dépenses de communication)</option>
+        <option value="Fonctionnement">Fonctionnement (Dépenses de fonctionnement courant)</option>
       </select>
       <div id="table-info" class="table-info"></div>
     </div>
@@ -369,6 +370,20 @@ const TABLE_CONFIG = {
       'Capacité_CP_2026': 'Capacite_CP_2026',
       'Cap_EJ_2026': 'Capacite_EJ_2026',
       'Cap_CP_2026': 'Capacite_CP_2026'
+    }
+  },
+  'Fonctionnement': {
+    description: 'Dépenses de fonctionnement courant par structure (une ligne par structure)',
+    columns: ['Structure', 'CP_2022', 'CP_2023', 'CP_2024', 'CP_2025',
+              'CP_2022_maitrisable', 'CP_2023_maitrisable', 'CP_2024_maitrisable', 'CP_2025_maitrisable',
+              'Est_Consolide'],
+    keyFields: ['Structure'],
+    needsStructure: true,
+    mapping: {
+      'CP_2022_maitrisable': 'CP_2022_maitrisable',
+      'CP_2023_maitrisable': 'CP_2023_maitrisable',
+      'CP_2024_maitrisable': 'CP_2024_maitrisable',
+      'CP_2025_maitrisable': 'CP_2025_maitrisable'
     }
   }
 };
