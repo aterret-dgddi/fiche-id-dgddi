@@ -2267,17 +2267,6 @@
           Object.keys(totaux).forEach(k => { totaux[k] += d[k] || 0; });
         }
 
-        // Cellule CP 2025 + barre maîtrisable
-        const dernierCP   = d ? d.cp_2025 : 0;
-        const dernierMait = d ? d.cp_2025_mait : 0;
-        const pct = (dernierCP > 0) ? Math.min(dernierMait / dernierCP * 100, 100) : 0;
-        const maitCell = d ? `
-          <div style="display:flex;align-items:center;gap:6px;">
-            <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
-              <div style="width:${pct.toFixed(1)}%;height:100%;background:var(--orange);border-radius:3px;"></div>
-            </div>
-            <span style="font-size:11px;font-weight:600;color:var(--orange);min-width:38px;text-align:right;">${pct.toFixed(1)} %</span>
-          </div>` : '—';
 
         rows += `
           <tr class="${rowClass} ${extraClass}">
@@ -2287,7 +2276,8 @@
             <td class="number">${d ? fmtFonct(d.cp_2024) : '—'}</td>
             <td class="number" style="font-weight:600;color:var(--gris1);">${d ? fmtFonct(d.cp_2025) : '—'}</td>
             <td class="number">${d ? fmtFonct(d.cp_2025_mait) : '—'}</td>
-            <td style="min-width:160px;padding:8px 10px;">${maitCell}</td>
+            <td class="number">${d && d.fonct_agent_2025 ? Math.round(d.fonct_agent_2025).toLocaleString('fr-FR') + ' €' : '—'}</td>
+            <td class="number">${d && d.fonct_agent_4ans ? Math.round(d.fonct_agent_4ans).toLocaleString('fr-FR') + ' €' : '—'}</td>
           </tr>`;
       }));
 
@@ -2370,10 +2360,7 @@
             <div class="kpi-evol-label">Maîtrisable / Agent (Lissé 4 ans)</div>
             <div class="kpi-evol-value" style="font-size:20px;">${fEur(sN.fonct_agent_4ans)}</div>
             <div class="kpi-evol-sub">${moyennesF && moyennesF.fonct_par_agent_4ans ? formatEcartMoyenne(sN.fonct_agent_4ans, moyennesF.fonct_par_agent_4ans) : ''}</div>
-            <div class="spark-wrap"><canvas id="spark-fonct-lisse"></canvas></div>
-            <div style="display:grid;grid-template-columns:repeat(${anneesValidesF.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
-              ${makeHistoF(fEur, s => s.fonct_agent_4ans)}
-            </div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:8px;font-style:italic;">Moyenne CP maîtrisable 2022–2025 / agent</div>
           </div>
 
         </div>`;
@@ -2381,15 +2368,6 @@
 
       const kpis = kpiStrip;
 
-      // ── Ligne totale barre maîtrisable ────────────────────────────
-      const totalPct2025 = totaux.cp_2025 > 0 ? totaux.cp_2025_mait / totaux.cp_2025 * 100 : 0;
-      const totalPctBar = `
-        <div style="display:flex;align-items:center;gap:6px;">
-          <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
-            <div style="width:${Math.min(totalPct2025,100).toFixed(1)}%;height:100%;background:var(--orange);border-radius:3px;"></div>
-          </div>
-          <span style="font-size:11px;font-weight:700;color:var(--orange);min-width:38px;text-align:right;">${totalPct2025.toFixed(1)} %</span>
-        </div>`;
 
       return `
         <div class="section">
@@ -2421,7 +2399,8 @@
                   <th class="number">CP 2024</th>
                   <th class="number" style="color:var(--rep2);">CP 2025</th>
                   <th class="number">Maîtrisable 2025</th>
-                  <th>% Maîtrisable</th>
+                  <th class="number">Maît. / Agent</th>
+                  <th class="number">Maît. / Agent Lissé</th>
                 </tr>
               </thead>
               <tbody>
@@ -2433,7 +2412,8 @@
                   <td class="number">${fmtFonct(totaux.cp_2024)}</td>
                   <td class="number" style="color:var(--rep2);font-weight:700;">${fmtFonct(totaux.cp_2025)}</td>
                   <td class="number">${fmtFonct(totaux.cp_2025_mait)}</td>
-                  <td style="padding:8px 10px;">${totalPctBar}</td>
+                  <td class="number">—</td>
+                  <td class="number">—</td>
                 </tr>
               </tbody>
             </table>
