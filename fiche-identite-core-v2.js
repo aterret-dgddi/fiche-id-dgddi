@@ -982,7 +982,7 @@ function initMDE(textareaId, initialValue, onSave) {
     toolbar: [
       'bold', 'italic', '|',
       'unordered-list', 'ordered-list', '|',
-      'preview', 'side-by-side', '|',
+      'preview', '|',
       {
         name: 'clean-block',
         action: EasyMDE.cleanBlock,
@@ -991,6 +991,7 @@ function initMDE(textareaId, initialValue, onSave) {
       }
     ],
     renderingConfig: { singleLineBreaks: true },
+    sideBySideFullscreen: false,
     placeholder: textarea.getAttribute('placeholder') || 'Saisir un commentaire…'
   });
 
@@ -999,7 +1000,10 @@ function initMDE(textareaId, initialValue, onSave) {
   });
   mde.codemirror.addKeyMap({
     'Ctrl-S': function() { if (onSave) onSave(mde.value()); },
-    'Cmd-S':  function() { if (onSave) onSave(mde.value()); }
+    'Cmd-S':  function() { if (onSave) onSave(mde.value()); },
+    // Bloquer F9 (side-by-side) et F11 (fullscreen) — incompatibles avec iframe Grist
+    'F9':  function() {},
+    'F11': function() {}
   });
 
   _mdeInstances[textareaId] = mde;
