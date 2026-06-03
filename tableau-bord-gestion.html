@@ -714,6 +714,82 @@
     }
 
     // ═══════════════════════════════════════════════════════
+    // HELPERS MULTI-ANNÉES pour KPI fonctionnement
+    // ═══════════════════════════════════════════════════════
+
+    function getTotauxFonctAnnee(annee) {
+      // Aggrège les colonnes Fonctionnement par année depuis la table directe
+      // (pas de ligne nationale dans Consolidation pour Fonctionnement)
+      if (!fonctionnementData || !fonctionnementData.Structure) return null;
+      let cp = 0, mait = 0, fa = 0, fa4 = 0, pct = 0, nPct = 0;
+      const cpCol   = `CP_${annee}`;
+      const maitCol = `CP_${annee}_maitrisable`;
+      const faCol   = `Fonct_agent_${annee}`;
+      const pctCol  = `Pct_maitrisable_${annee}`;
+      const fa4Col  = 'Fonct_agent_4ans'; // lissé = même pour toutes les années
+
+      for (let i = 0; i < fonctionnementData.Structure.length; i++) {
+        // Exclure les lignes consolidées (DI 972 consolidée = doublon des DR)
+        if (fonctionnementData.Est_Consolide?.[i]) continue;
+        cp   += Number(fonctionnementData[cpCol]?.[i])   || 0;
+        mait += Number(fonctionnementData[maitCol]?.[i]) || 0;
+        const fa_val = Number(fonctionnementData[faCol]?.[i]) || 0;
+        if (fa_val > 0) { fa += fa_val; }
+        const pct_val = Number(fonctionnementData[pctCol]?.[i]) || 0;
+        if (pct_val > 0) { pct += pct_val; nPct++; }
+        // 4ans : on n'additionne que pour l'année courante (colonne unique)
+        if (annee === Math.max(...ANNEES_DISPO.filter(a => a <= 2025))) {
+          fa4 += Number(fonctionnementData[fa4Col]?.[i]) || 0;
+        }
+      }
+      if (cp === 0 && mait === 0) return null;
+
+      // Compter les lignes non consolidées pour les moyennes
+      const n = fonctionnementData.Structure.filter((s, i) =>
+        !fonctionnementData.Est_Consolide?.[i]).length || 1;
+
+      return {
+        cp,
+        mait,
+        pct_mait: cp > 0 ? mait / cp * 100 : 0,
+        fonct_agent: fa / n,
+        fonct_agent_4ans: fa4 / n,
+      };
+    }
+
+    function drawSparklinesFonct() {
+      const annees = [2022, 2023, 2024, 2025];
+      const anneesValides = annees.filter(a => getTotauxFonctAnnee(a) !== null);
+      if (anneesValides.length < 2) return;
+      const labels = anneesValides.map(String);
+
+      const makeChart = (id, data, color) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const existing = Chart.getChart(el);
+        if (existing) existing.destroy();
+        new Chart(el.getContext('2d'), {
+          type: 'line',
+          data: { labels, datasets: [{ data, borderColor: color, borderWidth: 2,
+            backgroundColor: color.replace('rgb','rgba').replace(')',',0.10)'),
+            fill: true, tension: 0.4,
+            pointRadius: 3, pointHoverRadius: 5,
+            pointBackgroundColor: color, pointBorderColor: '#fff', pointBorderWidth: 1.5 }]},
+          options: {
+            responsive: false, animation: false,
+            plugins: { legend:{ display:false }, tooltip:{ enabled:true }},
+            scales: { x:{ display:false }, y:{ display:false, beginAtZero: false }}
+          }
+        });
+      };
+
+      makeChart('spark-fonct-cp',    anneesValides.map(a => { const s=getTotauxFonctAnnee(a); return s?s.cp/1e3:null; }),          'rgb(19,81,168)');
+      makeChart('spark-fonct-pct',   anneesValides.map(a => { const s=getTotauxFonctAnnee(a); return s?s.pct_mait:null; }),        'rgb(192,90,0)');
+      makeChart('spark-fonct-agent', anneesValides.map(a => { const s=getTotauxFonctAnnee(a); return s?s.fonct_agent:null; }),     'rgb(107,63,160)');
+      makeChart('spark-fonct-lisse', anneesValides.map(a => { const s=getTotauxFonctAnnee(a); return s?s.fonct_agent_4ans:null; }),'rgb(26,107,60)');
+    }
+
+    // ═══════════════════════════════════════════════════════
     // HELPERS DÉPLIAGE DR sous DI
     // ═══════════════════════════════════════════════════════
 
@@ -867,6 +943,7 @@
         setTimeout(drawSparklinesVehicules, 120);
         setTimeout(drawSparklinesMissions, 150);
         setTimeout(drawSparklinesIT, 180);
+        setTimeout(drawSparklinesFonct, 210);
         
       } catch (error) {
         console.error('❌ Erreur initialisation:', error);
@@ -887,6 +964,9 @@
         frais_par_agent:    Number(d.Moyenne_Frais_Par_Agent?.[i])               || 0,
         it_par_agent:       Number(d.Moyenne_Budget_IT_Par_Agent?.[i])           || 0,
         it_par_agent_lisse: Number(d.Moy_Budget_IT_Moyen_Par_Agent_4ans?.[i])    || 0,
+        fonct_par_agent:    Number(d.Moy_Fonct_CP_Par_Agent?.[i])                || 0,
+        fonct_par_agent_4ans: Number(d.Moy_Fonct_Par_Agent_4ans?.[i])            || 0,
+        pct_maitrisable:    Number(d.Moy_Pct_Maitrisable?.[i])                   || 0,
       };
     }
 
@@ -2126,6 +2206,15 @@
         cp_2023_mait:       v('CP_2023_maitrisable'),
         cp_2024_mait:       v('CP_2024_maitrisable'),
         cp_2025_mait:       v('CP_2025_maitrisable'),
+        fonct_agent_2022:   v('Fonct_agent_2022'),
+        fonct_agent_2023:   v('Fonct_agent_2023'),
+        fonct_agent_2024:   v('Fonct_agent_2024'),
+        fonct_agent_2025:   v('Fonct_agent_2025'),
+        fonct_agent_4ans:   v('Fonct_agent_4ans'),
+        pct_mait_2022:      v('Pct_maitrisable_2022'),
+        pct_mait_2023:      v('Pct_maitrisable_2023'),
+        pct_mait_2024:      v('Pct_maitrisable_2024'),
+        pct_mait_2025:      v('Pct_maitrisable_2025'),
       };
     }
 
@@ -2202,44 +2291,95 @@
           </tr>`;
       }));
 
-      // ── KPIs globaux ──────────────────────────────────────────────
-      const totalPct2025 = totaux.cp_2025 > 0 ? totaux.cp_2025_mait / totaux.cp_2025 * 100 : 0;
-      const evol2425 = totaux.cp_2024 > 0 ? ((totaux.cp_2025 - totaux.cp_2024) / totaux.cp_2024 * 100) : 0;
-      const evolSign = evol2425 > 0 ? '+' : '';
-      const evolColor = Math.abs(evol2425) < 2 ? 'var(--gris3)' : (evol2425 > 0 ? 'var(--rouge)' : 'var(--vert)');
+      // ── KPI sparklines — même pattern que IT ─────────────────────
+      const ANNEES_F = [2022, 2023, 2024, 2025];
+      const anneesValidesF = ANNEES_F.filter(a => getTotauxFonctAnnee(a) !== null);
+      const moyennesF = getMoyennes(ANNEE);
 
-      const kpis = `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px;">
+      const fEur  = v => v ? Math.round(v).toLocaleString('fr-FR') + ' €' : '—';
+      const fKEur = v => v ? (v >= 1e6 ? (v/1e6).toFixed(1)+' M€' : Math.round(v/1e3).toLocaleString('fr-FR')+' k€') : '—';
+      const fPct  = v => v ? v.toFixed(1) + ' %' : '—';
 
-          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid var(--rep2);">
-            <div style="font-size:10px;font-weight:700;color:var(--rep2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">CP 2025 (Total)</div>
-            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtFonct(totaux.cp_2025)}</div>
-            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">
-              <span style="color:${evolColor};font-weight:600;">${evolSign}${evol2425.toFixed(1)} %</span> vs 2024
+      const evolF = (vN, vN1, annRef) => {
+        if (!vN1 || vN1 === 0 || !annRef) return '';
+        const p = ((vN - vN1) / vN1 * 100);
+        const s = p > 0 ? '+' : '';
+        const c = Math.abs(p) < 0.5 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+        return `<span style="color:${c};font-weight:700;">${s}${p.toFixed(1)}%</span> vs ${annRef}`;
+      };
+      const evolDepuisF = (vN, vDep, annDep) => {
+        if (!vDep || vDep === 0 || vDep === vN) return '';
+        const p = ((vN - vDep) / vDep * 100);
+        const s = p > 0 ? '+' : '';
+        const c = Math.abs(p) < 1 ? '#8A9BAA' : (p > 0 ? '#B52020' : '#1A6B3C');
+        return ` — <span style="color:${c};">${s}${p.toFixed(1)}% depuis ${annDep}</span>`;
+      };
+
+      let kpiStrip = '';
+      if (anneesValidesF.length > 0) {
+        const sN   = getTotauxFonctAnnee(anneesValidesF[anneesValidesF.length - 1]);
+        const sN1  = anneesValidesF.length >= 2 ? getTotauxFonctAnnee(anneesValidesF[anneesValidesF.length - 2]) : null;
+        const sDep = getTotauxFonctAnnee(anneesValidesF[0]);
+        const annN1  = anneesValidesF.length >= 2 ? anneesValidesF[anneesValidesF.length - 2] : null;
+        const annDep = anneesValidesF[0];
+
+        const makeHistoF = (formatFn, getVal) => anneesValidesF.map(a => {
+          const sv = getTotauxFonctAnnee(a);
+          const val = sv ? getVal(sv) : null;
+          const isLast = (a === anneesValidesF[anneesValidesF.length - 1]);
+          return `<div style="text-align:center;">
+            <div style="font-size:9px;color:var(--gris3);font-weight:600;">${a}</div>
+            <div style="font-size:10px;font-weight:${isLast ? '700' : '500'};color:${isLast ? 'var(--gris1)' : 'var(--gris2)'};">${val !== null ? formatFn(val) : '—'}</div>
+          </div>`;
+        }).join('');
+
+        kpiStrip = `
+        <div class="kpi-strip">
+
+          <div class="kpi-evol-card" style="border-left-color:var(--rep2);">
+            <div class="kpi-evol-label">CP Total</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fKEur(sN.cp)}</div>
+            <div class="kpi-evol-sub">${evolF(sN.cp, sN1?.cp, annN1)}${evolDepuisF(sN.cp, sDep?.cp, annDep)}</div>
+            <div class="spark-wrap"><canvas id="spark-fonct-cp"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValidesF.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoF(fKEur, s => s.cp)}
             </div>
           </div>
 
-          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid var(--orange);">
-            <div style="font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Part Maîtrisable 2025</div>
-            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtFonct(totaux.cp_2025_mait)}</div>
-            <div style="height:5px;background:rgba(0,0,0,.1);border-radius:3px;margin-top:8px;overflow:hidden;">
-              <div style="width:${Math.min(totalPct2025,100).toFixed(1)}%;height:100%;background:var(--orange);border-radius:3px;"></div>
+          <div class="kpi-evol-card" style="border-left-color:var(--orange);">
+            <div class="kpi-evol-label">% Maîtrisable</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fPct(sN.pct_mait)}</div>
+            <div class="kpi-evol-sub">${evolF(sN.pct_mait, sN1?.pct_mait, annN1)}${evolDepuisF(sN.pct_mait, sDep?.pct_mait, annDep)}</div>
+            <div class="spark-wrap"><canvas id="spark-fonct-pct"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValidesF.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoF(fPct, s => s.pct_mait)}
             </div>
           </div>
 
-          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid #6B3FA0;">
-            <div style="font-size:10px;font-weight:700;color:#6B3FA0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">% Maîtrisable 2025</div>
-            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${totalPct2025.toFixed(1)} %</div>
-            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">Sur total fonctionnement</div>
+          <div class="kpi-evol-card" style="border-left-color:#6B3FA0;">
+            <div class="kpi-evol-label">Maîtrisable / Agent</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fEur(sN.fonct_agent)}</div>
+            <div class="kpi-evol-sub">${evolF(sN.fonct_agent, sN1?.fonct_agent, annN1)}${evolDepuisF(sN.fonct_agent, sDep?.fonct_agent, annDep)}${moyennesF && moyennesF.fonct_par_agent ? formatEcartMoyenne(sN.fonct_agent, moyennesF.fonct_par_agent) : ''}</div>
+            <div class="spark-wrap"><canvas id="spark-fonct-agent"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValidesF.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoF(fEur, s => s.fonct_agent)}
+            </div>
           </div>
 
-          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid var(--vert);">
-            <div style="font-size:10px;font-weight:700;color:var(--vert);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">CP 2024 (Référence)</div>
-            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtFonct(totaux.cp_2024)}</div>
-            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">Maîtrisable : ${fmtFonct(totaux.cp_2024_mait)}</div>
+          <div class="kpi-evol-card" style="border-left-color:var(--vert);">
+            <div class="kpi-evol-label">Maîtrisable / Agent (Lissé 4 ans)</div>
+            <div class="kpi-evol-value" style="font-size:20px;">${fEur(sN.fonct_agent_4ans)}</div>
+            <div class="kpi-evol-sub">${moyennesF && moyennesF.fonct_par_agent_4ans ? formatEcartMoyenne(sN.fonct_agent_4ans, moyennesF.fonct_par_agent_4ans) : ''}</div>
+            <div class="spark-wrap"><canvas id="spark-fonct-lisse"></canvas></div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValidesF.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoF(fEur, s => s.fonct_agent_4ans)}
+            </div>
           </div>
 
         </div>`;
+      }
+
+      const kpis = kpiStrip;
 
       // ── Ligne totale barre maîtrisable ────────────────────────────
       const totalPctBar = `
