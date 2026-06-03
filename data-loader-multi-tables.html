@@ -554,30 +554,11 @@ function handleFile(file) {
       
       // FORCER la lecture de TOUTES les colonnes, même vides
       const data = XLSX.utils.sheet_to_json(ws, {
-        defval: '',  // Valeur par défaut pour cellules vides
-        raw: false,  // Ne pas formater les valeurs
-        blankrows: false  // Ignorer lignes vides
+        defval: '',
+        raw: false,
+        blankrows: false
       });
-      
-      // DEBUG: Afficher l'en-tête brut
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      console.log('=== EN-TÊTE BRUT DU FICHIER EXCEL ===');
-      console.log('Range du fichier:', ws['!ref']);
-      
-      // Lire la première ligne (en-têtes) manuellement
-      const headers = [];
-      for (let col = range.s.c; col <= range.e.c; col++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-        const cell = ws[cellAddress];
-        const header = cell ? cell.v : `Colonne_${col}`;
-        headers.push(header);
-        console.log(`  Colonne ${col}: "${header}"`);
-      }
-      
-      console.log('Headers détectés:', headers);
-      console.log('Données après sheet_to_json:', data);
-      console.log('Première ligne keys:', data.length > 0 ? Object.keys(data[0]) : 'aucune donnée');
-      
+
       processData(data);
     };
     reader.readAsBinaryString(file);
@@ -595,14 +576,6 @@ function processData(rows) {
   G.rawRows = rows;
   G.sourceColumns = Object.keys(rows[0]);
   
-  // DEBUG: Afficher TOUTES les colonnes détectées
-  console.log('=== COLONNES DÉTECTÉES DANS LE FICHIER ===');
-  console.log('Nombre de colonnes:', G.sourceColumns.length);
-  G.sourceColumns.forEach((col, idx) => {
-    console.log(`  ${idx+1}. "${col}" (longueur: ${col.length} caractères)`);
-  });
-  console.log('Première ligne de données:', rows[0]);
-  
   showMapping();
 }
 
@@ -615,10 +588,6 @@ function showMapping() {
   
   // Header
   document.getElementById('mapping-header-target').textContent = `→ Colonne ${G.targetTable}`;
-  
-  // DEBUG: Afficher les colonnes cibles disponibles
-  console.log('=== COLONNES CIBLES DANS GRIST ===');
-  console.log('Colonnes disponibles:', G.targetColumns);
   
   // Afficher TOUTES les colonnes sources
   G.sourceColumns.forEach(srcCol => {
@@ -708,14 +677,7 @@ function generatePreview() {
     });
     const key = keyValues.join('|');
     existingIndex[key] = id;
-    
-    // DEBUG : afficher les premières clés existantes
-    if (idx < 3) {
-      console.log(`[DEBUG] Existant ${idx} - Clé: "${key}" → ID: ${id}`);
-    }
   });
-  
-  console.log(`[DEBUG] Total ${Object.keys(existingIndex).length} clés dans l'index`);
   
   // Résolution HIE si besoin
   let equivMap = {};
@@ -819,12 +781,6 @@ function generatePreview() {
       
       if (keyValues.every(v => v !== undefined && v !== null)) {
         const key = keyValues.join('|');
-        
-        // DEBUG : afficher les premières clés
-        if (idx < 3) {
-          console.log(`[DEBUG] Ligne ${idx} - Clé générée: "${key}"`);
-          console.log(`[DEBUG] Clé existe? ${existingIndex[key] ? 'OUI (UPDATE)' : 'NON (INSERT)'}`);
-        }
         
         if (existingIndex[key]) {
           previewRow._status = 'update';
@@ -930,10 +886,9 @@ document.getElementById('btn-write').onclick = async () => {
       });
       if (isComTable) {
         colData['Date_Import_2026'] = Array(toInsert.length).fill(dateImportGrist);
+        addLog(`Date_Import_2026 = ${dateImportGrist}`);
       }
-      addLog(`INSERT colData keys: ${Object.keys(colData).join(', ')}`);
-      addLog(`Date_Import_2026 valeur envoyée: ${colData['Date_Import_2026']?.[0]}`);
-      
+
       await grist.docApi.applyUserActions([
         ['BulkAddRecord', G.targetTable, Array(toInsert.length).fill(null), colData]
       ]);
@@ -948,11 +903,9 @@ document.getElementById('btn-write').onclick = async () => {
       });
       if (isComTable) {
         colData['Date_Import_2026'] = Array(toUpdate.length).fill(dateImportGrist);
+        addLog(`Date_Import_2026 = ${dateImportGrist}`);
       }
-      addLog(`UPDATE colData keys: ${Object.keys(colData).join(', ')}`);
-      addLog(`Date_Import_2026 valeur envoyée: ${colData['Date_Import_2026']?.[0]}`);
-      addLog(`IDs mis à jour: ${ids.join(', ')}`);
-      
+
       await grist.docApi.applyUserActions([
         ['BulkUpdateRecord', G.targetTable, ids, colData]
       ]);
