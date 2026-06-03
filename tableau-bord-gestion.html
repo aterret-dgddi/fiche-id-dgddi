@@ -10,8 +10,6 @@
   
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   
   <style>
     @font-face {
@@ -398,48 +396,6 @@
         padding: 10px 8px;
       }
     }
-    /* ── Bandeau export ──────────────────────────────── */
-    #export-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 20px;
-      background: #f4f6fb;
-      border-bottom: 1px solid #dde3ef;
-      font-family: 'Marianne', sans-serif;
-    }
-    #export-bar span {
-      font-size: 12px;
-      color: var(--gris2);
-      margin-right: 4px;
-    }
-    .btn-export {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 16px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      font-family: 'Marianne', sans-serif;
-      transition: opacity 0.15s;
-    }
-    .btn-export:hover { opacity: 0.85; }
-    .btn-export-html {
-      background: #E6ECF8;
-      color: var(--rep);
-      border: 1px solid #c0cde8;
-    }
-    .btn-export-pdf {
-      background: linear-gradient(135deg, var(--rep), var(--rep2));
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(0,47,108,0.18);
-    }
-    @media print {
-      #export-bar { display: none !important; }
-    }
   </style>
 </head>
 <body>
@@ -455,16 +411,6 @@
       </div>
     </div>
 
-    <div id="export-bar">
-      <span>📤 Exporter le tableau de bord :</span>
-      <button class="btn-export btn-export-html" onclick="exportDashboardToHTML()">
-        ⬇ HTML
-      </button>
-      <button class="btn-export btn-export-pdf" onclick="exportDashboardToPDF()">
-        📄 PDF
-      </button>
-    </div>
-
     <div id="loading" class="loading">Chargement des données...</div>
     <div id="content" style="display: none;"></div>
   </div>
@@ -475,6 +421,7 @@
     let structuresData = [];
     let consolidationNationaleData = null;
     let communicationData = null;
+    let fonctionnementData = null;
     let ANNEES_DISPO = [];
     // État dépliage: "section-structId" => true(ouvert)/false(fermé)
     const expandedState = {};
@@ -850,17 +797,19 @@
         await grist.ready();
         
         // Charger les données
-        const [consolidationStructure, structures, consolidationNationale, communication] = await Promise.all([
+        const [consolidationStructure, structures, consolidationNationale, communication, fonctionnement] = await Promise.all([
           grist.docApi.fetchTable('Consolidation_Structure'),
           grist.docApi.fetchTable('Structures'),
           grist.docApi.fetchTable('Consolidation'),
-          grist.docApi.fetchTable('Communication').catch(() => null)
+          grist.docApi.fetchTable('Communication').catch(() => null),
+          grist.docApi.fetchTable('Fonctionnement').catch(() => null)
         ]);
         
         consolidationData = consolidationStructure;
         structuresData = structures;
         consolidationNationaleData = consolidationNationale;
         communicationData = communication;
+        fonctionnementData = fonctionnement;
         
         console.log('✅ Données chargées:', {
           consolidation_structure: consolidationStructure.id.length,
@@ -1176,6 +1125,7 @@
         ${renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
         ${renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
         ${renderCommunicationSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
+        ${renderFonctionnementSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
       `;
     }
 
@@ -2146,305 +2096,209 @@
       `;
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // SECTION FONCTIONNEMENT COURANT
+    // ══════════════════════════════════════════════════════════════
 
-    // ═══════════════════════════════════════════════════════
-    // EXPORT HTML / PDF — Tableau de Bord de Gestion
-    // ═══════════════════════════════════════════════════════
+    function getFonctData(structureId) {
+      if (!fonctionnementData || !fonctionnementData.Structure) return null;
+      // Chercher la ligne consolidée en priorité (DI Outremer)
+      let idx = -1;
+      if (fonctionnementData.Est_Consolide) {
+        idx = fonctionnementData.Structure.findIndex((s, i) =>
+          s === structureId && fonctionnementData.Est_Consolide[i]);
+      }
+      // Fallback : ligne non consolidée
+      if (idx === -1) {
+        idx = fonctionnementData.Structure.findIndex((s, i) =>
+          s === structureId && !fonctionnementData.Est_Consolide?.[i]);
+      }
+      if (idx === -1) idx = fonctionnementData.Structure.indexOf(structureId);
+      if (idx === -1) return null;
 
-    function exportDashboardToHTML() {
-      const container = document.querySelector('.container');
-      const exportBar = document.getElementById('export-bar');
-      const styleContent = Array.from(document.querySelectorAll('style'))
-        .map(s => s.innerHTML).join('\n');
-
-      // Masquer le bandeau export dans l'export statique
-      exportBar.setAttribute('data-export-hidden', '');
-      exportBar.style.display = 'none';
-
-      // Dépliage temporaire des tables détail pour capturer tout le contenu
-      const wrappers = document.querySelectorAll(
-        '#rh-table-wrapper, #veh-table-wrapper, #fm-table-wrapper, #it-table-wrapper, #comm-table-wrapper'
-      );
-      const wasHidden = [];
-      wrappers.forEach((w, i) => {
-        wasHidden[i] = w.style.display === 'none';
-        if (wasHidden[i]) w.style.display = 'block';
-      });
-
-      const containerHTML = container.innerHTML;
-
-      // Restaurer
-      exportBar.style.display = '';
-      exportBar.removeAttribute('data-export-hidden');
-      wrappers.forEach((w, i) => {
-        if (wasHidden[i]) w.style.display = 'none';
-      });
-
-      const annee = ANNEE;
-      const dateExport = new Date().toLocaleDateString('fr-FR');
-
-      const printStyles = `
-        @media print {
-          body { background: white; margin: 0; padding: 0; }
-          #export-bar { display: none !important; }
-          .section, .kpi-card, .metrics-grid { page-break-inside: avoid !important; break-inside: avoid !important; }
-        }
-        @page { margin: 15mm; size: A4 portrait; }
-        #export-bar { display: none !important; }
-      `;
-
-      const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <title>Tableau de Bord de Gestion DGDDI - ${annee}</title>
-  <link href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/icons/icons.min.css" rel="stylesheet">
-  <style>${styleContent}${printStyles}</style>
-</head>
-<body>
-  <div class="container" style="max-width:1200px;margin:0 auto;">
-    ${containerHTML}
-  </div>
-  <p style="text-align:right;font-size:10px;color:#888;margin:16px 20px 0;font-family:sans-serif;">Exporté le ${dateExport}</p>
-</body>
-</html>`;
-
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tableau-bord-gestion-${annee}.html`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const v = (col) => fonctionnementData[col] ? (Number(fonctionnementData[col][idx]) || 0) : 0;
+      return {
+        cp_2022:            v('CP_2022'),
+        cp_2023:            v('CP_2023'),
+        cp_2024:            v('CP_2024'),
+        cp_2025:            v('CP_2025'),
+        cp_2022_mait:       v('CP_2022_maitrisable'),
+        cp_2023_mait:       v('CP_2023_maitrisable'),
+        cp_2024_mait:       v('CP_2024_maitrisable'),
+        cp_2025_mait:       v('CP_2025_maitrisable'),
+      };
     }
 
-    async function exportDashboardToPDF() {
-      if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
-        alert('Les bibliothèques html2canvas et jsPDF ne sont pas chargées.');
-        return;
+    function fmtFonct(val) {
+      if (!val) return '—';
+      if (Math.abs(val) >= 1e6) return (val / 1e6).toFixed(1) + ' M€';
+      if (Math.abs(val) >= 1000) return Math.round(val / 1000).toLocaleString('fr-FR') + ' K€';
+      return Math.round(val).toLocaleString('fr-FR') + ' €';
+    }
+
+    function pctMaitrisable(cp, mait) {
+      if (!cp || cp === 0) return null;
+      return mait / cp * 100;
+    }
+
+    function renderFonctionnementSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN) {
+      if (!fonctionnementData) {
+        return `
+          <div class="section">
+            <div class="section-header">
+              <div class="section-icon">🏢</div>
+              <div class="section-title">Fonctionnement Courant</div>
+            </div>
+            <p style="color:var(--gris3);font-style:italic;text-align:center;padding:20px;">
+              ⚠️ Table <code>Fonctionnement</code> non disponible dans Grist.
+            </p>
+          </div>`;
       }
-      const { jsPDF } = window.jspdf;
 
-      // ── Afficher le loader ──────────────────────────────
-      const loadingDiv = document.createElement('div');
-      loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:30px 40px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:9999;text-align:center;font-family:Marianne,sans-serif;min-width:300px;';
-      loadingDiv.innerHTML = '<div style="font-size:16px;font-weight:600;color:#002F6C;margin-bottom:10px;">Génération du PDF</div><div style="font-size:13px;color:#666;">Capture en cours...</div>';
-      document.body.appendChild(loadingDiv);
-      await new Promise(r => setTimeout(r, 80));
+      // Colonnes disponibles (CP 2022→2025 + maîtrisable)
+      const annees = [2022, 2023, 2024, 2025];
+      const cpKey  = { 2022: 'cp_2022', 2023: 'cp_2023', 2024: 'cp_2024', 2025: 'cp_2025' };
+      const maitKey= { 2022: 'cp_2022_mait', 2023: 'cp_2023_mait', 2024: 'cp_2024_mait', 2025: 'cp_2025_mait' };
 
-      // ── Préparer le DOM pour la capture ────────────────
-      const exportBar = document.getElementById('export-bar');
-      exportBar.style.display = 'none';
+      // ── Agréger les totaux ──────────────────────────────────────
+      const totaux = { cp_2022: 0, cp_2023: 0, cp_2024: 0, cp_2025: 0,
+                       cp_2022_mait: 0, cp_2023_mait: 0, cp_2024_mait: 0, cp_2025_mait: 0 };
+      let rows = '';
 
-      // Dépliage des tables détail (pour export complet)
-      const wrappers = document.querySelectorAll(
-        '#rh-table-wrapper, #veh-table-wrapper, #fm-table-wrapper, #it-table-wrapper, #comm-table-wrapper'
-      );
-      const toggleBtns = document.querySelectorAll(
-        '#rh-toggle-btn, #veh-toggle-btn, #fm-toggle-btn, #it-toggle-btn, #comm-toggle-btn'
-      );
-      const wasHidden = [];
-      wrappers.forEach((w, i) => {
-        wasHidden[i] = w.style.display === 'none';
-        if (wasHidden[i]) w.style.display = 'block';
-      });
-      toggleBtns.forEach(b => b.style.display = 'none');
+      const allBlocs = [blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN];
+      allBlocs.forEach(bloc => bloc.forEach((s, bIdx) => {
+        const indent = (bloc === blocOutremer && bIdx > 0);
+        const d = getFonctData(s.id);
+        const badgeClass = getBadgeClass(s.typeAffichage);
+        const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
+        const rowClass = indent ? 'row-indent' : '';
+        const extraClass = s.typeAffichage === 'DI_Outremer' ? 'row-di-outremer' : '';
 
-      try {
-        const container = document.querySelector('.container');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pageWidth = 210;
-        const pageHeight = 297;
-        const margin = 12;
-        const headerHeight = 16;
-        const footerHeight = 10;
-        const dateExport = new Date().toLocaleDateString('fr-FR');
-        let currentPage = 1;
-        let yPosition = margin + headerHeight + 5;
-
-        // Charger le logo
-        let logoData = null;
-        try {
-          const logoUrl = 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg';
-          const resp = await fetch(logoUrl);
-          const svgText = await resp.text();
-          const img = new Image();
-          const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
-          const blobUrl = URL.createObjectURL(svgBlob);
-          await new Promise(resolve => {
-            img.onload = () => {
-              const c = document.createElement('canvas');
-              c.width = 200; c.height = 200;
-              c.getContext('2d').drawImage(img, 0, 0, 200, 200);
-              logoData = c.toDataURL('image/png');
-              URL.revokeObjectURL(blobUrl);
-              resolve();
-            };
-            img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(); };
-            img.src = blobUrl;
-          });
-        } catch(e) {}
-
-        function addHeaderFooter(pageNum) {
-          pdf.setFillColor(0, 47, 108);
-          pdf.rect(0, 0, pageWidth, headerHeight, 'F');
-          if (logoData) {
-            const ls = 10;
-            pdf.addImage(logoData, 'PNG', margin, (headerHeight - ls) / 2, ls, ls);
-          }
-          pdf.setTextColor(255, 255, 255);
-          pdf.setFontSize(10);
-          pdf.setFont('helvetica', 'bold');
-          const tx = margin + (logoData ? 13 : 0);
-          pdf.text('Tableau de Bord de Gestion DGDDI — ' + ANNEE, tx, 10);
-
-          const footerY = pageHeight - footerHeight + 3;
-          pdf.setDrawColor(200, 200, 200);
-          pdf.setLineWidth(0.4);
-          pdf.line(margin, footerY, pageWidth - margin, footerY);
-          pdf.setTextColor(120, 120, 120);
-          pdf.setFontSize(8);
-          pdf.setFont('helvetica', 'normal');
-          pdf.text('Page ' + pageNum, margin, footerY + 4);
-          const dt = 'Exporté le ' + dateExport;
-          pdf.text(dt, pageWidth - margin - pdf.getTextWidth(dt), footerY + 4);
+        if (d) {
+          Object.keys(totaux).forEach(k => { totaux[k] += d[k] || 0; });
         }
 
-        function checkPageBreak(needed) {
-          const avail = pageHeight - footerHeight - margin - yPosition;
-          if (avail < needed) {
-            addHeaderFooter(currentPage);
-            pdf.addPage();
-            currentPage++;
-            yPosition = margin + headerHeight + 5;
-            return true;
-          }
-          return false;
-        }
+        // Cellule CP 2025 + barre maîtrisable
+        const dernierCP   = d ? d.cp_2025 : 0;
+        const dernierMait = d ? d.cp_2025_mait : 0;
+        const pct = (dernierCP > 0) ? Math.min(dernierMait / dernierCP * 100, 100) : 0;
+        const maitCell = d ? `
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+              <div style="width:${pct.toFixed(1)}%;height:100%;background:var(--orange);border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px;font-weight:600;color:var(--orange);min-width:38px;text-align:right;">${pct.toFixed(1)} %</span>
+          </div>` : '—';
 
-        // ── PAGE DE GARDE ───────────────────────────────────────────
-        loadingDiv.querySelector('div:last-child').textContent = 'Génération de la page de garde...';
+        rows += `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td class="number">${d ? fmtFonct(d.cp_2022) : '—'}</td>
+            <td class="number">${d ? fmtFonct(d.cp_2023) : '—'}</td>
+            <td class="number">${d ? fmtFonct(d.cp_2024) : '—'}</td>
+            <td class="number" style="font-weight:600;color:var(--gris1);">${d ? fmtFonct(d.cp_2025) : '—'}</td>
+            <td class="number">${d ? fmtFonct(d.cp_2025_mait) : '—'}</td>
+            <td style="min-width:160px;padding:8px 10px;">${maitCell}</td>
+          </tr>`;
+      }));
 
-        // Fond pleine page bleu DGDDI
-        pdf.setFillColor(0, 47, 108);
-        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+      // ── KPIs globaux ──────────────────────────────────────────────
+      const totalPct2025 = totaux.cp_2025 > 0 ? totaux.cp_2025_mait / totaux.cp_2025 * 100 : 0;
+      const evol2425 = totaux.cp_2024 > 0 ? ((totaux.cp_2025 - totaux.cp_2024) / totaux.cp_2024 * 100) : 0;
+      const evolSign = evol2425 > 0 ? '+' : '';
+      const evolColor = Math.abs(evol2425) < 2 ? 'var(--gris3)' : (evol2425 > 0 ? 'var(--rouge)' : 'var(--vert)');
 
-        // Bande décorative dorée en bas
-        pdf.setFillColor(200, 160, 60);
-        pdf.rect(0, pageHeight - 18, pageWidth, 4, 'F');
+      const kpis = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px;">
 
-        // Bande blanche fine au-dessus de la dorée
-        pdf.setFillColor(255, 255, 255);
-        pdf.rect(0, pageHeight - 22, pageWidth, 1.5, 'F');
+          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid var(--rep2);">
+            <div style="font-size:10px;font-weight:700;color:var(--rep2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">CP 2025 (Total)</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtFonct(totaux.cp_2025)}</div>
+            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">
+              <span style="color:${evolColor};font-weight:600;">${evolSign}${evol2425.toFixed(1)} %</span> vs 2024
+            </div>
+          </div>
 
-        // Logo centré (zone haute)
-        if (logoData) {
-          const lw = 38, lh = 38;
-          const lx = (pageWidth - lw) / 2;
-          pdf.addImage(logoData, 'PNG', lx, 58, lw, lh);
-        }
+          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid var(--orange);">
+            <div style="font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Part Maîtrisable 2025</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtFonct(totaux.cp_2025_mait)}</div>
+            <div style="height:5px;background:rgba(0,0,0,.1);border-radius:3px;margin-top:8px;overflow:hidden;">
+              <div style="width:${Math.min(totalPct2025,100).toFixed(1)}%;height:100%;background:var(--orange);border-radius:3px;"></div>
+            </div>
+          </div>
 
-        // Ligne séparatrice blanche sous le logo
-        pdf.setDrawColor(255, 255, 255);
-        pdf.setLineWidth(0.6);
-        pdf.setGState(pdf.GState({ opacity: 0.35 }));
-        pdf.line(40, 106, pageWidth - 40, 106);
-        pdf.setGState(pdf.GState({ opacity: 1 }));
+          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid #6B3FA0;">
+            <div style="font-size:10px;font-weight:700;color:#6B3FA0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">% Maîtrisable 2025</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${totalPct2025.toFixed(1)} %</div>
+            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">Sur total fonctionnement</div>
+          </div>
 
-        // Titre principal
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFontSize(22);
-        pdf.setFont('helvetica', 'bold');
-        const titre1 = 'TABLEAU DE BORD';
-        const titre2 = 'DE GESTION';
-        pdf.text(titre1, pageWidth / 2, 124, { align: 'center' });
-        pdf.text(titre2, pageWidth / 2, 134, { align: 'center' });
+          <div style="background:var(--gris4);border-radius:8px;padding:14px 16px;border-left:3px solid var(--vert);">
+            <div style="font-size:10px;font-weight:700;color:var(--vert);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">CP 2024 (Référence)</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gris1);line-height:1.1;">${fmtFonct(totaux.cp_2024)}</div>
+            <div style="font-size:11px;color:var(--gris3);margin-top:4px;">Maîtrisable : ${fmtFonct(totaux.cp_2024_mait)}</div>
+          </div>
 
-        // Sous-titre
-        pdf.setFontSize(12);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(180, 200, 240);
-        pdf.text('Direction Générale des Douanes et Droits Indirects', pageWidth / 2, 146, { align: 'center' });
+        </div>`;
 
-        // Badge année — rectangle arrondi simulé
-        const anneeStr = String(ANNEE);
-        pdf.setFillColor(255, 255, 255);
-        const badgeW = 48, badgeH = 14;
-        const badgeX = (pageWidth - badgeW) / 2;
-        pdf.roundedRect(badgeX, 158, badgeW, badgeH, 3, 3, 'F');
-        pdf.setTextColor(0, 47, 108);
-        pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Synthèse ' + anneeStr, pageWidth / 2, 167.5, { align: 'center' });
+      // ── Ligne totale barre maîtrisable ────────────────────────────
+      const totalPctBar = `
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+            <div style="width:${Math.min(totalPct2025,100).toFixed(1)}%;height:100%;background:var(--orange);border-radius:3px;"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:var(--orange);min-width:38px;text-align:right;">${totalPct2025.toFixed(1)} %</span>
+        </div>`;
 
-        // Bloc informatif bas de page
-        pdf.setFillColor(255, 255, 255);
-        pdf.setGState(pdf.GState({ opacity: 0.07 }));
-        pdf.rect(30, pageHeight - 62, pageWidth - 60, 34, 'F');
-        pdf.setGState(pdf.GState({ opacity: 1 }));
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">🏢</div>
+            <div class="section-title">Fonctionnement Courant</div>
+          </div>
 
-        pdf.setTextColor(180, 200, 240);
-        pdf.setFontSize(8.5);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text('Document généré le ' + dateExport, pageWidth / 2, pageHeight - 46, { align: 'center' });
-        pdf.text('Usage interne — Données à caractère confidentiel', pageWidth / 2, pageHeight - 38, { align: 'center' });
+          ${kpis}
 
-        // Numéro de page couverture (discret, sans header/footer)
-        pdf.setTextColor(100, 130, 180);
-        pdf.setFontSize(7.5);
-        pdf.text('DGDDI — Direction Générale des Douanes et Droits Indirects', pageWidth / 2, pageHeight - 8, { align: 'center' });
+          <button id="fonct-toggle-btn" onclick="(function(){
+            var w = document.getElementById('fonct-table-wrapper');
+            var btn = document.getElementById('fonct-toggle-btn');
+            var open = w.style.display !== 'none';
+            w.style.display = open ? 'none' : 'block';
+            btn.innerHTML = open ? '▶&nbsp; Voir le détail par structure' : '▼&nbsp; Masquer le détail';
+          })()"
+          style="background:none;border:1px solid var(--bord);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gris2);cursor:pointer;margin-bottom:12px;">
+            ▶&nbsp; Voir le détail par structure
+          </button>
 
-        // ── PAGES CONTENU (à partir de la page 2) ───────────────────
-        pdf.addPage();
-        currentPage = 2;
-        yPosition = margin + headerHeight + 5;
-        addHeaderFooter(currentPage);
-
-        // Capturer chaque section du contenu (on saute le fiche-header redondant avec la couverture)
-        const targets = [];
-        container.querySelectorAll('.section').forEach(s => targets.push(s));
-
-        for (const el of targets) {
-          if (!el || el.style.display === 'none' || !el.offsetParent) continue;
-
-          loadingDiv.querySelector('div:last-child').textContent =
-            'Capture : ' + (el.querySelector('h2, .section-title')?.textContent?.trim()?.slice(0,40) || '...');
-
-          const elH = el.scrollHeight;
-          const estH = (elH * 0.264583) / 2;
-          if (estH > 60) checkPageBreak(estH);
-
-          const canvas = await html2canvas(el, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-            width: el.scrollWidth,
-            height: el.scrollHeight
-          });
-
-          const imgData = canvas.toDataURL('image/jpeg', 0.92);
-          const imgW = pageWidth - 2 * margin;
-          const imgH = (canvas.height * imgW) / canvas.width;
-
-          checkPageBreak(imgH + 4);
-          pdf.addImage(imgData, 'JPEG', margin, yPosition, imgW, imgH);
-          yPosition += imgH + 4;
-        }
-
-        addHeaderFooter(currentPage);
-        pdf.save('tableau-bord-gestion-' + ANNEE + '.pdf');
-
-      } catch(err) {
-        console.error('Erreur export PDF:', err);
-        alert('Erreur lors de la génération du PDF : ' + err.message);
-      } finally {
-        // Restaurer le DOM
-        exportBar.style.display = '';
-        wrappers.forEach((w, i) => { if (wasHidden[i]) w.style.display = 'none'; });
-        toggleBtns.forEach(b => b.style.display = '');
-        if (loadingDiv.parentNode) loadingDiv.parentNode.removeChild(loadingDiv);
-      }
+          <div id="fonct-table-wrapper" style="display:none;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Structure</th>
+                  <th class="number">CP 2022</th>
+                  <th class="number">CP 2023</th>
+                  <th class="number">CP 2024</th>
+                  <th class="number" style="color:var(--rep2);">CP 2025</th>
+                  <th class="number">Maîtrisable 2025</th>
+                  <th>% Maîtrisable</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+                <tr class="row-total">
+                  <td>TOTAL</td>
+                  <td class="number">${fmtFonct(totaux.cp_2022)}</td>
+                  <td class="number">${fmtFonct(totaux.cp_2023)}</td>
+                  <td class="number">${fmtFonct(totaux.cp_2024)}</td>
+                  <td class="number" style="color:var(--rep2);font-weight:700;">${fmtFonct(totaux.cp_2025)}</td>
+                  <td class="number">${fmtFonct(totaux.cp_2025_mait)}</td>
+                  <td style="padding:8px 10px;">${totalPctBar}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
     }
 
     init();
