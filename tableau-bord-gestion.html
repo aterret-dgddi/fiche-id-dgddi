@@ -10,6 +10,9 @@
   
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
   <style>
     @font-face {
@@ -362,6 +365,46 @@
     /* ══════════════════════════════════ */
     /* LOADING / ERROR */
     /* ══════════════════════════════════ */
+    /* ── Bandeau export ─────────────────────────────────── */
+    #export-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 24px;
+      background: var(--gris4, #EEF2F7);
+      border-bottom: 1px solid var(--bord, #CDD6E4);
+      font-family: 'Marianne', sans-serif;
+    }
+    #export-bar span {
+      font-size: 12px;
+      color: var(--gris2, #4A5A6A);
+      margin-right: 6px;
+    }
+    .export-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: white;
+      border: 1.5px solid var(--rep, #002F6C);
+      border-radius: 6px;
+      color: var(--rep, #002F6C);
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'Marianne', sans-serif;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .export-btn:hover {
+      background: var(--rep, #002F6C);
+      color: white;
+    }
+    @media print {
+      #export-bar { display: none !important; }
+      .container { padding: 0 !important; }
+      .section { page-break-inside: avoid !important; break-inside: avoid !important; }
+    }
+
     .loading {
       text-align: center;
       padding: 60px 20px;
@@ -409,6 +452,12 @@
         <h1 class="fiche-header-title">Tableau de Bord de Gestion</h1>
         <div class="fiche-header-subtitle">Direction Générale des Douanes et Droits Indirects • Synthèse <span id="anneeAffichee">2024</span></div>
       </div>
+    </div>
+
+    <div id="export-bar">
+      <span>Exporter :</span>
+      <button class="export-btn" onclick="exportTBDToHTML()">📄 HTML</button>
+      <button class="export-btn" onclick="exportTBDToPDF()">📑 PDF</button>
     </div>
 
     <div id="loading" class="loading">Chargement des données...</div>
@@ -2420,6 +2469,243 @@
           </div>
         </div>
       `;
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // MODULE EXPORT HTML / PDF — TABLEAU DE BORD
+    // ══════════════════════════════════════════════════════════════════
+
+    function exportTBDToHTML() {
+      const container = document.querySelector('.container');
+      const styleContent = Array.from(document.querySelectorAll('style'))
+        .map(s => s.innerHTML).join('\n');
+
+      // Déplier toutes les tables cachées avant capture, mémoriser l'état
+      const hiddenWrappers = [];
+      container.querySelectorAll('[id$="-table-wrapper"], [id$="-wrapper"]').forEach(el => {
+        if (el.style.display === 'none') {
+          hiddenWrappers.push(el);
+          el.style.display = '';
+        }
+      });
+
+      // Masquer le bandeau export
+      const exportBar = document.getElementById('export-bar');
+      if (exportBar) exportBar.style.display = 'none';
+
+      const bodyHTML = container.innerHTML;
+
+      // Restaurer
+      if (exportBar) exportBar.style.display = '';
+      hiddenWrappers.forEach(el => el.style.display = 'none');
+
+      const printStyles = `
+        @media print {
+          body { background: white; margin: 0; padding: 0; }
+          .section { page-break-inside: avoid !important; break-inside: avoid !important; }
+          #export-bar { display: none !important; }
+        }
+        @page { margin: 15mm; size: A4 portrait; }
+        #export-bar { display: none !important; }
+      `;
+
+      const html = \`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tableau de Bord de Gestion DGDDI - \${ANNEE}</title>
+  <style>\${styleContent}\${printStyles}</style>
+</head>
+<body>
+  <div class="container">
+    \${bodyHTML}
+  </div>
+</body>
+</html>\`;
+
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = \`tableau-bord-gestion-\${ANNEE}.html\`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function exportTBDToPDF() {
+      const { jsPDF } = window.jspdf;
+
+      // Indicateur de chargement
+      const loadingDiv = document.createElement('div');
+      loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:30px 40px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:9999;text-align:center;font-family:Marianne,sans-serif;min-width:300px;';
+      loadingDiv.innerHTML = '<div style="font-size:16px;font-weight:600;color:#002F6C;margin-bottom:10px;">Génération du PDF</div><div style="font-size:13px;color:#666;">Préparation en cours…</div>';
+      document.body.appendChild(loadingDiv);
+      await new Promise(r => setTimeout(r, 100));
+
+      try {
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = 210;
+        const pageHeight = 297;
+        const margin = 12;
+        const headerHeight = 18;
+        const footerHeight = 12;
+        let yPosition = 0;
+        let currentPage = 1;
+        const dateExport = new Date().toLocaleDateString('fr-FR');
+
+        // ── Page de garde ───────────────────────────────────────────────
+        pdf.setFillColor(0, 47, 108); // #002F6C
+        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+
+        // Charger logo
+        let logoData = null;
+        try {
+          const logoUrl = 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg';
+          const resp = await fetch(logoUrl);
+          const svgText = await resp.text();
+          const img = new Image();
+          const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+          const blobUrl = URL.createObjectURL(svgBlob);
+          await new Promise(resolve => {
+            img.onload = () => {
+              const cvs = document.createElement('canvas');
+              cvs.width = 300; cvs.height = 300;
+              cvs.getContext('2d').drawImage(img, 0, 0, 300, 300);
+              logoData = cvs.toDataURL('image/png');
+              URL.revokeObjectURL(blobUrl);
+              resolve();
+            };
+            img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(); };
+            img.src = blobUrl;
+          });
+        } catch(e) {}
+
+        if (logoData) {
+          pdf.addImage(logoData, 'PNG', pageWidth/2 - 20, 60, 40, 40);
+        }
+
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(22);
+        pdf.text('TABLEAU DE BORD', pageWidth / 2, 125, { align: 'center' });
+        pdf.setFontSize(18);
+        pdf.text('DE GESTION', pageWidth / 2, 138, { align: 'center' });
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(11);
+        pdf.setTextColor(180, 200, 230);
+        pdf.text('Direction Générale des Douanes et Droits Indirects', pageWidth / 2, 155, { align: 'center' });
+
+        // Badge année
+        pdf.setFillColor(255, 255, 255);
+        pdf.roundedRect(pageWidth/2 - 25, 165, 50, 14, 3, 3, 'F');
+        pdf.setTextColor(0, 47, 108);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text(\`Synthèse \${ANNEE}\`, pageWidth / 2, 174.5, { align: 'center' });
+
+        // Bande dorée bas de page
+        pdf.setFillColor(180, 140, 60);
+        pdf.rect(0, pageHeight - 18, pageWidth, 4, 'F');
+
+        pdf.setTextColor(200, 200, 200);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.text(\`Généré le \${dateExport}  •  Usage interne — Données à caractère confidentiel\`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+
+        // ── Fonction en-tête / pied de page (pages de contenu) ─────────
+        function addHeaderFooter(pageNum) {
+          pdf.setFillColor(0, 47, 108);
+          pdf.rect(0, 0, pageWidth, headerHeight, 'F');
+          if (logoData) pdf.addImage(logoData, 'PNG', margin, 3, 12, 12);
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(10);
+          pdf.text(\`Tableau de Bord de Gestion — \${ANNEE}\`, margin + (logoData ? 15 : 0), 11);
+
+          const footerY = pageHeight - footerHeight + 3;
+          pdf.setDrawColor(200, 200, 200);
+          pdf.setLineWidth(0.4);
+          pdf.line(margin, footerY, pageWidth - margin, footerY);
+          pdf.setTextColor(120, 120, 120);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8);
+          pdf.text(\`Page \${pageNum}\`, margin, footerY + 5);
+          const dt = \`Exporté le \${dateExport}\`;
+          pdf.text(dt, pageWidth - margin - pdf.getTextWidth(dt), footerY + 5);
+        }
+
+        function checkPageBreak(needed) {
+          const avail = pageHeight - footerHeight - margin - yPosition;
+          if (avail < needed) {
+            addHeaderFooter(currentPage);
+            pdf.addPage();
+            currentPage++;
+            yPosition = margin + headerHeight + 5;
+            return true;
+          }
+          return false;
+        }
+
+        // ── Pages de contenu ────────────────────────────────────────────
+        pdf.addPage();
+        currentPage = 2;
+        yPosition = margin + headerHeight + 5;
+        addHeaderFooter(currentPage);
+
+        // Déplier toutes les tables cachées
+        const container = document.querySelector('.container');
+        const exportBar = document.getElementById('export-bar');
+        const hiddenWrappers = [];
+        container.querySelectorAll('[id$="-table-wrapper"], [id$="-wrapper"]').forEach(el => {
+          if (el.style.display === 'none') {
+            hiddenWrappers.push(el);
+            el.style.display = '';
+          }
+        });
+        if (exportBar) exportBar.style.display = 'none';
+
+        // Capturer chaque section
+        const sections = container.querySelectorAll('.section');
+        for (let section of sections) {
+          if (section.style.display === 'none') continue;
+          loadingDiv.querySelector('div:last-child').textContent = 'Capture des sections…';
+
+          const elH = section.offsetHeight;
+          const estimatedH = (elH * 0.264583) / 2;
+          if (estimatedH > 60) checkPageBreak(estimatedH);
+
+          const canvas = await html2canvas(section, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+            width: section.scrollWidth,
+            height: section.scrollHeight
+          });
+
+          const imgData = canvas.toDataURL('image/jpeg', 0.92);
+          const imgWidth = pageWidth - 2 * margin;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          checkPageBreak(imgHeight + 5);
+          pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+          yPosition += imgHeight + 5;
+        }
+
+        addHeaderFooter(currentPage);
+
+        // Restaurer
+        hiddenWrappers.forEach(el => el.style.display = 'none');
+        if (exportBar) exportBar.style.display = '';
+
+        pdf.save(\`tableau-bord-gestion-\${ANNEE}.pdf\`);
+        document.body.removeChild(loadingDiv);
+      } catch(err) {
+        document.body.removeChild(loadingDiv);
+        alert('Erreur lors de la génération du PDF : ' + err.message);
+      }
     }
 
     init();
