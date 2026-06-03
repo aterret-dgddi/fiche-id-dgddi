@@ -3304,10 +3304,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   for (let element of captureTargets) {
     if (element.style.display === 'none' || !element.offsetParent) continue;
     
-    const elHeight = element.offsetHeight;
-    const estimatedPdfHeight = (elHeight * 0.264583) / 2;
-    if (estimatedPdfHeight > 60) checkPageBreak(estimatedPdfHeight);
-    
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
@@ -3317,54 +3313,55 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       height: element.scrollHeight
     });
     
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
     const imgWidth = pageWidth - (2 * margin);
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    // Hauteur utile d'une page (hors en-tête/pied/marges)
+    // Hauteur utile d'une pleine page (hors en-tête/pied/marges)
     const usablePage = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
+    const canvasWidthPx  = canvas.width;
+    const canvasHeightPx = canvas.height;
+    const pxToMm = imgWidth / canvasWidthPx;
 
-    if (imgHeight <= usablePage) {
-      // L'image tient sur une page : saut de page si besoin puis placement normal
-      checkPageBreak(imgHeight + 5);
-      pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
-      yPosition += imgHeight + 5;
-    } else {
-      // L'image est trop haute : on la découpe en tranches page par page
-      const canvasWidthPx  = canvas.width;
-      const canvasHeightPx = canvas.height;
-      // Ratio px → mm : imgWidth mm correspond à canvasWidthPx px
-      const pxToMm = imgWidth / canvasWidthPx;
-      // Hauteur en px d'une tranche correspondant à usablePage mm
-      const sliceHeightPx = Math.floor(usablePage / pxToMm);
+    let srcY = 0;
+    while (srcY < canvasHeightPx) {
+      // Hauteur disponible sur la page courante
+      const availableMm = pageHeight - footerHeight - margin - yPosition;
+      const availablePx = Math.floor(availableMm / pxToMm);
 
-      let srcY = 0;
-      while (srcY < canvasHeightPx) {
-        const remainPx   = canvasHeightPx - srcY;
-        const thisPx     = Math.min(sliceHeightPx, remainPx);
-        const thisMm     = thisPx * pxToMm;
+      const remainPx = canvasHeightPx - srcY;
 
-        // Créer un canvas temporaire pour la tranche
+      if (availablePx >= remainPx) {
+        // Le reste de l'image tient dans l'espace disponible
+        const thisMm = remainPx * pxToMm;
         const sliceCanvas = document.createElement('canvas');
         sliceCanvas.width  = canvasWidthPx;
-        sliceCanvas.height = thisPx;
-        const ctx = sliceCanvas.getContext('2d');
-        ctx.drawImage(canvas, 0, srcY, canvasWidthPx, thisPx, 0, 0, canvasWidthPx, thisPx);
-
-        checkPageBreak(thisMm + 5);
-        pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPosition, imgWidth, thisMm);
-        yPosition += thisMm + 2;
-
-        srcY += thisPx;
-        // Saut de page entre deux tranches (sauf la dernière)
-        if (srcY < canvasHeightPx) {
-          addHeaderFooter(currentPage);
-          pdf.addPage();
-          currentPage++;
-          yPosition = margin + headerHeight + 5;
-        }
+        sliceCanvas.height = remainPx;
+        sliceCanvas.getContext('2d').drawImage(canvas, 0, srcY, canvasWidthPx, remainPx, 0, 0, canvasWidthPx, remainPx);
+        pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, thisMm);
+        yPosition += thisMm + 5;
+        srcY = canvasHeightPx;
+      } else if (availablePx < 30) {
+        // Moins de 30px disponibles : saut de page direct
+        addHeaderFooter(currentPage);
+        pdf.addPage();
+        currentPage++;
+        yPosition = margin + headerHeight + 5;
+      } else {
+        // Remplir l'espace disponible avec une tranche
+        const thisMm = availablePx * pxToMm;
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width  = canvasWidthPx;
+        sliceCanvas.height = availablePx;
+        sliceCanvas.getContext('2d').drawImage(canvas, 0, srcY, canvasWidthPx, availablePx, 0, 0, canvasWidthPx, availablePx);
+        pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, thisMm);
+        yPosition += thisMm;
+        srcY += availablePx;
+        // Saut de page pour la suite
+        addHeaderFooter(currentPage);
+        pdf.addPage();
+        currentPage++;
+        yPosition = margin + headerHeight + 5;
       }
-      yPosition += 3;
     }
   }
   
