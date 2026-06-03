@@ -3253,14 +3253,17 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     const ta = container.querySelector('textarea');
     const mdeId = ta ? ta.id : null;
     const mdValue = mdeId && _mdeInstances[mdeId] ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
+    // Toujours masquer le container EasyMDE (toolbar incluse) — même si vide
+    container.style.display = 'none';
     if (mdValue && mdValue.trim()) {
       const div = document.createElement('div');
       div.className = 'md-render';
       div.style.cssText = 'font-family:Marianne,sans-serif;font-size:13px;color:var(--gris1);padding:8px;border:1px solid var(--bord);border-radius:4px;background:#fff;';
       div.innerHTML = mdToHtml(mdValue);
       container.parentNode.insertBefore(div, container);
-      container.style.display = 'none';
       _mdeExportDivs.push({ div, container });
+    } else {
+      _mdeExportDivs.push({ div: null, container });
     }
   });
 
@@ -3382,7 +3385,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   
   // Restaurer les éditeurs EasyMDE après capture PDF
   _mdeExportDivs.forEach(({ div, container }) => {
-    div.remove();
+    if (div) div.remove();
     container.style.display = '';
   });
   
