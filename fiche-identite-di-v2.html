@@ -2073,7 +2073,9 @@
       if (idx !== -1) {
         // Récupérer la synthèse (description)
         const synthese = comments.Commentaire?.[idx] || '';
-        descriptionEl.textContent = synthese || 'Aucune description disponible pour cette structure.';
+        descriptionEl.innerHTML = synthese
+          ? mdToHtml(synthese)
+          : '<em style="color:var(--gris3);">Aucune description disponible pour cette structure.</em>';
         
         // Récupérer et parser les pills
         const pillsText = comments.Pills?.[idx] || '';
@@ -2095,7 +2097,7 @@
         }
       } else {
         // Pas de commentaire trouvé
-        descriptionEl.textContent = 'Aucune description disponible pour cette structure.';
+        descriptionEl.innerHTML = '<em style="color:var(--gris3);">Aucune description disponible pour cette structure.</em>';
         pillsContainer.innerHTML = '<span style="font-size: 11px; color: var(--gris3); font-style: italic;">Aucun sujet signalé</span>';
       }
       
@@ -2257,25 +2259,26 @@
         );
         originalPills = (idx !== -1 && comments.Pills) ? (comments.Pills[idx] || '') : '';
         
-        // Transformer description en textarea
+        // Créer un conteneur pour l'éditeur MDE
         textareaEl = document.createElement('textarea');
-        textareaEl.value = originalDescription;
-        textareaEl.style.cssText = `
-          width: 100%;
-          min-height: 80px;
-          padding: 10px;
-          border: 2px solid var(--rep);
-          border-radius: 6px;
-          font-family: 'Marianne', sans-serif;
-          font-size: 13px;
-          line-height: 1.65;
-          resize: vertical;
-          margin-bottom: 16px;
-        `;
+        textareaEl.id = 'synthese-mde-textarea';
         textareaEl.placeholder = 'Décrivez la situation générale de la structure...';
+        textareaEl.style.marginBottom = '16px';
         
         descriptionEl.style.display = 'none';
         descriptionEl.parentNode.insertBefore(textareaEl, descriptionEl);
+        
+        // Initialiser EasyMDE sur le textarea dynamique
+        // On récupère la valeur Markdown brute depuis Grist (pas le textContent HTML)
+        const comments = FICHE_STATE.data.commentaires;
+        const synthIdx = comments ? comments.id.findIndex((id, i) =>
+          comments.Structure[i] === structureId &&
+          comments.Annee[i] === annee &&
+          comments.Section[i] === 'Synthese'
+        ) : -1;
+        const mdRaw = synthIdx !== -1 ? (comments.Commentaire?.[synthIdx] || '') : '';
+        
+        initMDE('synthese-mde-textarea', mdRaw, null);
         
         // Éditeur de pills
         pillsEditorEl = createPillsEditor(originalPills);
@@ -2294,6 +2297,10 @@
         
         // Restaurer l'affichage normal
         if (textareaEl) {
+          if (_mdeInstances['synthese-mde-textarea']) {
+            try { _mdeInstances['synthese-mde-textarea'].toTextArea(); } catch(e) {}
+            delete _mdeInstances['synthese-mde-textarea'];
+          }
           textareaEl.remove();
           descriptionEl.style.display = 'block';
         }
@@ -2307,7 +2314,7 @@
       saveBtn.onclick = async function() {
         if (!isEditing) return;
         
-        const newDescription = textareaEl.value.trim();
+        const newDescription = getMDEValue('synthese-mde-textarea').trim();
         const newPills = getPillsFromEditor(pillsEditorEl);
         
         // Validation
@@ -2324,8 +2331,9 @@
         try {
           await saveMainComment(structureId, annee, newDescription, newPills);
           
-          // Mettre à jour l'affichage
-          descriptionEl.textContent = newDescription;
+          // Mettre à jour l'affichage (rendu Markdown)
+          descriptionEl.innerHTML = newDescription ? mdToHtml(newDescription)
+            : '<em style="color:var(--gris3);">Aucune description disponible pour cette structure.</em>';
           
           // Reconstruire les pills
           pillsContainer.innerHTML = '';
@@ -2352,6 +2360,10 @@
           cancelBtn.disabled = false;
           
           if (textareaEl) {
+            if (_mdeInstances['synthese-mde-textarea']) {
+              try { _mdeInstances['synthese-mde-textarea'].toTextArea(); } catch(e) {}
+              delete _mdeInstances['synthese-mde-textarea'];
+            }
             textareaEl.remove();
             descriptionEl.style.display = 'block';
           }
@@ -2363,7 +2375,6 @@
           alert('✅ Commentaire sauvegardé avec succès !');
           
         } catch (err) {
-          console.error('Erreur sauvegarde:', err);
           alert('❌ Erreur lors de la sauvegarde : ' + err.message);
           saveBtn.innerHTML = '💾 Sauvegarder';
           saveBtn.disabled = false;
@@ -2597,7 +2608,6 @@
       
       
       if (!dataN) {
-        console.warn('⚠️ Pas de données RH pour cette structure');
         
         // Effacer tous les champs
         document.getElementById('rh-effectif-total').textContent = '—';
@@ -2704,7 +2714,6 @@
         const symbolAge = diffAge >= 0 ? '+' : '';
         document.getElementById('rh-age-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorAge};">${symbolAge}${diffAge} ans</span>`;
       } else {
-        console.warn('Pas de age_moyen_global dans consoGroupe');
       }
       
       // Comparaison âge moyen avec National (depuis Consolidation)
@@ -2730,7 +2739,6 @@
         document.getElementById('rh-ms-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
       } else {
         document.getElementById('rh-ms-compare-groupe').innerHTML = '';
-        console.warn('Pas de moyenne_ms_par_agent dans consoGroupe');
       }
       
       // Comparaison MS/Agent avec National
@@ -2742,7 +2750,6 @@
         document.getElementById('rh-ms-compare-national').innerHTML = `vs National: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
       } else {
         document.getElementById('rh-ms-compare-national').innerHTML = '';
-        console.warn('Pas de moyenne_ms_par_agent dans consoNational');
       }
       
       // Tableau détaillé par DR (uniquement pour les DI)
@@ -2826,7 +2833,6 @@
       const notifN = getNotificationsBOP(structureId, annee);
       
       if (!dataN || !notifN) {
-        console.warn('⚠️ Pas de données budget pour cette structure');
         
         // Vider tous les champs
         document.getElementById('budget-pill-montants-ae').textContent = '—';
@@ -2936,7 +2942,6 @@
   const dataPrecedente = getFraisMissionData(structureId, anneePrecedente);
   
   if (!dataCourante) {
-    console.warn('⚠️ Pas de données Frais Mission pour cette structure');
     
     // Vider tous les KPIs
     document.getElementById('fm-total-value').textContent = '—';
@@ -3016,7 +3021,6 @@
     `;
   } else {
     document.getElementById('fm-total-comp').innerHTML = '';
-    console.warn('Moyennes Frais Mission non disponibles - Périmètre:', moyennesPerimetre, 'National:', moyennesNational);
   }
   
   // Formation
@@ -3073,7 +3077,6 @@
     `;
   } else {
     document.getElementById('fm-agent-comp').innerHTML = '';
-    console.warn('Moyennes Frais Mission par agent non disponibles');
   }
   
   // ═══════════════════════════════════════════════════════════════
@@ -3244,7 +3247,6 @@ function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct
   const dataPrecedente = getInformatiqueData(structureId, anneePrecedente);
   
   if (!dataCourante) {
-    console.warn('⚠️ Pas de données Informatique pour cette structure');
     
     // Vider tous les KPIs avec les bons IDs
     document.getElementById('it-total').textContent = '—';
