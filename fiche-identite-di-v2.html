@@ -15,9 +15,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <!-- Éditeur Markdown pour les zones de commentaires -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/easymde/2.18.0/easymde.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/easymde/2.18.0/easymde.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
   
   <style>
     @font-face {
@@ -1843,7 +1843,6 @@
     }
 
     function selectStructure(id) {
-      console.log('=== selectStructure appelée ===', id);
       setStructure(id);
       updateSelectorDisplay();
       updateQuickNavActive();
@@ -1975,7 +1974,6 @@
     function onDataLoaded() {
       // Définir automatiquement la dernière année disponible
       FICHE_STATE.annee = getDerniereAnnee();
-      console.log(`Année détectée: ${FICHE_STATE.annee}`);
       
       // Construire la liste des structures
       const structures = FICHE_STATE.data.structures;
@@ -2006,7 +2004,6 @@
         return a.nom.localeCompare(b.nom);
       });
       
-      console.log(`Structures filtrées: ${allStructures.length}`, allStructures.map(s => `${s.type}: ${s.sigle}`));
       
       // Initialiser les composants
       renderQuickNav();
@@ -2547,7 +2544,6 @@
      * Sauvegarde le commentaire principal dans Grist
      */
     async function saveMainComment(structureId, annee, description, pillsText) {
-      console.log('=== saveMainComment ===', { structureId, annee, description: description.substring(0, 50), pillsText });
       
       const comments = FICHE_STATE.data.commentaires;
       if (!comments) throw new Error('Table Commentaires non chargée');
@@ -2570,7 +2566,6 @@
             Date_Modification: now
           }]
         ]);
-        console.log('✓ Commentaire Synthese mis à jour');
       } else {
         // INSERT
         await grist.docApi.applyUserActions([
@@ -2584,7 +2579,6 @@
             Date_Modification: now
           }]
         ]);
-        console.log('✓ Commentaire Synthese créé');
       }
       
       // Recharger les commentaires
@@ -2598,11 +2592,9 @@
 
     // Fonctions refresh
     function refreshRH(structureId, annee) {
-      console.log('=== refreshRH appelée ===', {structureId, annee});
       const dataN = getRHData(structureId, annee);
       const dataNMoins1 = getRHData(structureId, annee - 1);
       
-      console.log('Données RH récupérées:', {dataN, dataNMoins1});
       
       if (!dataN) {
         console.warn('⚠️ Pas de données RH pour cette structure');
@@ -2663,11 +2655,6 @@
       // Comparaison au groupe
       const type = FICHE_STATE.structure.type;
       const consoGroupe = getConsolidationData(type, annee);
-      console.log('=== DEBUG CONSOLIDATION ===');
-      console.log('Type:', type, 'Année:', annee);
-      console.log('consoGroupe complet:', consoGroupe);
-      console.log('effectif_moyen:', consoGroupe ? consoGroupe.effectif_moyen : 'NULL');
-      console.log('age_moyen_global:', consoGroupe ? consoGroupe.age_moyen_global : 'NULL');
       
       // Comparaison effectif total : non pertinente (valeurs absolues liées à la taille)
       document.getElementById('rh-effectif-compare').innerHTML = '';
@@ -2715,7 +2702,6 @@
         const diffAge = Math.round((ageMoyen - ageMoyenGroupe) * 10) / 10;
         const colorAge = diffAge >= 0 ? 'var(--rouge)' : 'var(--vert)'; // Inversé : plus jeune = mieux
         const symbolAge = diffAge >= 0 ? '+' : '';
-        console.log('Comparaison âge groupe:', {ageMoyen, ageMoyenGroupe, diffAge});
         document.getElementById('rh-age-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorAge};">${symbolAge}${diffAge} ans</span>`;
       } else {
         console.warn('Pas de age_moyen_global dans consoGroupe');
@@ -2742,7 +2728,6 @@
         const colorMS = diffMS >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbolMS = diffMS >= 0 ? '+' : '';
         document.getElementById('rh-ms-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
-        console.log('Comparaison MS groupe:', {msParAgent, moyenneGroupe: consoGroupe.moyenne_ms_par_agent, diffMS, pctDiffMS});
       } else {
         document.getElementById('rh-ms-compare-groupe').innerHTML = '';
         console.warn('Pas de moyenne_ms_par_agent dans consoGroupe');
@@ -2755,7 +2740,6 @@
         const colorMS = diffMS >= 0 ? 'var(--vert)' : 'var(--rouge)';
         const symbolMS = diffMS >= 0 ? '+' : '';
         document.getElementById('rh-ms-compare-national').innerHTML = `vs National: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
-        console.log('Comparaison MS national:', {msParAgent, moyenneNational: consoNational.moyenne_ms_par_agent, diffMS, pctDiffMS});
       } else {
         document.getElementById('rh-ms-compare-national').innerHTML = '';
         console.warn('Pas de moyenne_ms_par_agent dans consoNational');
@@ -2833,7 +2817,6 @@
     }
 
     function refreshBudget(structureId, annee) {
-      console.log('=== refreshBudget appelée ===', {structureId, annee});
       
       // FORCER ANNÉE 2026
       annee = 2026;
@@ -2998,10 +2981,6 @@
   const moyennesPerimetre = getFraisMissionMoyennes(perimetre, anneeCourante);
   const moyennesNational = getFraisMissionMoyennes('National', anneeCourante);
   
-  console.log('=== DEBUG FRAIS DE MISSION ===');
-  console.log('Périmètre:', perimetre, 'Libellé:', libellePerimetre);
-  console.log('Moyennes Périmètre:', moyennesPerimetre);
-  console.log('Moyennes National:', moyennesNational);
   
   // ═══════════════════════════════════════════════════════════════
   // KPI PILLS
@@ -3035,7 +3014,6 @@
         <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
       </div>
     `;
-    console.log('Comparaison Total FM - Périmètre:', ecartPerimetre, 'National:', ecartNational);
   } else {
     document.getElementById('fm-total-comp').innerHTML = '';
     console.warn('Moyennes Frais Mission non disponibles - Périmètre:', moyennesPerimetre, 'National:', moyennesNational);
@@ -3093,7 +3071,6 @@
         <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
       </div>
     `;
-    console.log('Comparaison Coût/Agent FM - Périmètre:', ecartPerimetre, 'National:', ecartNational);
   } else {
     document.getElementById('fm-agent-comp').innerHTML = '';
     console.warn('Moyennes Frais Mission par agent non disponibles');
