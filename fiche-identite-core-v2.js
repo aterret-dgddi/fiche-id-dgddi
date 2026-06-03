@@ -968,8 +968,16 @@ function initMDE(textareaId, initialValue, onSave) {
     try { _mdeInstances[textareaId].toTextArea(); } catch(e) {}
     delete _mdeInstances[textareaId];
   }
+  // toTextArea() restaure le textarea mais laisse le wrapper .EasyMDEContainer dans le DOM.
+  // On le supprime explicitement pour éviter que le nouvel éditeur hérite du contenu précédent.
   const textarea = document.getElementById(textareaId);
   if (!textarea) return null;
+  // Le wrapper est soit le parent direct, soit un frère précédent du textarea
+  const parent = textarea.parentNode;
+  if (parent) {
+    const wrapper = parent.querySelector('.EasyMDEContainer');
+    if (wrapper && wrapper !== textarea) wrapper.remove();
+  }
 
   const mde = new EasyMDE({
     element: textarea,
@@ -1028,7 +1036,16 @@ function getMDEValue(textareaId) {
 /** Détruit tous les éditeurs MDE actifs (changement de structure). */
 function destroyAllMDE() {
   Object.keys(_mdeInstances).forEach(id => {
-    try { _mdeInstances[id].toTextArea(); } catch(e) {}
+    const mde = _mdeInstances[id];
+    // Récupérer le textarea avant destruction pour nettoyer le wrapper résiduel
+    const textarea = mde.element || document.getElementById(id);
+    const parent = textarea ? textarea.parentNode : null;
+    try { mde.toTextArea(); } catch(e) {}
+    // Supprimer le wrapper .EasyMDEContainer laissé dans le DOM par toTextArea()
+    if (parent) {
+      const wrapper = parent.querySelector('.EasyMDEContainer');
+      if (wrapper) wrapper.remove();
+    }
     delete _mdeInstances[id];
   });
 }
@@ -2707,6 +2724,7 @@ function refreshFonctionnement(structureId, annee) {
     });
     const tbody = document.getElementById('fonct-tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>';
+    initSectionMDE('fonct-commentaire', structureId, annee, 'Fonctionnement');
     return;
   }
 
