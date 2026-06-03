@@ -3317,10 +3317,52 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     const imgWidth = pageWidth - (2 * margin);
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    checkPageBreak(imgHeight + 5);
-    pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
-    yPosition += imgHeight + 5;
+
+    // Hauteur utile d'une page (hors en-tête/pied/marges)
+    const usablePage = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
+
+    if (imgHeight <= usablePage) {
+      // L'image tient sur une page : saut de page si besoin puis placement normal
+      checkPageBreak(imgHeight + 5);
+      pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+      yPosition += imgHeight + 5;
+    } else {
+      // L'image est trop haute : on la découpe en tranches page par page
+      const canvasWidthPx  = canvas.width;
+      const canvasHeightPx = canvas.height;
+      // Ratio px → mm : imgWidth mm correspond à canvasWidthPx px
+      const pxToMm = imgWidth / canvasWidthPx;
+      // Hauteur en px d'une tranche correspondant à usablePage mm
+      const sliceHeightPx = Math.floor(usablePage / pxToMm);
+
+      let srcY = 0;
+      while (srcY < canvasHeightPx) {
+        const remainPx   = canvasHeightPx - srcY;
+        const thisPx     = Math.min(sliceHeightPx, remainPx);
+        const thisMm     = thisPx * pxToMm;
+
+        // Créer un canvas temporaire pour la tranche
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width  = canvasWidthPx;
+        sliceCanvas.height = thisPx;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, srcY, canvasWidthPx, thisPx, 0, 0, canvasWidthPx, thisPx);
+
+        checkPageBreak(thisMm + 5);
+        pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPosition, imgWidth, thisMm);
+        yPosition += thisMm + 2;
+
+        srcY += thisPx;
+        // Saut de page entre deux tranches (sauf la dernière)
+        if (srcY < canvasHeightPx) {
+          addHeaderFooter(currentPage);
+          pdf.addPage();
+          currentPage++;
+          yPosition = margin + headerHeight + 5;
+        }
+      }
+      yPosition += 3;
+    }
   }
   
   // Restaurer les boutons d'édition et états masqués après capture
