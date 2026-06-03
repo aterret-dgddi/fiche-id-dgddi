@@ -2382,6 +2382,7 @@
       const kpis = kpiStrip;
 
       // ── Ligne totale barre maîtrisable ────────────────────────────
+      const totalPct2025 = totaux.cp_2025 > 0 ? totaux.cp_2025_mait / totaux.cp_2025 * 100 : 0;
       const totalPctBar = `
         <div style="display:flex;align-items:center;gap:6px;">
           <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
