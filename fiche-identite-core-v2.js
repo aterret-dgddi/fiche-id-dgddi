@@ -953,6 +953,101 @@ async function saveCommentaire(structureId, annee, section, commentaire) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ÉDITEURS MARKDOWN (EasyMDE)
+// ═══════════════════════════════════════════════════════════════
+
+// Registre des instances EasyMDE actives { textareaId: EasyMDE }
+const _mdeInstances = {};
+
+/**
+ * Initialise un éditeur EasyMDE sur un textarea donné.
+ * Idempotent : si un éditeur existe déjà pour cet ID, le détruit d'abord.
+ */
+function initMDE(textareaId, initialValue, onSave) {
+  if (_mdeInstances[textareaId]) {
+    try { _mdeInstances[textareaId].toTextArea(); } catch(e) {}
+    delete _mdeInstances[textareaId];
+  }
+  const textarea = document.getElementById(textareaId);
+  if (!textarea) return null;
+
+  const mde = new EasyMDE({
+    element: textarea,
+    initialValue: initialValue || '',
+    autofocus: false,
+    spellChecker: false,
+    status: false,
+    autosave: { enabled: false },
+    minHeight: '80px',
+    toolbar: [
+      'bold', 'italic', '|',
+      'unordered-list', 'ordered-list', '|',
+      'preview', 'side-by-side', '|',
+      {
+        name: 'clean-block',
+        action: EasyMDE.cleanBlock,
+        className: 'fa fa-eraser',
+        title: 'Nettoyer le formatage'
+      }
+    ],
+    renderingConfig: { singleLineBreaks: true },
+    placeholder: textarea.getAttribute('placeholder') || 'Saisir un commentaire…'
+  });
+
+  mde.codemirror.on('blur', function() {
+    if (onSave) onSave(mde.value());
+  });
+  mde.codemirror.addKeyMap({
+    'Ctrl-S': function() { if (onSave) onSave(mde.value()); },
+    'Cmd-S':  function() { if (onSave) onSave(mde.value()); }
+  });
+
+  _mdeInstances[textareaId] = mde;
+  return mde;
+}
+
+/** Met à jour la valeur d'un éditeur MDE sans déclencher de sauvegarde. */
+function setMDEValue(textareaId, value) {
+  const mde = _mdeInstances[textareaId];
+  if (mde) {
+    mde.value(value || '');
+    mde.codemirror.setCursor({ line: 0, ch: 0 });
+  }
+}
+
+/** Récupère la valeur Markdown d'un éditeur MDE. */
+function getMDEValue(textareaId) {
+  const mde = _mdeInstances[textareaId];
+  return mde ? mde.value() : '';
+}
+
+/** Détruit tous les éditeurs MDE actifs (changement de structure). */
+function destroyAllMDE() {
+  Object.keys(_mdeInstances).forEach(id => {
+    try { _mdeInstances[id].toTextArea(); } catch(e) {}
+    delete _mdeInstances[id];
+  });
+}
+
+/** Convertit du Markdown en HTML pour affichage en lecture. */
+function mdToHtml(md) {
+  if (!md || !md.trim()) return '';
+  if (typeof marked === 'undefined') return md.replace(/\n/g, '<br>');
+  return marked.parse(md, { breaks: true, gfm: true });
+}
+
+/**
+ * Initialise un éditeur MDE sur une section et le connecte à Grist.
+ * Remplace le pattern répétitif textarea.value + textarea.onblur.
+ */
+function initSectionMDE(textareaId, structureId, annee, section) {
+  const initialValue = getCommentaire(structureId, annee, section);
+  initMDE(textareaId, initialValue, (value) => {
+    saveCommentaire(structureId, annee, section, value);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
 // EXPORT PDF/HTML
 // ═══════════════════════════════════════════════════════════════
 
@@ -1614,8 +1709,7 @@ function refreshVehicules(structureId, annee) {
     }
     
     // Vider le commentaire
-    const commentaire = document.getElementById('veh-commentaire');
-    if (commentaire) commentaire.value = '';
+    setMDEValue('veh-commentaire', '');
     
     return;
   }
@@ -2283,8 +2377,7 @@ function refreshCommunication(structureId, annee) {
     if (tbody) tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>`;
     const chartExist = Chart.getChart('chart-com-evolution');
     if (chartExist) chartExist.destroy();
-    const ta = document.getElementById('com-commentaire');
-    if (ta) ta.value = '';
+    setMDEValue('com-commentaire', '');
     return;
   }
 
@@ -2466,13 +2559,7 @@ function refreshCommunication(structureId, annee) {
   tbody.innerHTML = html;
 
   // ── Commentaire ────────────────────────────────────────────────
-  const ta = document.getElementById('com-commentaire');
-  if (ta) {
-    ta.value = getCommentaire(structureId, annee, 'Communication');
-    ta.onblur = function() {
-      saveCommentaire(structureId, annee, 'Communication', this.value);
-    };
-  }
+  initSectionMDE('com-commentaire', structureId, annee, 'Communication');
 }
 
 
@@ -2726,13 +2813,7 @@ function refreshFonctionnement(structureId, annee) {
   }
 
   // ── Commentaire ────────────────────────────────────────────────
-  const ta = document.getElementById('fonct-commentaire');
-  if (ta) {
-    ta.value = getCommentaire(structureId, annee, 'Fonctionnement');
-    ta.onblur = function() {
-      saveCommentaire(structureId, annee, 'Fonctionnement', this.value);
-    };
-  }
+  initSectionMDE('fonct-commentaire', structureId, annee, 'Fonctionnement');
 }
 
 
@@ -3138,14 +3219,20 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   
   const ficheBody = document.getElementById('fiche-body');
   
-  // Synchroniser les valeurs des textareas commentaire dans leurs attributs
-  // pour que html2canvas capture bien le contenu saisi
-  ficheBody.querySelectorAll('textarea').forEach(ta => {
-    ta.setAttribute('data-export-value', ta.value);
-    // Forcer la hauteur visible pour la capture
-    if (ta.value && ta.value.trim()) {
-      ta.style.height = 'auto';
-      ta.style.height = ta.scrollHeight + 'px';
+  // Convertir les éditeurs EasyMDE (Markdown) en rendu HTML pour la capture PDF
+  const _mdeExportDivs = [];
+  ficheBody.querySelectorAll('.EasyMDEContainer').forEach(container => {
+    const ta = container.querySelector('textarea');
+    const mdeId = ta ? ta.id : null;
+    const mdValue = mdeId && _mdeInstances[mdeId] ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
+    if (mdValue && mdValue.trim()) {
+      const div = document.createElement('div');
+      div.className = 'md-render';
+      div.style.cssText = 'font-family:Marianne,sans-serif;font-size:13px;color:var(--gris1);padding:8px;border:1px solid var(--bord);border-radius:4px;background:#fff;';
+      div.innerHTML = mdToHtml(mdValue);
+      container.parentNode.insertBefore(div, container);
+      container.style.display = 'none';
+      _mdeExportDivs.push({ div, container });
     }
   });
 
@@ -3223,10 +3310,10 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     }
   }
   
-  // Restaurer les hauteurs naturelles des textareas
-  ficheBody.querySelectorAll('textarea').forEach(ta => {
-    ta.removeAttribute('data-export-value');
-    ta.style.height = '';
+  // Restaurer les éditeurs EasyMDE après capture PDF
+  _mdeExportDivs.forEach(({ div, container }) => {
+    div.remove();
+    container.style.display = '';
   });
   
   addHeaderFooter(currentPage);
@@ -3256,11 +3343,19 @@ function exportToHTML() {
   const styleContent = document.querySelector('style').innerHTML;
   
   // ── Préparer le contenu pour l'export ──────────────────────────
-  // 1. Synchroniser les valeurs des textareas dans l'attribut HTML
-  //    (innerHTML ne capture pas .value JS, seulement l'attribut value)
-  ficheBody.querySelectorAll('textarea').forEach(ta => {
-    ta.setAttribute('value', ta.value); // pour les inputs simples
-    ta.textContent = ta.value;          // pour les textareas (standard HTML)
+  // 1. Convertir les éditeurs EasyMDE (Markdown) en HTML statique pour l'export
+  const _mdeHtmlExportDivs = [];
+  ficheBody.querySelectorAll('.EasyMDEContainer').forEach(container => {
+    const ta = container.querySelector('textarea');
+    const mdeId = ta ? ta.id : null;
+    const mdValue = mdeId && _mdeInstances[mdeId] ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
+    const div = document.createElement('div');
+    div.className = 'md-render';
+    div.style.cssText = 'font-family:Marianne,sans-serif;font-size:13px;color:var(--gris1);padding:8px;border:1px solid var(--bord);border-radius:4px;background:#fff;min-height:40px;';
+    div.innerHTML = mdValue && mdValue.trim() ? mdToHtml(mdValue) : '<em style="color:var(--gris3);">Aucun commentaire.</em>';
+    container.parentNode.insertBefore(div, container);
+    container.style.display = 'none';
+    _mdeHtmlExportDivs.push({ div, container });
   });
   
   // 2. Masquer les éléments interactifs non pertinents dans l'export
@@ -3283,10 +3378,10 @@ function exportToHTML() {
     el.style.display = el.getAttribute('data-export-hidden') || '';
     el.removeAttribute('data-export-hidden');
   });
-  // Restaurer les textareas (supprimer l'attribut statique qui polluerait l'interface)
-  ficheBody.querySelectorAll('textarea').forEach(ta => {
-    ta.removeAttribute('value');
-    ta.textContent = ta.value; // préserver le contenu visible
+  // Restaurer les éditeurs EasyMDE (supprimer les divs de rendu statique)
+  _mdeHtmlExportDivs.forEach(({ div, container }) => {
+    div.remove();
+    container.style.display = '';
   });
   
   const printStyles = `

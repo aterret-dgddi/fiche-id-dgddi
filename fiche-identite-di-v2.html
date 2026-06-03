@@ -14,6 +14,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Éditeur Markdown pour les zones de commentaires -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/easymde/2.18.0/easymde.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/easymde/2.18.0/easymde.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   
   <style>
     @font-face {
@@ -914,6 +918,71 @@
   }
 }	
 	
+  /* ═══════════════════════════════════════════════════════════════
+     ÉDITEUR MARKDOWN (EasyMDE) — intégration institutionnelle
+     ═══════════════════════════════════════════════════════════════ */
+  .EasyMDEContainer {
+    font-family: 'Marianne', sans-serif;
+  }
+  .EasyMDEContainer .CodeMirror {
+    font-family: 'Marianne', sans-serif;
+    font-size: 13px;
+    border: 1px solid var(--bord);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    background: #fff;
+    color: var(--gris1);
+    min-height: 90px;
+    padding: 8px;
+  }
+  .EasyMDEContainer .CodeMirror-scroll {
+    min-height: 80px;
+  }
+  .EasyMDEContainer .editor-toolbar {
+    border: 1px solid var(--bord);
+    border-radius: 4px 4px 0 0;
+    background: var(--gris4);
+    padding: 2px 4px;
+    opacity: 1;
+  }
+  .EasyMDEContainer .editor-toolbar button {
+    color: var(--gris2);
+    border-radius: 3px;
+    width: 28px;
+    height: 26px;
+  }
+  .EasyMDEContainer .editor-toolbar button:hover,
+  .EasyMDEContainer .editor-toolbar button.active {
+    background: var(--rep-pale);
+    border-color: var(--rep);
+    color: var(--rep);
+  }
+  .EasyMDEContainer .editor-toolbar i.separator {
+    border-color: var(--bord);
+  }
+  /* Preview Markdown */
+  .EasyMDEContainer .editor-preview {
+    font-family: 'Marianne', sans-serif;
+    font-size: 13px;
+    background: #fafbfd;
+    border: 1px solid var(--bord);
+    color: var(--gris1);
+    padding: 10px 12px;
+  }
+  .EasyMDEContainer .editor-preview p { margin: 0 0 6px 0; }
+  .EasyMDEContainer .editor-preview strong { font-weight: 700; }
+  .EasyMDEContainer .editor-preview ul,
+  .EasyMDEContainer .editor-preview ol { padding-left: 20px; margin: 4px 0; }
+  .EasyMDEContainer .editor-preview li { margin: 2px 0; }
+  /* Rendu Markdown inline (mode lecture) */
+  .md-render p { margin: 0 0 5px 0; }
+  .md-render p:last-child { margin-bottom: 0; }
+  .md-render strong { font-weight: 700; }
+  .md-render em { font-style: italic; }
+  .md-render ul, .md-render ol { padding-left: 18px; margin: 4px 0; }
+  .md-render li { margin: 2px 0; }
+  /* Cache le textarea natif géré par EasyMDE */
+  .easymde-managed { display: none !important; }
   </style>
 </head>
 <body>
@@ -1959,6 +2028,9 @@
     function refreshFiche() {
       if (!FICHE_STATE.structure) return;
       
+      // Détruire les éditeurs MDE avant de recharger (évite les doublons au changement de structure)
+      if (typeof destroyAllMDE === 'function') destroyAllMDE();
+      
       const struct = FICHE_STATE.structure;
       const annee = FICHE_STATE.annee;
       
@@ -1976,14 +2048,7 @@
       
       // Charger le commentaire Parc Automobile
       setTimeout(() => {
-        const commentaireVeh = getCommentaire(struct.id, annee, 'Vehicules');
-        const textareaVeh = document.getElementById('veh-commentaire');
-        if (textareaVeh) {
-          textareaVeh.value = commentaireVeh;
-          textareaVeh.onblur = function() {
-            saveCommentaire(struct.id, annee, 'Vehicules', this.value);
-          };
-        }
+        initSectionMDE('veh-commentaire', struct.id, annee, 'Vehicules');
       }, 100);
     }
 
@@ -2578,7 +2643,7 @@
         if (chartRepartition) chartRepartition.destroy();
         
         // Vider le commentaire
-        document.getElementById('rh-commentaire').value = '';
+        setMDEValue('rh-commentaire', '');
         
         return;
       }
@@ -2763,13 +2828,8 @@
         ['#007bff', '#198754']
       );
       
-      // Charger le commentaire
-      const commentaire = getCommentaire(structureId, annee, 'RH');
-      const textarea = document.getElementById('rh-commentaire');
-      textarea.value = commentaire;
-      textarea.onblur = function() {
-        saveCommentaire(structureId, annee, 'RH', this.value);
-      };
+      // Charger le commentaire RH
+      initSectionMDE('rh-commentaire', structureId, annee, 'RH');
     }
 
     function refreshBudget(structureId, annee) {
@@ -2808,7 +2868,7 @@
         }
         
         // Vider le commentaire
-        document.getElementById('budget-commentaire').value = '';
+        setMDEValue('budget-commentaire', '');
         
         return;
       }
@@ -2880,12 +2940,7 @@
       createBudgetTableByType(structureId, annee);
       
       // Charger le commentaire Budget
-      const commentaireBudget = getCommentaire(structureId, annee, 'Budget');
-      const textareaBudget = document.getElementById('budget-commentaire');
-      textareaBudget.value = commentaireBudget;
-      textareaBudget.onblur = function() {
-        saveCommentaire(structureId, annee, 'Budget', this.value);
-      };
+      initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
     }
 
     function refreshFraisMission(structureId, annee) {
@@ -2932,8 +2987,7 @@
     }
     
     // Vider le commentaire
-    const commentaireFM = document.getElementById('fm-commentaire');
-    if (commentaireFM) commentaireFM.value = '';
+    setMDEValue('fm-commentaire', '');
     
     return;
   }
@@ -3109,12 +3163,7 @@
   });
   
   // Charger le commentaire Frais de Mission
-  const commentaireFM = getCommentaire(structureId, annee, 'Frais_Mission');
-  const textareaFM = document.getElementById('fm-commentaire');
-  textareaFM.value = commentaireFM;
-  textareaFM.onblur = function() {
-    saveCommentaire(structureId, annee, 'Frais_Mission', this.value);
-  };
+  initSectionMDE('fm-commentaire', structureId, annee, 'Frais_Mission');
 }
 
 function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct, repasPct, transportMontants, hebergementMontants, repasMontants) {
@@ -3256,7 +3305,7 @@ function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct
     }
     
     // Vider le commentaire
-    document.getElementById('it-commentaire').value = '';
+    setMDEValue('it-commentaire', '');
     
     return;
   }
@@ -3466,12 +3515,7 @@ function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct
   }
   
   // Charger le commentaire Informatique
-  const commentaireIT = getCommentaire(structureId, annee, 'Informatique');
-  const textareaIT = document.getElementById('it-commentaire');
-  textareaIT.value = commentaireIT;
-  textareaIT.onblur = function() {
-    saveCommentaire(structureId, annee, 'Informatique', this.value);
-  };
+  initSectionMDE('it-commentaire', structureId, annee, 'Informatique');
 }
 
 function createInformatiqueChart(annees, portables, fixes) {
