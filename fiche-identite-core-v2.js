@@ -1063,6 +1063,7 @@ function mdToHtml(md) {
  */
 function initSectionMDE(textareaId, structureId, annee, section) {
   const initialValue = getCommentaire(structureId, annee, section);
+  console.log('[MDE]', section, 'structureId=', structureId, 'valeur=', initialValue.substring(0, 60));
   initMDE(textareaId, initialValue, (value) => {
     saveCommentaire(structureId, annee, section, value);
   });
