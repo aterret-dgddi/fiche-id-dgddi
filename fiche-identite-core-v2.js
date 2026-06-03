@@ -2547,9 +2547,9 @@ function getPerimetreFonctionnement(structureId) {
   const type        = structures.Type?.[idx];
   const estOutremer = structures.Est_Outremer?.[idx];
   if (type === 'SCN')                   return 'SCN';
-  if (type === 'DI' && estOutremer)     return 'DI_Outremer';
-  if (type === 'DI' && !estOutremer)    return 'DI_Hexagone';
-  if (type === 'DR' && estOutremer)     return 'DR_Outremer';
+  if (type === 'DI' && estOutremer)     return 'Outremer';
+  if (type === 'DI' && !estOutremer)    return 'DI';
+  if (type === 'DR')                    return 'DR';
   return 'National';
 }
 
