@@ -3211,6 +3211,111 @@ async function exportAllStructuresAsZIP(filters) {
   }
 }
 
+/**
+ * Rendu natif jsPDF d'un texte Markdown.
+ * Gère : titres ##/###, **gras**, *italique*, listes - / *, retours à la ligne.
+ *
+ * @param {object} ctx   Objet contexte partagé avec le scope appelant : { y, addPage }
+ *                       ctx.y est lu ET mis à jour directement (passage par référence objet).
+ *                       ctx.addPage() doit effectuer le saut de page et mettre ctx.y à jour.
+ */
+function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
+  if (!markdownText || !markdownText.trim()) return;
+
+  const FONT_SIZE_NORMAL = 10;
+  const FONT_SIZE_H2     = 13;
+  const FONT_SIZE_H3     = 11;
+  const LINE_HEIGHT       = 5.5;  // mm par ligne normale
+  const PARA_GAP          = 3;    // mm entre paragraphes
+  const LIST_INDENT       = 5;    // mm pour les listes
+
+  const COLOR_TEXT   = [50,  50,  50];
+  const COLOR_TITLE  = [0,   47, 108];
+  const COLOR_BULLET = [0,   83, 160];
+
+  const lines = markdownText.replace(/\r\n/g, '\n').split('\n');
+
+  function ensureSpace(needed) {
+    if (ctx.availableMm() < needed) ctx.addPage();
+  }
+
+  function parseInline(text) {
+    const tokens = [];
+    const re = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+    let last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) tokens.push({ text: text.slice(last, m.index), bold: false, italic: false });
+      if (m[0].startsWith('**')) tokens.push({ text: m[2], bold: true,  italic: false });
+      else                        tokens.push({ text: m[3], bold: false, italic: true  });
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) tokens.push({ text: text.slice(last), bold: false, italic: false });
+    return tokens.length ? tokens : [{ text, bold: false, italic: false }];
+  }
+
+  function writeInlineLine(tokens, fontSize, color, isBullet) {
+    pdf.setFontSize(fontSize);
+    pdf.setTextColor(...color);
+    const fullText = tokens.map(t => t.text).join('');
+    const effectiveWidth = maxWidth - (isBullet ? LIST_INDENT : 0);
+    pdf.setFont('helvetica', 'normal');
+    const wrapped = pdf.splitTextToSize(fullText, effectiveWidth);
+    wrapped.forEach((wline, wi) => {
+      ensureSpace(LINE_HEIGHT + 1);
+      if (isBullet && wi === 0) {
+        pdf.setFillColor(...COLOR_BULLET);
+        pdf.circle(x + 1.5, ctx.y - 1.5, 0.8, 'F');
+      }
+      const lineX = x + (isBullet ? LIST_INDENT : 0);
+      const hasBold   = tokens.some(t => t.bold);
+      const hasItalic = tokens.some(t => t.italic);
+      if (hasBold && hasItalic)       pdf.setFont('helvetica', 'bolditalic');
+      else if (hasBold)               pdf.setFont('helvetica', 'bold');
+      else if (hasItalic)             pdf.setFont('helvetica', 'italic');
+      else                            pdf.setFont('helvetica', 'normal');
+      pdf.text(wline, lineX, ctx.y);
+      ctx.y += LINE_HEIGHT;
+    });
+  }
+
+  lines.forEach(rawLine => {
+    const line = rawLine.trimEnd();
+
+    if (!line.trim()) { ctx.y += PARA_GAP; return; }
+
+    if (/^##\s+/.test(line)) {
+      const title = line.replace(/^##\s+/, '');
+      ensureSpace(LINE_HEIGHT + PARA_GAP + 4);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(FONT_SIZE_H2);
+      pdf.setTextColor(...COLOR_TITLE);
+      pdf.splitTextToSize(title, maxWidth).forEach(t => { pdf.text(t, x, ctx.y); ctx.y += LINE_HEIGHT + 1; });
+      pdf.setDrawColor(180, 200, 230); pdf.setLineWidth(0.3);
+      pdf.line(x, ctx.y - 1, x + maxWidth, ctx.y - 1);
+      ctx.y += PARA_GAP;
+      return;
+    }
+
+    if (/^###\s+/.test(line)) {
+      const title = line.replace(/^###\s+/, '');
+      ensureSpace(LINE_HEIGHT + PARA_GAP);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(FONT_SIZE_H3);
+      pdf.setTextColor(...COLOR_TITLE);
+      pdf.splitTextToSize(title, maxWidth).forEach(t => { pdf.text(t, x, ctx.y); ctx.y += LINE_HEIGHT; });
+      ctx.y += 1;
+      return;
+    }
+
+    if (/^[\-\*]\s+/.test(line)) {
+      writeInlineLine(parseInline(line.replace(/^[\-\*]\s+/, '')), FONT_SIZE_NORMAL, COLOR_TEXT, true);
+      return;
+    }
+
+    writeInlineLine(parseInline(line), FONT_SIZE_NORMAL, COLOR_TEXT, false);
+  });
+}
+
 async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   const pageWidth = 210;
   const pageHeight = 297;
@@ -3321,144 +3426,174 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   
   const ficheBody = document.getElementById('fiche-body');
   
-  // Convertir les éditeurs EasyMDE (Markdown) en rendu HTML pour la capture PDF
-  const _mdeExportDivs = [];
+  // ── Collecte des valeurs markdown des éditeurs EasyMDE ────────────
+  // Pour les sections : on lit le markdown AVANT la capture (les containers restent masqués)
+  // Pour le mainCommentBox : reste en html2canvas (pills + description texte libre)
+  const _mdeContainers = []; // { container } pour restauration
   ficheBody.querySelectorAll('.EasyMDEContainer').forEach(container => {
-    const ta = container.querySelector('textarea');
-    const mdeId = ta ? ta.id : null;
-    const mdValue = mdeId && _mdeInstances[mdeId] ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
-    // Toujours masquer le container EasyMDE (toolbar incluse) — même si vide
     container.style.display = 'none';
-    if (mdValue && mdValue.trim()) {
-      const div = document.createElement('div');
-      div.className = 'md-render';
-      div.style.cssText = 'font-family:Marianne,sans-serif;font-size:13px;color:var(--gris1);padding:8px;border:1px solid var(--bord);border-radius:4px;background:#fff;';
-      div.innerHTML = mdToHtml(mdValue);
-      container.parentNode.insertBefore(div, container);
-      _mdeExportDivs.push({ div, container });
-    } else {
-      _mdeExportDivs.push({ div: null, container });
-    }
+    _mdeContainers.push(container);
   });
 
-  // Construire la liste des blocs à capturer : en-tête fiche, commentaire synthèse, puis chaque section
-  const captureTargets = [];
-  
-  // 1. En-tête fiche identité
-  const ficheHeader = ficheBody.querySelector('.fiche-header');
-  if (ficheHeader) captureTargets.push(ficheHeader);
-  
-  // 2. Encadré commentaire principal (synthèse + pills) — masquer les boutons d'édition pour l'export
-  const mainCommentBox = ficheBody.querySelector('#main-comment-box');
-  if (mainCommentBox) {
-    // Masquer temporairement les boutons d'édition
-    const editBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
-    editBtns.forEach(btn => { btn.dataset.exportHidden = btn.style.display; btn.style.display = 'none'; });
-    
-    // Masquer l'éditeur de pills s'il est ouvert
-    const pillsEditor = mainCommentBox.querySelector('.pills-editor');
-    if (pillsEditor) pillsEditor.style.display = 'none';
-    
-    // Masquer le textarea d'édition si présent
-    const editTextarea = mainCommentBox.querySelector('textarea');
-    if (editTextarea) { editTextarea.dataset.exportHidden = editTextarea.style.display; editTextarea.style.display = 'none'; }
-    
-    // S'assurer que la description texte et les pills sont visibles
-    const descriptionEl = mainCommentBox.querySelector('#comment-description, .comment-description');
-    if (descriptionEl) descriptionEl.style.display = '';
-    const pillsWrapper = mainCommentBox.querySelector('.comment-pills-wrapper');
-    if (pillsWrapper) pillsWrapper.style.display = '';
-    
-    captureTargets.push(mainCommentBox);
+  // Wrapper de checkPageBreak qui met à jour yPosition via closure
+  // + objet contexte partagé pour renderMarkdownToPDF
+  const _pdfCtx = {
+    get y() { return yPosition; },
+    set y(v) { yPosition = v; },
+    availableMm() { return pageHeight - footerHeight - margin - yPosition; },
+    addPage() {
+      addHeaderFooter(currentPage);
+      pdf.addPage();
+      currentPage++;
+      yPosition = margin + headerHeight + 5;
+    }
+  };
+  function _checkPageBreak(neededHeight) {
+    if (_pdfCtx.availableMm() < neededHeight) {
+      _pdfCtx.addPage();
+      return true;
+    }
+    return false;
   }
-  
-  // 3. Toutes les sections indicateurs
-  ficheBody.querySelectorAll('.section').forEach(s => captureTargets.push(s));
-  
-  for (let element of captureTargets) {
-    if (element.style.display === 'none' || !element.offsetParent) continue;
-    
+
+  // ── Fonction utilitaire : capture un élément en image et l'insère dans le PDF ──
+  async function captureElementToImage(element) {
     const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
+      scale: 2, useCORS: true, logging: false,
       backgroundColor: '#ffffff',
-      width: element.scrollWidth,
-      height: element.scrollHeight
+      width: element.scrollWidth, height: element.scrollHeight
     });
-    
-    const imgWidth = pageWidth - (2 * margin);
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    // Hauteur utile d'une pleine page (hors en-tête/pied/marges)
-    const usablePage = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
-    const canvasWidthPx  = canvas.width;
-    const canvasHeightPx = canvas.height;
-    const pxToMm = imgWidth / canvasWidthPx;
-
+    const imgWidth    = pageWidth - (2 * margin);
+    const canvasW     = canvas.width;
+    const canvasH     = canvas.height;
+    const pxToMm      = imgWidth / canvasW;
     let srcY = 0;
-    while (srcY < canvasHeightPx) {
-      // Hauteur disponible sur la page courante
-      const availableMm = pageHeight - footerHeight - margin - yPosition;
-      const availablePx = Math.floor(availableMm / pxToMm);
-
-      const remainPx = canvasHeightPx - srcY;
-
-      if (availablePx >= remainPx) {
-        // Le reste de l'image tient dans l'espace disponible
-        const thisMm = remainPx * pxToMm;
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width  = canvasWidthPx;
-        sliceCanvas.height = remainPx;
-        sliceCanvas.getContext('2d').drawImage(canvas, 0, srcY, canvasWidthPx, remainPx, 0, 0, canvasWidthPx, remainPx);
-        pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, thisMm);
-        yPosition += thisMm + 5;
-        srcY = canvasHeightPx;
-      } else if (availablePx < 30) {
-        // Moins de 30px disponibles : saut de page direct
-        addHeaderFooter(currentPage);
-        pdf.addPage();
-        currentPage++;
+    while (srcY < canvasH) {
+      const availMm  = pageHeight - footerHeight - margin - yPosition;
+      const availPx  = Math.floor(availMm / pxToMm);
+      const remainPx = canvasH - srcY;
+      if (availPx >= remainPx) {
+        const h = remainPx * pxToMm;
+        const sl = document.createElement('canvas');
+        sl.width = canvasW; sl.height = remainPx;
+        sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, remainPx, 0, 0, canvasW, remainPx);
+        pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, h);
+        yPosition += h + 4;
+        srcY = canvasH;
+      } else if (availPx < 30) {
+        addHeaderFooter(currentPage); pdf.addPage(); currentPage++;
         yPosition = margin + headerHeight + 5;
       } else {
-        // Remplir l'espace disponible avec une tranche
-        const thisMm = availablePx * pxToMm;
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width  = canvasWidthPx;
-        sliceCanvas.height = availablePx;
-        sliceCanvas.getContext('2d').drawImage(canvas, 0, srcY, canvasWidthPx, availablePx, 0, 0, canvasWidthPx, availablePx);
-        pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, thisMm);
-        yPosition += thisMm;
-        srcY += availablePx;
-        // Saut de page pour la suite
-        addHeaderFooter(currentPage);
-        pdf.addPage();
-        currentPage++;
+        const h = availPx * pxToMm;
+        const sl = document.createElement('canvas');
+        sl.width = canvasW; sl.height = availPx;
+        sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, availPx, 0, 0, canvasW, availPx);
+        pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, h);
+        yPosition += h; srcY += availPx;
+        addHeaderFooter(currentPage); pdf.addPage(); currentPage++;
         yPosition = margin + headerHeight + 5;
       }
     }
   }
-  
-  // Restaurer les boutons d'édition et états masqués après capture
-  if (mainCommentBox) {
+
+  // ── 1. En-tête fiche identité (image) ─────────────────────────────
+  const ficheHeader = ficheBody.querySelector('.fiche-header');
+  if (ficheHeader && ficheHeader.offsetParent) {
+    await captureElementToImage(ficheHeader);
+  }
+
+  // ── 2. Commentaire principal / synthèse (image — inclut pills) ────
+  const mainCommentBox = ficheBody.querySelector('#main-comment-box');
+  if (mainCommentBox && mainCommentBox.offsetParent) {
     const editBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
+    editBtns.forEach(btn => { btn.dataset.exportHidden = btn.style.display; btn.style.display = 'none'; });
+    const pillsEditor = mainCommentBox.querySelector('.pills-editor');
+    if (pillsEditor) pillsEditor.style.display = 'none';
+    const editTextarea = mainCommentBox.querySelector('textarea');
+    if (editTextarea) { editTextarea.dataset.exportHidden = editTextarea.style.display; editTextarea.style.display = 'none'; }
+    const descriptionEl = mainCommentBox.querySelector('#comment-description, .comment-description');
+    if (descriptionEl) descriptionEl.style.display = '';
+    const pillsWrapper = mainCommentBox.querySelector('.comment-pills-wrapper');
+    if (pillsWrapper) pillsWrapper.style.display = '';
+
+    await captureElementToImage(mainCommentBox);
+
+    // Restauration immédiate
     editBtns.forEach(btn => {
       if (btn.dataset.exportHidden !== undefined) { btn.style.display = btn.dataset.exportHidden; delete btn.dataset.exportHidden; }
     });
-    const pillsEditor = mainCommentBox.querySelector('.pills-editor');
     if (pillsEditor) pillsEditor.style.display = '';
-    const editTextarea = mainCommentBox.querySelector('textarea');
     if (editTextarea && editTextarea.dataset.exportHidden !== undefined) {
       editTextarea.style.display = editTextarea.dataset.exportHidden;
       delete editTextarea.dataset.exportHidden;
     }
   }
-  
-  // Restaurer les éditeurs EasyMDE après capture PDF
-  _mdeExportDivs.forEach(({ div, container }) => {
-    if (div) div.remove();
-    container.style.display = '';
-  });
+
+  // ── 3. Sections indicateurs : corps KPI en image + commentaire en natif ──
+  const imgWidth = pageWidth - (2 * margin);
+  const mdTextWidth = imgWidth - 4; // légère marge intérieure
+
+  const sections = Array.from(ficheBody.querySelectorAll('.section'));
+
+  for (const section of sections) {
+    if (section.style.display === 'none' || !section.offsetParent) continue;
+
+    // Récupérer le texte markdown du commentaire de cette section (s'il existe)
+    const mdeContainer = section.querySelector('.EasyMDEContainer');
+    let mdValue = '';
+    if (mdeContainer) {
+      const ta = mdeContainer.querySelector('textarea');
+      const mdeId = ta ? ta.id : null;
+      mdValue = (mdeId && _mdeInstances[mdeId]) ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
+      // Masquer aussi le bloc date-label sous le container MDE pour la capture
+      const dateLabel = mdeContainer.parentNode ? mdeContainer.parentNode.querySelector('[id$="-date-label"]') : null;
+      if (dateLabel) { dateLabel.dataset.exportHidden = dateLabel.style.display; dateLabel.style.display = 'none'; }
+    }
+
+    // Capturer le corps de la section (sans le container MDE — déjà masqué)
+    await captureElementToImage(section);
+
+    // Restaurer le date-label
+    if (mdeContainer) {
+      const dateLabel = mdeContainer.parentNode ? mdeContainer.parentNode.querySelector('[id$="-date-label"]') : null;
+      if (dateLabel && dateLabel.dataset.exportHidden !== undefined) {
+        dateLabel.style.display = dateLabel.dataset.exportHidden;
+        delete dateLabel.dataset.exportHidden;
+      }
+    }
+
+    // Rendu natif du commentaire markdown (si non vide)
+    if (mdValue && mdValue.trim()) {
+      // Filet de séparation + libellé "Commentaire"
+      _checkPageBreak(12);
+      pdf.setDrawColor(0, 83, 160);
+      pdf.setLineWidth(0.4);
+      pdf.line(margin, yPosition, margin + 3, yPosition);
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(0, 83, 160);
+      pdf.text('Commentaire', margin + 5, yPosition + 0.5);
+      pdf.setDrawColor(220, 228, 240);
+      pdf.setLineWidth(0.3);
+      pdf.line(margin + 32, yPosition, margin + imgWidth, yPosition);
+      yPosition += 4;
+
+      // Encadré léger
+      const mdStartY = yPosition;
+      // Rendu du markdown
+      _pdfCtx.y += 3; // petit décalage avant le texte
+      renderMarkdownToPDF(pdf, mdValue, margin + 2, _pdfCtx, mdTextWidth);
+      yPosition = _pdfCtx.y;
+      yPosition += 4;
+
+      // Encadré autour du bloc commentaire (dessiné après coup si sur la même page)
+      // On ne dessine pas de rect multi-page pour éviter la complexité
+    }
+    yPosition += 3; // espace entre sections
+  }
+
+  // ── Restaurer tous les containers EasyMDE ─────────────────────────
+  _mdeContainers.forEach(container => { container.style.display = ''; });
   
   addHeaderFooter(currentPage);
   return currentPage;
