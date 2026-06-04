@@ -935,7 +935,7 @@ function createStackedAreaChart(canvasId, historique) {
         y: {
           stacked: true,
           beginAtZero: true,
-          title: { display: true, text: 'Effectifs' }
+          title: { display: true, text: 'ETPT' }
         }
       }
     }

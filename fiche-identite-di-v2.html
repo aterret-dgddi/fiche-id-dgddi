@@ -1083,7 +1083,7 @@
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px;">
         <!-- Effectif Total -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Effectif Total</div>
+          <div class="kpi-card-label">ETPT Total</div>
           <div class="kpi-card-value" id="rh-effectif-total">—</div>
           <div class="kpi-card-details">
             <div id="rh-effectif-evolution">—</div>
@@ -1094,7 +1094,7 @@
         
         <!-- Effectif AGCO -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Effectif AGCO</div>
+          <div class="kpi-card-label">ETPT AGCO</div>
           <div class="kpi-card-value" id="rh-agco-total">—</div>
           <div class="kpi-card-details">
             <div id="rh-agco-evolution">—</div>
@@ -1104,7 +1104,7 @@
         
         <!-- Effectif SU -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Effectif SU</div>
+          <div class="kpi-card-label">ETPT SU</div>
           <div class="kpi-card-value" id="rh-su-total">—</div>
           <div class="kpi-card-details">
             <div id="rh-su-evolution">—</div>
@@ -1144,7 +1144,7 @@
             <thead>
               <tr>
                 <th>Structure</th>
-                <th style="text-align: right;">Effectif Total</th>
+                <th style="text-align: right;">ETPT Total</th>
                 <th style="text-align: center;">AGCO</th>
                 <th style="text-align: center;">SU</th>
                 <th style="text-align: center;">Autres</th>
@@ -1162,7 +1162,7 @@
       <!-- Graphiques côte à côte -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
         <div class="chart-container">
-          <div class="chart-title">Évolution des effectifs (toute la série)</div>
+          <div class="chart-title">Évolution des ETPT (toute la série)</div>
           <div class="chart-wrapper" style="height: 220px;">
             <canvas id="chart-rh-evolution"></canvas>
           </div>
@@ -1493,11 +1493,11 @@
           <div style="font-size:10px;opacity:0.6;margin-top:10px;" id="fm-autres-pct"></div>
         </div>
 
-        <!-- Coût moyen par agent -->
+        <!-- Coût moyen par ETPT -->
         <div class="kpi-card" id="fm-pill-agent">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">👤</span>
-            <span style="font-size:12px;font-weight:500;">Coût moyen / agent</span>
+            <span style="font-size:12px;font-weight:500;">Coût moyen / ETPT</span>
           </div>
           <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-agent-value">—</div>
           <div class="fm-evolution-badge" id="fm-agent-evol"></div>
@@ -1566,7 +1566,7 @@
         <div class="kpi-card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">👤</span>
-            <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Ratio poste / agent</span>
+            <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Ratio poste / ETPT</span>
           </div>
           <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="it-ratio">—</div>
           <div class="it-evolution" id="it-ratio-evol"></div>
@@ -1599,7 +1599,7 @@
         <div class="kpi-card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">📊</span>
-            <span style="font-size:12px;font-weight:500;flex:1;color:#633806;">Budget IT / agent <span id="it-annee-label2">2025</span></span>
+            <span style="font-size:12px;font-weight:500;flex:1;color:#633806;">Budget IT / ETPT <span id="it-annee-label2">2025</span></span>
           </div>
           <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#412402;" id="it-budget-agent-annuel">—</div>
           <div class="it-evolution" id="it-budget-agent-annuel-evol"></div>
@@ -1610,7 +1610,7 @@
         <div class="kpi-card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span style="font-size:18px;line-height:1;">💡</span>
-            <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Budget IT / agent moyen 4 ans</span>
+            <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Budget IT / ETPT moyen 4 ans</span>
           </div>
           <div class="it-badge" id="it-badge-4ans2">Lissé 2022-2025</div>
           <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="it-budget-agent-moyen">—</div>
@@ -1636,9 +1636,9 @@
               <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Portables</th>
               <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Fixes</th>
               <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total postes</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Ratio / agent</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Ratio / ETPT</th>
               <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Budget IT</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Budget / agent</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Budget / ETPT</th>
             </tr>
           </thead>
           <tbody id="table-it-body">
