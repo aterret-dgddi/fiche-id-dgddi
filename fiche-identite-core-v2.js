@@ -129,6 +129,57 @@ function getConsolidationStructureData(structureId, annee) {
 }
 
 /**
+ * Calcule la moyenne Budget_Fonctionnement et Budget_Investissement véhicules
+ * sur le périmètre de la structure donnée, pour une année donnée,
+ * en agrégeant Consolidation_Structure de toutes les structures sœurs.
+ *
+ * @param {number} structureId - ID de la structure de référence
+ * @param {number} annee
+ * @returns {{ moy_fonct: number, moy_invest: number }}
+ */
+function getMoyenneBudgetVehiculesPerimetre(structureId, annee) {
+  const consolStruct = FICHE_STATE.data.consolidation_structure;
+  const structures   = FICHE_STATE.data.structures;
+  if (!consolStruct || !structures) return { moy_fonct: 0, moy_invest: 0 };
+
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1) return { moy_fonct: 0, moy_invest: 0 };
+
+  const typeRef     = structures.Type?.[idx] || '';
+  const outreMerRef = structures.Est_Outremer?.[idx] || false;
+
+  // Identifier les structures sœurs (même Type + même contexte outremer)
+  const soeurIds = new Set();
+  for (let i = 0; i < structures.id.length; i++) {
+    const t  = structures.Type?.[i] || '';
+    const om = structures.Est_Outremer?.[i] || false;
+    if (t === typeRef && om === outreMerRef) {
+      soeurIds.add(structures.id[i]);
+    }
+  }
+
+  // Agréger depuis Consolidation_Structure
+  let sumFonct = 0, sumInvest = 0, count = 0;
+  for (let i = 0; i < consolStruct.Structure.length; i++) {
+    if (consolStruct.Annee[i] === annee && soeurIds.has(consolStruct.Structure[i])) {
+      const fonct  = consolStruct.Budget_Fonctionnement_Vehicules?.[i] || 0;
+      const invest = consolStruct.Budget_Investissement_Vehicules?.[i] || 0;
+      // Exclure les lignes à 0 budget (données manquantes, ex. 2022/2023)
+      if (fonct > 0 || invest > 0) {
+        sumFonct  += fonct;
+        sumInvest += invest;
+        count++;
+      }
+    }
+  }
+
+  return {
+    moy_fonct:  count > 0 ? Math.round(sumFonct  / count) : 0,
+    moy_invest: count > 0 ? Math.round(sumInvest / count) : 0
+  };
+}
+
+/**
  * Convertit les structures du format colonaire Grist en tableau d'objets
  */
 function getStructuresArray() {
@@ -2176,8 +2227,10 @@ function createVehiculesTable(structureId) {
     rowMoy.style.background = 'var(--gris5)';
     rowMoy.style.fontWeight = '500';
     
-    const consolDerniere = getConsolidationData(perimetre, annees[annees.length - 1]);
-    
+    const anneeRef       = annees[annees.length - 1];
+    const consolDerniere = getConsolidationData(perimetre, anneeRef);
+    const moyBudgets     = getMoyenneBudgetVehiculesPerimetre(structureId, anneeRef);
+
     if (consolDerniere) {
       const moyBudgetTotal = consolDerniere.moy_budget_vehicules || 0;
       rowMoy.innerHTML = `
@@ -2185,8 +2238,8 @@ function createVehiculesTable(structureId) {
         <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${formatNumber(consolDerniere.moy_nb_vehicules || 0, 0)}</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris3);">—</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${formatPercent(consolDerniere.moy_taux_vetuste || 0)}</td>
-        <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris3);">—</td>
-        <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris3);">—</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${moyBudgets.moy_fonct > 0 ? formatNumber(moyBudgets.moy_fonct / 1000, 0) + ' K€' : '—'}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${moyBudgets.moy_invest > 0 ? formatNumber(moyBudgets.moy_invest / 1000, 0) + ' K€' : '—'}</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${moyBudgetTotal > 0 ? formatNumber(moyBudgetTotal / 1000, 0) + ' K€' : '—'}</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${formatNumber(consolDerniere.moy_ratio_vehicule_agent || 0, 3)}</td>
       `;
