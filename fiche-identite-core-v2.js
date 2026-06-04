@@ -140,10 +140,10 @@ function getConsolidationStructureData(structureId, annee) {
 function getMoyenneBudgetVehiculesPerimetre(structureId, annee) {
   const consolStruct = FICHE_STATE.data.consolidation_structure;
   const structures   = FICHE_STATE.data.structures;
-  if (!consolStruct || !structures) return { moy_fonct: 0, moy_invest: 0 };
+  if (!consolStruct || !structures) return { moy_fonct: 0, moy_invest: 0, moy_vetustes: null };
 
   const idx = structures.id.indexOf(structureId);
-  if (idx === -1) return { moy_fonct: 0, moy_invest: 0 };
+  if (idx === -1) return { moy_fonct: 0, moy_invest: 0, moy_vetustes: null };
 
   const typeRef     = structures.Type?.[idx] || '';
   const outreMerRef = structures.Est_Outremer?.[idx] || false;
@@ -158,24 +158,36 @@ function getMoyenneBudgetVehiculesPerimetre(structureId, annee) {
     }
   }
 
-  // Agréger depuis Consolidation_Structure
-  let sumFonct = 0, sumInvest = 0, count = 0;
+  // Agréger depuis Consolidation_Structure — compteurs séparés par indicateur
+  let sumFonct = 0, countFonct = 0;
+  let sumInvest = 0, countInvest = 0;
+  let sumVetustes = 0, countVetustes = 0;
+
   for (let i = 0; i < consolStruct.Structure.length; i++) {
     if (consolStruct.Annee[i] === annee && soeurIds.has(consolStruct.Structure[i])) {
-      const fonct  = consolStruct.Budget_Fonctionnement_Vehicules?.[i] || 0;
-      const invest = consolStruct.Budget_Investissement_Vehicules?.[i] || 0;
-      // Exclure les lignes à 0 budget (données manquantes, ex. 2022/2023)
-      if (fonct > 0 || invest > 0) {
+      const fonct    = consolStruct.Budget_Fonctionnement_Vehicules?.[i] || 0;
+      const invest   = consolStruct.Budget_Investissement_Vehicules?.[i] || 0;
+      const vetustes = consolStruct.Nb_Vehicules_Vetustes?.[i];
+      const total    = consolStruct.Nombre_Total?.[i] || 0;
+
+      // Fonctionnement : inclure uniquement si la structure a des véhicules (données présentes)
+      if (total > 0) {
         sumFonct  += fonct;
+        countFonct++;
         sumInvest += invest;
-        count++;
+        countInvest++;
+        if (vetustes != null && vetustes !== undefined) {
+          sumVetustes += vetustes;
+          countVetustes++;
+        }
       }
     }
   }
 
   return {
-    moy_fonct:  count > 0 ? Math.round(sumFonct  / count) : 0,
-    moy_invest: count > 0 ? Math.round(sumInvest / count) : 0
+    moy_fonct:     countFonct   > 0 ? Math.round(sumFonct   / countFonct)   : 0,
+    moy_invest:    countInvest  > 0 ? Math.round(sumInvest  / countInvest)  : 0,
+    moy_vetustes:  countVetustes > 0 ? Math.round(sumVetustes / countVetustes) : null
   };
 }
 
@@ -2236,7 +2248,7 @@ function createVehiculesTable(structureId) {
       rowMoy.innerHTML = `
         <td style="padding:12px 16px;font-size:13px;color:var(--gris2);">Moyenne ${perimetre}</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${formatNumber(consolDerniere.moy_nb_vehicules || 0, 0)}</td>
-        <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris3);">—</td>
+        <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${moyBudgets.moy_vetustes != null ? formatNumber(moyBudgets.moy_vetustes, 0) : '—'}</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${formatPercent(consolDerniere.moy_taux_vetuste || 0)}</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${moyBudgets.moy_fonct > 0 ? formatNumber(moyBudgets.moy_fonct / 1000, 0) + ' K€' : '—'}</td>
         <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gris2);">${moyBudgets.moy_invest > 0 ? formatNumber(moyBudgets.moy_invest / 1000, 0) + ' K€' : '—'}</td>
