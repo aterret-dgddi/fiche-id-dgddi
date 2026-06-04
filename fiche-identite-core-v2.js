@@ -908,45 +908,6 @@ function getCommentaire(structureId, annee, section) {
   return idx !== -1 ? (comments.Commentaire[idx] || '') : '';
 }
 
-/** Retourne { texte, dateModif } pour un commentaire donné. dateModif est une Date ou null. */
-function getCommentaireInfo(structureId, annee, section) {
-  const comments = FICHE_STATE.data.commentaires;
-  if (!comments || !comments.id) return { texte: '', dateModif: null };
-  
-  const idx = comments.id.findIndex((id, i) => 
-    comments.Structure[i] === structureId &&
-    comments.Annee[i] === annee &&
-    comments.Section[i] === section
-  );
-  
-  if (idx === -1) return { texte: '', dateModif: null };
-  
-  const texte = comments.Commentaire[idx] || '';
-  // Grist stocke les datetime comme secondes epoch (number) ou ISO string
-  const raw = comments.Date_Modification ? comments.Date_Modification[idx] : null;
-  let dateModif = null;
-  if (raw) {
-    const d = typeof raw === 'number' ? new Date(raw * 1000) : new Date(raw);
-    if (!isNaN(d.getTime())) dateModif = d;
-  }
-  return { texte, dateModif };
-}
-
-/** Formate une Date en "Modifié le JJ/MM/AAAA à HH:MM". Retourne '' si null. */
-function formatCommentaireDate(date) {
-  if (!date) return '';
-  const pad = n => String(n).padStart(2, '0');
-  return `Modifié le ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} à ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-/** Met à jour le span de date associé à un textarea de commentaire. */
-function refreshCommentaireDate(textareaId, structureId, annee, section) {
-  const span = document.getElementById(textareaId + '-date');
-  if (!span) return;
-  const { dateModif } = getCommentaireInfo(structureId, annee, section);
-  span.textContent = formatCommentaireDate(dateModif);
-}
-
 async function saveCommentaire(structureId, annee, section, commentaire) {
   const comments = FICHE_STATE.data.commentaires;
   if (!comments) return;
@@ -1108,12 +1069,9 @@ function mdToHtml(md) {
  */
 function initSectionMDE(textareaId, structureId, annee, section) {
   const initialValue = getCommentaire(structureId, annee, section);
-  initMDE(textareaId, initialValue, async (value) => {
-    await saveCommentaire(structureId, annee, section, value);
-    refreshCommentaireDate(textareaId, structureId, annee, section);
+  initMDE(textareaId, initialValue, (value) => {
+    saveCommentaire(structureId, annee, section, value);
   });
-  // Afficher la date au chargement
-  refreshCommentaireDate(textareaId, structureId, annee, section);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2731,27 +2689,34 @@ function formatFonctMontant(val) {
  * @param {boolean} inverser - true si au-dessus = défavorable
  * @returns {string} HTML
  */
-function buildFonctComparison(val, moyNat, moyPer, inverser) {
+function buildFonctComparison(val, moyNat, moyPer, inverser, libPerimetre) {
   if (!val) return '';
   let html = '';
 
-  [
-    { moy: moyNat, label: '🌍 National' },
-    { moy: moyPer, label: '📍 Périmètre' }
-  ].forEach(({ moy, label }) => {
+  // Libellé périmètre affiché (ex: "moy. DI Métropole", "moy. SCN")
+  const libPer = libPerimetre || 'moy. périmètre';
+
+  const buildLine = (moy, labelRef) => {
     if (!moy) return;
     const diff = ((val - moy) / moy) * 100;
     const absDiff = Math.abs(diff);
     if (absDiff < 1) {
-      html += `<div style="font-size:10px;color:var(--gris3);">${label} : données similaires</div>`;
+      html += `<div style="font-size:10px;color:var(--gris3);">≈ ${labelRef} (dépenses similaires)</div>`;
       return;
     }
     const enHaut = diff > 0;
     const mauvais = inverser ? enHaut : !enHaut;
     const color = mauvais ? 'var(--rouge)' : 'var(--vert)';
-    const sign = enHaut ? '+' : '';
-    html += `<div style="font-size:10px;color:${color};">${label} : ${sign}${absDiff.toFixed(1)} %</div>`;
-  });
+    const sign = enHaut ? '+' : '−';
+    // Contexte sémantique : précise si la dépense est plus élevée ou plus faible
+    const sens = inverser
+      ? (enHaut ? 'dépense plus élevée' : 'dépense plus faible')
+      : (enHaut ? 'part plus élevée' : 'part plus faible');
+    html += `<div style="font-size:10px;color:${color};">${sign}${absDiff.toFixed(1)} % vs ${labelRef} <span style="opacity:0.75;">(${sens})</span></div>`;
+  };
+
+  buildLine(moyNat, 'moy. nationale');
+  buildLine(moyPer, libPer);
 
   return html;
 }
@@ -2780,18 +2745,47 @@ function refreshFonctionnement(structureId, annee) {
   const perimetre = getPerimetreFonctionnement(structureId);
   const consoNat  = getConsolidationData('National', annee);
   const consoPer  = perimetre !== 'National' ? getConsolidationData(perimetre, annee) : null;
+  const libPerimetre = { DI: 'moy. DI Métropole', Outremer: 'moy. DI Outremer', SCN: 'moy. SCN', DR: 'moy. DR' }[perimetre] || null;
 
-  // ── PILL 1 : Évolution CP total 2022→2025 ────────────────────
-  // Pas de comparaison : c'est une évolution propre à la structure
+  // ── PILL 1 : Mini-graphe barres CP 2022→2025 ─────────────────
   const pill1 = document.getElementById('fonct-pill-evol');
   if (pill1) {
-    const evol = d.evol_cp_4ans;
+    const evol  = d.evol_cp_4ans;
     const sign  = evol >= 0 ? '+' : '';
-    const color = evol > 5 ? 'var(--rouge)' : evol < -5 ? 'var(--vert)' : 'var(--gris2)';
-    pill1.innerHTML = `<span style="font-size:22px;font-weight:700;color:${color};">${sign}${evol.toFixed(1)} %</span>`;
+    const colorEvol = evol > 5 ? 'var(--rouge)' : evol < -5 ? 'var(--vert)' : 'var(--gris2)';
+
+    // Données des 4 années pour les barres
+    const anneesBars = [2022, 2023, 2024, 2025];
+    const valsBars   = [d.cp_2022, d.cp_2023, d.cp_2024, d.cp_2025].map(v => v || 0);
+    const maxVal = Math.max(...valsBars, 1);
+
+    const barsHtml = anneesBars.map((a, i) => {
+      const pct   = Math.round((valsBars[i] / maxVal) * 100);
+      const isLast = i === anneesBars.length - 1;
+      const barColor = isLast ? 'var(--rep)' : '#A8CEF0';
+      const fmt = v => v >= 1000 ? Math.round(v / 1000) + ' K€' : v + ' €';
+      return `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;">
+          <div style="font-size:9px;color:var(--gris3);white-space:nowrap;">${fmt(valsBars[i])}</div>
+          <div style="width:100%;height:40px;display:flex;align-items:flex-end;">
+            <div style="width:100%;height:${pct}%;background:${barColor};border-radius:2px 2px 0 0;min-height:3px;"></div>
+          </div>
+          <div style="font-size:9px;color:${isLast ? 'var(--rep)' : 'var(--gris3)'};font-weight:${isLast ? '600' : '400'};">${a}</div>
+        </div>`;
+    }).join('');
+
+    pill1.innerHTML = `
+      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px;">
+        <span style="font-size:22px;font-weight:700;color:${colorEvol};">${sign}${evol.toFixed(1)} %</span>
+        <span style="font-size:10px;color:var(--gris3);">sur 4 ans</span>
+      </div>
+      <div style="display:flex;gap:4px;align-items:flex-end;padding:0 2px;">
+        ${barsHtml}
+      </div>`;
+
     const det = document.getElementById('fonct-pill-evol-detail');
     if (det) det.innerHTML =
-      `<div style="font-size:11px;color:var(--gris3);">${formatFonctMontant(d.cp_2022)} → ${formatFonctMontant(d.cp_2025)}</div>`;
+      `<div style="font-size:10px;color:var(--gris3);margin-top:4px;">${formatFonctMontant(d.cp_2022)} → ${formatFonctMontant(d.cp_2025)}</div>`;
   }
 
   // ── PILL 2 : Part maîtrisable 2025 + comparaison ─────────────
@@ -2810,7 +2804,8 @@ function refreshFonctionnement(structureId, annee) {
         pct,
         consoNat?.moy_pct_maitrisable || null,
         consoPer?.moy_pct_maitrisable || null,
-        false
+        false,
+        libPerimetre
       );
       det.innerHTML = evolHtml + cmpHtml;
     }
@@ -2826,7 +2821,8 @@ function refreshFonctionnement(structureId, annee) {
       val,
       consoNat?.moy_fonct_par_agent || null,
       consoPer?.moy_fonct_par_agent || null,
-      true  // dépense : au-dessus = défavorable
+      true,  // dépense : au-dessus = défavorable
+      libPerimetre
     );
   }
 
@@ -2840,7 +2836,8 @@ function refreshFonctionnement(structureId, annee) {
       val,
       consoNat?.moy_fonct_par_agent_4ans || null,
       consoPer?.moy_fonct_par_agent_4ans || null,
-      true  // dépense : au-dessus = défavorable
+      true,  // dépense : au-dessus = défavorable
+      libPerimetre
     );
   }
 
