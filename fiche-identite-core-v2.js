@@ -2788,55 +2788,80 @@ function refreshFonctionnement(structureId, annee) {
       `<div style="font-size:10px;color:var(--gris3);margin-top:4px;">${formatFonctMontant(d.cp_2022)} → ${formatFonctMontant(d.cp_2025)}</div>`;
   }
 
-  // ── PILL 2 : Part maîtrisable 2025 + comparaison ─────────────
+  // ── PILL 2 : Mini-graphe barres dépenses maîtrisables 2022→2025 ─
   const pill2 = document.getElementById('fonct-pill-pct-m');
   if (pill2) {
+    const evolM  = d.evol_cp_4ans; // on peut calculer depuis cp_m si disponible
+    const valsM  = [d.cp_2022_m, d.cp_2023_m, d.cp_2024_m, d.cp_2025_m].map(v => v || 0);
+    const maxM   = Math.max(...valsM, 1);
+    const evolMPct = valsM[0] > 0 ? ((valsM[3] - valsM[0]) / valsM[0]) * 100 : null;
+    const signM  = evolMPct !== null ? (evolMPct >= 0 ? '+' : '') : '';
+    const colorM = evolMPct === null ? 'var(--gris2)' : evolMPct > 5 ? 'var(--rouge)' : evolMPct < -5 ? 'var(--vert)' : 'var(--gris2)';
+
+    const fmtK = v => v >= 1000 ? Math.round(v / 1000) + ' K€' : v + ' €';
+    const barsM = [2022, 2023, 2024, 2025].map((a, i) => {
+      const pct    = Math.round((valsM[i] / maxM) * 100);
+      const isLast = i === 3;
+      const barColor = isLast ? 'var(--rep)' : '#A8CEF0';
+      return `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;">
+          <div style="font-size:9px;color:var(--gris3);white-space:nowrap;">${fmtK(valsM[i])}</div>
+          <div style="width:100%;height:40px;display:flex;align-items:flex-end;">
+            <div style="width:100%;height:${pct}%;background:${barColor};border-radius:2px 2px 0 0;min-height:3px;"></div>
+          </div>
+          <div style="font-size:9px;color:${isLast ? 'var(--rep)' : 'var(--gris3)'};font-weight:${isLast ? '600' : '400'};">${a}</div>
+        </div>`;
+    }).join('');
+
+    pill2.innerHTML = `
+      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px;">
+        ${evolMPct !== null
+          ? `<span style="font-size:22px;font-weight:700;color:${colorM};">${signM}${evolMPct.toFixed(1)} %</span>
+             <span style="font-size:10px;color:var(--gris3);">sur 4 ans</span>`
+          : `<span style="font-size:22px;font-weight:700;color:var(--gris3);">—</span>`}
+      </div>
+      <div style="display:flex;gap:4px;align-items:flex-end;padding:0 2px;">
+        ${barsM}
+      </div>`;
+
+    const det2 = document.getElementById('fonct-pill-pct-m-detail');
+    if (det2) det2.innerHTML =
+      `<div style="font-size:10px;color:var(--gris3);margin-top:4px;">${fmtK(valsM[0])} → ${fmtK(valsM[3])}</div>`;
+  }
+
+  // ── PILL 3 : Part des dépenses maîtrisables 2025 + comparaison ─
+  const pill3 = document.getElementById('fonct-pill-agent-2025');
+  if (pill3) {
     const pct   = d.pct_m_2025;
     const evol  = d.evol_pct_maitrisable;
     const sign  = evol >= 0 ? '+' : '';
     const colorEvol = evol > 2 ? 'var(--rouge)' : evol < -2 ? 'var(--vert)' : 'var(--gris3)';
-    pill2.innerHTML = `<span style="font-size:22px;font-weight:700;color:var(--rep);">${pct.toFixed(1)} %</span>`;
-    const det = document.getElementById('fonct-pill-pct-m-detail');
-    if (det) {
+    pill3.innerHTML = `<span style="font-size:22px;font-weight:700;color:var(--rep);">${pct.toFixed(1)} %</span>`;
+    const det3 = document.getElementById('fonct-pill-agent-2025-detail');
+    if (det3) {
       const evolHtml = `<div style="font-size:10px;color:${colorEvol};">Évolution : ${sign}${evol.toFixed(1)} pt (2022→2025)</div>`;
-      // Comparaison du niveau % vs moyenne — être plus maîtrisable est favorable (inverser=false)
-      const cmpHtml = buildFonctComparison(
+      const cmpHtml  = buildFonctComparison(
         pct,
         consoNat?.moy_pct_maitrisable || null,
         consoPer?.moy_pct_maitrisable || null,
         false,
         libPerimetre
       );
-      det.innerHTML = evolHtml + cmpHtml;
+      det3.innerHTML = evolHtml + cmpHtml;
     }
   }
 
-  // ── PILL 3 : Maîtrisable / agent 2025 + comparaison ──────────
-  const pill3 = document.getElementById('fonct-pill-agent-2025');
-  if (pill3) {
-    const val = d.fonct_agent_2025;
-    pill3.innerHTML = `<span style="font-size:22px;font-weight:700;color:var(--rep);">${formatCurrency(val)}</span>`;
-    const det = document.getElementById('fonct-pill-agent-2025-detail');
-    if (det) det.innerHTML = buildFonctComparison(
-      val,
-      consoNat?.moy_fonct_par_agent || null,
-      consoPer?.moy_fonct_par_agent || null,
-      true,  // dépense : au-dessus = défavorable
-      libPerimetre
-    );
-  }
-
-  // ── PILL 4 : Maîtrisable / agent lissée 4 ans + comparaison ──
+  // ── PILL 4 : Dépenses maîtrisables / ETPT lissé 4 ans + comparaison ──
   const pill4 = document.getElementById('fonct-pill-agent-4ans');
   if (pill4) {
     const val = d.fonct_agent_4ans;
     pill4.innerHTML = `<span style="font-size:22px;font-weight:700;color:var(--rep);">${formatCurrency(val)}</span>`;
-    const det = document.getElementById('fonct-pill-agent-4ans-detail');
-    if (det) det.innerHTML = buildFonctComparison(
+    const det4 = document.getElementById('fonct-pill-agent-4ans-detail');
+    if (det4) det4.innerHTML = buildFonctComparison(
       val,
       consoNat?.moy_fonct_par_agent_4ans || null,
       consoPer?.moy_fonct_par_agent_4ans || null,
-      true,  // dépense : au-dessus = défavorable
+      true,
       libPerimetre
     );
   }
@@ -2850,28 +2875,28 @@ function refreshFonctionnement(structureId, annee) {
 
     tbody.innerHTML = `
       <tr>
-        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">CP total fonctionnement</td>
+        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">Dépenses de fonctionnement courant en CP</td>
         <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2022)}</td>
         <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2023)}</td>
         <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2024)}</td>
         <td style="padding:8px 12px;text-align:right;font-weight:600;">${fmt(d.cp_2025)}</td>
       </tr>
       <tr style="background:var(--gris4);">
-        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">dont maîtrisable</td>
+        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">dont dépenses maîtrisables en CP</td>
         <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2022_m)}</td>
         <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2023_m)}</td>
         <td style="padding:8px 12px;text-align:right;">${fmt(d.cp_2024_m)}</td>
         <td style="padding:8px 12px;text-align:right;font-weight:600;">${fmt(d.cp_2025_m)}</td>
       </tr>
       <tr>
-        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">% maîtrisable</td>
+        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">Part des dépenses maîtrisables</td>
         <td style="padding:8px 12px;text-align:right;">${fmtPct(d.pct_m_2022)}</td>
         <td style="padding:8px 12px;text-align:right;">${fmtPct(d.pct_m_2023)}</td>
         <td style="padding:8px 12px;text-align:right;">${fmtPct(d.pct_m_2024)}</td>
         <td style="padding:8px 12px;text-align:right;font-weight:600;">${fmtPct(d.pct_m_2025)}</td>
       </tr>
       <tr style="background:var(--gris4);">
-        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">Maîtrisable / agent</td>
+        <td style="padding:8px 12px;font-weight:500;color:var(--gris2);">Dépenses maîtrisables par ETPT</td>
         <td style="padding:8px 12px;text-align:right;">${fmtEur(d.fonct_agent_2022)}</td>
         <td style="padding:8px 12px;text-align:right;">${fmtEur(d.fonct_agent_2023)}</td>
         <td style="padding:8px 12px;text-align:right;">${fmtEur(d.fonct_agent_2024)}</td>

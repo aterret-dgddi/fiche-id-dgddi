@@ -303,6 +303,7 @@
       font-size: 13px;
       line-height: 1.65;
       color: var(--gris1);
+      margin-bottom: 16px;
       padding: 0 4px;
     }
     .comment-description p { margin: 0 0 6px 0; }
@@ -1059,16 +1060,15 @@
       <div class="comment-header">
         <span class="comment-icon">💡</span>
         <span class="comment-title">Vue d'ensemble et points d'attention</span>
-        <span id="main-comment-date" style="font-size:10px;font-weight:400;color:var(--gris3);margin-left:auto;font-style:italic;"></span>
       </div>
-      <div class="comment-pills-wrapper" style="margin-bottom:12px;">
+      <div class="comment-description" id="comment-description">
+        [Description générale de la structure - sera chargée dynamiquement]
+      </div>
+      <div class="comment-pills-wrapper">
         <span class="comment-pills-label">Sujets :</span>
         <div class="comment-pills" id="comment-pills">
           <!-- Pills chargées dynamiquement -->
         </div>
-      </div>
-      <div class="comment-description" id="comment-description">
-        [Description générale de la structure - sera chargée dynamiquement]
       </div>
     </div>
     
@@ -1177,7 +1177,7 @@
       
       <!-- Commentaire RH -->
       <div>
-        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">📝 Analyse de l'indicateur RH<span id="rh-commentaire-date" style="font-size:10px;font-weight:400;color:var(--gris3);margin-left:8px;font-style:italic;"></span></label>
+        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Commentaire</label>
         <textarea id="rh-commentaire" 
                   style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
                   placeholder="Ajouter un commentaire sur les ressources humaines..."></textarea>
@@ -1263,7 +1263,7 @@
       
       <!-- Commentaire Budget -->
       <div style="margin-top: 20px;">
-        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">📝 Analyse de l'indicateur Budget<span id="budget-commentaire-date" style="font-size:10px;font-weight:400;color:var(--gris3);margin-left:8px;font-style:italic;"></span></label>
+        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Commentaire</label>
         <textarea id="budget-commentaire" 
                   style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
                   placeholder="Ajouter un commentaire sur le budget et la consommation..."></textarea>
@@ -1372,7 +1372,7 @@
 
         <!-- Commentaire Communication -->
         <div style="margin-top: 16px;">
-          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">📝 Analyse de l'indicateur Communication<span id="com-commentaire-date" style="font-size:10px;font-weight:400;color:var(--gris3);margin-left:8px;font-style:italic;"></span></label>
+          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Commentaire</label>
           <textarea id="com-commentaire"
                     style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
                     placeholder="Ajouter un commentaire sur les dépenses de communication..."></textarea>
@@ -1393,28 +1393,28 @@
 
         <!-- PILL 1 : Évolution CP total 4 ans -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Évolution CP total 2022→2025</div>
+          <div class="kpi-card-label">Dépenses de fonctionnement courant en CP</div>
           <div id="fonct-pill-evol">—</div>
           <div id="fonct-pill-evol-detail" class="kpi-card-details"></div>
         </div>
 
-        <!-- PILL 2 : Évolution part maîtrisable -->
+        <!-- PILL 2 : Dépenses maîtrisables -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Évolution part maîtrisable</div>
+          <div class="kpi-card-label">Dépenses maîtrisables en CP</div>
           <div id="fonct-pill-pct-m">—</div>
           <div id="fonct-pill-pct-m-detail" class="kpi-card-details"></div>
         </div>
 
-        <!-- PILL 3 : Maîtrisable / agent 2025 -->
+        <!-- PILL 3 : Part des dépenses maîtrisables -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Maîtrisable / agent 2025</div>
+          <div class="kpi-card-label">Part des dépenses maîtrisables</div>
           <div id="fonct-pill-agent-2025">—</div>
           <div id="fonct-pill-agent-2025-detail" class="kpi-card-details"></div>
         </div>
 
-        <!-- PILL 4 : Maîtrisable / agent lissé 4 ans -->
+        <!-- PILL 4 : Dépenses maîtrisables par ETPT -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Maîtrisable / agent (moy. 4 ans)</div>
+          <div class="kpi-card-label">Dépenses maîtrisables par ETPT</div>
           <div id="fonct-pill-agent-4ans">—</div>
           <div id="fonct-pill-agent-4ans-detail" class="kpi-card-details"></div>
         </div>
@@ -1441,7 +1441,7 @@
 
       <!-- Commentaire -->
       <div style="margin-top:4px;">
-        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">📝 Analyse de l'indicateur Fonctionnement<span id="fonct-commentaire-date" style="font-size:10px;font-weight:400;color:var(--gris3);margin-left:8px;font-style:italic;"></span></label>
+        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Commentaire</label>
         <textarea id="fonct-commentaire"
                   style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
                   placeholder="Ajouter un commentaire sur le fonctionnement courant..."></textarea>
@@ -1534,7 +1534,7 @@
       
       <!-- Commentaire Frais de Mission -->
       <div style="margin-top: 20px;">
-        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">📝 Analyse de l'indicateur Frais de mission<span id="fm-commentaire-date" style="font-size:10px;font-weight:400;color:var(--gris3);margin-left:8px;font-style:italic;"></span></label>
+        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Commentaire</label>
         <textarea id="fm-commentaire" 
                   style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
                   placeholder="Ajouter un commentaire sur les frais de mission..."></textarea>
@@ -1649,7 +1649,7 @@
       
       <!-- Commentaire Informatique -->
       <div style="margin-top: 20px;">
-        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">📝 Analyse de l'indicateur Informatique<span id="it-commentaire-date" style="font-size:10px;font-weight:400;color:var(--gris3);margin-left:8px;font-style:italic;"></span></label>
+        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Commentaire</label>
         <textarea id="it-commentaire" 
                   style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
                   placeholder="Ajouter un commentaire sur l'informatique..."></textarea>
@@ -1775,7 +1775,7 @@
   
   <!-- Commentaire Parc Automobile -->
   <div style="margin-top: 20px;">
-    <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">📝 Analyse de l'indicateur Véhicules<span id="veh-commentaire-date" style="font-size:10px;font-weight:400;color:var(--gris3);margin-left:8px;font-style:italic;"></span></label>
+    <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Commentaire</label>
     <textarea id="veh-commentaire" 
               style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
               placeholder="Ajouter un commentaire sur le parc automobile..."></textarea>
@@ -2105,21 +2105,6 @@
         // Pas de commentaire trouvé
         descriptionEl.innerHTML = '<em style="color:var(--gris3);">Aucune description disponible pour cette structure.</em>';
         pillsContainer.innerHTML = '<span style="font-size: 11px; color: var(--gris3); font-style: italic;">Aucun sujet signalé</span>';
-      }
-      
-      // Afficher la date de modification
-      const dateSpan = document.getElementById('main-comment-date');
-      if (dateSpan) {
-        if (idx !== -1) {
-          const raw = comments.Date_Modification ? comments.Date_Modification[idx] : null;
-          if (raw) {
-            const d = typeof raw === 'number' ? new Date(raw * 1000) : new Date(raw);
-            if (!isNaN(d.getTime())) {
-              const pad = n => String(n).padStart(2, '0');
-              dateSpan.textContent = `Modifié le ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} à ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-            } else { dateSpan.textContent = ''; }
-          } else { dateSpan.textContent = ''; }
-        } else { dateSpan.textContent = ''; }
       }
       
       // Rendre l'encadré éditable (optionnel)
@@ -2609,13 +2594,6 @@
       // Recharger les commentaires
       const newComments = await grist.docApi.fetchTable('Commentaires');
       FICHE_STATE.data.commentaires = newComments;
-      
-      // Rafraîchir la date affichée dans le header
-      const _struct = FICHE_STATE.structure;
-      const _annee = FICHE_STATE.annee;
-      if (_struct && _annee) {
-        refreshMainComment(_struct.id, _annee);
-      }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -2995,8 +2973,8 @@
       tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
     }
     
-    // Initialiser le commentaire (sans données FM, le commentaire peut quand même exister)
-    initSectionMDE('fm-commentaire', structureId, annee, 'Frais_Mission');
+    // Vider le commentaire
+    setMDEValue('fm-commentaire', '');
     
     return;
   }
