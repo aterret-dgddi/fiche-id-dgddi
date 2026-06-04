@@ -1071,7 +1071,45 @@ function initSectionMDE(textareaId, structureId, annee, section) {
   const initialValue = getCommentaire(structureId, annee, section);
   initMDE(textareaId, initialValue, (value) => {
     saveCommentaire(structureId, annee, section, value);
+    _renderCommentDateLabel(textareaId, new Date());
   });
+
+  // Lire la date de dernière modification depuis Grist
+  const comments = FICHE_STATE.data.commentaires;
+  if (comments && comments.id) {
+    const idx = comments.id.findIndex((id, i) =>
+      comments.Structure[i] === structureId &&
+      comments.Annee[i] === annee &&
+      comments.Section[i] === section
+    );
+    if (idx !== -1 && comments.Date_Modification?.[idx]) {
+      const raw = comments.Date_Modification[idx];
+      // Grist stocke les dates comme timestamp en secondes (number) ou ISO string
+      const d = typeof raw === 'number' ? new Date(raw * 1000) : new Date(raw);
+      if (!isNaN(d)) _renderCommentDateLabel(textareaId, d);
+    }
+  }
+}
+
+function _renderCommentDateLabel(textareaId, date) {
+  const labelId = textareaId + '-date-label';
+  const textarea = document.getElementById(textareaId);
+  if (!textarea) return;
+  // Chercher le container parent (div encapsulant le textarea et l'éditeur MDE)
+  const container = textarea.parentNode;
+  if (!container) return;
+  let label = document.getElementById(labelId);
+  if (!label) {
+    label = document.createElement('div');
+    label.id = labelId;
+    label.style.cssText = 'font-size:10px;color:var(--gris3);text-align:right;margin-top:4px;padding-right:2px;';
+    container.appendChild(label);
+  }
+  const fmt = new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+  label.textContent = `Modifié le ${fmt.format(date)}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
