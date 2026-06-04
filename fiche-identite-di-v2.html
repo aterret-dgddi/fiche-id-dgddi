@@ -1391,30 +1391,30 @@
       <!-- 4 KPI Pills -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:24px;">
 
-        <!-- PILL 1 : Évolution CP total 4 ans -->
+        <!-- PILL 1 : Dépenses de fonctionnement courant en CP -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Évolution CP total 2022→2025</div>
+          <div class="kpi-card-label">Dépenses de fonctionnement courant en CP</div>
           <div id="fonct-pill-evol">—</div>
           <div id="fonct-pill-evol-detail" class="kpi-card-details"></div>
         </div>
 
-        <!-- PILL 2 : Évolution part maîtrisable -->
+        <!-- PILL 2 : Dépenses maîtrisables en CP -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Évolution part maîtrisable</div>
+          <div class="kpi-card-label">Dépenses maîtrisables en CP</div>
           <div id="fonct-pill-pct-m">—</div>
           <div id="fonct-pill-pct-m-detail" class="kpi-card-details"></div>
         </div>
 
-        <!-- PILL 3 : Maîtrisable / agent 2025 -->
+        <!-- PILL 3 : Part des dépenses maîtrisables -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Maîtrisable / agent 2025</div>
+          <div class="kpi-card-label">Part des dépenses maîtrisables</div>
           <div id="fonct-pill-agent-2025">—</div>
           <div id="fonct-pill-agent-2025-detail" class="kpi-card-details"></div>
         </div>
 
-        <!-- PILL 4 : Maîtrisable / agent lissé 4 ans -->
+        <!-- PILL 4 : Dépenses maîtrisables par ETPT -->
         <div class="kpi-card">
-          <div class="kpi-card-label">Maîtrisable / agent (moy. 4 ans)</div>
+          <div class="kpi-card-label">Dépenses maîtrisables par ETPT</div>
           <div id="fonct-pill-agent-4ans">—</div>
           <div id="fonct-pill-agent-4ans-detail" class="kpi-card-details"></div>
         </div>
@@ -1688,7 +1688,7 @@
       <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-budget-comp"></div>
     </div>
 
-    <!-- Ratio Véhicule/Agent -->
+    <!-- Ratio Véhicule/ETPT -->
     <div class="kpi-card" id="veh-pill-ratio">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">👤</span>
@@ -1710,7 +1710,7 @@
       <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-cout-comp"></div>
     </div>
 
-    <!-- Ratio SU -->
+    <!-- Ratio SU (ETPT) -->
     <div class="kpi-card" id="veh-pill-ratio-su">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">👥</span>
@@ -3036,7 +3036,7 @@
   document.getElementById('fm-autres-pct').textContent = `${dataCourante.pct_autres.toFixed(1)}% du total`;
   
   // Coût moyen par agent
-  document.getElementById('fm-agent-value').textContent = formatCurrency(dataCourante.frais_par_agent) + ' €';
+  document.getElementById('fm-agent-value').textContent = formatCurrency(dataCourante.frais_par_agent);
   
   if (dataPrecedente && dataPrecedente.frais_par_agent > 0) {
     const evolPct = ((dataCourante.frais_par_agent - dataPrecedente.frais_par_agent) / dataPrecedente.frais_par_agent * 100);
