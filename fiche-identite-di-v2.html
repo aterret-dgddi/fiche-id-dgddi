@@ -303,7 +303,6 @@
       font-size: 13px;
       line-height: 1.65;
       color: var(--gris1);
-      margin-bottom: 16px;
       padding: 0 4px;
     }
     .comment-description p { margin: 0 0 6px 0; }
@@ -1060,15 +1059,16 @@
       <div class="comment-header">
         <span class="comment-icon">💡</span>
         <span class="comment-title">Vue d'ensemble et points d'attention</span>
+        <span id="main-comment-date" style="font-size:10px;font-weight:400;color:var(--gris3);margin-left:auto;font-style:italic;"></span>
       </div>
-      <div class="comment-description" id="comment-description">
-        [Description générale de la structure - sera chargée dynamiquement]
-      </div>
-      <div class="comment-pills-wrapper">
+      <div class="comment-pills-wrapper" style="margin-bottom:12px;">
         <span class="comment-pills-label">Sujets :</span>
         <div class="comment-pills" id="comment-pills">
           <!-- Pills chargées dynamiquement -->
         </div>
+      </div>
+      <div class="comment-description" id="comment-description">
+        [Description générale de la structure - sera chargée dynamiquement]
       </div>
     </div>
     
@@ -2107,6 +2107,21 @@
         pillsContainer.innerHTML = '<span style="font-size: 11px; color: var(--gris3); font-style: italic;">Aucun sujet signalé</span>';
       }
       
+      // Afficher la date de modification
+      const dateSpan = document.getElementById('main-comment-date');
+      if (dateSpan) {
+        if (idx !== -1) {
+          const raw = comments.Date_Modification ? comments.Date_Modification[idx] : null;
+          if (raw) {
+            const d = typeof raw === 'number' ? new Date(raw * 1000) : new Date(raw);
+            if (!isNaN(d.getTime())) {
+              const pad = n => String(n).padStart(2, '0');
+              dateSpan.textContent = `Modifié le ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} à ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            } else { dateSpan.textContent = ''; }
+          } else { dateSpan.textContent = ''; }
+        } else { dateSpan.textContent = ''; }
+      }
+      
       // Rendre l'encadré éditable (optionnel)
       makeCommentBoxEditable(structureId, annee);
     }
@@ -2594,6 +2609,13 @@
       // Recharger les commentaires
       const newComments = await grist.docApi.fetchTable('Commentaires');
       FICHE_STATE.data.commentaires = newComments;
+      
+      // Rafraîchir la date affichée dans le header
+      const _struct = FICHE_STATE.structure;
+      const _annee = FICHE_STATE.annee;
+      if (_struct && _annee) {
+        refreshMainComment(_struct.id, _annee);
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════
