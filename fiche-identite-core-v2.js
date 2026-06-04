@@ -3457,42 +3457,63 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   }
 
   // ── Fonction utilitaire : capture un élément en image et l'insère dans le PDF ──
+  // Capture un élément en image et l'insère dans le PDF.
+  // Principe : jamais de slicing. On mesure la hauteur, on saute de page si nécessaire,
+  // puis on place l'image entière. Seuls les blocs plus grands qu'une page entière
+  // sont slicés (cas exceptionnel : tableaux très longs).
   async function captureElementToImage(element) {
+    if (!element || element.scrollHeight === 0) return;
+
     const canvas = await html2canvas(element, {
       scale: 2, useCORS: true, logging: false,
       backgroundColor: '#ffffff',
       width: element.scrollWidth, height: element.scrollHeight
     });
-    const imgWidth    = pageWidth - (2 * margin);
-    const canvasW     = canvas.width;
-    const canvasH     = canvas.height;
-    const pxToMm      = imgWidth / canvasW;
-    let srcY = 0;
-    while (srcY < canvasH) {
-      const availMm  = pageHeight - footerHeight - margin - yPosition;
-      const availPx  = Math.floor(availMm / pxToMm);
-      const remainPx = canvasH - srcY;
-      if (availPx >= remainPx) {
-        const h = remainPx * pxToMm;
-        const sl = document.createElement('canvas');
-        sl.width = canvasW; sl.height = remainPx;
-        sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, remainPx, 0, 0, canvasW, remainPx);
-        pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, h);
-        yPosition += h + 4;
-        srcY = canvasH;
-      } else if (availPx < 30) {
-        addHeaderFooter(currentPage); pdf.addPage(); currentPage++;
-        yPosition = margin + headerHeight + 5;
-      } else {
-        const h = availPx * pxToMm;
-        const sl = document.createElement('canvas');
-        sl.width = canvasW; sl.height = availPx;
-        sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, availPx, 0, 0, canvasW, availPx);
-        pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, h);
-        yPosition += h; srcY += availPx;
-        addHeaderFooter(currentPage); pdf.addPage(); currentPage++;
+
+    const imgWidth   = pageWidth - (2 * margin);
+    const pxToMm     = imgWidth / canvas.width;
+    const imgHeight  = canvas.height * pxToMm;
+    const fullPageH  = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
+
+    if (imgHeight <= fullPageH) {
+      // Bloc qui tient sur une page : saut si pas assez de place, puis placement direct
+      const availMm = pageHeight - footerHeight - margin - yPosition;
+      if (availMm < imgHeight || availMm < 20) {
+        addHeaderFooter(currentPage);
+        pdf.addPage();
+        currentPage++;
         yPosition = margin + headerHeight + 5;
       }
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, imgHeight);
+      yPosition += imgHeight + 3;
+    } else {
+      // Bloc plus grand qu'une page (ex: tableau très long) : slicing inévitable
+      const canvasW = canvas.width;
+      const canvasH = canvas.height;
+      let srcY = 0;
+      while (srcY < canvasH) {
+        const availMm = pageHeight - footerHeight - margin - yPosition;
+        const availPx = Math.floor(availMm / pxToMm);
+        const remainPx = canvasH - srcY;
+        if (availMm < 20 || availPx <= 0) {
+          addHeaderFooter(currentPage); pdf.addPage(); currentPage++;
+          yPosition = margin + headerHeight + 5;
+          continue;
+        }
+        const slicePx = Math.min(availPx, remainPx);
+        const sliceH  = slicePx * pxToMm;
+        const sl = document.createElement('canvas');
+        sl.width = canvasW; sl.height = slicePx;
+        sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, slicePx, 0, 0, canvasW, slicePx);
+        pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, sliceH);
+        yPosition += sliceH;
+        srcY += slicePx;
+        if (srcY < canvasH) {
+          addHeaderFooter(currentPage); pdf.addPage(); currentPage++;
+          yPosition = margin + headerHeight + 5;
+        }
+      }
+      yPosition += 3;
     }
   }
 
@@ -3538,7 +3559,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   for (const section of sections) {
     if (section.style.display === 'none' || !section.offsetParent) continue;
 
-    // Récupérer le texte markdown du commentaire (avant masquage)
+    // Récupérer le texte markdown avant masquage
     const mdeContainer = section.querySelector('.EasyMDEContainer');
     let mdValue = '';
     if (mdeContainer) {
@@ -3547,73 +3568,82 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       mdValue = (mdeId && _mdeInstances[mdeId]) ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
     }
 
-    // Masquer le wrapper du commentaire pour ne PAS le capturer en image
-    let commentWrapperHidden = null;
-    if (mdeContainer) {
-      const wrapper = mdeContainer.parentNode;
-      if (wrapper && wrapper !== section) {
-        commentWrapperHidden = wrapper;
-        wrapper.dataset.exportHidden = wrapper.style.display || '';
-        wrapper.style.display = 'none';
-      }
+    // Masquer le wrapper commentaire (parent du EasyMDEContainer) pour ne pas le capturer
+    let commentWrapper = null;
+    if (mdeContainer && mdeContainer.parentNode !== section) {
+      commentWrapper = mdeContainer.parentNode;
+      commentWrapper.dataset.exportHidden = commentWrapper.style.display || '';
+      commentWrapper.style.display = 'none';
     }
 
-    // Capturer les enfants directs visibles un par un
-    // Section-header (petit) sera groupé avec la grille KPI (premier grand bloc)
-    // pour éviter un header orphelin en bas de page
-    const children = Array.from(section.children).filter(child => {
-      if (child === commentWrapperHidden) return false;
-      if (child.style.display === 'none') return false;
-      if (child.classList && child.classList.contains('EasyMDEContainer')) return false;
-      return true;
-    });
+    // Capturer les enfants directs visibles un par un, avec saut de page préventif
+    // Le section-header est toujours capturé groupé avec l'enfant suivant pour éviter
+    // un titre orphelin. On le met dans un buffer "header" et on l'intègre au prochain enfant.
+    const children = Array.from(section.children).filter(child =>
+      child !== commentWrapper &&
+      child.style.display !== 'none' &&
+      !child.classList.contains('EasyMDEContainer') &&
+      child.scrollHeight > 0
+    );
 
-    // Stratégie : capturer le section-header collé au premier bloc enfant suivant
-    // En pratique : on accumule les enfants de moins de 50px dans un groupe "à coller"
-    // puis on les capture ensemble avec le prochain bloc substantiel
-    let stickyBuffer = []; // éléments à "coller" au suivant
+    // Estimer la hauteur en mm d'un élément DOM
+    function domHeightMm(el) {
+      const imgW = pageWidth - (2 * margin);
+      // Ratio approximatif : scrollWidth du section ≈ largeur affichée
+      // On ne peut pas connaître le ratio exact sans capturer, donc on utilise
+      // une approximation basée sur les dimensions CSS réelles (getBoundingClientRect)
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0) return el.scrollHeight * 0.3; // fallback
+      const scale = imgW / rect.width;
+      return rect.height * scale;
+    }
+
+    let headerBuffer = []; // section-header à coller au prochain bloc
 
     for (let ci = 0; ci < children.length; ci++) {
       const child = children[ci];
-      const childH = child.scrollHeight || 0;
+      const isSectionHeader = child.classList.contains('section-header');
 
-      if (childH < 50 && ci < children.length - 1) {
-        // Petit élément (section-header, label) : on le colle au suivant
-        stickyBuffer.push(child);
+      if (isSectionHeader) {
+        // Ne pas capturer seul : mettre en buffer et attendre le suivant
+        headerBuffer.push(child);
         continue;
       }
 
-      // Bloc substantiel (ou dernier) : vérifier si le groupe tient sur la page
-      const stickyH = stickyBuffer.reduce((s, e) => s + (e.scrollHeight || 0), 0);
-      const totalNeeded = ((stickyH + childH) / section.scrollWidth) * imgWidth + 10;
-      
-      // Saut de page si le groupe sticky + ce bloc ne tient pas
-      if (stickyBuffer.length > 0) {
-        _checkPageBreak(Math.min(totalNeeded, 40)); // saut si moins de 40mm dispo pour le titre
+      // Calculer la hauteur estimée du bloc (header buffer + enfant courant)
+      const totalEstH = headerBuffer.reduce((s, e) => s + domHeightMm(e), 0) + domHeightMm(child);
+      const fullPageH = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
+      const availMm   = pageHeight - footerHeight - margin - yPosition;
+
+      // Saut préventif si le bloc ne tient pas ET qu'il tiendrait sur une page entière
+      if (totalEstH <= fullPageH && availMm < totalEstH) {
+        addHeaderFooter(currentPage);
+        pdf.addPage();
+        currentPage++;
+        yPosition = margin + headerHeight + 5;
       }
 
-      // Capturer d'abord les éléments sticky (section-header, etc.)
-      for (const sticky of stickyBuffer) {
-        await captureElementToImage(sticky);
+      // Capturer le header buffer d'abord (s'il y en a)
+      for (const hdr of headerBuffer) {
+        await captureElementToImage(hdr);
       }
-      stickyBuffer = [];
+      headerBuffer = [];
 
-      // Puis capturer le bloc substantiel
+      // Capturer le bloc courant
       await captureElementToImage(child);
     }
-
-    // Vider le buffer si des éléments restent (cas rare)
-    for (const sticky of stickyBuffer) {
-      await captureElementToImage(sticky);
+    // Vider le buffer si des éléments restent
+    for (const hdr of headerBuffer) {
+      await captureElementToImage(hdr);
     }
 
     // Restaurer le wrapper commentaire
-    if (commentWrapperHidden) {
-      commentWrapperHidden.style.display = commentWrapperHidden.dataset.exportHidden || '';
-      delete commentWrapperHidden.dataset.exportHidden;
+    if (commentWrapper) {
+      commentWrapper.style.display = commentWrapper.dataset.exportHidden || '';
+      delete commentWrapper.dataset.exportHidden;
     }
 
-    // Rendu natif du commentaire markdown (si non vide)
+    // Rendu natif du commentaire markdown
     if (mdValue && mdValue.trim()) {
       _checkPageBreak(12);
       pdf.setDrawColor(0, 83, 160);
@@ -3625,16 +3655,17 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.text('Commentaire', margin + 5, yPosition + 0.5);
       pdf.setDrawColor(220, 228, 240);
       pdf.setLineWidth(0.3);
-      pdf.line(margin + 32, yPosition, margin + imgWidth, yPosition);
+      const imgWidth2 = pageWidth - (2 * margin);
+      pdf.line(margin + 32, yPosition, margin + imgWidth2, yPosition);
       yPosition += 4;
       _pdfCtx.y = yPosition + 2;
-      renderMarkdownToPDF(pdf, mdValue, margin + 2, _pdfCtx, mdTextWidth);
+      renderMarkdownToPDF(pdf, mdValue, margin + 2, _pdfCtx, imgWidth2 - 4);
       yPosition = _pdfCtx.y + 4;
     }
-    yPosition += 4; // espace entre sections
+    yPosition += 4;
   }
 
-  // ── Restaurer tous les containers EasyMDE ─────────────────────────
+    // ── Restaurer tous les containers EasyMDE ─────────────────────────
   _mdeContainers.forEach(container => { container.style.display = ''; });
   
   addHeaderFooter(currentPage);
