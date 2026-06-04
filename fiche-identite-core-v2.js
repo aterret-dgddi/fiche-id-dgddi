@@ -3538,33 +3538,83 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   for (const section of sections) {
     if (section.style.display === 'none' || !section.offsetParent) continue;
 
-    // Récupérer le texte markdown du commentaire de cette section (s'il existe)
+    // Récupérer le texte markdown du commentaire (avant masquage)
     const mdeContainer = section.querySelector('.EasyMDEContainer');
     let mdValue = '';
     if (mdeContainer) {
       const ta = mdeContainer.querySelector('textarea');
       const mdeId = ta ? ta.id : null;
       mdValue = (mdeId && _mdeInstances[mdeId]) ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
-      // Masquer aussi le bloc date-label sous le container MDE pour la capture
-      const dateLabel = mdeContainer.parentNode ? mdeContainer.parentNode.querySelector('[id$="-date-label"]') : null;
-      if (dateLabel) { dateLabel.dataset.exportHidden = dateLabel.style.display; dateLabel.style.display = 'none'; }
     }
 
-    // Capturer le corps de la section (sans le container MDE — déjà masqué)
-    await captureElementToImage(section);
-
-    // Restaurer le date-label
+    // Masquer le wrapper du commentaire pour ne PAS le capturer en image
+    let commentWrapperHidden = null;
     if (mdeContainer) {
-      const dateLabel = mdeContainer.parentNode ? mdeContainer.parentNode.querySelector('[id$="-date-label"]') : null;
-      if (dateLabel && dateLabel.dataset.exportHidden !== undefined) {
-        dateLabel.style.display = dateLabel.dataset.exportHidden;
-        delete dateLabel.dataset.exportHidden;
+      const wrapper = mdeContainer.parentNode;
+      if (wrapper && wrapper !== section) {
+        commentWrapperHidden = wrapper;
+        wrapper.dataset.exportHidden = wrapper.style.display || '';
+        wrapper.style.display = 'none';
       }
+    }
+
+    // Capturer les enfants directs visibles un par un
+    // Section-header (petit) sera groupé avec la grille KPI (premier grand bloc)
+    // pour éviter un header orphelin en bas de page
+    const children = Array.from(section.children).filter(child => {
+      if (child === commentWrapperHidden) return false;
+      if (child.style.display === 'none') return false;
+      if (child.classList && child.classList.contains('EasyMDEContainer')) return false;
+      return true;
+    });
+
+    // Stratégie : capturer le section-header collé au premier bloc enfant suivant
+    // En pratique : on accumule les enfants de moins de 50px dans un groupe "à coller"
+    // puis on les capture ensemble avec le prochain bloc substantiel
+    let stickyBuffer = []; // éléments à "coller" au suivant
+
+    for (let ci = 0; ci < children.length; ci++) {
+      const child = children[ci];
+      const childH = child.scrollHeight || 0;
+
+      if (childH < 50 && ci < children.length - 1) {
+        // Petit élément (section-header, label) : on le colle au suivant
+        stickyBuffer.push(child);
+        continue;
+      }
+
+      // Bloc substantiel (ou dernier) : vérifier si le groupe tient sur la page
+      const stickyH = stickyBuffer.reduce((s, e) => s + (e.scrollHeight || 0), 0);
+      const totalNeeded = ((stickyH + childH) / section.scrollWidth) * imgWidth + 10;
+      
+      // Saut de page si le groupe sticky + ce bloc ne tient pas
+      if (stickyBuffer.length > 0) {
+        _checkPageBreak(Math.min(totalNeeded, 40)); // saut si moins de 40mm dispo pour le titre
+      }
+
+      // Capturer d'abord les éléments sticky (section-header, etc.)
+      for (const sticky of stickyBuffer) {
+        await captureElementToImage(sticky);
+      }
+      stickyBuffer = [];
+
+      // Puis capturer le bloc substantiel
+      await captureElementToImage(child);
+    }
+
+    // Vider le buffer si des éléments restent (cas rare)
+    for (const sticky of stickyBuffer) {
+      await captureElementToImage(sticky);
+    }
+
+    // Restaurer le wrapper commentaire
+    if (commentWrapperHidden) {
+      commentWrapperHidden.style.display = commentWrapperHidden.dataset.exportHidden || '';
+      delete commentWrapperHidden.dataset.exportHidden;
     }
 
     // Rendu natif du commentaire markdown (si non vide)
     if (mdValue && mdValue.trim()) {
-      // Filet de séparation + libellé "Commentaire"
       _checkPageBreak(12);
       pdf.setDrawColor(0, 83, 160);
       pdf.setLineWidth(0.4);
@@ -3577,19 +3627,11 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setLineWidth(0.3);
       pdf.line(margin + 32, yPosition, margin + imgWidth, yPosition);
       yPosition += 4;
-
-      // Encadré léger
-      const mdStartY = yPosition;
-      // Rendu du markdown
-      _pdfCtx.y += 3; // petit décalage avant le texte
+      _pdfCtx.y = yPosition + 2;
       renderMarkdownToPDF(pdf, mdValue, margin + 2, _pdfCtx, mdTextWidth);
-      yPosition = _pdfCtx.y;
-      yPosition += 4;
-
-      // Encadré autour du bloc commentaire (dessiné après coup si sur la même page)
-      // On ne dessine pas de rect multi-page pour éviter la complexité
+      yPosition = _pdfCtx.y + 4;
     }
-    yPosition += 3; // espace entre sections
+    yPosition += 4; // espace entre sections
   }
 
   // ── Restaurer tous les containers EasyMDE ─────────────────────────
