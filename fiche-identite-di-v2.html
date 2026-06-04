@@ -2973,8 +2973,8 @@
       tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
     }
     
-    // Vider le commentaire
-    setMDEValue('fm-commentaire', '');
+    // Initialiser le commentaire (sans données FM, le commentaire peut quand même exister)
+    initSectionMDE('fm-commentaire', structureId, annee, 'Frais_Mission');
     
     return;
   }
