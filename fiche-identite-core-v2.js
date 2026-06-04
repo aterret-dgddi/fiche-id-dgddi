@@ -908,6 +908,45 @@ function getCommentaire(structureId, annee, section) {
   return idx !== -1 ? (comments.Commentaire[idx] || '') : '';
 }
 
+/** Retourne { texte, dateModif } pour un commentaire donné. dateModif est une Date ou null. */
+function getCommentaireInfo(structureId, annee, section) {
+  const comments = FICHE_STATE.data.commentaires;
+  if (!comments || !comments.id) return { texte: '', dateModif: null };
+  
+  const idx = comments.id.findIndex((id, i) => 
+    comments.Structure[i] === structureId &&
+    comments.Annee[i] === annee &&
+    comments.Section[i] === section
+  );
+  
+  if (idx === -1) return { texte: '', dateModif: null };
+  
+  const texte = comments.Commentaire[idx] || '';
+  // Grist stocke les datetime comme secondes epoch (number) ou ISO string
+  const raw = comments.Date_Modification ? comments.Date_Modification[idx] : null;
+  let dateModif = null;
+  if (raw) {
+    const d = typeof raw === 'number' ? new Date(raw * 1000) : new Date(raw);
+    if (!isNaN(d.getTime())) dateModif = d;
+  }
+  return { texte, dateModif };
+}
+
+/** Formate une Date en "Modifié le JJ/MM/AAAA à HH:MM". Retourne '' si null. */
+function formatCommentaireDate(date) {
+  if (!date) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `Modifié le ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} à ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Met à jour le span de date associé à un textarea de commentaire. */
+function refreshCommentaireDate(textareaId, structureId, annee, section) {
+  const span = document.getElementById(textareaId + '-date');
+  if (!span) return;
+  const { dateModif } = getCommentaireInfo(structureId, annee, section);
+  span.textContent = formatCommentaireDate(dateModif);
+}
+
 async function saveCommentaire(structureId, annee, section, commentaire) {
   const comments = FICHE_STATE.data.commentaires;
   if (!comments) return;
@@ -1069,9 +1108,12 @@ function mdToHtml(md) {
  */
 function initSectionMDE(textareaId, structureId, annee, section) {
   const initialValue = getCommentaire(structureId, annee, section);
-  initMDE(textareaId, initialValue, (value) => {
-    saveCommentaire(structureId, annee, section, value);
+  initMDE(textareaId, initialValue, async (value) => {
+    await saveCommentaire(structureId, annee, section, value);
+    refreshCommentaireDate(textareaId, structureId, annee, section);
   });
+  // Afficher la date au chargement
+  refreshCommentaireDate(textareaId, structureId, annee, section);
 }
 
 // ═══════════════════════════════════════════════════════════════
