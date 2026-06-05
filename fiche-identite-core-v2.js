@@ -3658,10 +3658,21 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     }
 
     // Rendu natif du commentaire markdown
-    console.log('[PDF] section commentDiv=', !!commentDiv, 'mdValue.length=', mdValue.length);
+    console.log('[PDF] section commentDiv=', !!commentDiv, 'mdValue.length=', mdValue.length, 'yPosition=', Math.round(yPosition), 'page=', currentPage);
     if (mdValue && mdValue.trim()) {
+      // Réinitialiser explicitement tous les états graphiques PDF après html2canvas
+
+      pdf.setTextColor(50, 50, 50);
+      pdf.setDrawColor(0, 83, 160);
+      pdf.setFillColor(255, 255, 255);
+      pdf.setLineWidth(0.4);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+
       _checkPageBreak(12);
       const imgWidth2 = pageWidth - (2 * margin);
+
+      // Filet séparateur + libellé
       pdf.setDrawColor(0, 83, 160);
       pdf.setLineWidth(0.4);
       pdf.line(margin, yPosition, margin + 3, yPosition);
@@ -3672,9 +3683,15 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setDrawColor(220, 228, 240);
       pdf.setLineWidth(0.3);
       pdf.line(margin + 55, yPosition, margin + imgWidth2, yPosition);
-      yPosition += 4;
-      _pdfCtx.y = yPosition + 2;
-      renderMarkdownToPDF(pdf, mdValue, margin + 2, _pdfCtx, imgWidth2 - 4);
+      yPosition += 5;
+
+      // Réinitialiser pour le texte du commentaire
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.setTextColor(50, 50, 50);
+
+      _pdfCtx.y = yPosition;
+      renderMarkdownToPDF(pdf, mdValue, margin + 3, _pdfCtx, imgWidth2 - 6);
       yPosition = _pdfCtx.y + 4;
     }
     yPosition += 4;
