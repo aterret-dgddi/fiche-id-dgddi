@@ -3566,19 +3566,26 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
           kids.forEach(k => groups.push([k]));
         }
         for (const group of groups) {
-          // Estimer hauteur du groupe
-          const gpxH = group.reduce((s, e) => s + (e.scrollHeight || 0), 0);
-          const gmmH = (gpxH / (element.scrollWidth || 1)) * imgWidth;
-          const avail = pageHeight - footerHeight - margin - yPosition;
-          if (gmmH <= fullPageH && avail < gmmH) doPageBreak();
+          // Capturer tous les éléments du groupe d'abord pour connaître les hauteurs réelles
+          const captured = [];
           for (const el of group) {
-            // Capturer chaque élément du groupe (ils sont petits, tiendront)
             const c2 = await html2canvas(el, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff' });
             const h2 = c2.height * (imgWidth / c2.width);
+            captured.push({ canvas: c2, h: h2, data: c2.toDataURL('image/jpeg', 0.92) });
+          }
+          // Hauteur totale réelle du groupe
+          const totalGroupH = captured.reduce((s, item) => s + item.h + 1, 0);
+          const avail = pageHeight - footerHeight - margin - yPosition;
+          // Saut de page si le groupe tient sur une page mais pas dans l'espace restant
+          if (totalGroupH <= fullPageH && avail < totalGroupH) doPageBreak();
+          // Placer chaque élément du groupe
+          for (const item of captured) {
+            // Saut individuel uniquement si l'élément seul est plus grand que l'espace restant
+            // et qu'il tient sur une page (évite de couper les graphiques)
             const av2 = pageHeight - footerHeight - margin - yPosition;
-            if (h2 <= fullPageH && av2 < h2) doPageBreak();
-            pdf.addImage(c2.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, h2);
-            yPosition += h2 + 1;
+            if (item.h <= fullPageH && av2 < item.h) doPageBreak();
+            pdf.addImage(item.data, 'JPEG', margin, yPosition, imgWidth, item.h);
+            yPosition += item.h + 1;
           }
         }
         yPosition += 2;
@@ -3660,11 +3667,12 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Estimation hauteur section via scrollHeight/scrollWidth (ratio DOM → PDF).
     // scrollHeight est fiable dans Grist contrairement à getBoundingClientRect.
     // On soustrait la hauteur du commentDiv (masqué) pour ne pas surestimer.
+    // Marge de sécurité de 15% car les canvas Chart.js peuvent avoir un scrollHeight sous-estimé.
     const imgW = pageWidth - (2 * margin);
     const commentDivH = commentDiv ? (commentDiv.scrollHeight || 0) : 0;
     const sectionNetH = Math.max(0, (section.scrollHeight || 0) - commentDivH);
     const sectionW    = section.scrollWidth || 1;
-    const estimatedH  = (sectionNetH / sectionW) * imgW;
+    const estimatedH  = (sectionNetH / sectionW) * imgW * 1.15; // +15% marge de sécurité
     const fullPageH   = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
     const availMm     = pageHeight - footerHeight - margin - yPosition;
 
