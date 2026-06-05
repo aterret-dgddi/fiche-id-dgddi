@@ -3222,26 +3222,36 @@ async function exportAllStructuresAsZIP(filters) {
 function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
   if (!markdownText || !markdownText.trim()) return;
 
-  // Supprimer emojis et caracteres hors latin-1 (jsPDF/Helvetica les corrompt)
   function cleanForPDF(str) {
     if (!str) return '';
-    // Supprimer tout caractere hors plage latin-1 (codepoint > 255)
+    str = str
+      .replace(/\u2192/g, '->').replace(/\u2190/g, '<-')
+      .replace(/\u2013/g, '-').replace(/\u2014/g, '--')
+      .replace(/\u2026/g, '...').replace(/\u20AC/g, 'EUR')
+      .replace(/\u00B0/g, 'deg')
+      .replace(/\u2018/g, "'").replace(/\u2019/g, "'")
+      .replace(/\u201C/g, '"').replace(/\u201D/g, '"')
+      .replace(/\u00AB/g, '"').replace(/\u00BB/g, '"')
+      .replace(/\u2022/g, '*');
     let out = '';
     for (let i = 0; i < str.length; i++) {
       const cp = str.codePointAt(i);
-      if (cp > 0xFFFF) { i++; continue; } // surrogate pair (emoji 4 octets)
-      if (cp > 255) continue;             // latin etendu
+      if (cp > 0xFFFF) { i++; continue; }
+      if (cp > 0x2FFF) continue;
+      if (cp > 255 && cp < 0x2000) continue;
       out += str[i];
     }
     return out.replace(/  +/g, ' ').trim();
   }
 
   const FONT_SIZE_NORMAL = 10;
-  const FONT_SIZE_H2     = 13;
-  const FONT_SIZE_H3     = 11;
-  const LINE_HEIGHT       = 5.5;  // mm par ligne normale
-  const PARA_GAP          = 3;    // mm entre paragraphes
-  const LIST_INDENT       = 5;    // mm pour les listes
+  const FONT_SIZE_H1     = 12;
+  const FONT_SIZE_H2     = 11;
+  const FONT_SIZE_H3     = 10.5;
+  const LINE_HEIGHT      = 5.5;
+  const PARA_GAP         = 2.5;
+  const LIST_INDENT      = 4;
+  const SUB_INDENT       = 8;
 
   const COLOR_TEXT   = [50,  50,  50];
   const COLOR_TITLE  = [0,   47, 108];
@@ -3255,78 +3265,91 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
 
   function parseInline(text) {
     const tokens = [];
-    const re = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+    const re = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*)/g;
     let last = 0, m;
     while ((m = re.exec(text)) !== null) {
       if (m.index > last) tokens.push({ text: text.slice(last, m.index), bold: false, italic: false });
-      if (m[0].startsWith('**')) tokens.push({ text: m[2], bold: true,  italic: false });
-      else                        tokens.push({ text: m[3], bold: false, italic: true  });
+      if (m[0].startsWith('***'))     tokens.push({ text: m[2], bold: true, italic: true });
+      else if (m[0].startsWith('**')) tokens.push({ text: m[3], bold: true, italic: false });
+      else                            tokens.push({ text: m[4], bold: false, italic: true });
       last = m.index + m[0].length;
     }
     if (last < text.length) tokens.push({ text: text.slice(last), bold: false, italic: false });
     return tokens.length ? tokens : [{ text, bold: false, italic: false }];
   }
 
-  function writeInlineLine(tokens, fontSize, color, isBullet) {
+  function writeInlineLine(tokens, fontSize, color, indent) {
     pdf.setFontSize(fontSize);
     pdf.setTextColor(...color);
     const fullText = cleanForPDF(tokens.map(t => t.text).join(''));
-    const effectiveWidth = maxWidth - (isBullet ? LIST_INDENT : 0);
-    pdf.setFont('helvetica', 'normal');
-    const wrapped = pdf.splitTextToSize(fullText, effectiveWidth);
+    if (!fullText) return;
+    const wrapped = pdf.splitTextToSize(fullText, maxWidth - indent);
+    const hasBold = tokens.some(t => t.bold), hasItalic = tokens.some(t => t.italic);
     wrapped.forEach((wline, wi) => {
       ensureSpace(LINE_HEIGHT + 1);
-      if (isBullet && wi === 0) {
+      if (indent > 0 && wi === 0) {
         pdf.setFillColor(...COLOR_BULLET);
-        pdf.circle(x + 1.5, ctx.y - 1.5, 0.8, 'F');
+        pdf.circle(x + indent - 2.5, ctx.y - 1.5, 0.7, 'F');
       }
-      const lineX = x + (isBullet ? LIST_INDENT : 0);
-      const hasBold   = tokens.some(t => t.bold);
-      const hasItalic = tokens.some(t => t.italic);
-      if (hasBold && hasItalic)       pdf.setFont('helvetica', 'bolditalic');
-      else if (hasBold)               pdf.setFont('helvetica', 'bold');
-      else if (hasItalic)             pdf.setFont('helvetica', 'italic');
-      else                            pdf.setFont('helvetica', 'normal');
-      pdf.text(wline, lineX, ctx.y);
+      if (hasBold && hasItalic)      pdf.setFont('helvetica', 'bolditalic');
+      else if (hasBold)              pdf.setFont('helvetica', 'bold');
+      else if (hasItalic)            pdf.setFont('helvetica', 'italic');
+      else                           pdf.setFont('helvetica', 'normal');
+      pdf.text(wline, x + indent, ctx.y);
       ctx.y += LINE_HEIGHT;
     });
   }
 
   lines.forEach(rawLine => {
     const line = rawLine.trimEnd();
-
     if (!line.trim()) { ctx.y += PARA_GAP; return; }
 
-    if (/^##\s+/.test(line)) {
-      const title = line.replace(/^##\s+/, '');
-      ensureSpace(LINE_HEIGHT + PARA_GAP + 4);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(FONT_SIZE_H2);
+    // *** titre bold (niveau 1 bold, EasyMDE l'utilise pour les titres colorés)
+    if (/^\*{3}\s+/.test(line)) {
+      const title = cleanForPDF(line.replace(/^\*{3}\s+/, ''));
+      if (!title) return;
+      ensureSpace(LINE_HEIGHT + 2);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(FONT_SIZE_H1);
+      pdf.setTextColor(...COLOR_TITLE);
+      pdf.splitTextToSize(title, maxWidth).forEach(t => { pdf.text(t, x, ctx.y); ctx.y += LINE_HEIGHT; });
+      ctx.y += 1; return;
+    }
+
+    if (/^#{2}\s+/.test(line)) {
+      const title = cleanForPDF(line.replace(/^#{2}\s+/, ''));
+      if (!title) return;
+      ensureSpace(LINE_HEIGHT + PARA_GAP + 2);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(FONT_SIZE_H2);
       pdf.setTextColor(...COLOR_TITLE);
       pdf.splitTextToSize(title, maxWidth).forEach(t => { pdf.text(t, x, ctx.y); ctx.y += LINE_HEIGHT + 1; });
       pdf.setDrawColor(180, 200, 230); pdf.setLineWidth(0.3);
       pdf.line(x, ctx.y - 1, x + maxWidth, ctx.y - 1);
-      ctx.y += PARA_GAP;
-      return;
+      ctx.y += PARA_GAP; return;
     }
 
-    if (/^###\s+/.test(line)) {
-      const title = line.replace(/^###\s+/, '');
+    if (/^#{3}\s+/.test(line)) {
+      const title = cleanForPDF(line.replace(/^#{3}\s+/, ''));
+      if (!title) return;
       ensureSpace(LINE_HEIGHT + PARA_GAP);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(FONT_SIZE_H3);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(FONT_SIZE_H3);
       pdf.setTextColor(...COLOR_TITLE);
       pdf.splitTextToSize(title, maxWidth).forEach(t => { pdf.text(t, x, ctx.y); ctx.y += LINE_HEIGHT; });
-      ctx.y += 1;
+      ctx.y += 1; return;
+    }
+
+    // Sous-liste (2+ espaces ou tab)
+    if (/^(\s{2,}|\t)[\-\*]\s+/.test(line)) {
+      writeInlineLine(parseInline(line.replace(/^[\s\t]+[\-\*]\s+/, '')), FONT_SIZE_NORMAL, COLOR_TEXT, SUB_INDENT);
       return;
     }
 
+    // Liste niveau 1
     if (/^[\-\*]\s+/.test(line)) {
-      writeInlineLine(parseInline(line.replace(/^[\-\*]\s+/, '')), FONT_SIZE_NORMAL, COLOR_TEXT, true);
+      writeInlineLine(parseInline(line.replace(/^[\-\*]\s+/, '')), FONT_SIZE_NORMAL, COLOR_TEXT, LIST_INDENT);
       return;
     }
 
-    writeInlineLine(parseInline(line), FONT_SIZE_NORMAL, COLOR_TEXT, false);
+    writeInlineLine(parseInline(line), FONT_SIZE_NORMAL, COLOR_TEXT, 0);
   });
 }
 
@@ -3520,7 +3543,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     if (!element || element.scrollHeight === 0) return;
 
     const canvas = await html2canvas(element, {
-      scale: 1.5, useCORS: true, logging: false,
+      scale: 2, useCORS: true, logging: false,
       backgroundColor: '#ffffff',
       width: element.scrollWidth, height: element.scrollHeight
     });
@@ -3536,7 +3559,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       // Hauteur réelle connue : saut propre si besoin, puis placement direct
       const availMm = pageHeight - footerHeight - margin - yPosition;
       if (availMm < imgHeight || availMm < 15) doPageBreak();
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgWidth, imgHeight);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, imgHeight);
       yPosition += imgHeight + 3;
     } else {
       // Bloc plus grand qu'une page.
@@ -3566,21 +3589,19 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
           kids.forEach(k => groups.push([k]));
         }
         for (const group of groups) {
-          // Capturer d'abord pour connaître les hauteurs réelles avant décision
-          const captured = [];
-          for (const el of group) {
-            const c2 = await html2canvas(el, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff' });
-            const h2 = c2.height * (imgWidth / c2.width);
-            captured.push({ h: h2, data: c2.toDataURL('image/jpeg', 0.82) });
-          }
-          const totalGroupH = captured.reduce((s, item) => s + item.h + 1, 0);
+          // Estimer hauteur du groupe
+          const gpxH = group.reduce((s, e) => s + (e.scrollHeight || 0), 0);
+          const gmmH = (gpxH / (element.scrollWidth || 1)) * imgWidth;
           const avail = pageHeight - footerHeight - margin - yPosition;
-          if (totalGroupH <= fullPageH && avail < totalGroupH) doPageBreak();
-          for (const item of captured) {
+          if (gmmH <= fullPageH && avail < gmmH) doPageBreak();
+          for (const el of group) {
+            // Capturer chaque élément du groupe (ils sont petits, tiendront)
+            const c2 = await html2canvas(el, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff' });
+            const h2 = c2.height * (imgWidth / c2.width);
             const av2 = pageHeight - footerHeight - margin - yPosition;
-            if (item.h <= fullPageH && av2 < item.h) doPageBreak();
-            pdf.addImage(item.data, 'JPEG', margin, yPosition, imgWidth, item.h);
-            yPosition += item.h + 1;
+            if (h2 <= fullPageH && av2 < h2) doPageBreak();
+            pdf.addImage(c2.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, h2);
+            yPosition += h2 + 1;
           }
         }
         yPosition += 2;
@@ -3599,7 +3620,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
           const sl = document.createElement('canvas');
           sl.width = canvasW; sl.height = slicePx;
           sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, slicePx, 0, 0, canvasW, slicePx);
-          pdf.addImage(sl.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgWidth, sliceH);
+          pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, sliceH);
           yPosition += sliceH;
           srcY += slicePx;
           if (srcY < canvasH) doPageBreak();
@@ -3609,78 +3630,29 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     }
   }
 
-  // ── 1. En-tête fiche identité + Vue d'ensemble (hybride) ──────────
-  // Le fiche-header et le bloc pills sont capturés en image (emojis, couleurs).
-  // Le texte du commentaire général est rendu en natif jsPDF (léger, cherchable).
+  // ── 1. En-tête fiche identité (image) ─────────────────────────────
   const ficheHeader = ficheBody.querySelector('.fiche-header');
-  const mainCommentBox = ficheBody.querySelector('#main-comment-box');
+  if (ficheHeader && ficheHeader.offsetParent) {
+    await captureElementToImage(ficheHeader);
+  }
 
+  // ── 2. Vue d'ensemble : html2canvas (emojis, pills colorées, HTML complexe) ──
+  const mainCommentBox = ficheBody.querySelector('#main-comment-box');
   if (mainCommentBox && mainCommentBox.offsetParent) {
-    // Masquer boutons interactifs + textarea
     const vdeBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
     vdeBtns.forEach(btn => { btn.dataset.pdfHidden = btn.style.display; btn.style.display = 'none'; });
     const vdePillsEditor = mainCommentBox.querySelector('.pills-editor');
     if (vdePillsEditor) vdePillsEditor.style.display = 'none';
     const vdeTextarea = mainCommentBox.querySelector('textarea');
     if (vdeTextarea) { vdeTextarea.dataset.pdfHidden = vdeTextarea.style.display; vdeTextarea.style.display = 'none'; }
-
-    // Masquer la description pour ne capturer que header + pills en image
     const vdeDesc = mainCommentBox.querySelector('#comment-description, .comment-description');
-    if (vdeDesc) vdeDesc.style.display = 'none';
+    if (vdeDesc) vdeDesc.style.display = '';
     const vdePillsWrapper = mainCommentBox.querySelector('.comment-pills-wrapper');
     if (vdePillsWrapper) vdePillsWrapper.style.display = '';
-
-    const imgW = pageWidth - (2 * margin);
-    const fullPageH = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
-
-    // Capturer le header fiche (si présent)
-    let hHeader = 0;
-    let dataHeader = null;
-    if (ficheHeader && ficheHeader.offsetParent) {
-      const cHeader = await html2canvas(ficheHeader, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', width:ficheHeader.scrollWidth, height:ficheHeader.scrollHeight });
-      hHeader = cHeader.height * (imgW / cHeader.width);
-      dataHeader = cHeader.toDataURL('image/jpeg', 0.82);
-    }
-
-    // Capturer le bloc pills (header + pills uniquement, sans la description)
-    const cPills = await html2canvas(mainCommentBox, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', width:mainCommentBox.scrollWidth, height:mainCommentBox.scrollHeight });
-    const hPills = cPills.height * (imgW / cPills.width);
-
-    // Lire le markdown source du commentaire général depuis la table Commentaires
-    const mdGeneralValue = (typeof getCommentaire === 'function' && FICHE_STATE.structure && FICHE_STATE.annee)
-      ? (getCommentaire(FICHE_STATE.structure.id, FICHE_STATE.annee, 'Synthese') || '')
-      : '';
-
-    // Placer header fiche (toujours en début de première page)
-    if (dataHeader) {
-      pdf.addImage(dataHeader, 'JPEG', margin, yPosition, imgW, hHeader);
-      yPosition += hHeader + 3;
-    }
-
-    // Placer bloc pills : saut seulement si vraiment trop peu de place (< 30mm)
-    const avail0 = pageHeight - footerHeight - margin - yPosition;
-    if (avail0 < 30) _pdfCtx.addPage();
-    pdf.addImage(cPills.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgW, hPills);
-    yPosition += hPills + 2;
-
-    // Rendu natif du texte de la description générale (si présent)
-    if (mdGeneralValue && mdGeneralValue.trim()) {
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(10);
-      pdf.setTextColor(50, 50, 50);
-      _pdfCtx.y = yPosition;
-      renderMarkdownToPDF(pdf, mdGeneralValue, margin + 3, _pdfCtx, imgW - 6);
-      yPosition = _pdfCtx.y + 4;
-    }
-
-    // Restaurer tout
-    if (vdeDesc) vdeDesc.style.display = '';
+    await captureElementToImage(mainCommentBox);
     vdeBtns.forEach(btn => { btn.style.display = btn.dataset.pdfHidden || ''; delete btn.dataset.pdfHidden; });
     if (vdePillsEditor) vdePillsEditor.style.display = '';
     if (vdeTextarea) { vdeTextarea.style.display = vdeTextarea.dataset.pdfHidden || ''; delete vdeTextarea.dataset.pdfHidden; }
-
-  } else if (ficheHeader && ficheHeader.offsetParent) {
-    await captureElementToImage(ficheHeader);
   }
 
   // ── 3. Sections indicateurs : corps KPI en image + commentaire en natif ──
@@ -3715,7 +3687,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     const commentDivH = commentDiv ? (commentDiv.scrollHeight || 0) : 0;
     const sectionNetH = Math.max(0, (section.scrollHeight || 0) - commentDivH);
     const sectionW    = section.scrollWidth || 1;
-    const estimatedH  = (sectionNetH / sectionW) * imgW * 1.15; // +15% marge Chart.js
+    const estimatedH  = (sectionNetH / sectionW) * imgW;
     const fullPageH   = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
     const availMm     = pageHeight - footerHeight - margin - yPosition;
 
@@ -3748,7 +3720,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
 
-      _checkPageBreak(20);
+      _checkPageBreak(12);
       const imgWidth2 = pageWidth - (2 * margin);
 
       // Filet séparateur + libellé
