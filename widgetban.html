@@ -1,163 +1,107 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Validation BAN</title>
-
-<!-- SDK Grist obligatoire -->
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    padding: 12px;
-  }
-  button {
-    padding: 10px 16px;
-    background: #0053b3;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 15px;
-    margin-right: 10px;
-  }
-  button:hover {
-    background: #003f87;
-  }
-  #log {
-    margin-top: 15px;
-    font-size: 13px;
-    white-space: pre-wrap;
-    background: #f5f5f5;
-    padding: 10px;
-    border-radius: 4px;
-    height: 300px;
-    overflow-y: auto;
-  }
+body { font-family: Arial; padding: 10px; }
+button { padding: 8px 14px; margin-right: 10px; }
+#log { white-space: pre-wrap; background: #eee; padding: 10px; height: 250px; overflow-y: auto; }
 </style>
 </head>
 
 <body>
 
-<h2>Validation BAN</h2>
-<p>Valide l’adresse de la ligne sélectionnée ou de toutes les lignes visibles via l’API BAN.</p>
+<h3>Validation BAN (Document Widget)</h3>
 
-<button id="btn">Valider la ligne sélectionnée</button>
-<button id="btnAll">Valider toutes les lignes visibles</button>
+<button id="one">Valider ligne sélectionnée</button>
+<button id="all">Valider toutes les lignes</button>
 
 <div id="log"></div>
 
 <script>
-// === INITIALISATION GRIST ===
-let currentRecord = null;
-let allRecords = [];
+let current = null;
+let tableName = null;
 
+// --- Initialisation ---
 grist.ready({
-  requiredAccess: 'full',
-  columns: [
-    "AdresseBrute",
-    "AdresseNormalisee",
-    "BAN_Adresse",
-    "BAN_Score",
-    "BAN_CodeINSEE",
-    "BAN_Lat",
-    "BAN_Lon",
-    "BAN_Commentaire"
-  ]
+  requiredAccess: 'full'
 });
 
-// Une seule ligne sélectionnée
-grist.onRecord((record) => {
-  currentRecord = record;
+// Ligne sélectionnée
+grist.onRecord(rec => current = rec);
+
+// Nom de la table
+grist.onSettings(settings => {
+  tableName = settings.tableId;
 });
 
-// Toutes les lignes visibles dans la vue liée
-grist.onRecords((records) => {
-  allRecords = records;
-});
-
-// === LOGGING ===
+// Logging
 function log(msg) {
   const box = document.getElementById("log");
   box.textContent += msg + "\n";
   box.scrollTop = box.scrollHeight;
 }
 
-// === NETTOYAGE ADRESSE ===
-function cleanAddress(addr) {
+// Nettoyage
+function clean(addr) {
   if (!addr) return "";
-  return addr
-    .replace(/\s+/g, " ")
-    .replace(/BP\s*\d+/gi, "")
-    .replace(/CS\s*\d+/gi, "")
-    .replace(/CEDEX/gi, "")
-    .trim();
+  return addr.replace(/\s+/g, " ")
+             .replace(/BP\s*\d+/gi, "")
+             .replace(/CS\s*\d+/gi, "")
+             .replace(/CEDEX/gi, "")
+             .trim();
 }
 
-// === DETECTION CP ETRANGER ===
-function isForeignCP(addr) {
+// CP étranger
+function isForeign(addr) {
   const m = addr.match(/\b(\d{5})\b/);
   if (!m) return false;
-  const cp = parseInt(m[1], 10);
-  return cp >= 99000;
+  return parseInt(m[1], 10) >= 99000;
 }
 
-// === APPEL API BAN ===
-async function callBAN(query) {
-  const url = "https://api-adresse.data.gouv.fr/search/?q=" +
-              encodeURIComponent(query) +
-              "&limit=1";
-
+// Appel BAN
+async function callBAN(q) {
+  const url = "https://api-adresse.data.gouv.fr/search/?q=" + encodeURIComponent(q) + "&limit=1";
   const r = await fetch(url);
   if (!r.ok) return null;
-
   const data = await r.json();
-  if (!data.features || data.features.length === 0) return null;
-
-  return data.features[0];
+  return data.features?.[0] || null;
 }
 
-// === MISE A JOUR GRIST ===
+// Mise à jour Grist
 async function updateRow(id, values) {
-  await grist.update({
-    id,
-    ...values
-  });
+  await grist.doc.updateRecords(tableName, [{ id, ...values }]);
 }
 
-// === TRAITEMENT LIGNE SELECTIONNEE ===
-document.getElementById("btn").onclick = async () => {
-  const rec = currentRecord;
-  if (!rec) {
-    log("❌ Aucune ligne sélectionnée.");
+// Traitement d'une ligne
+async function processRow(row) {
+  const id = row.id;
+  const addr = row.AdresseBrute || row.AdresseNormalisee;
+
+  if (!addr) {
+    await updateRow(id, { BAN_Commentaire: "Adresse vide" });
     return;
   }
 
-  const addr = rec.AdresseBrute || rec.AdresseNormalisee;
-  log("Adresse brute : " + addr);
+  const cleaned = clean(addr);
 
-  const cleaned = cleanAddress(addr);
-  log("Adresse nettoyée : " + cleaned);
-
-  if (isForeignCP(cleaned)) {
-    log("❌ CP étranger détecté : BAN ignoré.");
-    await updateRow(rec.id, {
+  if (isForeign(cleaned)) {
+    await updateRow(id, {
       BAN_Adresse: null,
       BAN_Score: null,
       BAN_CodeINSEE: null,
       BAN_Lat: null,
       BAN_Lon: null,
-      BAN_Commentaire: "CP étranger : BAN non applicable"
+      BAN_Commentaire: "CP étranger"
     });
     return;
   }
 
-  const feature = await callBAN(cleaned);
+  const f = await callBAN(cleaned);
 
-  if (!feature) {
-    log("❌ Aucun résultat BAN.");
-    await updateRow(rec.id, {
+  if (!f) {
+    await updateRow(id, {
       BAN_Adresse: null,
       BAN_Score: null,
       BAN_CodeINSEE: null,
@@ -168,86 +112,41 @@ document.getElementById("btn").onclick = async () => {
     return;
   }
 
-  const p = feature.properties;
-  const g = feature.geometry;
+  const p = f.properties;
+  const g = f.geometry;
 
-  log("✔ BAN trouvé : " + p.label);
-  log("Score : " + p.score);
-
-  await updateRow(rec.id, {
+  await updateRow(id, {
     BAN_Adresse: p.label,
     BAN_Score: p.score,
-    BAN_CodeINSEE: p.citycode || null,
+    BAN_CodeINSEE: p.citycode,
     BAN_Lat: g.coordinates[1],
     BAN_Lon: g.coordinates[0],
     BAN_Commentaire: p.score >= 0.85 ? "OK" : "Score faible"
   });
+}
+
+// Bouton : ligne sélectionnée
+document.getElementById("one").onclick = async () => {
+  if (!current) return log("Aucune ligne sélectionnée.");
+  log("Traitement ligne " + current.id);
+  await processRow(current);
+  log("OK.");
 };
 
-// === TRAITEMENT EN LOT : TOUTES LES LIGNES VISIBLES ===
-document.getElementById("btnAll").onclick = async () => {
-  log("=== Traitement de toutes les lignes visibles ===");
+// Bouton : toutes les lignes
+document.getElementById("all").onclick = async () => {
+  log("Chargement table…");
+  const table = await grist.doc.fetchTable(tableName);
+  const rows = table.records;
 
-  log("Nombre de lignes visibles : " + allRecords.length);
+  log("Nombre de lignes : " + rows.length);
 
-  for (const row of allRecords) {
-    const id = row.id;
-    const addr = row.AdresseBrute || row.AdresseNormalisee;
-
-    if (!addr) {
-      await updateRow(id, {
-        BAN_Adresse: null,
-        BAN_Score: null,
-        BAN_CodeINSEE: null,
-        BAN_Lat: null,
-        BAN_Lon: null,
-        BAN_Commentaire: "Adresse vide"
-      });
-      continue;
-    }
-
-    const cleaned = cleanAddress(addr);
-
-    if (isForeignCP(cleaned)) {
-      await updateRow(id, {
-        BAN_Adresse: null,
-        BAN_Score: null,
-        BAN_CodeINSEE: null,
-        BAN_Lat: null,
-        BAN_Lon: null,
-        BAN_Commentaire: "CP étranger : BAN non applicable"
-      });
-      continue;
-    }
-
-    const feature = await callBAN(cleaned);
-
-    if (!feature) {
-      await updateRow(id, {
-        BAN_Adresse: null,
-        BAN_Score: null,
-        BAN_CodeINSEE: null,
-        BAN_Lat: null,
-        BAN_Lon: null,
-        BAN_Commentaire: "Aucun résultat BAN"
-      });
-      continue;
-    }
-
-    const p = feature.properties;
-    const g = feature.geometry;
-
-    await updateRow(id, {
-      BAN_Adresse: p.label,
-      BAN_Score: p.score,
-      BAN_CodeINSEE: p.citycode || null,
-      BAN_Lat: g.coordinates[1],
-      BAN_Lon: g.coordinates[0],
-      BAN_Commentaire: p.score >= 0.85 ? "OK" : "Score faible"
-    });
+  for (const row of rows) {
+    log("→ Ligne " + row.id);
+    await processRow(row);
   }
 
-  log("=== Traitement terminé ===");
+  log("Terminé.");
 };
 </script>
 
