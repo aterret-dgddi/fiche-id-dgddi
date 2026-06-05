@@ -3566,19 +3566,16 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
           kids.forEach(k => groups.push([k]));
         }
         for (const group of groups) {
-          // Capturer tous les éléments du groupe d'abord pour connaître les hauteurs réelles
+          // Capturer tous les éléments du groupe d'abord — hauteurs réelles connues avant décision
           const captured = [];
           for (const el of group) {
             const c2 = await html2canvas(el, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff' });
             const h2 = c2.height * (imgWidth / c2.width);
             captured.push({ h: h2, data: c2.toDataURL('image/jpeg', 0.92) });
           }
-          // Hauteur totale réelle du groupe
           const totalGroupH = captured.reduce((s, item) => s + item.h + 1, 0);
           const avail = pageHeight - footerHeight - margin - yPosition;
-          // Saut de page si le groupe tient sur une page mais pas dans l'espace restant
           if (totalGroupH <= fullPageH && avail < totalGroupH) doPageBreak();
-          // Placer chaque élément du groupe
           for (const item of captured) {
             const av2 = pageHeight - footerHeight - margin - yPosition;
             if (item.h <= fullPageH && av2 < item.h) doPageBreak();
@@ -3612,10 +3609,12 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     }
   }
 
-  // ── 1. En-tête fiche identité (image) ─────────────────────────────
+  // ── 1. En-tête fiche identité + Vue d'ensemble groupés ────────────
+  // Capturés séparément mais placés de façon coordonnée pour éviter
+  // que le header se retrouve seul sur la première page.
   const ficheHeader = ficheBody.querySelector('.fiche-header');
 
-  // ── 2. Vue d'ensemble : préparation avant capture ──────────────────
+  // ── 2. Vue d'ensemble ───────────────────────────────────────────────
   const mainCommentBox = ficheBody.querySelector('#main-comment-box');
   if (mainCommentBox && mainCommentBox.offsetParent) {
     const vdeBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
@@ -3633,21 +3632,18 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     const fullPageH = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
 
     if (ficheHeader && ficheHeader.offsetParent) {
-      // Capturer les deux séparément pour mesurer leurs hauteurs réelles
       const cHeader = await html2canvas(ficheHeader, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width:ficheHeader.scrollWidth, height:ficheHeader.scrollHeight });
       const cComment = await html2canvas(mainCommentBox, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width:mainCommentBox.scrollWidth, height:mainCommentBox.scrollHeight });
       const hHeader  = cHeader.height  * (imgW / cHeader.width);
       const hComment = cComment.height * (imgW / cComment.width);
 
-      // Placer le header — toujours au début de la page courante, pas de saut
+      // Header toujours en début de première page de contenu — pas de saut préalable
       pdf.addImage(cHeader.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgW, hHeader);
       yPosition += hHeader + 3;
 
-      // Placer le commentaire : saut si < 1 page et pas assez d'espace, sinon slicing
+      // Commentaire : saut seulement si vraiment trop peu de place (< 30mm)
       if (hComment <= fullPageH) {
         const avail = pageHeight - footerHeight - margin - yPosition;
-        // Si le commentaire ne tient pas mais qu'il reste > 30% de la page, on le place quand même
-        // pour éviter que le header soit seul. Saut seulement si vraiment trop peu de place.
         if (avail < 30) _pdfCtx.addPage();
         pdf.addImage(cComment.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgW, hComment);
         yPosition += hComment + 3;
@@ -3673,7 +3669,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         yPosition += 3;
       }
     } else {
-      // Pas de header, capturer seulement le commentaire
       await captureElementToImage(mainCommentBox);
     }
 
@@ -3681,7 +3676,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     if (vdePillsEditor) vdePillsEditor.style.display = '';
     if (vdeTextarea) { vdeTextarea.style.display = vdeTextarea.dataset.pdfHidden || ''; delete vdeTextarea.dataset.pdfHidden; }
   } else if (ficheHeader && ficheHeader.offsetParent) {
-    // Pas de commentaire, capturer seulement le header
     await captureElementToImage(ficheHeader);
   }
 
@@ -3711,18 +3705,16 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     }
 
     // Estimation hauteur section via scrollHeight/scrollWidth (ratio DOM → PDF).
-    // scrollHeight est fiable dans Grist contrairement à getBoundingClientRect.
-    // On soustrait la hauteur du commentDiv (masqué) pour ne pas surestimer.
-    // Marge de sécurité de 15% car les canvas Chart.js peuvent avoir un scrollHeight sous-estimé.
+    // +15% de marge de sécurité pour compenser la sous-estimation des canvas Chart.js.
     const imgW = pageWidth - (2 * margin);
     const commentDivH = commentDiv ? (commentDiv.scrollHeight || 0) : 0;
     const sectionNetH = Math.max(0, (section.scrollHeight || 0) - commentDivH);
     const sectionW    = section.scrollWidth || 1;
-    const estimatedH  = (sectionNetH / sectionW) * imgW * 1.15; // +15% marge de sécurité
+    const estimatedH  = (sectionNetH / sectionW) * imgW * 1.15;
     const fullPageH   = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
     const availMm     = pageHeight - footerHeight - margin - yPosition;
 
-    // Saut préventif si la section tient sur une page entière mais pas dans l'espace restant
+    // Saut préventif si la section tient sur une page mais pas dans l'espace restant
     if (estimatedH > 10 && estimatedH <= fullPageH && availMm < estimatedH) {
       _pdfCtx.addPage();
     }
@@ -3751,7 +3743,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
 
-      _checkPageBreak(12);
+      _checkPageBreak(20);
       const imgWidth2 = pageWidth - (2 * margin);
 
       // Filet séparateur + libellé
