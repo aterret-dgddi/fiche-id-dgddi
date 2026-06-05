@@ -3658,6 +3658,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     }
 
     // Rendu natif du commentaire markdown
+    console.log('[PDF] section commentDiv=', !!commentDiv, 'mdValue.length=', mdValue.length);
     if (mdValue && mdValue.trim()) {
       _checkPageBreak(12);
       const imgWidth2 = pageWidth - (2 * margin);
