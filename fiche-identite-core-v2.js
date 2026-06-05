@@ -3571,101 +3571,50 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
 
     // Valeur markdown déjà lue avant masquage (via _mdeSectionValues)
     const mdValue = _mdeSectionValues.get(section) || '';
-    console.log('[PDF export] section mdValue longueur=', mdValue.length, 'section classes=', section.className);
-    const mdeContainer = section.querySelector('.EasyMDEContainer');
+    console.log('[PDF export] mdValue longueur=', mdValue.length);
 
-    // Masquer le wrapper direct du EasyMDEContainer si ce n'est pas la section elle-même
-    // Le container est déjà display:none ; on masque aussi son parent si c'est un wrapper dédié
-    let commentWrapper = null;
-    if (mdeContainer) {
-      const parent = mdeContainer.parentNode;
-      // Si le parent a une classe spécifique commentaire (pas la section globale)
-      if (parent && parent !== section &&
-          (parent.classList.contains('comment-wrapper') ||
-           parent.classList.contains('section-comment') ||
-           parent.classList.contains('mde-wrapper') ||
-           parent.classList.contains('comment-block'))) {
-        commentWrapper = parent;
-        commentWrapper.dataset.exportHidden = commentWrapper.style.display || '';
-        commentWrapper.style.display = 'none';
+    // Identifier le div-commentaire : enfant direct de .section contenant le EasyMDEContainer
+    let commentDiv = null;
+    const mdeInSection = section.querySelector('.EasyMDEContainer');
+    if (mdeInSection) {
+      let node = mdeInSection;
+      while (node.parentNode && node.parentNode !== section) node = node.parentNode;
+      if (node !== section) {
+        commentDiv = node;
+        commentDiv.dataset.exportHidden = commentDiv.style.display || '';
+        commentDiv.style.display = 'none';
       }
     }
 
-    // Capturer les enfants directs visibles un par un, avec saut de page préventif
-    // Le section-header est toujours capturé groupé avec l'enfant suivant pour éviter
-    // un titre orphelin. On le met dans un buffer "header" et on l'intègre au prochain enfant.
-    // Filtrer les enfants à capturer : exclure commentWrapper, EasyMDEContainer,
-    // éléments masqués, et éléments de hauteur nulle
-    const children = Array.from(section.children).filter(child => {
-      if (commentWrapper && child === commentWrapper) return false;
-      if (child.style.display === 'none') return false;
-      if (child.classList.contains('EasyMDEContainer')) return false;
-      // Exclure aussi les éléments qui contiennent un EasyMDEContainer comme seul contenu visible
-      const innerMde = child.querySelector('.EasyMDEContainer');
-      if (innerMde && child.scrollHeight <= innerMde.scrollHeight + 10) return false;
-      if (child.scrollHeight === 0) return false;
-      return true;
-    });
-
-    // Estimer la hauteur en mm d'un élément DOM
-    function domHeightMm(el) {
-      const imgW = pageWidth - (2 * margin);
-      // Ratio approximatif : scrollWidth du section ≈ largeur affichée
-      // On ne peut pas connaître le ratio exact sans capturer, donc on utilise
-      // une approximation basée sur les dimensions CSS réelles (getBoundingClientRect)
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0) return el.scrollHeight * 0.3; // fallback
-      const scale = imgW / rect.width;
-      return rect.height * scale;
-    }
-
-    // Grouper section-header avec son premier bloc KPI, puis capturer les blocs restants
-    // indépendamment avec saut préventif pour chacun.
+    // Estimation hauteur section en mm via scrollHeight/scrollWidth
+    const imgW = pageWidth - (2 * margin);
+    const sectionScrollW = section.scrollWidth || 1;
+    const sectionScrollH = section.scrollHeight || 0;
+    const estimatedH = (sectionScrollH / sectionScrollW) * imgW;
     const fullPageH = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
+    const availMm   = pageHeight - footerHeight - margin - yPosition;
 
-    // Construire des groupes : [section-header + premier bloc non-header] puis blocs seuls
-    const groups = [];
-    let i = 0;
-    while (i < children.length) {
-      const child = children[i];
-      if (child.classList.contains('section-header') && i + 1 < children.length) {
-        // Grouper avec le suivant
-        groups.push([child, children[i + 1]]);
-        i += 2;
-      } else {
-        groups.push([child]);
-        i += 1;
-      }
+    // Saut préventif si la section tient sur une page mais pas dans l'espace restant
+    if (estimatedH <= fullPageH && availMm < estimatedH) {
+      addHeaderFooter(currentPage);
+      pdf.addPage();
+      currentPage++;
+      yPosition = margin + headerHeight + 5;
     }
 
-    for (const group of groups) {
-      // Hauteur estimée du groupe
-      const groupH = group.reduce((sum, el) => sum + domHeightMm(el), 0);
-      const availMm = pageHeight - footerHeight - margin - yPosition;
+    // Capturer la section entière (commentDiv masqué)
+    await captureElementToImage(section);
 
-      // Saut préventif si le groupe tient sur une page mais pas dans l'espace restant
-      if (groupH <= fullPageH && availMm < groupH) {
-        addHeaderFooter(currentPage);
-        pdf.addPage();
-        currentPage++;
-        yPosition = margin + headerHeight + 5;
-      }
-
-      // Capturer chaque élément du groupe
-      for (const el of group) {
-        await captureElementToImage(el);
-      }
-    }
-
-    // Restaurer le wrapper commentaire
-    if (commentWrapper) {
-      commentWrapper.style.display = commentWrapper.dataset.exportHidden || '';
-      delete commentWrapper.dataset.exportHidden;
+    // Restaurer le div-commentaire
+    if (commentDiv) {
+      commentDiv.style.display = commentDiv.dataset.exportHidden || '';
+      delete commentDiv.dataset.exportHidden;
     }
 
     // Rendu natif du commentaire markdown
     if (mdValue && mdValue.trim()) {
       _checkPageBreak(12);
+      const imgWidth2 = pageWidth - (2 * margin);
       pdf.setDrawColor(0, 83, 160);
       pdf.setLineWidth(0.4);
       pdf.line(margin, yPosition, margin + 3, yPosition);
@@ -3675,7 +3624,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.text('Commentaire', margin + 5, yPosition + 0.5);
       pdf.setDrawColor(220, 228, 240);
       pdf.setLineWidth(0.3);
-      const imgWidth2 = pageWidth - (2 * margin);
       pdf.line(margin + 32, yPosition, margin + imgWidth2, yPosition);
       yPosition += 4;
       _pdfCtx.y = yPosition + 2;
@@ -3685,7 +3633,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     yPosition += 4;
   }
 
-    // ── Restaurer tous les containers EasyMDE ─────────────────────────
+      // ── Restaurer tous les containers EasyMDE ─────────────────────────
   _mdeContainers.forEach(container => { container.style.display = ''; });
   
   addHeaderFooter(currentPage);
