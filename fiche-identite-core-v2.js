@@ -3628,8 +3628,23 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       _pdfCtx.addPage();
     }
 
-    // Capturer la section entière (commentDiv masqué)
-    await captureElementToImage(section);
+    // Capturer la section : si elle dépasse une page, on capture enfant par enfant
+    // pour permettre des sauts de page propres entre sous-blocs.
+    const fullPageH2 = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
+    if (estimatedH > fullPageH2 * 0.85) {
+      // Section grande : capturer les enfants directs un par un
+      const sectionChildren = Array.from(section.children).filter(child =>
+        child !== commentDiv &&
+        child.style.display !== 'none' &&
+        child.scrollHeight > 0
+      );
+      for (const child of sectionChildren) {
+        await captureElementToImage(child);
+      }
+    } else {
+      // Section normale : capture monolithique
+      await captureElementToImage(section);
+    }
 
     // Restaurer le div-commentaire
     if (commentDiv) {
