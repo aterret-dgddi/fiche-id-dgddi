@@ -3245,7 +3245,7 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
       if (cp > 0x024F) continue;
       out += str[i];
     }
-    return out.replace(/  +/g, ' ').trim();
+    return out.replace(/  +/g, ' ').replace(/ ([.,;:!?])/g, '$1').trim();
   }
 
   const FONT_SIZE_NORMAL = 10;
@@ -3354,15 +3354,15 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
     flushLine(true);
   }
 
-  // Pré-traiter les lignes : gérer la continuation backslash (\)
+  // Pré-traiter les lignes : un backslash final (\) = saut de ligne visuel (ligne vide insérée)
   const rawLines = markdownText.replace(/\r\n/g, '\n').split('\n');
   const lines = [];
   for (let i = 0; i < rawLines.length; i++) {
     const l = rawLines[i].trimEnd();
-    if (l.endsWith('\\') && i + 1 < rawLines.length) {
-      // Continuation : coller la ligne suivante sans le backslash final
-      lines.push(l.slice(0, -1) + rawLines[i+1].trimEnd());
-      i++;
+    if (l.endsWith('\\')) {
+      // Retirer le backslash et émettre la ligne, puis une ligne vide (saut de ligne)
+      lines.push(l.slice(0, -1).trimEnd());
+      lines.push('');
     } else {
       lines.push(l);
     }
