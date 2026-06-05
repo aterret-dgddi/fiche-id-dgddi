@@ -3566,26 +3566,19 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
           kids.forEach(k => groups.push([k]));
         }
         for (const group of groups) {
-          // Capturer tous les éléments du groupe d'abord pour connaître les hauteurs réelles
-          const captured = [];
+          // Estimer hauteur du groupe
+          const gpxH = group.reduce((s, e) => s + (e.scrollHeight || 0), 0);
+          const gmmH = (gpxH / (element.scrollWidth || 1)) * imgWidth;
+          const avail = pageHeight - footerHeight - margin - yPosition;
+          if (gmmH <= fullPageH && avail < gmmH) doPageBreak();
           for (const el of group) {
+            // Capturer chaque élément du groupe (ils sont petits, tiendront)
             const c2 = await html2canvas(el, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff' });
             const h2 = c2.height * (imgWidth / c2.width);
-            captured.push({ canvas: c2, h: h2, data: c2.toDataURL('image/jpeg', 0.92) });
-          }
-          // Hauteur totale réelle du groupe
-          const totalGroupH = captured.reduce((s, item) => s + item.h + 1, 0);
-          const avail = pageHeight - footerHeight - margin - yPosition;
-          // Saut de page si le groupe tient sur une page mais pas dans l'espace restant
-          if (totalGroupH <= fullPageH && avail < totalGroupH) doPageBreak();
-          // Placer chaque élément du groupe
-          for (const item of captured) {
-            // Saut individuel uniquement si l'élément seul est plus grand que l'espace restant
-            // et qu'il tient sur une page (évite de couper les graphiques)
             const av2 = pageHeight - footerHeight - margin - yPosition;
-            if (item.h <= fullPageH && av2 < item.h) doPageBreak();
-            pdf.addImage(item.data, 'JPEG', margin, yPosition, imgWidth, item.h);
-            yPosition += item.h + 1;
+            if (h2 <= fullPageH && av2 < h2) doPageBreak();
+            pdf.addImage(c2.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, h2);
+            yPosition += h2 + 1;
           }
         }
         yPosition += 2;
@@ -3614,15 +3607,13 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     }
   }
 
-  // ── 1. En-tête fiche identité (image) ─────────────────────────────
+  // ── 1. En-tête fiche identité + Vue d'ensemble (capturés ensemble) ───
+  // On les groupe pour éviter que le header se retrouve seul sur la page 1
   const ficheHeader = ficheBody.querySelector('.fiche-header');
-  if (ficheHeader && ficheHeader.offsetParent) {
-    await captureElementToImage(ficheHeader);
-  }
-
-  // ── 2. Vue d'ensemble : html2canvas (emojis, pills colorées, HTML complexe) ──
   const mainCommentBox = ficheBody.querySelector('#main-comment-box');
-  if (mainCommentBox && mainCommentBox.offsetParent) {
+
+  if (ficheHeader && ficheHeader.offsetParent && mainCommentBox && mainCommentBox.offsetParent) {
+    // Masquer les boutons interactifs du main-comment-box avant capture
     const vdeBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
     vdeBtns.forEach(btn => { btn.dataset.pdfHidden = btn.style.display; btn.style.display = 'none'; });
     const vdePillsEditor = mainCommentBox.querySelector('.pills-editor');
@@ -3633,10 +3624,57 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     if (vdeDesc) vdeDesc.style.display = '';
     const vdePillsWrapper = mainCommentBox.querySelector('.comment-pills-wrapper');
     if (vdePillsWrapper) vdePillsWrapper.style.display = '';
-    await captureElementToImage(mainCommentBox);
+
+    // Capturer header et comment-box séparément, mais décider du saut de page ensemble
+    const cHeader = await html2canvas(ficheHeader, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width: ficheHeader.scrollWidth, height: ficheHeader.scrollHeight });
+    const cComment = await html2canvas(mainCommentBox, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width: mainCommentBox.scrollWidth, height: mainCommentBox.scrollHeight });
+
+    const imgW = pageWidth - (2 * margin);
+    const hHeader  = cHeader.height  * (imgW / cHeader.width);
+    const hComment = cComment.height * (imgW / cComment.width);
+    const fullPageH = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
+
+    // Placer le header (jamais de saut en début de page)
+    const availForHeader = pageHeight - footerHeight - margin - yPosition;
+    if (availForHeader < hHeader) _pdfCtx.addPage();
+    pdf.addImage(cHeader.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgW, hHeader);
+    yPosition += hHeader + 3;
+
+    // Placer le comment-box : saut si nécessaire, puis slicing si > une page
+    if (hComment <= fullPageH) {
+      const avail = pageHeight - footerHeight - margin - yPosition;
+      if (avail < hComment) _pdfCtx.addPage();
+      pdf.addImage(cComment.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgW, hComment);
+      yPosition += hComment + 3;
+    } else {
+      // Slicing pour les très longs commentaires généraux
+      const pxToMm = imgW / cComment.width;
+      let srcY = 0;
+      while (srcY < cComment.height) {
+        const availMm = pageHeight - footerHeight - margin - yPosition;
+        const availPx = Math.floor(availMm / pxToMm);
+        const remainPx = cComment.height - srcY;
+        if (availMm < 20 || availPx <= 0) { _pdfCtx.addPage(); continue; }
+        const slicePx = Math.min(availPx, remainPx);
+        const sliceH  = slicePx * pxToMm;
+        const sl = document.createElement('canvas');
+        sl.width = cComment.width; sl.height = slicePx;
+        sl.getContext('2d').drawImage(cComment, 0, srcY, cComment.width, slicePx, 0, 0, cComment.width, slicePx);
+        pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgW, sliceH);
+        yPosition += sliceH;
+        srcY += slicePx;
+        if (srcY < cComment.height) _pdfCtx.addPage();
+      }
+      yPosition += 3;
+    }
+
+    // Restaurer les boutons
     vdeBtns.forEach(btn => { btn.style.display = btn.dataset.pdfHidden || ''; delete btn.dataset.pdfHidden; });
     if (vdePillsEditor) vdePillsEditor.style.display = '';
     if (vdeTextarea) { vdeTextarea.style.display = vdeTextarea.dataset.pdfHidden || ''; delete vdeTextarea.dataset.pdfHidden; }
+
+  } else if (ficheHeader && ficheHeader.offsetParent) {
+    await captureElementToImage(ficheHeader);
   }
 
   // ── 3. Sections indicateurs : corps KPI en image + commentaire en natif ──
@@ -3667,12 +3705,11 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Estimation hauteur section via scrollHeight/scrollWidth (ratio DOM → PDF).
     // scrollHeight est fiable dans Grist contrairement à getBoundingClientRect.
     // On soustrait la hauteur du commentDiv (masqué) pour ne pas surestimer.
-    // Marge de sécurité de 15% car les canvas Chart.js peuvent avoir un scrollHeight sous-estimé.
     const imgW = pageWidth - (2 * margin);
     const commentDivH = commentDiv ? (commentDiv.scrollHeight || 0) : 0;
     const sectionNetH = Math.max(0, (section.scrollHeight || 0) - commentDivH);
     const sectionW    = section.scrollWidth || 1;
-    const estimatedH  = (sectionNetH / sectionW) * imgW * 1.15; // +15% marge de sécurité
+    const estimatedH  = (sectionNetH / sectionW) * imgW;
     const fullPageH   = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
     const availMm     = pageHeight - footerHeight - margin - yPosition;
 
