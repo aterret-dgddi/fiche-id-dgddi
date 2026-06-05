@@ -3426,10 +3426,20 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   
   const ficheBody = document.getElementById('fiche-body');
   
-  // ── Collecte des valeurs markdown des éditeurs EasyMDE ────────────
-  // Pour les sections : on lit le markdown AVANT la capture (les containers restent masqués)
-  // Pour le mainCommentBox : reste en html2canvas (pills + description texte libre)
-  const _mdeContainers = []; // { container } pour restauration
+  // ── Collecte des valeurs markdown ET masquage des éditeurs EasyMDE ─
+  // IMPORTANT : lire value() AVANT display:none (EasyMDE retourne '' si masqué)
+  const _mdeContainers = [];
+  const _mdeSectionValues = new Map(); // section element → mdValue string
+  ficheBody.querySelectorAll('.section').forEach(section => {
+    const container = section.querySelector('.EasyMDEContainer');
+    if (!container) return;
+    const ta = container.querySelector('textarea');
+    const mdeId = ta ? ta.id : null;
+    // Lire la valeur MAINTENANT, avant tout masquage
+    const val = (mdeId && _mdeInstances[mdeId]) ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
+    _mdeSectionValues.set(section, val);
+  });
+  // Masquer tous les containers EasyMDE après lecture
   ficheBody.querySelectorAll('.EasyMDEContainer').forEach(container => {
     container.style.display = 'none';
     _mdeContainers.push(container);
@@ -3559,32 +3569,43 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   for (const section of sections) {
     if (section.style.display === 'none' || !section.offsetParent) continue;
 
-    // Récupérer le texte markdown avant masquage
+    // Valeur markdown déjà lue avant masquage (via _mdeSectionValues)
+    const mdValue = _mdeSectionValues.get(section) || '';
+    console.log('[PDF export] section mdValue longueur=', mdValue.length, 'section classes=', section.className);
     const mdeContainer = section.querySelector('.EasyMDEContainer');
-    let mdValue = '';
-    if (mdeContainer) {
-      const ta = mdeContainer.querySelector('textarea');
-      const mdeId = ta ? ta.id : null;
-      mdValue = (mdeId && _mdeInstances[mdeId]) ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
-    }
 
-    // Masquer le wrapper commentaire (parent du EasyMDEContainer) pour ne pas le capturer
+    // Masquer le wrapper direct du EasyMDEContainer si ce n'est pas la section elle-même
+    // Le container est déjà display:none ; on masque aussi son parent si c'est un wrapper dédié
     let commentWrapper = null;
-    if (mdeContainer && mdeContainer.parentNode !== section) {
-      commentWrapper = mdeContainer.parentNode;
-      commentWrapper.dataset.exportHidden = commentWrapper.style.display || '';
-      commentWrapper.style.display = 'none';
+    if (mdeContainer) {
+      const parent = mdeContainer.parentNode;
+      // Si le parent a une classe spécifique commentaire (pas la section globale)
+      if (parent && parent !== section &&
+          (parent.classList.contains('comment-wrapper') ||
+           parent.classList.contains('section-comment') ||
+           parent.classList.contains('mde-wrapper') ||
+           parent.classList.contains('comment-block'))) {
+        commentWrapper = parent;
+        commentWrapper.dataset.exportHidden = commentWrapper.style.display || '';
+        commentWrapper.style.display = 'none';
+      }
     }
 
     // Capturer les enfants directs visibles un par un, avec saut de page préventif
     // Le section-header est toujours capturé groupé avec l'enfant suivant pour éviter
     // un titre orphelin. On le met dans un buffer "header" et on l'intègre au prochain enfant.
-    const children = Array.from(section.children).filter(child =>
-      child !== commentWrapper &&
-      child.style.display !== 'none' &&
-      !child.classList.contains('EasyMDEContainer') &&
-      child.scrollHeight > 0
-    );
+    // Filtrer les enfants à capturer : exclure commentWrapper, EasyMDEContainer,
+    // éléments masqués, et éléments de hauteur nulle
+    const children = Array.from(section.children).filter(child => {
+      if (commentWrapper && child === commentWrapper) return false;
+      if (child.style.display === 'none') return false;
+      if (child.classList.contains('EasyMDEContainer')) return false;
+      // Exclure aussi les éléments qui contiennent un EasyMDEContainer comme seul contenu visible
+      const innerMde = child.querySelector('.EasyMDEContainer');
+      if (innerMde && child.scrollHeight <= innerMde.scrollHeight + 10) return false;
+      if (child.scrollHeight === 0) return false;
+      return true;
+    });
 
     // Estimer la hauteur en mm d'un élément DOM
     function domHeightMm(el) {
@@ -3598,43 +3619,42 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       return rect.height * scale;
     }
 
-    let headerBuffer = []; // section-header à coller au prochain bloc
+    // Grouper section-header avec son premier bloc KPI, puis capturer les blocs restants
+    // indépendamment avec saut préventif pour chacun.
+    const fullPageH = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
 
-    for (let ci = 0; ci < children.length; ci++) {
-      const child = children[ci];
-      const isSectionHeader = child.classList.contains('section-header');
-
-      if (isSectionHeader) {
-        // Ne pas capturer seul : mettre en buffer et attendre le suivant
-        headerBuffer.push(child);
-        continue;
+    // Construire des groupes : [section-header + premier bloc non-header] puis blocs seuls
+    const groups = [];
+    let i = 0;
+    while (i < children.length) {
+      const child = children[i];
+      if (child.classList.contains('section-header') && i + 1 < children.length) {
+        // Grouper avec le suivant
+        groups.push([child, children[i + 1]]);
+        i += 2;
+      } else {
+        groups.push([child]);
+        i += 1;
       }
+    }
 
-      // Calculer la hauteur estimée du bloc (header buffer + enfant courant)
-      const totalEstH = headerBuffer.reduce((s, e) => s + domHeightMm(e), 0) + domHeightMm(child);
-      const fullPageH = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
-      const availMm   = pageHeight - footerHeight - margin - yPosition;
+    for (const group of groups) {
+      // Hauteur estimée du groupe
+      const groupH = group.reduce((sum, el) => sum + domHeightMm(el), 0);
+      const availMm = pageHeight - footerHeight - margin - yPosition;
 
-      // Saut préventif si le bloc ne tient pas ET qu'il tiendrait sur une page entière
-      if (totalEstH <= fullPageH && availMm < totalEstH) {
+      // Saut préventif si le groupe tient sur une page mais pas dans l'espace restant
+      if (groupH <= fullPageH && availMm < groupH) {
         addHeaderFooter(currentPage);
         pdf.addPage();
         currentPage++;
         yPosition = margin + headerHeight + 5;
       }
 
-      // Capturer le header buffer d'abord (s'il y en a)
-      for (const hdr of headerBuffer) {
-        await captureElementToImage(hdr);
+      // Capturer chaque élément du groupe
+      for (const el of group) {
+        await captureElementToImage(el);
       }
-      headerBuffer = [];
-
-      // Capturer le bloc courant
-      await captureElementToImage(child);
-    }
-    // Vider le buffer si des éléments restent
-    for (const hdr of headerBuffer) {
-      await captureElementToImage(hdr);
     }
 
     // Restaurer le wrapper commentaire
