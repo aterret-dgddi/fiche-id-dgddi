@@ -3245,7 +3245,7 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
       if (cp > 0x024F) continue;
       out += str[i];
     }
-    return out.replace(/  +/g, ' ').replace(/ ([.,;:!?])/g, '$1').trim();
+    return out.replace(/  +/g, ' ').replace(/ ([.,;:!?)»])/g, '$1').replace(/([lLdDjJnNmMsScCqQ]') /g, "$1'").trim();
   }
 
   const FONT_SIZE_NORMAL = 10;
@@ -3308,15 +3308,20 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
         isFirstLine = false;
       }
       let curX = x + indent;
+      let prevText = '';
       lineTokens.forEach(function(seg) {
         if (!seg.text) return;
+        // Supprimer l'espace de tête si le segment précédent se termine par une apostrophe
+        let txt = seg.text;
+        if (prevText.endsWith("'") && txt.startsWith(' ')) txt = txt.slice(1);
         const style = seg.bold && seg.italic ? 'bolditalic'
                     : seg.bold ? 'bold'
                     : seg.italic ? 'italic' : 'normal';
         pdf.setFont('helvetica', style);
         pdf.setTextColor(...baseColor);
-        pdf.text(seg.text, curX, ctx.y);
-        curX += pdf.getTextWidth(seg.text);
+        pdf.text(txt, curX, ctx.y);
+        curX += pdf.getTextWidth(txt);
+        prevText = txt;
       });
       ctx.y += LINE_HEIGHT;
       lineTokens = [];
