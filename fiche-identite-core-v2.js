@@ -3532,19 +3532,18 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     const imgHeight  = canvas.height * pxToMm;
     const fullPageH  = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
 
+    // Fonction locale de saut de page unifiée (passe par _pdfCtx pour garder currentPage sync)
+    function doPageBreak() {
+      _pdfCtx.addPage();
+    }
+
     if (imgHeight <= fullPageH) {
-      // Bloc qui tient sur une page : saut si pas assez de place, puis placement direct
       const availMm = pageHeight - footerHeight - margin - yPosition;
-      if (availMm < imgHeight || availMm < 20) {
-        addHeaderFooter(currentPage);
-        pdf.addPage();
-        currentPage++;
-        yPosition = margin + headerHeight + 5;
-      }
+      if (availMm < imgHeight || availMm < 20) doPageBreak();
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, imgHeight);
       yPosition += imgHeight + 3;
     } else {
-      // Bloc plus grand qu'une page (ex: tableau très long) : slicing inévitable
+      // Bloc plus grand qu'une page : slicing via _pdfCtx
       const canvasW = canvas.width;
       const canvasH = canvas.height;
       let srcY = 0;
@@ -3552,11 +3551,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         const availMm = pageHeight - footerHeight - margin - yPosition;
         const availPx = Math.floor(availMm / pxToMm);
         const remainPx = canvasH - srcY;
-        if (availMm < 20 || availPx <= 0) {
-          addHeaderFooter(currentPage); pdf.addPage(); currentPage++;
-          yPosition = margin + headerHeight + 5;
-          continue;
-        }
+        if (availMm < 20 || availPx <= 0) { doPageBreak(); continue; }
         const slicePx = Math.min(availPx, remainPx);
         const sliceH  = slicePx * pxToMm;
         const sl = document.createElement('canvas');
@@ -3565,10 +3560,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, sliceH);
         yPosition += sliceH;
         srcY += slicePx;
-        if (srcY < canvasH) {
-          addHeaderFooter(currentPage); pdf.addPage(); currentPage++;
-          yPosition = margin + headerHeight + 5;
-        }
+        if (srcY < canvasH) doPageBreak();
       }
       yPosition += 3;
     }
