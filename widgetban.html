@@ -20,6 +20,7 @@
     border-radius: 4px;
     cursor: pointer;
     font-size: 15px;
+    margin-right: 10px;
   }
   button:hover {
     background: #003f87;
@@ -31,23 +32,24 @@
     background: #f5f5f5;
     padding: 10px;
     border-radius: 4px;
+    height: 300px;
+    overflow-y: auto;
   }
 </style>
 </head>
 
-
 <body>
 
 <h2>Validation BAN</h2>
-<p>Valide l’adresse de la ligne sélectionnée via l’API BAN.</p>
+<p>Valide l’adresse de la ligne sélectionnée ou de toutes les lignes via l’API BAN.</p>
 
-<button id="btn">Valider via BAN</button>
+<button id="btn">Valider la ligne sélectionnée</button>
+<button id="btnAll">Valider toutes les lignes</button>
 
 <div id="log"></div>
 
 <script>
 // Connexion Grist
-let gristReady = false;
 grist.ready({
   requiredAccess: 'full',
   columns: [
@@ -61,13 +63,16 @@ grist.ready({
     "BAN_Commentaire"
   ]
 });
+
 grist.onRecord((record) => {
   window.currentRecord = record;
 });
 
 // Logging
 function log(msg) {
-  document.getElementById("log").textContent += msg + "\n";
+  const box = document.getElementById("log");
+  box.textContent += msg + "\n";
+  box.scrollTop = box.scrollHeight;
 }
 
 // Nettoyage minimal avant BAN
@@ -79,6 +84,14 @@ function cleanAddress(addr) {
     .replace(/CS\s*\d+/gi, "")
     .replace(/CEDEX/gi, "")
     .trim();
+}
+
+// Détection CP étranger (99xxx)
+function isForeignCP(addr) {
+  const m = addr.match(/\b(\d{5})\b/);
+  if (!m) return false;
+  const cp = parseInt(m[1], 10);
+  return cp >= 99000;
 }
 
 // Appel API BAN
@@ -103,23 +116,37 @@ async function updateGrist(rowId, values) {
   ]);
 }
 
-// Action principale
+// === Traitement ligne sélectionnée ===
 document.getElementById("btn").onclick = async () => {
   const rec = window.currentRecord;
   if (!rec) {
-    log("Aucune ligne sélectionnée.");
+    log("❌ Aucune ligne sélectionnée.");
     return;
   }
 
-  log("Adresse brute : " + rec.AdresseBrute);
+  const addr = rec.AdresseBrute || rec.AdresseNormalisee;
+  log("Adresse brute : " + addr);
 
-  const cleaned = cleanAddress(rec.AdresseBrute || rec.AdresseNormalisee);
+  const cleaned = cleanAddress(addr);
   log("Adresse nettoyée : " + cleaned);
+
+  if (isForeignCP(cleaned)) {
+    log("❌ CP étranger détecté : BAN ignoré.");
+    await updateGrist(rec.id, {
+      BAN_Adresse: null,
+      BAN_Score: null,
+      BAN_CodeINSEE: null,
+      BAN_Lat: null,
+      BAN_Lon: null,
+      BAN_Commentaire: "CP étranger : BAN non applicable"
+    });
+    return;
+  }
 
   const feature = await callBAN(cleaned);
 
   if (!feature) {
-    log("❌ BAN n’a rien trouvé.");
+    log("❌ Aucun résultat BAN.");
     await updateGrist(rec.id, {
       BAN_Adresse: null,
       BAN_Score: null,
@@ -145,8 +172,75 @@ document.getElementById("btn").onclick = async () => {
     BAN_Lon: g.coordinates[0],
     BAN_Commentaire: p.score >= 0.85 ? "OK" : "Score faible"
   });
+};
 
-  log("Mise à jour Grist effectuée.");
+// === Traitement en lot : toutes les lignes ===
+document.getElementById("btnAll").onclick = async () => {
+  log("=== Traitement de toutes les lignes ===");
+
+  const table = await grist.doc.fetchTable("Table1");
+  const rows = table.records;
+
+  log("Nombre de lignes : " + rows.length);
+
+  for (const row of rows) {
+    const id = row.id;
+    const addr = row.AdresseBrute || row.AdresseNormalisee;
+
+    if (!addr) {
+      await updateGrist(id, {
+        BAN_Adresse: null,
+        BAN_Score: null,
+        BAN_CodeINSEE: null,
+        BAN_Lat: null,
+        BAN_Lon: null,
+        BAN_Commentaire: "Adresse vide"
+      });
+      continue;
+    }
+
+    const cleaned = cleanAddress(addr);
+
+    if (isForeignCP(cleaned)) {
+      await updateGrist(id, {
+        BAN_Adresse: null,
+        BAN_Score: null,
+        BAN_CodeINSEE: null,
+        BAN_Lat: null,
+        BAN_Lon: null,
+        BAN_Commentaire: "CP étranger : BAN non applicable"
+      });
+      continue;
+    }
+
+    const feature = await callBAN(cleaned);
+
+    if (!feature) {
+      await updateGrist(id, {
+        BAN_Adresse: null,
+        BAN_Score: null,
+        BAN_CodeINSEE: null,
+        BAN_Lat: null,
+        BAN_Lon: null,
+        BAN_Commentaire: "Aucun résultat BAN"
+      });
+      continue;
+    }
+
+    const p = feature.properties;
+    const g = feature.geometry;
+
+    await updateGrist(id, {
+      BAN_Adresse: p.label,
+      BAN_Score: p.score,
+      BAN_CodeINSEE: p.citycode || null,
+      BAN_Lat: g.coordinates[1],
+      BAN_Lon: g.coordinates[0],
+      BAN_Commentaire: p.score >= 0.85 ? "OK" : "Score faible"
+    });
+  }
+
+  log("=== Traitement terminé ===");
 };
 </script>
 
