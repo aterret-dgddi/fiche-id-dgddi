@@ -3261,8 +3261,6 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
   const COLOR_TITLE  = [0,   47, 108];
   const COLOR_BULLET = [0,   83, 160];
 
-  const lines = markdownText.replace(/\r\n/g, '\n').split('\n');
-
   function ensureSpace(needed) {
     if (ctx.availableMm() < needed) ctx.addPage();
   }
@@ -3282,75 +3280,168 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
     return tokens.length ? tokens : [{ text, bold: false, italic: false }];
   }
 
-  function writeInlineLine(tokens, fontSize, color, indent) {
+  // Écrit une liste de tokens inline avec rendu mixte gras/italique par token,
+  // avec word-wrap manuel respectant les frontières de tokens.
+  function writeInlineTokens(tokens, fontSize, baseColor, indent, isBullet) {
     pdf.setFontSize(fontSize);
-    pdf.setTextColor(...color);
-    const fullText = cleanForPDF(tokens.map(t => t.text).join(''));
-    if (!fullText) return;
-    const wrapped = pdf.splitTextToSize(fullText, maxWidth - indent);
-    const hasBold = tokens.some(t => t.bold), hasItalic = tokens.some(t => t.italic);
-    wrapped.forEach((wline, wi) => {
+    pdf.setTextColor(...baseColor);
+    if (!tokens.length) return;
+
+    // Construire la liste de "mots" avec leur style, pour wrapper proprement
+    // Approche : concaténer en fullText pour splitTextToSize, puis réécrire token par token.
+    // Pour la version actuelle on fait un wrapper simple token-aware sur une ligne à la fois.
+    const effectiveWidth = maxWidth - indent;
+
+    // Construire la liste de segments {text, bold, italic} en découpant par mots
+    // Puis écrire ligne par ligne en gérant les styles.
+    let lineTokens = []; // tokens de la ligne courante
+    let lineWidth = 0;
+    let isFirstLine = true;
+
+    function flushLine(isLast) {
+      if (!lineTokens.length) return;
       ensureSpace(LINE_HEIGHT + 1);
-      if (indent > 0 && wi === 0) {
+      // Bullet sur la première ligne seulement
+      if (isBullet && isFirstLine) {
         pdf.setFillColor(...COLOR_BULLET);
         pdf.circle(x + indent - 2.5, ctx.y - 1.5, 0.7, 'F');
+        isFirstLine = false;
       }
-      if (hasBold && hasItalic)      pdf.setFont('helvetica', 'bolditalic');
-      else if (hasBold)              pdf.setFont('helvetica', 'bold');
-      else if (hasItalic)            pdf.setFont('helvetica', 'italic');
-      else                           pdf.setFont('helvetica', 'normal');
-      pdf.text(wline, x + indent, ctx.y);
+      let curX = x + indent;
+      lineTokens.forEach(function(seg) {
+        if (!seg.text) return;
+        const style = seg.bold && seg.italic ? 'bolditalic'
+                    : seg.bold ? 'bold'
+                    : seg.italic ? 'italic' : 'normal';
+        pdf.setFont('helvetica', style);
+        pdf.setTextColor(...baseColor);
+        pdf.text(seg.text, curX, ctx.y);
+        curX += pdf.getTextWidth(seg.text);
+      });
       ctx.y += LINE_HEIGHT;
+      lineTokens = [];
+      lineWidth = 0;
+    }
+
+    tokens.forEach(function(tok) {
+      const style = tok.bold && tok.italic ? 'bolditalic'
+                  : tok.bold ? 'bold'
+                  : tok.italic ? 'italic' : 'normal';
+      pdf.setFont('helvetica', style);
+      // Découper le token en mots
+      const words = cleanForPDF(tok.text).split(' ');
+      words.forEach(function(word, wi) {
+        const space = (wi > 0 || lineTokens.length > 0) ? ' ' : '';
+        const segment = space + word;
+        const segW = pdf.getTextWidth(segment);
+        if (lineWidth + segW > effectiveWidth && lineWidth > 0) {
+          flushLine(false);
+          const wordOnly = word;
+          const wordW = pdf.getTextWidth(wordOnly);
+          lineTokens.push({ text: wordOnly, bold: tok.bold, italic: tok.italic });
+          lineWidth = wordW;
+        } else {
+          // Ajouter au token courant sur la ligne
+          if (lineTokens.length > 0 && lineTokens[lineTokens.length-1].bold === tok.bold && lineTokens[lineTokens.length-1].italic === tok.italic) {
+            lineTokens[lineTokens.length-1].text += segment;
+          } else {
+            lineTokens.push({ text: segment, bold: tok.bold, italic: tok.italic });
+          }
+          lineWidth += segW;
+        }
+      });
     });
+    flushLine(true);
   }
 
-  lines.forEach(rawLine => {
+  // Pré-traiter les lignes : gérer la continuation backslash (\)
+  const rawLines = markdownText.replace(/\r\n/g, '\n').split('\n');
+  const lines = [];
+  for (let i = 0; i < rawLines.length; i++) {
+    const l = rawLines[i].trimEnd();
+    if (l.endsWith('\\') && i + 1 < rawLines.length) {
+      // Continuation : coller la ligne suivante sans le backslash final
+      lines.push(l.slice(0, -1) + rawLines[i+1].trimEnd());
+      i++;
+    } else {
+      lines.push(l);
+    }
+  }
+
+  function renderHeading(rawContent, fontSize, underline) {
+    // Supprimer les marqueurs **gras** et *italique* du contenu titre pour afficher en bold simple
+    const title = cleanForPDF(rawContent.replace(/\*+([^*]+)\*+/g, '$1').trim());
+    if (!title) return;
+    ensureSpace(LINE_HEIGHT + PARA_GAP + 2);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(fontSize);
+    pdf.setTextColor(...COLOR_TITLE);
+    pdf.splitTextToSize(title, maxWidth).forEach(function(t) {
+      pdf.text(t, x, ctx.y);
+      ctx.y += LINE_HEIGHT + (fontSize > FONT_SIZE_NORMAL ? 0.5 : 0);
+    });
+    if (underline) {
+      pdf.setDrawColor(180, 200, 230);
+      pdf.setLineWidth(0.3);
+      pdf.line(x, ctx.y - 1, x + maxWidth, ctx.y - 1);
+    }
+    ctx.y += PARA_GAP;
+  }
+
+  lines.forEach(function(rawLine) {
     const line = rawLine.trimEnd();
     if (!line.trim()) { ctx.y += PARA_GAP; return; }
 
-    if (/^\*{3}\s+/.test(line)) {
-      const title = cleanForPDF(line.replace(/^\*{3}\s+/, ''));
-      if (!title) return;
-      ensureSpace(LINE_HEIGHT + 2);
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(FONT_SIZE_H1);
-      pdf.setTextColor(...COLOR_TITLE);
-      pdf.splitTextToSize(title, maxWidth).forEach(t => { pdf.text(t, x, ctx.y); ctx.y += LINE_HEIGHT; });
-      ctx.y += 1; return;
-    }
-
-    if (/^#{2}\s+/.test(line)) {
-      const title = cleanForPDF(line.replace(/^#{2}\s+/, ''));
-      if (!title) return;
-      ensureSpace(LINE_HEIGHT + PARA_GAP + 2);
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(FONT_SIZE_H2);
-      pdf.setTextColor(...COLOR_TITLE);
-      pdf.splitTextToSize(title, maxWidth).forEach(t => { pdf.text(t, x, ctx.y); ctx.y += LINE_HEIGHT + 1; });
-      pdf.setDrawColor(180, 200, 230); pdf.setLineWidth(0.3);
+    // Séparateur horizontal : ligne composée uniquement de * ou - ou _
+    if (/^\s*(\*{3,}|-{3,}|_{3,})\s*$/.test(line)) {
+      ensureSpace(4);
+      pdf.setDrawColor(180, 200, 230);
+      pdf.setLineWidth(0.3);
       pdf.line(x, ctx.y - 1, x + maxWidth, ctx.y - 1);
-      ctx.y += PARA_GAP; return;
+      ctx.y += PARA_GAP;
+      return;
     }
 
+    // H4 ####
+    if (/^#{4}\s+/.test(line)) {
+      renderHeading(line.replace(/^#{4}\s+/, ''), FONT_SIZE_H3, false);
+      return;
+    }
+
+    // H3 ###
     if (/^#{3}\s+/.test(line)) {
-      const title = cleanForPDF(line.replace(/^#{3}\s+/, ''));
-      if (!title) return;
-      ensureSpace(LINE_HEIGHT + PARA_GAP);
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(FONT_SIZE_H3);
-      pdf.setTextColor(...COLOR_TITLE);
-      pdf.splitTextToSize(title, maxWidth).forEach(t => { pdf.text(t, x, ctx.y); ctx.y += LINE_HEIGHT; });
-      ctx.y += 1; return;
+      renderHeading(line.replace(/^#{3}\s+/, ''), FONT_SIZE_H3, false);
+      return;
     }
 
+    // H2 ##
+    if (/^#{2}\s+/.test(line)) {
+      renderHeading(line.replace(/^#{2}\s+/, ''), FONT_SIZE_H2, true);
+      return;
+    }
+
+    // H1 #
+    if (/^#\s+/.test(line)) {
+      renderHeading(line.replace(/^#\s+/, ''), FONT_SIZE_H1, true);
+      return;
+    }
+
+    // Sous-liste indentée
     if (/^(\s{2,}|\t)[\-\*]\s+/.test(line)) {
-      writeInlineLine(parseInline(line.replace(/^[\s\t]+[\-\*]\s+/, '')), FONT_SIZE_NORMAL, COLOR_TEXT, SUB_INDENT);
+      const content = line.replace(/^[\s\t]+[\-\*]\s+/, '');
+      writeInlineTokens(parseInline(content), FONT_SIZE_NORMAL, COLOR_TEXT, SUB_INDENT, true);
       return;
     }
 
+    // Liste niveau 1
     if (/^[\-\*]\s+/.test(line)) {
-      writeInlineLine(parseInline(line.replace(/^[\-\*]\s+/, '')), FONT_SIZE_NORMAL, COLOR_TEXT, LIST_INDENT);
+      const content = line.replace(/^[\-\*]\s+/, '');
+      writeInlineTokens(parseInline(content), FONT_SIZE_NORMAL, COLOR_TEXT, LIST_INDENT, true);
       return;
     }
 
-    writeInlineLine(parseInline(line), FONT_SIZE_NORMAL, COLOR_TEXT, 0);
+    // Paragraphe normal
+    writeInlineTokens(parseInline(line), FONT_SIZE_NORMAL, COLOR_TEXT, 0, false);
   });
 }
 
