@@ -3245,7 +3245,7 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
       if (cp > 0x024F) continue;
       out += str[i];
     }
-    return out.replace(/  +/g, ' ').replace(/ ([.,;:!?)»])/g, '$1').replace(/([lLdDjJnNmMsScCqQ]') /g, "$1'").trim();
+    return out.replace(/  +/g, ' ').replace(/ ([.,;:!?)»])/g, '$1').trim();
   }
 
   const FONT_SIZE_NORMAL = 10;
@@ -3333,10 +3333,14 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
                   : tok.bold ? 'bold'
                   : tok.italic ? 'italic' : 'normal';
       pdf.setFont('helvetica', style);
-      // Découper le token en mots
-      const words = cleanForPDF(tok.text).split(' ');
+      // Découper le token en mots, en filtrant les mots vides
+      const words = cleanForPDF(tok.text).split(' ').filter(function(w) { return w.length > 0; });
       words.forEach(function(word, wi) {
-        const space = (wi > 0 || lineTokens.length > 0) ? ' ' : '';
+        // Supprimer l'espace de tête si le mot commence par une ponctuation fermante
+        const noSpaceBefore = /^[)}\].,;:!?»]/.test(word);
+        // Supprimer l'espace de tête si le segment précédent se termine par une apostrophe
+        const prevEndsApostrophe = lineTokens.length > 0 && lineTokens[lineTokens.length-1].text.endsWith("'");
+        const space = (wi > 0 || lineTokens.length > 0) && !noSpaceBefore && !prevEndsApostrophe ? ' ' : '';
         const segment = space + word;
         const segW = pdf.getTextWidth(segment);
         if (lineWidth + segW > effectiveWidth && lineWidth > 0) {
