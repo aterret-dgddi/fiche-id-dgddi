@@ -3430,15 +3430,50 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   // IMPORTANT : lire value() AVANT display:none (EasyMDE retourne '' si masqué)
   const _mdeContainers = [];
   const _mdeSectionValues = new Map(); // section element → mdValue string
+
+  // Stratégie de lecture robuste :
+  // 1. Lire via _mdeInstances (keyed par textarea id) — source de vérité EasyMDE
+  // 2. Fallback : lire le textarea natif directement par id connu
+  // 3. Fallback : chercher tout textarea dans la section
+  const _knownMdeIds = ['rh-commentaire','budget-commentaire','com-commentaire',
+                        'fonct-commentaire','fm-commentaire','it-commentaire','veh-commentaire'];
+
+  // D'abord : collecter toutes les valeurs depuis _mdeInstances directement
+  const _mdeValueById = {};
+  _knownMdeIds.forEach(id => {
+    if (_mdeInstances[id]) {
+      _mdeValueById[id] = _mdeInstances[id].value();
+      console.log('[PDF] MDE instance trouvée:', id, 'longueur=', _mdeValueById[id].length);
+    } else {
+      const ta = document.getElementById(id);
+      _mdeValueById[id] = ta ? ta.value : '';
+      console.log('[PDF] MDE instance ABSENTE pour:', id, '— ta.value longueur=', _mdeValueById[id].length);
+    }
+  });
+
+  // Associer chaque section à sa valeur via le textarea qu'elle contient
   ficheBody.querySelectorAll('.section').forEach(section => {
-    const container = section.querySelector('.EasyMDEContainer');
-    if (!container) return;
-    const ta = container.querySelector('textarea');
-    const mdeId = ta ? ta.id : null;
-    // Lire la valeur MAINTENANT, avant tout masquage
-    const val = (mdeId && _mdeInstances[mdeId]) ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
+    // Chercher un textarea connu dans cette section
+    let val = '';
+    for (const id of _knownMdeIds) {
+      const ta = section.querySelector('#' + id);
+      if (ta) {
+        val = _mdeValueById[id] || '';
+        break;
+      }
+    }
+    // Fallback : n'importe quel textarea dans la section
+    if (!val) {
+      const anyTa = section.querySelector('textarea');
+      if (anyTa && anyTa.id && _mdeInstances[anyTa.id]) {
+        val = _mdeInstances[anyTa.id].value();
+      } else if (anyTa) {
+        val = anyTa.value || '';
+      }
+    }
     _mdeSectionValues.set(section, val);
   });
+
   // Masquer tous les containers EasyMDE après lecture
   ficheBody.querySelectorAll('.EasyMDEContainer').forEach(container => {
     container.style.display = 'none';
