@@ -3514,10 +3514,8 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   }
 
   // ── Fonction utilitaire : capture un élément en image et l'insère dans le PDF ──
-  // Capture un élément en image et l'insère dans le PDF.
-  // Principe : jamais de slicing. On mesure la hauteur, on saute de page si nécessaire,
-  // puis on place l'image entière. Seuls les blocs plus grands qu'une page entière
-  // sont slicés (cas exceptionnel : tableaux très longs).
+  // Mesure la hauteur réelle après capture canvas, saute de page si nécessaire,
+  // puis place l'image. Slicing uniquement pour les blocs > une page entière.
   async function captureElementToImage(element) {
     if (!element || element.scrollHeight === 0) return;
 
@@ -3532,14 +3530,12 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     const imgHeight  = canvas.height * pxToMm;
     const fullPageH  = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
 
-    // Fonction locale de saut de page unifiée (passe par _pdfCtx pour garder currentPage sync)
-    function doPageBreak() {
-      _pdfCtx.addPage();
-    }
+    function doPageBreak() { _pdfCtx.addPage(); }
 
     if (imgHeight <= fullPageH) {
+      // Hauteur réelle connue : saut propre si besoin, puis placement direct
       const availMm = pageHeight - footerHeight - margin - yPosition;
-      if (availMm < imgHeight || availMm < 20) doPageBreak();
+      if (availMm < imgHeight || availMm < 15) doPageBreak();
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, imgHeight);
       yPosition += imgHeight + 3;
     } else {
@@ -3616,28 +3612,20 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       }
     }
 
-    // Estimation hauteur section en mm.
-    // On utilise getBoundingClientRect pour la hauteur visible réelle,
-    // et le rapport (pageWidth-2*margin) / rect.width pour convertir en mm PDF.
-    // Si rect.width est 0 (element hors viewport), fallback sur scrollHeight/scrollWidth.
+    // Estimation hauteur section via scrollHeight/scrollWidth (ratio DOM → PDF).
+    // scrollHeight est fiable dans Grist contrairement à getBoundingClientRect.
+    // On soustrait la hauteur du commentDiv (masqué) pour ne pas surestimer.
     const imgW = pageWidth - (2 * margin);
-    const rect = section.getBoundingClientRect();
-    let estimatedH;
-    if (rect.width > 0) {
-      estimatedH = (rect.height / rect.width) * imgW;
-    } else {
-      const sw = section.scrollWidth || 1;
-      estimatedH = (section.scrollHeight / sw) * imgW;
-    }
-    const fullPageH = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
-    const availMm   = pageHeight - footerHeight - margin - yPosition;
+    const commentDivH = commentDiv ? (commentDiv.scrollHeight || 0) : 0;
+    const sectionNetH = Math.max(0, (section.scrollHeight || 0) - commentDivH);
+    const sectionW    = section.scrollWidth || 1;
+    const estimatedH  = (sectionNetH / sectionW) * imgW;
+    const fullPageH   = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
+    const availMm     = pageHeight - footerHeight - margin - yPosition;
 
-    // Saut préventif si la section tient sur une page mais pas dans l'espace restant
-    if (estimatedH <= fullPageH && availMm < estimatedH) {
-      addHeaderFooter(currentPage);
-      pdf.addPage();
-      currentPage++;
-      yPosition = margin + headerHeight + 5;
+    // Saut préventif si la section tient sur une page entière mais pas dans l'espace restant
+    if (estimatedH > 10 && estimatedH <= fullPageH && availMm < estimatedH) {
+      _pdfCtx.addPage();
     }
 
     // Capturer la section entière (commentDiv masqué)
@@ -3650,7 +3638,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     }
 
     // Rendu natif du commentaire markdown
-    console.log('[PDF] section commentDiv=', !!commentDiv, 'mdValue.length=', mdValue.length, 'yPosition=', Math.round(yPosition), 'page=', currentPage);
     if (mdValue && mdValue.trim()) {
       // Réinitialiser explicitement tous les états graphiques PDF après html2canvas
 
@@ -3682,11 +3669,8 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setFontSize(10);
       pdf.setTextColor(50, 50, 50);
 
-      const mdValueCleaned = mdValue; // debug
-      console.log('[PDF] mdValue brut:', JSON.stringify(mdValue.substring(0, 100)));
       _pdfCtx.y = yPosition;
       renderMarkdownToPDF(pdf, mdValue, margin + 3, _pdfCtx, imgWidth2 - 6);
-      console.log('[PDF] apres render yPosition=', _pdfCtx.y);
       yPosition = _pdfCtx.y + 4;
     }
     yPosition += 4;
