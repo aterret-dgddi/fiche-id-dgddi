@@ -3225,14 +3225,14 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
   function cleanForPDF(str) {
     if (!str) return '';
     str = str
-      .replace(/\u2192/g, '->').replace(/\u2190/g, '<-')
-      .replace(/\u2013/g, '-').replace(/\u2014/g, '--')
-      .replace(/\u2026/g, '...').replace(/\u20AC/g, 'EUR')
-      .replace(/\u00B0/g, 'deg')
-      .replace(/\u2018/g, "'").replace(/\u2019/g, "'")
-      .replace(/\u201C/g, '"').replace(/\u201D/g, '"')
-      .replace(/\u00AB/g, '"').replace(/\u00BB/g, '"')
-      .replace(/\u2022/g, '*');
+      .replace(/→/g, '->').replace(/←/g, '<-')
+      .replace(/–/g, '-').replace(/—/g, '--')
+      .replace(/…/g, '...').replace(/€/g, 'EUR')
+      .replace(/°/g, 'deg')
+      .replace(/‘/g, "'").replace(/’/g, "'")
+      .replace(/“/g, '"').replace(/”/g, '"')
+      .replace(/«/g, '"').replace(/»/g, '"')
+      .replace(/•/g, '*');
     let out = '';
     for (let i = 0; i < str.length; i++) {
       const cp = str.codePointAt(i);
@@ -3304,7 +3304,6 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
     const line = rawLine.trimEnd();
     if (!line.trim()) { ctx.y += PARA_GAP; return; }
 
-    // *** titre bold (niveau 1 bold, EasyMDE l'utilise pour les titres colorés)
     if (/^\*{3}\s+/.test(line)) {
       const title = cleanForPDF(line.replace(/^\*{3}\s+/, ''));
       if (!title) return;
@@ -3337,13 +3336,11 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
       ctx.y += 1; return;
     }
 
-    // Sous-liste (2+ espaces ou tab)
     if (/^(\s{2,}|\t)[\-\*]\s+/.test(line)) {
       writeInlineLine(parseInline(line.replace(/^[\s\t]+[\-\*]\s+/, '')), FONT_SIZE_NORMAL, COLOR_TEXT, SUB_INDENT);
       return;
     }
 
-    // Liste niveau 1
     if (/^[\-\*]\s+/.test(line)) {
       writeInlineLine(parseInline(line.replace(/^[\-\*]\s+/, '')), FONT_SIZE_NORMAL, COLOR_TEXT, LIST_INDENT);
       return;
@@ -3352,6 +3349,7 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
     writeInlineLine(parseInline(line), FONT_SIZE_NORMAL, COLOR_TEXT, 0);
   });
 }
+
 
 async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   const pageWidth = 210;
@@ -3543,7 +3541,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     if (!element || element.scrollHeight === 0) return;
 
     const canvas = await html2canvas(element, {
-      scale: 2, useCORS: true, logging: false,
+      scale: 1.5, useCORS: true, logging: false,
       backgroundColor: '#ffffff',
       width: element.scrollWidth, height: element.scrollHeight
     });
@@ -3559,7 +3557,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       // Hauteur réelle connue : saut propre si besoin, puis placement direct
       const availMm = pageHeight - footerHeight - margin - yPosition;
       if (availMm < imgHeight || availMm < 15) doPageBreak();
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, imgHeight);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgWidth, imgHeight);
       yPosition += imgHeight + 3;
     } else {
       // Bloc plus grand qu'une page.
@@ -3589,19 +3587,20 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
           kids.forEach(k => groups.push([k]));
         }
         for (const group of groups) {
-          // Estimer hauteur du groupe
-          const gpxH = group.reduce((s, e) => s + (e.scrollHeight || 0), 0);
-          const gmmH = (gpxH / (element.scrollWidth || 1)) * imgWidth;
-          const avail = pageHeight - footerHeight - margin - yPosition;
-          if (gmmH <= fullPageH && avail < gmmH) doPageBreak();
+          const captured = [];
           for (const el of group) {
-            // Capturer chaque élément du groupe (ils sont petits, tiendront)
-            const c2 = await html2canvas(el, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff' });
+            const c2 = await html2canvas(el, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff' });
             const h2 = c2.height * (imgWidth / c2.width);
+            captured.push({ h: h2, data: c2.toDataURL('image/jpeg', 0.82) });
+          }
+          const totalGroupH = captured.reduce((s, item) => s + item.h + 1, 0);
+          const avail = pageHeight - footerHeight - margin - yPosition;
+          if (totalGroupH <= fullPageH && avail < totalGroupH) doPageBreak();
+          for (const item of captured) {
             const av2 = pageHeight - footerHeight - margin - yPosition;
-            if (h2 <= fullPageH && av2 < h2) doPageBreak();
-            pdf.addImage(c2.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, h2);
-            yPosition += h2 + 1;
+            if (item.h <= fullPageH && av2 < item.h) doPageBreak();
+            pdf.addImage(item.data, 'JPEG', margin, yPosition, imgWidth, item.h);
+            yPosition += item.h + 1;
           }
         }
         yPosition += 2;
@@ -3620,7 +3619,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
           const sl = document.createElement('canvas');
           sl.width = canvasW; sl.height = slicePx;
           sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, slicePx, 0, 0, canvasW, slicePx);
-          pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, sliceH);
+          pdf.addImage(sl.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgWidth, sliceH);
           yPosition += sliceH;
           srcY += slicePx;
           if (srcY < canvasH) doPageBreak();
@@ -3630,14 +3629,10 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     }
   }
 
-  // ── 1. En-tête fiche identité (image) ─────────────────────────────
+  // ── 1. En-tête + Vue d'ensemble : header image, pills image, texte natif ──
   const ficheHeader = ficheBody.querySelector('.fiche-header');
-  if (ficheHeader && ficheHeader.offsetParent) {
-    await captureElementToImage(ficheHeader);
-  }
-
-  // ── 2. Vue d'ensemble : html2canvas (emojis, pills colorées, HTML complexe) ──
   const mainCommentBox = ficheBody.querySelector('#main-comment-box');
+
   if (mainCommentBox && mainCommentBox.offsetParent) {
     const vdeBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
     vdeBtns.forEach(btn => { btn.dataset.pdfHidden = btn.style.display; btn.style.display = 'none'; });
@@ -3645,14 +3640,62 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     if (vdePillsEditor) vdePillsEditor.style.display = 'none';
     const vdeTextarea = mainCommentBox.querySelector('textarea');
     if (vdeTextarea) { vdeTextarea.dataset.pdfHidden = vdeTextarea.style.display; vdeTextarea.style.display = 'none'; }
+    // Masquer la description pour ne capturer que header + pills
     const vdeDesc = mainCommentBox.querySelector('#comment-description, .comment-description');
-    if (vdeDesc) vdeDesc.style.display = '';
+    if (vdeDesc) vdeDesc.style.display = 'none';
     const vdePillsWrapper = mainCommentBox.querySelector('.comment-pills-wrapper');
     if (vdePillsWrapper) vdePillsWrapper.style.display = '';
-    await captureElementToImage(mainCommentBox);
+
+    const imgW = pageWidth - (2 * margin);
+    const fullPageH = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
+
+    // Capturer le header fiche
+    let hHeader = 0, dataHeader = null;
+    if (ficheHeader && ficheHeader.offsetParent) {
+      const cHeader = await html2canvas(ficheHeader, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', width:ficheHeader.scrollWidth, height:ficheHeader.scrollHeight });
+      hHeader = cHeader.height * (imgW / cHeader.width);
+      dataHeader = cHeader.toDataURL('image/jpeg', 0.82);
+    }
+
+    // Capturer le bloc pills (sans la description)
+    const cPills = await html2canvas(mainCommentBox, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', width:mainCommentBox.scrollWidth, height:mainCommentBox.scrollHeight });
+    const hPills = cPills.height * (imgW / cPills.width);
+
+    // Lire le markdown du commentaire général
+    const mdGeneralValue = (typeof getCommentaire === 'function' && FICHE_STATE.structure && FICHE_STATE.annee)
+      ? (getCommentaire(FICHE_STATE.structure.id, FICHE_STATE.annee, 'Synthese') || '') : '';
+
+    // Restaurer la description avant placement
+    if (vdeDesc) vdeDesc.style.display = '';
+
+    // Placer le header (toujours en début de première page)
+    if (dataHeader) {
+      pdf.addImage(dataHeader, 'JPEG', margin, yPosition, imgW, hHeader);
+      yPosition += hHeader + 3;
+    }
+
+    // Placer bloc pills : saut seulement si < 30mm disponibles
+    const avail0 = pageHeight - footerHeight - margin - yPosition;
+    if (avail0 < 30) _pdfCtx.addPage();
+    pdf.addImage(cPills.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgW, hPills);
+    yPosition += hPills + 2;
+
+    // Rendu natif du texte du commentaire général
+    if (mdGeneralValue && mdGeneralValue.trim()) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.setTextColor(50, 50, 50);
+      _pdfCtx.y = yPosition;
+      renderMarkdownToPDF(pdf, mdGeneralValue, margin + 3, _pdfCtx, imgW - 6);
+      yPosition = _pdfCtx.y + 4;
+    }
+
     vdeBtns.forEach(btn => { btn.style.display = btn.dataset.pdfHidden || ''; delete btn.dataset.pdfHidden; });
     if (vdePillsEditor) vdePillsEditor.style.display = '';
     if (vdeTextarea) { vdeTextarea.style.display = vdeTextarea.dataset.pdfHidden || ''; delete vdeTextarea.dataset.pdfHidden; }
+
+  } else if (ficheHeader && ficheHeader.offsetParent) {
+    await captureElementToImage(ficheHeader);
   }
 
   // ── 3. Sections indicateurs : corps KPI en image + commentaire en natif ──
@@ -3687,7 +3730,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     const commentDivH = commentDiv ? (commentDiv.scrollHeight || 0) : 0;
     const sectionNetH = Math.max(0, (section.scrollHeight || 0) - commentDivH);
     const sectionW    = section.scrollWidth || 1;
-    const estimatedH  = (sectionNetH / sectionW) * imgW;
+    const estimatedH  = (sectionNetH / sectionW) * imgW * 1.15; // +15% marge Chart.js
     const fullPageH   = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
     const availMm     = pageHeight - footerHeight - margin - yPosition;
 
@@ -3720,7 +3763,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
 
-      _checkPageBreak(12);
+      _checkPageBreak(20);
       const imgWidth2 = pageWidth - (2 * margin);
 
       // Filet séparateur + libellé
