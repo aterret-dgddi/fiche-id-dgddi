@@ -3233,12 +3233,18 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
       .replace(/“/g, '"').replace(/”/g, '"')
       .replace(/«/g, '"').replace(/»/g, '"')
       .replace(/•/g, '*');
+    // Supprimer séquences parasites type &ý &{ (emojis mal encodés par copier-coller)
+    str = str.replace(/&[^;\s]{1,6}/g, function(m) {
+      const valid = ['&amp', '&lt', '&gt', '&nbsp', '&quot', '&apos'];
+      if (valid.some(function(v) { return m.startsWith(v); })) return m;
+      return '';
+    });
+    // Supprimer les caractères hors latin étendu B (U+024F)
     let out = '';
     for (let i = 0; i < str.length; i++) {
       const cp = str.codePointAt(i);
       if (cp > 0xFFFF) { i++; continue; }
-      if (cp > 0x2FFF) continue;
-      if (cp > 255 && cp < 0x2000) continue;
+      if (cp > 0x024F) continue;
       out += str[i];
     }
     return out.replace(/  +/g, ' ').trim();
