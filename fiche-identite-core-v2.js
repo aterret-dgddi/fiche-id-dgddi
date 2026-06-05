@@ -3628,21 +3628,52 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       _pdfCtx.addPage();
     }
 
-    // Capturer la section : si elle dépasse une page, on capture enfant par enfant
-    // pour permettre des sauts de page propres entre sous-blocs.
+    // Capturer la section : si elle dépasse une page, on capture enfant par enfant.
+    // Le section-header (petit) est capturé juste avant le premier grand enfant,
+    // avec un saut de page groupé si nécessaire pour éviter les orphelins.
     const fullPageH2 = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
     if (estimatedH > fullPageH2 * 0.85) {
-      // Section grande : capturer les enfants directs un par un
       const sectionChildren = Array.from(section.children).filter(child =>
         child !== commentDiv &&
         child.style.display !== 'none' &&
         child.scrollHeight > 0
       );
-      for (const child of sectionChildren) {
+
+      // Identifier les petits enfants "collants" (section-header, labels) à ne pas laisser orphelins
+      // Seuil : un enfant < 60px de haut est "collant"
+      const STICKY_MAX_PX = 60;
+      let pendingSticky = []; // petits enfants à capturer avec le suivant
+
+      for (let ci = 0; ci < sectionChildren.length; ci++) {
+        const child = sectionChildren[ci];
+        const childH = child.scrollHeight || 0;
+
+        if (childH <= STICKY_MAX_PX && ci < sectionChildren.length - 1) {
+          pendingSticky.push(child);
+          continue;
+        }
+
+        // Enfant substantiel (ou dernier) : calculer hauteur totale avec les sticky
+        const stickyPxH = pendingSticky.reduce((s, e) => s + (e.scrollHeight || 0), 0);
+        const totalPxH  = stickyPxH + childH;
+        const totalMmH  = (totalPxH / (section.scrollWidth || 1)) * imgW;
+        const availMm2  = pageHeight - footerHeight - margin - yPosition;
+
+        // Saut préventif si le groupe (sticky + cet enfant) ne tient pas et tiendrait sur une page
+        if (totalMmH <= fullPageH2 && availMm2 < totalMmH) {
+          _pdfCtx.addPage();
+        }
+
+        // Capturer les sticky d'abord, puis l'enfant courant (captureElementToImage gère ses propres sauts)
+        for (const s of pendingSticky) await captureElementToImage(s);
+        pendingSticky = [];
         await captureElementToImage(child);
       }
+      // Vider les sticky résiduels
+      for (const s of pendingSticky) await captureElementToImage(s);
+
     } else {
-      // Section normale : capture monolithique
+      // Section normale (< ~85% d'une page) : capture monolithique
       await captureElementToImage(section);
     }
 
