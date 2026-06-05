@@ -3222,6 +3222,20 @@ async function exportAllStructuresAsZIP(filters) {
 function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
   if (!markdownText || !markdownText.trim()) return;
 
+  // Supprimer emojis et caracteres hors latin-1 (jsPDF/Helvetica les corrompt)
+  function cleanForPDF(str) {
+    if (!str) return '';
+    // Supprimer tout caractere hors plage latin-1 (codepoint > 255)
+    let out = '';
+    for (let i = 0; i < str.length; i++) {
+      const cp = str.codePointAt(i);
+      if (cp > 0xFFFF) { i++; continue; } // surrogate pair (emoji 4 octets)
+      if (cp > 255) continue;             // latin etendu
+      out += str[i];
+    }
+    return out.replace(/  +/g, ' ').trim();
+  }
+
   const FONT_SIZE_NORMAL = 10;
   const FONT_SIZE_H2     = 13;
   const FONT_SIZE_H3     = 11;
@@ -3256,7 +3270,7 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
   function writeInlineLine(tokens, fontSize, color, isBullet) {
     pdf.setFontSize(fontSize);
     pdf.setTextColor(...color);
-    const fullText = tokens.map(t => t.text).join('');
+    const fullText = cleanForPDF(tokens.map(t => t.text).join(''));
     const effectiveWidth = maxWidth - (isBullet ? LIST_INDENT : 0);
     pdf.setFont('helvetica', 'normal');
     const wrapped = pdf.splitTextToSize(fullText, effectiveWidth);
@@ -3443,12 +3457,10 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   _knownMdeIds.forEach(id => {
     if (_mdeInstances[id]) {
       _mdeValueById[id] = _mdeInstances[id].value();
-      console.log('[PDF] MDE instance trouvée:', id, 'longueur=', _mdeValueById[id].length);
-    } else {
+      } else {
       const ta = document.getElementById(id);
       _mdeValueById[id] = ta ? ta.value : '';
-      console.log('[PDF] MDE instance ABSENTE pour:', id, '— ta.value longueur=', _mdeValueById[id].length);
-    }
+      }
   });
 
   // Associer chaque section à sa valeur via le textarea qu'elle contient
@@ -3568,119 +3580,23 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     await captureElementToImage(ficheHeader);
   }
 
-  // ── 2. Vue d'ensemble : rendu natif jsPDF ────────────────────────
+  // ── 2. Vue d'ensemble : html2canvas (emojis, pills colorées, HTML complexe) ──
   const mainCommentBox = ficheBody.querySelector('#main-comment-box');
   if (mainCommentBox && mainCommentBox.offsetParent) {
-    const vdeImgW = pageWidth - (2 * margin);
-    _checkPageBreak(20);
-
-    // Encadré bleu institutionnel (bordure gauche)
-    pdf.setDrawColor(0, 83, 160);
-    pdf.setLineWidth(3);
-    pdf.line(margin, yPosition, margin, yPosition + 2); // sera prolongé après
-
-    // Titre "Vue d'ensemble et points d'attention"
-    const vdeStartY = yPosition;
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10);
-    pdf.setTextColor(0, 47, 108);
-    pdf.text("💡  Vue d'ensemble et points d'attention", margin + 5, yPosition + 4);
-    yPosition += 9;
-
-    // Pills (sujets) — lire depuis le DOM
-    const pillsEl = mainCommentBox.querySelectorAll('.comment-pills .pill, .comment-pills [class*="pill"]');
-    if (pillsEl.length > 0) {
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(80, 80, 80);
-      pdf.text('Sujets :', margin + 5, yPosition + 3);
-      let px = margin + 20;
-      pillsEl.forEach(pill => {
-        const txt = pill.textContent.trim();
-        if (!txt) return;
-        // Couleur du pill selon sa classe ou couleur de fond inline
-        const pillColor = pill.style.backgroundColor || '#e8eef7';
-        const rgb = pillColor.startsWith('rgb') ? pillColor.match(/\d+/g).map(Number) : [232, 238, 247];
-        pdf.setFillColor(...(rgb.length >= 3 ? rgb.slice(0,3) : [232, 238, 247]));
-        const tw = pdf.getTextWidth(txt) + 4;
-        if (px + tw > margin + vdeImgW - 5) { px = margin + 20; yPosition += 6; }
-        pdf.roundedRect(px, yPosition - 0.5, tw, 5, 1, 1, 'F');
-        pdf.setTextColor(0, 47, 108);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(7.5);
-        pdf.text(txt, px + 2, yPosition + 3.2);
-        px += tw + 3;
-      });
-      yPosition += 7;
-    }
-
-    // Description / commentaire markdown
-    const descEl = mainCommentBox.querySelector('#comment-description, .comment-description');
-    if (descEl && descEl.innerHTML.trim() && !descEl.innerHTML.includes('Aucune description')) {
-      // Convertir le HTML DOM en texte structuré pour le rendu natif jsPDF
-      // On parcourt les nœuds pour reconstruire un texte lisible
-      const LINE_H = 5.5;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(10);
-      pdf.setTextColor(50, 50, 50);
-      const vdeW = vdeImgW - 10;
-      const vdeX = margin + 5;
-
-      function renderHtmlNode(node) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          const txt = node.textContent.replace(/\s+/g, ' ').trim();
-          if (!txt) return;
-          _checkPageBreak(LINE_H + 1);
-          const lines = pdf.splitTextToSize(txt, vdeW);
-          lines.forEach(l => { pdf.text(l, vdeX, _pdfCtx.y); _pdfCtx.y += LINE_H; });
-          return;
-        }
-        if (node.nodeType !== Node.ELEMENT_NODE) return;
-        const tag = node.tagName.toLowerCase();
-        if (tag === 'strong' || tag === 'b') {
-          pdf.setFont('helvetica', 'bold');
-          node.childNodes.forEach(renderHtmlNode);
-          pdf.setFont('helvetica', 'normal');
-        } else if (tag === 'em' || tag === 'i') {
-          pdf.setFont('helvetica', 'italic');
-          node.childNodes.forEach(renderHtmlNode);
-          pdf.setFont('helvetica', 'normal');
-        } else if (tag === 'li') {
-          _checkPageBreak(LINE_H + 1);
-          pdf.setFillColor(0, 83, 160);
-          pdf.circle(vdeX + 1.5, _pdfCtx.y - 1.5, 0.8, 'F');
-          const liText = node.textContent.replace(/\s+/g, ' ').trim();
-          const lines = pdf.splitTextToSize(liText, vdeW - 5);
-          lines.forEach((l, i) => {
-            pdf.text(l, vdeX + 5, _pdfCtx.y);
-            _pdfCtx.y += LINE_H;
-          });
-        } else if (tag === 'p') {
-          node.childNodes.forEach(renderHtmlNode);
-          _pdfCtx.y += 2;
-        } else if (tag === 'ul' || tag === 'ol') {
-          node.childNodes.forEach(renderHtmlNode);
-          _pdfCtx.y += 1;
-        } else if (tag === 'br') {
-          _pdfCtx.y += LINE_H;
-        } else {
-          node.childNodes.forEach(renderHtmlNode);
-        }
-      }
-
-      _pdfCtx.y = yPosition + 2;
-      descEl.childNodes.forEach(renderHtmlNode);
-      yPosition = _pdfCtx.y;
-    }
-
-    // Tracer la bordure gauche sur toute la hauteur du bloc
-    pdf.setDrawColor(0, 83, 160);
-    pdf.setLineWidth(3);
-    pdf.line(margin, vdeStartY, margin, yPosition + 2);
-    // Fond léger
-    pdf.setFillColor(248, 250, 255);
-    // (pas de rect de fond pour éviter d'écraser le texte déjà dessiné)
-    yPosition += 6;
+    const vdeBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
+    vdeBtns.forEach(btn => { btn.dataset.pdfHidden = btn.style.display; btn.style.display = 'none'; });
+    const vdePillsEditor = mainCommentBox.querySelector('.pills-editor');
+    if (vdePillsEditor) vdePillsEditor.style.display = 'none';
+    const vdeTextarea = mainCommentBox.querySelector('textarea');
+    if (vdeTextarea) { vdeTextarea.dataset.pdfHidden = vdeTextarea.style.display; vdeTextarea.style.display = 'none'; }
+    const vdeDesc = mainCommentBox.querySelector('#comment-description, .comment-description');
+    if (vdeDesc) vdeDesc.style.display = '';
+    const vdePillsWrapper = mainCommentBox.querySelector('.comment-pills-wrapper');
+    if (vdePillsWrapper) vdePillsWrapper.style.display = '';
+    await captureElementToImage(mainCommentBox);
+    vdeBtns.forEach(btn => { btn.style.display = btn.dataset.pdfHidden || ''; delete btn.dataset.pdfHidden; });
+    if (vdePillsEditor) vdePillsEditor.style.display = '';
+    if (vdeTextarea) { vdeTextarea.style.display = vdeTextarea.dataset.pdfHidden || ''; delete vdeTextarea.dataset.pdfHidden; }
   }
 
   // ── 3. Sections indicateurs : corps KPI en image + commentaire en natif ──
@@ -3694,7 +3610,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
 
     // Valeur markdown déjà lue avant masquage (via _mdeSectionValues)
     const mdValue = _mdeSectionValues.get(section) || '';
-    console.log('[PDF export] mdValue longueur=', mdValue.length);
 
     // Identifier le div-commentaire : enfant direct de .section contenant le EasyMDEContainer
     let commentDiv = null;
