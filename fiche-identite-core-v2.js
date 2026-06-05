@@ -3568,31 +3568,119 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     await captureElementToImage(ficheHeader);
   }
 
-  // ── 2. Commentaire principal / synthèse (image — inclut pills) ────
+  // ── 2. Vue d'ensemble : rendu natif jsPDF ────────────────────────
   const mainCommentBox = ficheBody.querySelector('#main-comment-box');
   if (mainCommentBox && mainCommentBox.offsetParent) {
-    const editBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
-    editBtns.forEach(btn => { btn.dataset.exportHidden = btn.style.display; btn.style.display = 'none'; });
-    const pillsEditor = mainCommentBox.querySelector('.pills-editor');
-    if (pillsEditor) pillsEditor.style.display = 'none';
-    const editTextarea = mainCommentBox.querySelector('textarea');
-    if (editTextarea) { editTextarea.dataset.exportHidden = editTextarea.style.display; editTextarea.style.display = 'none'; }
-    const descriptionEl = mainCommentBox.querySelector('#comment-description, .comment-description');
-    if (descriptionEl) descriptionEl.style.display = '';
-    const pillsWrapper = mainCommentBox.querySelector('.comment-pills-wrapper');
-    if (pillsWrapper) pillsWrapper.style.display = '';
+    const vdeImgW = pageWidth - (2 * margin);
+    _checkPageBreak(20);
 
-    await captureElementToImage(mainCommentBox);
+    // Encadré bleu institutionnel (bordure gauche)
+    pdf.setDrawColor(0, 83, 160);
+    pdf.setLineWidth(3);
+    pdf.line(margin, yPosition, margin, yPosition + 2); // sera prolongé après
 
-    // Restauration immédiate
-    editBtns.forEach(btn => {
-      if (btn.dataset.exportHidden !== undefined) { btn.style.display = btn.dataset.exportHidden; delete btn.dataset.exportHidden; }
-    });
-    if (pillsEditor) pillsEditor.style.display = '';
-    if (editTextarea && editTextarea.dataset.exportHidden !== undefined) {
-      editTextarea.style.display = editTextarea.dataset.exportHidden;
-      delete editTextarea.dataset.exportHidden;
+    // Titre "Vue d'ensemble et points d'attention"
+    const vdeStartY = yPosition;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 47, 108);
+    pdf.text("💡  Vue d'ensemble et points d'attention", margin + 5, yPosition + 4);
+    yPosition += 9;
+
+    // Pills (sujets) — lire depuis le DOM
+    const pillsEl = mainCommentBox.querySelectorAll('.comment-pills .pill, .comment-pills [class*="pill"]');
+    if (pillsEl.length > 0) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(80, 80, 80);
+      pdf.text('Sujets :', margin + 5, yPosition + 3);
+      let px = margin + 20;
+      pillsEl.forEach(pill => {
+        const txt = pill.textContent.trim();
+        if (!txt) return;
+        // Couleur du pill selon sa classe ou couleur de fond inline
+        const pillColor = pill.style.backgroundColor || '#e8eef7';
+        const rgb = pillColor.startsWith('rgb') ? pillColor.match(/\d+/g).map(Number) : [232, 238, 247];
+        pdf.setFillColor(...(rgb.length >= 3 ? rgb.slice(0,3) : [232, 238, 247]));
+        const tw = pdf.getTextWidth(txt) + 4;
+        if (px + tw > margin + vdeImgW - 5) { px = margin + 20; yPosition += 6; }
+        pdf.roundedRect(px, yPosition - 0.5, tw, 5, 1, 1, 'F');
+        pdf.setTextColor(0, 47, 108);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(7.5);
+        pdf.text(txt, px + 2, yPosition + 3.2);
+        px += tw + 3;
+      });
+      yPosition += 7;
     }
+
+    // Description / commentaire markdown
+    const descEl = mainCommentBox.querySelector('#comment-description, .comment-description');
+    if (descEl && descEl.innerHTML.trim() && !descEl.innerHTML.includes('Aucune description')) {
+      // Convertir le HTML DOM en texte structuré pour le rendu natif jsPDF
+      // On parcourt les nœuds pour reconstruire un texte lisible
+      const LINE_H = 5.5;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.setTextColor(50, 50, 50);
+      const vdeW = vdeImgW - 10;
+      const vdeX = margin + 5;
+
+      function renderHtmlNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const txt = node.textContent.replace(/\s+/g, ' ').trim();
+          if (!txt) return;
+          _checkPageBreak(LINE_H + 1);
+          const lines = pdf.splitTextToSize(txt, vdeW);
+          lines.forEach(l => { pdf.text(l, vdeX, _pdfCtx.y); _pdfCtx.y += LINE_H; });
+          return;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        const tag = node.tagName.toLowerCase();
+        if (tag === 'strong' || tag === 'b') {
+          pdf.setFont('helvetica', 'bold');
+          node.childNodes.forEach(renderHtmlNode);
+          pdf.setFont('helvetica', 'normal');
+        } else if (tag === 'em' || tag === 'i') {
+          pdf.setFont('helvetica', 'italic');
+          node.childNodes.forEach(renderHtmlNode);
+          pdf.setFont('helvetica', 'normal');
+        } else if (tag === 'li') {
+          _checkPageBreak(LINE_H + 1);
+          pdf.setFillColor(0, 83, 160);
+          pdf.circle(vdeX + 1.5, _pdfCtx.y - 1.5, 0.8, 'F');
+          const liText = node.textContent.replace(/\s+/g, ' ').trim();
+          const lines = pdf.splitTextToSize(liText, vdeW - 5);
+          lines.forEach((l, i) => {
+            pdf.text(l, vdeX + 5, _pdfCtx.y);
+            _pdfCtx.y += LINE_H;
+          });
+        } else if (tag === 'p') {
+          node.childNodes.forEach(renderHtmlNode);
+          _pdfCtx.y += 2;
+        } else if (tag === 'ul' || tag === 'ol') {
+          node.childNodes.forEach(renderHtmlNode);
+          _pdfCtx.y += 1;
+        } else if (tag === 'br') {
+          _pdfCtx.y += LINE_H;
+        } else {
+          node.childNodes.forEach(renderHtmlNode);
+        }
+      }
+
+      _pdfCtx.y = yPosition + 2;
+      descEl.childNodes.forEach(renderHtmlNode);
+      yPosition = _pdfCtx.y;
+    }
+
+    // Tracer la bordure gauche sur toute la hauteur du bloc
+    pdf.setDrawColor(0, 83, 160);
+    pdf.setLineWidth(3);
+    pdf.line(margin, vdeStartY, margin, yPosition + 2);
+    // Fond léger
+    pdf.setFillColor(248, 250, 255);
+    // (pas de rect de fond pour éviter d'écraser le texte déjà dessiné)
+    yPosition += 6;
   }
 
   // ── 3. Sections indicateurs : corps KPI en image + commentaire en natif ──
@@ -3621,11 +3709,19 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       }
     }
 
-    // Estimation hauteur section en mm via scrollHeight/scrollWidth
+    // Estimation hauteur section en mm.
+    // On utilise getBoundingClientRect pour la hauteur visible réelle,
+    // et le rapport (pageWidth-2*margin) / rect.width pour convertir en mm PDF.
+    // Si rect.width est 0 (element hors viewport), fallback sur scrollHeight/scrollWidth.
     const imgW = pageWidth - (2 * margin);
-    const sectionScrollW = section.scrollWidth || 1;
-    const sectionScrollH = section.scrollHeight || 0;
-    const estimatedH = (sectionScrollH / sectionScrollW) * imgW;
+    const rect = section.getBoundingClientRect();
+    let estimatedH;
+    if (rect.width > 0) {
+      estimatedH = (rect.height / rect.width) * imgW;
+    } else {
+      const sw = section.scrollWidth || 1;
+      estimatedH = (section.scrollHeight / sw) * imgW;
+    }
     const fullPageH = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
     const availMm   = pageHeight - footerHeight - margin - yPosition;
 
@@ -3656,10 +3752,10 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setFont('helvetica', 'italic');
       pdf.setFontSize(8.5);
       pdf.setTextColor(0, 83, 160);
-      pdf.text('Commentaire', margin + 5, yPosition + 0.5);
+      pdf.text("Analyse de l'indicateur", margin + 5, yPosition + 0.5);
       pdf.setDrawColor(220, 228, 240);
       pdf.setLineWidth(0.3);
-      pdf.line(margin + 32, yPosition, margin + imgWidth2, yPosition);
+      pdf.line(margin + 55, yPosition, margin + imgWidth2, yPosition);
       yPosition += 4;
       _pdfCtx.y = yPosition + 2;
       renderMarkdownToPDF(pdf, mdValue, margin + 2, _pdfCtx, imgWidth2 - 4);
