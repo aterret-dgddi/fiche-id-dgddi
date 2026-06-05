@@ -3682,8 +3682,11 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setFontSize(10);
       pdf.setTextColor(50, 50, 50);
 
+      const mdValueCleaned = mdValue; // debug
+      console.log('[PDF] mdValue brut:', JSON.stringify(mdValue.substring(0, 100)));
       _pdfCtx.y = yPosition;
       renderMarkdownToPDF(pdf, mdValue, margin + 3, _pdfCtx, imgWidth2 - 6);
+      console.log('[PDF] apres render yPosition=', _pdfCtx.y);
       yPosition = _pdfCtx.y + 4;
     }
     yPosition += 4;
