@@ -3539,26 +3539,71 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, imgHeight);
       yPosition += imgHeight + 3;
     } else {
-      // Bloc plus grand qu'une page : slicing via _pdfCtx
-      const canvasW = canvas.width;
-      const canvasH = canvas.height;
-      let srcY = 0;
-      while (srcY < canvasH) {
-        const availMm = pageHeight - footerHeight - margin - yPosition;
-        const availPx = Math.floor(availMm / pxToMm);
-        const remainPx = canvasH - srcY;
-        if (availMm < 20 || availPx <= 0) { doPageBreak(); continue; }
-        const slicePx = Math.min(availPx, remainPx);
-        const sliceH  = slicePx * pxToMm;
-        const sl = document.createElement('canvas');
-        sl.width = canvasW; sl.height = slicePx;
-        sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, slicePx, 0, 0, canvasW, slicePx);
-        pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, sliceH);
-        yPosition += sliceH;
-        srcY += slicePx;
-        if (srcY < canvasH) doPageBreak();
+      // Bloc plus grand qu'une page.
+      // Si c'est un élément .section, on re-capture ses enfants directs un par un
+      // (en groupant les 2 premiers : section-header + KPIs) plutôt que de slicer.
+      // Sinon on slicera (tableaux très longs inévitables).
+      const isSection = element.classList && element.classList.contains('section');
+      if (isSection) {
+        // Trouver le commentDiv pour l'exclure
+        const innerMde = element.querySelector('.EasyMDEContainer');
+        let innerCommentDiv = null;
+        if (innerMde) {
+          let n = innerMde;
+          while (n.parentNode && n.parentNode !== element) n = n.parentNode;
+          if (n !== element) innerCommentDiv = n;
+        }
+        const kids = Array.from(element.children).filter(c =>
+          c !== innerCommentDiv && c.style.display !== 'none' && c.scrollHeight > 0
+        );
+        // Grouper les 2 premiers enfants (header + KPIs)
+        let groups = [];
+        if (kids.length >= 2 && (kids[0].scrollHeight || 0) < 80) {
+          // Premier enfant petit (header) → grouper avec le second
+          groups.push([kids[0], kids[1]]);
+          kids.slice(2).forEach(k => groups.push([k]));
+        } else {
+          kids.forEach(k => groups.push([k]));
+        }
+        for (const group of groups) {
+          // Estimer hauteur du groupe
+          const gpxH = group.reduce((s, e) => s + (e.scrollHeight || 0), 0);
+          const gmmH = (gpxH / (element.scrollWidth || 1)) * imgWidth;
+          const avail = pageHeight - footerHeight - margin - yPosition;
+          if (gmmH <= fullPageH && avail < gmmH) doPageBreak();
+          for (const el of group) {
+            // Capturer chaque élément du groupe (ils sont petits, tiendront)
+            const c2 = await html2canvas(el, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff' });
+            const h2 = c2.height * (imgWidth / c2.width);
+            const av2 = pageHeight - footerHeight - margin - yPosition;
+            if (h2 <= fullPageH && av2 < h2) doPageBreak();
+            pdf.addImage(c2.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, h2);
+            yPosition += h2 + 1;
+          }
+        }
+        yPosition += 2;
+      } else {
+        // Slicing classique pour les blocs non-section (tableaux longs, etc.)
+        const canvasW = canvas.width;
+        const canvasH = canvas.height;
+        let srcY = 0;
+        while (srcY < canvasH) {
+          const availMm = pageHeight - footerHeight - margin - yPosition;
+          const availPx = Math.floor(availMm / pxToMm);
+          const remainPx = canvasH - srcY;
+          if (availMm < 20 || availPx <= 0) { doPageBreak(); continue; }
+          const slicePx = Math.min(availPx, remainPx);
+          const sliceH  = slicePx * pxToMm;
+          const sl = document.createElement('canvas');
+          sl.width = canvasW; sl.height = slicePx;
+          sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, slicePx, 0, 0, canvasW, slicePx);
+          pdf.addImage(sl.toDataURL('image/jpeg', 0.92), 'JPEG', margin, yPosition, imgWidth, sliceH);
+          yPosition += sliceH;
+          srcY += slicePx;
+          if (srcY < canvasH) doPageBreak();
+        }
+        yPosition += 3;
       }
-      yPosition += 3;
     }
   }
 
@@ -3628,54 +3673,12 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       _pdfCtx.addPage();
     }
 
-    // Capturer la section : si elle dépasse une page, on capture enfant par enfant.
-    // Le section-header (petit) est capturé juste avant le premier grand enfant,
-    // avec un saut de page groupé si nécessaire pour éviter les orphelins.
-    const fullPageH2 = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
-    if (estimatedH > fullPageH2 * 0.85) {
-      const sectionChildren = Array.from(section.children).filter(child =>
-        child !== commentDiv &&
-        child.style.display !== 'none' &&
-        child.scrollHeight > 0
-      );
-
-      // Identifier les petits enfants "collants" (section-header, labels) à ne pas laisser orphelins
-      // Seuil : un enfant < 60px de haut est "collant"
-      const STICKY_MAX_PX = 60;
-      let pendingSticky = []; // petits enfants à capturer avec le suivant
-
-      for (let ci = 0; ci < sectionChildren.length; ci++) {
-        const child = sectionChildren[ci];
-        const childH = child.scrollHeight || 0;
-
-        if (childH <= STICKY_MAX_PX && ci < sectionChildren.length - 1) {
-          pendingSticky.push(child);
-          continue;
-        }
-
-        // Enfant substantiel (ou dernier) : calculer hauteur totale avec les sticky
-        const stickyPxH = pendingSticky.reduce((s, e) => s + (e.scrollHeight || 0), 0);
-        const totalPxH  = stickyPxH + childH;
-        const totalMmH  = (totalPxH / (section.scrollWidth || 1)) * imgW;
-        const availMm2  = pageHeight - footerHeight - margin - yPosition;
-
-        // Saut préventif si le groupe (sticky + cet enfant) ne tient pas et tiendrait sur une page
-        if (totalMmH <= fullPageH2 && availMm2 < totalMmH) {
-          _pdfCtx.addPage();
-        }
-
-        // Capturer les sticky d'abord, puis l'enfant courant (captureElementToImage gère ses propres sauts)
-        for (const s of pendingSticky) await captureElementToImage(s);
-        pendingSticky = [];
-        await captureElementToImage(child);
-      }
-      // Vider les sticky résiduels
-      for (const s of pendingSticky) await captureElementToImage(s);
-
-    } else {
-      // Section normale (< ~85% d'une page) : capture monolithique
-      await captureElementToImage(section);
-    }
+    // Capture de la section.
+    // captureElementToImage mesure la hauteur réelle après rendu canvas :
+    // - si ≤ une page : saut préventif si besoin, placement d'un bloc
+    // - si > une page : slicing sur les enfants directs, groupant toujours
+    //   les 2 premiers enfants (header + KPIs) ensemble
+    await captureElementToImage(section);
 
     // Restaurer le div-commentaire
     if (commentDiv) {
