@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Validation BAN</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    padding: 12px;
+  }
+  button {
+    padding: 10px 16px;
+    background: #0053b3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 15px;
+  }
+  button:hover {
+    background: #003f87;
+  }
+  #log {
+    margin-top: 15px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    background: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>Validation BAN</h2>
+<p>Valide l’adresse de la ligne sélectionnée via l’API BAN.</p>
+
+<button id="btn">Valider via BAN</button>
+
+<div id="log"></div>
+
+<script>
+// Connexion Grist
+let gristReady = false;
+grist.ready({
+  requiredAccess: 'full',
+  columns: [
+    "AdresseBrute",
+    "AdresseNormalisee",
+    "BAN_Adresse",
+    "BAN_Score",
+    "BAN_CodeINSEE",
+    "BAN_Lat",
+    "BAN_Lon",
+    "BAN_Commentaire"
+  ]
+});
+grist.onRecord((record) => {
+  window.currentRecord = record;
+});
+
+// Logging
+function log(msg) {
+  document.getElementById("log").textContent += msg + "\n";
+}
+
+// Nettoyage minimal avant BAN
+function cleanAddress(addr) {
+  if (!addr) return "";
+  return addr
+    .replace(/\s+/g, " ")
+    .replace(/BP\s*\d+/gi, "")
+    .replace(/CS\s*\d+/gi, "")
+    .replace(/CEDEX/gi, "")
+    .trim();
+}
+
+// Appel API BAN
+async function callBAN(query) {
+  const url = "https://api-adresse.data.gouv.fr/search/?q=" +
+              encodeURIComponent(query) +
+              "&limit=1";
+
+  const r = await fetch(url);
+  if (!r.ok) return null;
+
+  const data = await r.json();
+  if (!data.features || data.features.length === 0) return null;
+
+  return data.features[0];
+}
+
+// Mise à jour Grist
+async function updateGrist(rowId, values) {
+  await grist.doc.updateRecords("Table1", [
+    { id: rowId, ...values }
+  ]);
+}
+
+// Action principale
+document.getElementById("btn").onclick = async () => {
+  const rec = window.currentRecord;
+  if (!rec) {
+    log("Aucune ligne sélectionnée.");
+    return;
+  }
+
+  log("Adresse brute : " + rec.AdresseBrute);
+
+  const cleaned = cleanAddress(rec.AdresseBrute || rec.AdresseNormalisee);
+  log("Adresse nettoyée : " + cleaned);
+
+  const feature = await callBAN(cleaned);
+
+  if (!feature) {
+    log("❌ BAN n’a rien trouvé.");
+    await updateGrist(rec.id, {
+      BAN_Adresse: null,
+      BAN_Score: null,
+      BAN_CodeINSEE: null,
+      BAN_Lat: null,
+      BAN_Lon: null,
+      BAN_Commentaire: "Aucun résultat BAN"
+    });
+    return;
+  }
+
+  const p = feature.properties;
+  const g = feature.geometry;
+
+  log("✔ BAN trouvé : " + p.label);
+  log("Score : " + p.score);
+
+  await updateGrist(rec.id, {
+    BAN_Adresse: p.label,
+    BAN_Score: p.score,
+    BAN_CodeINSEE: p.citycode || null,
+    BAN_Lat: g.coordinates[1],
+    BAN_Lon: g.coordinates[0],
+    BAN_Commentaire: p.score >= 0.85 ? "OK" : "Score faible"
+  });
+
+  log("Mise à jour Grist effectuée.");
+};
+</script>
+
+</body>
+</html>
