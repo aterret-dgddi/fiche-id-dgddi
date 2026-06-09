@@ -806,15 +806,14 @@ function generatePreview() {
       } else {
         // Nettoyage valeur
         const isDateField = (config.dateFields || []).includes(targetCol);
+        if (idx === 0 && targetCol === 'Date_Fin_Bail') addLog(`DEBUG Date_Fin_Bail : isDateField=${isDateField}, typeof=${typeof value}, valeur="${value}", null=${value === null}, vide=${value === ''}`);
         if (value === null || value === '') {
           previewRow[targetCol] = (targetCol === 'Mois') ? null : null;
         } else if (isDateField) {
-          // Grist attend un nb de jours depuis le 01/01/2000 (epoch Grist) pour les colonnes Date
-          if (idx === 0) addLog(`DEBUG Date_Fin_Bail : typeof=${typeof value}, valeur="${value}"`);
-          const GRIST_EPOCH = new Date(Date.UTC(2000, 0, 1));
+          // Grist type Date attend une string ISO YYYY-MM-DD
           let dateObj = null;
           if (typeof value === 'number') {
-            // Excel stocke les dates en jours depuis le 01/01/1900 (avec bug an 1900)
+            // Excel stocke les dates en jours depuis le 30/12/1899
             const EXCEL_EPOCH = new Date(Date.UTC(1899, 11, 30));
             dateObj = new Date(EXCEL_EPOCH.getTime() + value * 86400000);
           } else {
@@ -828,8 +827,9 @@ function generatePreview() {
             }
           }
           if (dateObj && !isNaN(dateObj)) {
-            previewRow[targetCol] = Math.round((dateObj - GRIST_EPOCH) / 86400000);
-            previewRow._display[targetCol] = dateObj.toISOString().slice(0,10).split('-').reverse().join('/');
+            const iso = dateObj.toISOString().slice(0, 10); // YYYY-MM-DD
+            previewRow[targetCol] = iso;
+            previewRow._display[targetCol] = iso.split('-').reverse().join('/');
           } else {
             previewRow[targetCol] = null;
           }
