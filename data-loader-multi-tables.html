@@ -810,6 +810,7 @@ function generatePreview() {
           previewRow[targetCol] = (targetCol === 'Mois') ? null : null;
         } else if (isDateField) {
           // Grist attend un nb de jours depuis le 01/01/2000 (epoch Grist) pour les colonnes Date
+          if (idx === 0) addLog(`DEBUG Date_Fin_Bail : typeof=${typeof value}, valeur="${value}"`);
           const GRIST_EPOCH = new Date(Date.UTC(2000, 0, 1));
           let dateObj = null;
           if (typeof value === 'number') {
