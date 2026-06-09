@@ -3436,6 +3436,11 @@ function refreshImmobilier(structureId, annee) {
   const { public: sitesPublic, prive: sitesPrive } = getImmobilierSites(structureId);
   const moyRatio = consol?.moy_ratio_occupation || null;
   const moyCout  = consol?.moy_cout_surfacique  || null;
+  // Moyenne loyer/m² calculée sur les baux privés de la structure
+  const loyersValides = sitesPrive.filter(s => s.ratio_loyer != null && s.ratio_loyer > 0);
+  const moyLoyer = loyersValides.length > 0
+    ? loyersValides.reduce((s, r) => s + r.ratio_loyer, 0) / loyersValides.length
+    : null;
 
   // Helper : couleur par rapport à la moyenne (vert = mieux, rouge = plus élevé)
   // Pour ratio occupation et coût surfacique : plus bas = vert (moins de surface par résident = plus dense)
@@ -3453,12 +3458,13 @@ function refreshImmobilier(structureId, annee) {
       const energieTxt = s.energie > 0 ? formatNumber(s.energie, 0) + ' €' : '—';
       const coutTxt   = s.cout_surf != null ? formatNumber(s.cout_surf, 1) : '—';
       const coutCss   = s.cout_surf != null ? colorVsAvg(s.cout_surf, moyCout) : '';
-      const loyerTxt   = s.loyer_annuel > 0 ? formatNumber(s.loyer_annuel, 0) + ' €' : '—';
-      const ratioLoyer = s.ratio_loyer != null ? formatNumber(s.ratio_loyer, 1) + ' €/m²' : '—';
+      const loyerTxt    = s.loyer_annuel > 0 ? formatNumber(s.loyer_annuel, 0) + ' €' : '—';
+      const ratioLoyer  = s.ratio_loyer != null ? formatNumber(s.ratio_loyer, 1) + ' €/m²' : '—';
+      const ratioLoyerCss = s.ratio_loyer != null ? colorVsAvg(s.ratio_loyer, moyLoyer) : '';
       const bailCols  = avecBail ? `
         <td style="padding:10px 12px;font-size:12px;white-space:nowrap;">${s.date_fin_bail ? formatDateBail(s.date_fin_bail) : '—'}</td>
         <td style="padding:10px 12px;font-size:12px;text-align:right;">${loyerTxt}</td>
-        <td style="padding:10px 12px;font-size:12px;text-align:right;">${ratioLoyer}</td>` : '';
+        <td style="padding:10px 12px;font-size:12px;text-align:right;${ratioLoyerCss}">${ratioLoyer}</td>` : '';
       const libelleCell = avecBail && s.bailleur && s.bailleur !== '—'
         ? `<td style="padding:10px 12px;font-size:12px;font-weight:500;">${s.libelle}<br><span style="font-weight:400;color:var(--gris2);font-size:11px;">${s.bailleur}</span></td>`
         : `<td style="padding:10px 12px;font-size:12px;font-weight:500;">${s.libelle}</td>`;
@@ -3510,8 +3516,16 @@ function refreshImmobilierPlaceholder() {
 
 function formatDateBail(ts) {
   if (!ts) return '—';
-  // Grist stocke les dates en jours depuis 2000-01-01
-  const d = new Date(Date.UTC(2000, 0, 1) + ts * 86400000);
+  let d;
+  if (typeof ts === 'string') {
+    // Format ISO YYYY-MM-DD
+    const p = ts.split('-');
+    d = new Date(Date.UTC(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2])));
+  } else {
+    // Entier : jours depuis 2000-01-01 (ancien format)
+    d = new Date(Date.UTC(2000, 0, 1) + ts * 86400000);
+  }
+  if (isNaN(d)) return '—';
   return d.toLocaleDateString('fr-FR');
 }
 
