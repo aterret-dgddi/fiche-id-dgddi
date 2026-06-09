@@ -3271,8 +3271,8 @@ function getImmobilierSites(structureId) {
   sites.sort((a, b) => a.ville.localeCompare(b.ville) || a.libelle.localeCompare(b.libelle));
 
   return {
-    public: sites.filter(s => s.statut !== 'Bail privé'),
-    prive:  sites.filter(s => s.statut === 'Bail privé'),
+    public: sites.filter(s => !s.statut.includes('Prise à bail')),
+    prive:  sites.filter(s => s.statut.includes('Prise à bail')),
   };
 }
 
@@ -3441,16 +3441,18 @@ function refreshImmobilier(structureId, annee) {
   }
 
   function lignesSite(sites, avecBail) {
-    if (sites.length === 0) return `<tr><td colspan="${avecBail ? 9 : 7}" style="text-align:center;padding:16px;color:var(--gris2);font-style:italic;">Aucun site</td></tr>`;
+    if (sites.length === 0) return `<tr><td colspan="${avecBail ? 10 : 7}" style="text-align:center;padding:16px;color:var(--gris2);font-style:italic;">Aucun site</td></tr>`;
     return sites.map(s => {
       const ratioTxt  = (s.type_bien === 'Bureau' && s.ratio_occ != null) ? formatNumber(s.ratio_occ, 1) : '—';
       const ratioCss  = (s.type_bien === 'Bureau' && s.ratio_occ != null) ? colorVsAvg(s.ratio_occ, moyRatio) : '';
       const energieTxt = s.energie > 0 ? formatNumber(s.energie, 0) + ' €' : '—';
       const coutTxt   = s.cout_surf != null ? formatNumber(s.cout_surf, 1) : '—';
       const coutCss   = s.cout_surf != null ? colorVsAvg(s.cout_surf, moyCout) : '';
+      const loyerTxt  = s.loyer_annuel > 0 ? formatNumber(s.loyer_annuel, 0) + ' €' : '—';
       const bailCols  = avecBail ? `
         <td style="padding:10px 12px;font-size:12px;">${s.bailleur}</td>
-        <td style="padding:10px 12px;font-size:12px;white-space:nowrap;">${s.date_fin_bail ? formatDateBail(s.date_fin_bail) : '—'}</td>` : '';
+        <td style="padding:10px 12px;font-size:12px;white-space:nowrap;">${s.date_fin_bail ? formatDateBail(s.date_fin_bail) : '—'}</td>
+        <td style="padding:10px 12px;font-size:12px;text-align:right;">${loyerTxt}</td>` : '';
       return `<tr style="border-bottom:0.5px solid var(--bord);">
         <td style="padding:10px 12px;font-size:12px;font-weight:500;">${s.libelle}</td>
         <td style="padding:10px 12px;font-size:12px;">${s.ville}</td>
