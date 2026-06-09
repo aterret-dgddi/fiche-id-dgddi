@@ -3268,7 +3268,7 @@ function getImmobilierSites(structureId) {
     });
   }
 
-  sites.sort((a, b) => a.libelle.localeCompare(b.libelle));
+  sites.sort((a, b) => a.ville.localeCompare(b.ville) || a.libelle.localeCompare(b.libelle));
 
   return {
     public: sites.filter(s => s.statut !== 'Bail privé'),
@@ -3308,16 +3308,14 @@ function refreshImmobilier(structureId, annee) {
   const consol    = getConsolidationData(perimetre, annee);
 
   // ── KPI pills ──────────────────────────────────────────────────
-
-  // SUB Total
-  const subTotal = data?.sub_total || 0;
   const el = (id) => document.getElementById(id);
-  el('immo-sub-value').textContent   = subTotal > 0 ? formatNumber(subTotal, 0) + ' m²' : '—';
 
-  // Nb sites
-  el('immo-sites-value').textContent = data?.nb_sites > 0 ? formatNumber(data.nb_sites, 0) : '—';
+  // Pill 1 : SUB + nb sites fusionnés
+  const subTotal = data?.sub_total || 0;
+  el('immo-sub-value').textContent  = subTotal > 0 ? formatNumber(subTotal, 0) + ' m²' : '—';
+  el('immo-sites-detail').textContent = data?.nb_sites > 0 ? data.nb_sites + ' site' + (data.nb_sites > 1 ? 's' : '') : '';
 
-  // Ratio occupation
+  // Pill 2 : Ratio occupation — comparaison périmètre uniquement
   const ratio = data?.ratio_occupation;
   el('immo-ratio-value').textContent = ratio != null ? formatNumber(ratio, 1) + ' m²/rés.' : '—';
   if (consol?.moy_ratio_occupation && ratio != null) {
@@ -3328,12 +3326,10 @@ function refreshImmobilier(structureId, annee) {
     el('immo-ratio-comp').textContent = '';
   }
 
-  // Coût surfacique — valeur N
+  // Pill 3 : Coût surfacique + évolution fusionnés
   const coutN  = data?.cout_surfacique;
   const coutN1 = dataN1?.cout_surfacique;
   el('immo-cout-value').textContent = coutN != null ? formatNumber(coutN, 2) + ' €/m²' : '—';
-
-  // Évolution N vs N-1
   if (coutN != null && coutN1 != null && coutN1 > 0) {
     const evolPct = ((coutN - coutN1) / coutN1) * 100;
     el('immo-cout-evol').innerHTML = `
@@ -3344,8 +3340,6 @@ function refreshImmobilier(structureId, annee) {
   } else {
     el('immo-cout-evol').innerHTML = '';
   }
-
-  // Comparaison vs périmètre
   if (consol?.moy_cout_surfacique && coutN != null) {
     const ecart    = coutN - consol.moy_cout_surfacique;
     const ecartPct = (ecart / consol.moy_cout_surfacique) * 100;
@@ -3358,8 +3352,9 @@ function refreshImmobilier(structureId, annee) {
   const histo = getImmobilierHistorique(structureId);
   const labels = histo.map(h => h.annee);
   const valeurs = histo.map(h => h.cout_surfacique);
-  const moy4ans = valeurs.filter(v => v != null).length > 0
-    ? valeurs.filter(v => v != null).reduce((a, b) => a + b, 0) / valeurs.filter(v => v != null).length
+  const valeursNonNull = valeurs.filter(v => v != null);
+  const moy4ans = valeursNonNull.length > 0
+    ? valeursNonNull.reduce((a, b) => a + b, 0) / valeursNonNull.length
     : null;
 
   el('immo-badge-4ans').textContent = `Lissé ${labels[0]}–${labels[labels.length - 1]}`;
@@ -3378,47 +3373,77 @@ function refreshImmobilier(structureId, annee) {
           borderColor: '#002F6C',
           backgroundColor: 'rgba(0,47,108,0.08)',
           borderWidth: 2,
-          pointRadius: 3,
+          pointRadius: 4,
           fill: true,
           tension: 0.3,
           spanGaps: true,
+          datalabels: { display: false }
         }]
       },
       options: {
         responsive: false,
-        plugins: { legend: { display: false }, tooltip: {
-          callbacks: { label: ctx => (ctx.parsed.y != null ? ctx.parsed.y.toFixed(2) + ' €/m²' : '—') }
-        }},
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: ctx => (ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + ' €/m²' : '—') }
+          },
+          // Afficher la valeur au-dessus de chaque point
+          datalabels: {
+            display: true,
+            anchor: 'end',
+            align: 'top',
+            color: '#002F6C',
+            font: { size: 10, weight: '500' },
+            formatter: v => v != null ? v.toFixed(1) : ''
+          }
+        },
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-          y: { grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 }, callback: v => v.toFixed(1) } }
-        }
+          y: {
+            grid: { color: '#f0f0f0' },
+            ticks: { font: { size: 10 }, callback: v => v.toFixed(1) },
+            // Ajouter de la marge en haut pour les labels
+            suggestedMax: moy4ans != null ? moy4ans * 1.25 : undefined
+          }
+        },
+        layout: { padding: { top: 20 } }
       }
     });
   }
 
   // ── Tableaux sites ─────────────────────────────────────────────
   const { public: sitesPublic, prive: sitesPrive } = getImmobilierSites(structureId);
+  const moyRatio = consol?.moy_ratio_occupation || null;
+  const moyCout  = consol?.moy_cout_surfacique  || null;
 
-  // Helper : ligne de tableau
+  // Helper : couleur par rapport à la moyenne (vert = mieux, rouge = plus élevé)
+  // Pour ratio occupation et coût surfacique : plus bas = vert (moins de surface par résident = plus dense)
+  function colorVsAvg(val, avg, inverser = false) {
+    if (val == null || avg == null || avg === 0) return '';
+    const mieux = inverser ? val > avg : val < avg;
+    return mieux ? 'color:#10b981;font-weight:500;' : 'color:#ef4444;font-weight:500;';
+  }
+
   function lignesSite(sites, avecBail) {
     if (sites.length === 0) return `<tr><td colspan="${avecBail ? 9 : 7}" style="text-align:center;padding:16px;color:var(--gris2);font-style:italic;">Aucun site</td></tr>`;
     return sites.map(s => {
-      const ratioTxt = (s.type_bien === 'Bureau' && s.ratio_occ != null) ? formatNumber(s.ratio_occ, 1) + ' m²/rés.' : '—';
+      const ratioTxt  = (s.type_bien === 'Bureau' && s.ratio_occ != null) ? formatNumber(s.ratio_occ, 1) : '—';
+      const ratioCss  = (s.type_bien === 'Bureau' && s.ratio_occ != null) ? colorVsAvg(s.ratio_occ, moyRatio) : '';
       const energieTxt = s.energie > 0 ? formatNumber(s.energie, 0) + ' €' : '—';
-      const coutTxt    = s.cout_surf != null ? formatNumber(s.cout_surf, 2) + ' €/m²' : '—';
-      const bailCols   = avecBail ? `
+      const coutTxt   = s.cout_surf != null ? formatNumber(s.cout_surf, 1) : '—';
+      const coutCss   = s.cout_surf != null ? colorVsAvg(s.cout_surf, moyCout) : '';
+      const bailCols  = avecBail ? `
         <td style="padding:10px 12px;font-size:12px;">${s.bailleur}</td>
-        <td style="padding:10px 12px;font-size:12px;white-space:nowrap;">${s.date_fin_bail ? new Date(s.date_fin_bail * 1000).toLocaleDateString('fr-FR') : '—'}</td>` : '';
+        <td style="padding:10px 12px;font-size:12px;white-space:nowrap;">${s.date_fin_bail ? formatDateBail(s.date_fin_bail) : '—'}</td>` : '';
       return `<tr style="border-bottom:0.5px solid var(--bord);">
         <td style="padding:10px 12px;font-size:12px;font-weight:500;">${s.libelle}</td>
         <td style="padding:10px 12px;font-size:12px;">${s.ville}</td>
         <td style="padding:10px 12px;font-size:12px;">${s.type_bien}</td>
-        <td style="padding:10px 12px;font-size:12px;text-align:right;">${s.sub > 0 ? formatNumber(s.sub, 0) + ' m²' : '—'}</td>
+        <td style="padding:10px 12px;font-size:12px;text-align:right;">${s.sub > 0 ? formatNumber(s.sub, 0) : '—'}</td>
         <td style="padding:10px 12px;font-size:12px;text-align:right;">${s.residents > 0 ? formatNumber(s.residents, 0) : '—'}</td>
-        <td style="padding:10px 12px;font-size:12px;text-align:right;">${ratioTxt}</td>
+        <td style="padding:10px 12px;font-size:12px;text-align:right;${ratioCss}">${ratioTxt}</td>
         <td style="padding:10px 12px;font-size:12px;text-align:right;">${energieTxt}</td>
-        <td style="padding:10px 12px;font-size:12px;text-align:right;">${coutTxt}</td>
+        <td style="padding:10px 12px;font-size:12px;text-align:right;${coutCss}">${coutTxt}</td>
         ${bailCols}
       </tr>`;
     }).join('');

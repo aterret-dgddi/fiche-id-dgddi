@@ -1779,24 +1779,14 @@
   <!-- KPI Pills -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
 
-    <!-- SUB Totale -->
+    <!-- SUB Totale + Nb sites fusionnés -->
     <div class="kpi-card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">📐</span>
         <span style="font-size:12px;font-weight:500;color:#042C53;">Surface SUB totale</span>
       </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="immo-sub-value">—</div>
-      <div style="font-size:10px;color:var(--gris2);margin-top:10px;">Ensemble des biens</div>
-    </div>
-
-    <!-- Nb Sites -->
-    <div class="kpi-card">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;line-height:1;">🏢</span>
-        <span style="font-size:12px;font-weight:500;color:#042C53;">Nombre de sites</span>
-      </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="immo-sites-value">—</div>
-      <div style="font-size:10px;color:var(--gris2);margin-top:10px;">Sites immobiliers</div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:4px;line-height:1;color:#042C53;" id="immo-sub-value">—</div>
+      <div style="font-size:11px;color:var(--gris2);margin-top:6px;" id="immo-sites-detail"></div>
     </div>
 
     <!-- Ratio Occupation -->
@@ -1810,18 +1800,18 @@
       <div style="font-size:10px;line-height:1.5;margin-top:6px;" id="immo-ratio-comp"></div>
     </div>
 
-    <!-- Coût Surfacique (valeur N) -->
+    <!-- Coût Surfacique + évolution fusionnés -->
     <div class="kpi-card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">💶</span>
         <span style="font-size:12px;font-weight:500;color:#042C53;">Coût surfacique <span id="immo-annee-label">N</span></span>
       </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="immo-cout-value">—</div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:4px;line-height:1;color:#042C53;" id="immo-cout-value">—</div>
       <div style="font-size:10px;margin-top:4px;" id="immo-cout-evol"></div>
-      <div style="font-size:10px;line-height:1.5;margin-top:6px;" id="immo-cout-comp"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:4px;" id="immo-cout-comp"></div>
     </div>
 
-    <!-- Coût Surfacique moyen 4 ans (sparkline) -->
+    <!-- Évolution coût surfacique (sparkline) -->
     <div class="kpi-card" style="grid-column: span 2;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">📈</span>
@@ -1855,9 +1845,9 @@
             <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Type</th>
             <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">SUB (m²)</th>
             <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Résidents</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ.</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ. (m²/rés.)</th>
             <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Énergie (€)</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">€/m²</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Coût surf. (€/m²)</th>
           </tr>
         </thead>
         <tbody id="table-immo-public-body"></tbody>
@@ -1879,9 +1869,9 @@
             <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Type</th>
             <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">SUB (m²)</th>
             <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Résidents</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ.</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ. (m²/rés.)</th>
             <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Énergie (€)</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">€/m²</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Coût surf. (€/m²)</th>
             <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Bailleur</th>
             <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Fin de bail</th>
           </tr>
