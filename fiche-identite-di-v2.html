@@ -1768,6 +1768,137 @@
               placeholder="Ajouter un commentaire sur le parc automobile..."></textarea>
   </div>
 </div>
+
+<!-- ========================= SECTION IMMOBILIER ========================= -->
+<div class="section" id="section-immobilier">
+  <div class="section-header">
+    <div class="section-icon">🏛️</div>
+    <div class="section-title">Immobilier</div>
+  </div>
+
+  <!-- KPI Pills -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
+
+    <!-- SUB Totale -->
+    <div class="kpi-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">📐</span>
+        <span style="font-size:12px;font-weight:500;color:#042C53;">Surface SUB totale</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="immo-sub-value">—</div>
+      <div style="font-size:10px;color:var(--gris2);margin-top:10px;">Ensemble des biens</div>
+    </div>
+
+    <!-- Nb Sites -->
+    <div class="kpi-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">🏢</span>
+        <span style="font-size:12px;font-weight:500;color:#042C53;">Nombre de sites</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="immo-sites-value">—</div>
+      <div style="font-size:10px;color:var(--gris2);margin-top:10px;">Sites immobiliers</div>
+    </div>
+
+    <!-- Ratio Occupation -->
+    <div class="kpi-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">👤</span>
+        <span style="font-size:12px;font-weight:500;color:#042C53;">Ratio d'occupation</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="immo-ratio-value">—</div>
+      <div style="font-size:10px;color:var(--gris2);margin-top:4px;">Bureaux uniquement</div>
+      <div style="font-size:10px;line-height:1.5;margin-top:6px;" id="immo-ratio-comp"></div>
+    </div>
+
+    <!-- Coût Surfacique (valeur N) -->
+    <div class="kpi-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">💶</span>
+        <span style="font-size:12px;font-weight:500;color:#042C53;">Coût surfacique <span id="immo-annee-label">N</span></span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="immo-cout-value">—</div>
+      <div style="font-size:10px;margin-top:4px;" id="immo-cout-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:6px;" id="immo-cout-comp"></div>
+    </div>
+
+    <!-- Coût Surfacique moyen 4 ans (sparkline) -->
+    <div class="kpi-card" style="grid-column: span 2;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">📈</span>
+        <span style="font-size:12px;font-weight:500;color:#042C53;">Évolution coût surfacique</span>
+        <span class="it-badge" id="immo-badge-4ans" style="margin-left:auto;">Lissé 2022–2025</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:24px;">
+        <div>
+          <div style="font-size:11px;color:var(--gris2);margin-bottom:4px;">Moyenne 4 ans</div>
+          <div style="font-size:22px;font-weight:500;color:#042C53;" id="immo-cout-moyen">—</div>
+        </div>
+        <div style="flex:1;height:80px;position:relative;">
+          <canvas id="chart-immo-cout" width="300" height="80" style="display:block;"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Tableau Domaine public -->
+  <div id="immo-section-public" style="margin-bottom:1.5rem;">
+    <div style="font-size:13px;font-weight:600;color:#042C53;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+      🏛️ Domaine public / mise à disposition
+    </div>
+    <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead style="background:var(--gris4);">
+          <tr>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Libellé</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ville</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Type</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">SUB (m²)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Résidents</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ.</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Énergie (€)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">€/m²</th>
+          </tr>
+        </thead>
+        <tbody id="table-immo-public-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tableau Baux privés -->
+  <div id="immo-section-prive" style="margin-bottom:1.5rem;">
+    <div style="font-size:13px;font-weight:600;color:#042C53;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+      🔑 Baux privés
+    </div>
+    <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead style="background:var(--gris4);">
+          <tr>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Libellé</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ville</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Type</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">SUB (m²)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Résidents</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ.</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Énergie (€)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">€/m²</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Bailleur</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Fin de bail</th>
+          </tr>
+        </thead>
+        <tbody id="table-immo-prive-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Commentaire Immobilier -->
+  <div style="margin-top:20px;">
+    <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur Immobilier</label>
+    <textarea id="immo-commentaire"
+              style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
+              placeholder="Ajouter un commentaire sur l'immobilier..."></textarea>
+  </div>
+</div>
     
   </div>
 
@@ -2035,6 +2166,7 @@
       refreshFraisMission(struct.id, annee);
       refreshInformatique(struct.id, annee);
       refreshVehicules(struct.id, annee);
+      refreshImmobilier(struct.id, annee);
       
       // Charger le commentaire Parc Automobile
       setTimeout(() => {
@@ -3284,6 +3416,8 @@ function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct
   // Labels année
   document.getElementById('it-annee-label').textContent = anneeCourante;
   document.getElementById('it-annee-label2').textContent = anneeCourante;
+  const immoLabel = document.getElementById('immo-annee-label');
+  if (immoLabel) immoLabel.textContent = anneeCourante;
   
   // ═══════════════════════════════════════════════════════════════
   // KPI 1 : Total Postes

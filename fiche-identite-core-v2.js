@@ -22,7 +22,8 @@ const FICHE_STATE = {
     notif_bop: null,
     consolidation: null,
 	consolidation_structure: null,
-    commentaires: null
+    commentaires: null,
+    immobilier: null
   }
 };
 
@@ -121,7 +122,15 @@ function getConsolidationStructureData(structureId, annee) {
         budget_it_cp: consolStruct.Budget_IT_CP?.[i] || 0,
         budget_it_4ans: consolStruct.Budget_IT_4ans?.[i] || 0,
         budget_it_par_agent: consolStruct.IT_Par_Agent?.[i] || 0,
-        budget_it_par_agent_4ans: consolStruct.IT_Par_Agent_Lisse?.[i] || 0
+        budget_it_par_agent_4ans: consolStruct.IT_Par_Agent_Lisse?.[i] || 0,
+
+        // === IMMOBILIER ===
+        sub_total: consolStruct.SUB_Total?.[i] || 0,
+        nb_sites: consolStruct.Nb_Sites?.[i] || 0,
+        residents_total: consolStruct.Residents_Total?.[i] || 0,
+        ratio_occupation: consolStruct.Ratio_Occupation?.[i] || null,
+        charges_energie: consolStruct.Charges_Energie?.[i] || 0,
+        cout_surfacique: consolStruct.Cout_Surfacique?.[i] || null
       };
     }
   }
@@ -252,7 +261,7 @@ async function loadAllData() {
     showLoader('Chargement des données...');
     
     // Charger toutes les tables en parallèle
-    const [structures, rh, vehicules, frais_mission, informatique, communication, fonctionnement, notif_bop, consolidation, consolidation_structure, commentaires, infbud40] = await Promise.all([
+    const [structures, rh, vehicules, frais_mission, informatique, communication, fonctionnement, notif_bop, consolidation, consolidation_structure, commentaires, infbud40, immobilier] = await Promise.all([
       grist.docApi.fetchTable('Structures'),
       grist.docApi.fetchTable('RH'),
       grist.docApi.fetchTable('Vehicules'),
@@ -264,7 +273,8 @@ async function loadAllData() {
       grist.docApi.fetchTable('Consolidation'),
 	  grist.docApi.fetchTable('Consolidation_Structure'),
       grist.docApi.fetchTable('Commentaires'),
-      grist.docApi.fetchTable('INFBUD40_2')
+      grist.docApi.fetchTable('INFBUD40_2'),
+      grist.docApi.fetchTable('Immobilier').catch(() => null)
     ]);
     
     FICHE_STATE.data.structures = structures;
@@ -279,6 +289,7 @@ async function loadAllData() {
 	FICHE_STATE.data.consolidation_structure = consolidation_structure;
     FICHE_STATE.data.commentaires = commentaires;
     FICHE_STATE.data.infbud40 = infbud40;
+    FICHE_STATE.data.immobilier = immobilier;
     
     hideLoader();
     onDataLoaded();
@@ -733,6 +744,10 @@ function getConsolidationData(perimetre, annee) {
     moy_fonct_par_agent:          n('Moy_Fonct_CP_Par_Agent'),
     moy_fonct_par_agent_4ans:     n('Moy_Fonct_Par_Agent_4ans'),
     moy_pct_maitrisable:          n('Moy_Pct_Maitrisable'),
+
+    // === IMMOBILIER ===
+    moy_ratio_occupation:         n('Moy_Ratio_Occupation'),
+    moy_cout_surfacique:          n('Moy_Cout_Surfacique'),
   };
 }
 
@@ -3219,6 +3234,242 @@ async function exportAllStructuresAsZIP(filters) {
  *                       ctx.y est lu ET mis à jour directement (passage par référence objet).
  *                       ctx.addPage() doit effectuer le saut de page et mettre ctx.y à jour.
  */
+// ═══════════════════════════════════════════════════════════════
+// IMMOBILIER
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Retourne les sites immobiliers d'une structure, séparés public/privé
+ */
+function getImmobilierSites(structureId) {
+  const immo = FICHE_STATE.data.immobilier;
+  if (!immo || !immo.id) return { public: [], prive: [] };
+
+  const annee = FICHE_STATE.annee;
+  const colEnergie = `Energie_${annee}`;
+  const colCout    = `Cout_Surfacique_${annee}`;
+
+  const sites = [];
+  for (let i = 0; i < immo.id.length; i++) {
+    if (immo.Structure[i] !== structureId) continue;
+    sites.push({
+      libelle:        immo.Libelle?.[i]        || '—',
+      ville:          immo.Ville?.[i]           || '—',
+      type_bien:      immo.Type_Bien?.[i]       || '—',
+      statut:         immo.Statut?.[i]          || '—',
+      sub:            immo.SUB?.[i]             || 0,
+      residents:      immo.Residents?.[i]       || 0,
+      ratio_occ:      immo.Ratio_Occupation?.[i]|| null,
+      energie:        immo[colEnergie]?.[i]     || 0,
+      cout_surf:      immo[colCout]?.[i]        || null,
+      bailleur:       immo.Bailleur?.[i]        || '—',
+      date_fin_bail:  immo.Date_Fin_Bail?.[i]   || null,
+      loyer_annuel:   immo.Loyer_Annuel?.[i]    || 0,
+    });
+  }
+
+  sites.sort((a, b) => a.libelle.localeCompare(b.libelle));
+
+  return {
+    public: sites.filter(s => s.statut !== 'Bail privé'),
+    prive:  sites.filter(s => s.statut === 'Bail privé'),
+  };
+}
+
+/**
+ * Retourne le coût surfacique pour les 4 années disponibles (sparkline)
+ */
+function getImmobilierHistorique(structureId) {
+  const consolStruct = FICHE_STATE.data.consolidation_structure;
+  if (!consolStruct || !consolStruct.Structure) return [];
+
+  const annees = [2022, 2023, 2024, 2025];
+  return annees.map(a => {
+    for (let i = 0; i < consolStruct.Structure.length; i++) {
+      if (consolStruct.Structure[i] === structureId && consolStruct.Annee[i] === a) {
+        return {
+          annee: a,
+          cout_surfacique: consolStruct.Cout_Surfacique?.[i] || null,
+          charges_energie: consolStruct.Charges_Energie?.[i] || 0,
+        };
+      }
+    }
+    return { annee: a, cout_surfacique: null, charges_energie: 0 };
+  });
+}
+
+/**
+ * Rafraîchit la section Immobilier
+ */
+function refreshImmobilier(structureId, annee) {
+  const data    = getConsolidationStructureData(structureId, annee);
+  const dataN1  = getConsolidationStructureData(structureId, annee - 1);
+  const perimetre = getPerimetreStructure(structureId);
+  const consol    = getConsolidationData(perimetre, annee);
+
+  // ── KPI pills ──────────────────────────────────────────────────
+
+  // SUB Total
+  const subTotal = data?.sub_total || 0;
+  const el = (id) => document.getElementById(id);
+  el('immo-sub-value').textContent   = subTotal > 0 ? formatNumber(subTotal, 0) + ' m²' : '—';
+
+  // Nb sites
+  el('immo-sites-value').textContent = data?.nb_sites > 0 ? formatNumber(data.nb_sites, 0) : '—';
+
+  // Ratio occupation
+  const ratio = data?.ratio_occupation;
+  el('immo-ratio-value').textContent = ratio != null ? formatNumber(ratio, 1) + ' m²/rés.' : '—';
+  if (consol?.moy_ratio_occupation && ratio != null) {
+    const ecart    = ratio - consol.moy_ratio_occupation;
+    const ecartPct = (ecart / consol.moy_ratio_occupation) * 100;
+    el('immo-ratio-comp').innerHTML = `<span style="color:var(--gris2);">${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs moy. ${perimetre}</span>`;
+  } else {
+    el('immo-ratio-comp').textContent = '';
+  }
+
+  // Coût surfacique — valeur N
+  const coutN  = data?.cout_surfacique;
+  const coutN1 = dataN1?.cout_surfacique;
+  el('immo-cout-value').textContent = coutN != null ? formatNumber(coutN, 2) + ' €/m²' : '—';
+
+  // Évolution N vs N-1
+  if (coutN != null && coutN1 != null && coutN1 > 0) {
+    const evolPct = ((coutN - coutN1) / coutN1) * 100;
+    el('immo-cout-evol').innerHTML = `
+      <span style="color:${evolPct >= 0 ? '#ef4444' : '#10b981'};">
+        ${evolPct >= 0 ? '▲' : '▼'} ${Math.abs(evolPct).toFixed(1)}%
+      </span>
+      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>`;
+  } else {
+    el('immo-cout-evol').innerHTML = '';
+  }
+
+  // Comparaison vs périmètre
+  if (consol?.moy_cout_surfacique && coutN != null) {
+    const ecart    = coutN - consol.moy_cout_surfacique;
+    const ecartPct = (ecart / consol.moy_cout_surfacique) * 100;
+    el('immo-cout-comp').innerHTML = `<span style="color:var(--gris2);">${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs moy. ${perimetre}</span>`;
+  } else {
+    el('immo-cout-comp').textContent = '';
+  }
+
+  // ── Sparkline coût surfacique ───────────────────────────────────
+  const histo = getImmobilierHistorique(structureId);
+  const labels = histo.map(h => h.annee);
+  const valeurs = histo.map(h => h.cout_surfacique);
+  const moy4ans = valeurs.filter(v => v != null).length > 0
+    ? valeurs.filter(v => v != null).reduce((a, b) => a + b, 0) / valeurs.filter(v => v != null).length
+    : null;
+
+  el('immo-badge-4ans').textContent = `Lissé ${labels[0]}–${labels[labels.length - 1]}`;
+  el('immo-cout-moyen').textContent = moy4ans != null ? formatNumber(moy4ans, 2) + ' €/m²' : '—';
+
+  const chartEl = document.getElementById('chart-immo-cout');
+  if (chartEl) {
+    const existing = Chart.getChart('chart-immo-cout');
+    if (existing) existing.destroy();
+    new Chart(chartEl, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: valeurs,
+          borderColor: '#002F6C',
+          backgroundColor: 'rgba(0,47,108,0.08)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: true,
+          tension: 0.3,
+          spanGaps: true,
+        }]
+      },
+      options: {
+        responsive: false,
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { label: ctx => (ctx.parsed.y != null ? ctx.parsed.y.toFixed(2) + ' €/m²' : '—') }
+        }},
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: { grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 }, callback: v => v.toFixed(1) } }
+        }
+      }
+    });
+  }
+
+  // ── Tableaux sites ─────────────────────────────────────────────
+  const { public: sitesPublic, prive: sitesPrive } = getImmobilierSites(structureId);
+
+  // Helper : ligne de tableau
+  function lignesSite(sites, avecBail) {
+    if (sites.length === 0) return `<tr><td colspan="${avecBail ? 9 : 7}" style="text-align:center;padding:16px;color:var(--gris2);font-style:italic;">Aucun site</td></tr>`;
+    return sites.map(s => {
+      const ratioTxt = (s.type_bien === 'Bureau' && s.ratio_occ != null) ? formatNumber(s.ratio_occ, 1) + ' m²/rés.' : '—';
+      const energieTxt = s.energie > 0 ? formatNumber(s.energie, 0) + ' €' : '—';
+      const coutTxt    = s.cout_surf != null ? formatNumber(s.cout_surf, 2) + ' €/m²' : '—';
+      const bailCols   = avecBail ? `
+        <td style="padding:10px 12px;font-size:12px;">${s.bailleur}</td>
+        <td style="padding:10px 12px;font-size:12px;white-space:nowrap;">${s.date_fin_bail ? new Date(s.date_fin_bail * 1000).toLocaleDateString('fr-FR') : '—'}</td>` : '';
+      return `<tr style="border-bottom:0.5px solid var(--bord);">
+        <td style="padding:10px 12px;font-size:12px;font-weight:500;">${s.libelle}</td>
+        <td style="padding:10px 12px;font-size:12px;">${s.ville}</td>
+        <td style="padding:10px 12px;font-size:12px;">${s.type_bien}</td>
+        <td style="padding:10px 12px;font-size:12px;text-align:right;">${s.sub > 0 ? formatNumber(s.sub, 0) + ' m²' : '—'}</td>
+        <td style="padding:10px 12px;font-size:12px;text-align:right;">${s.residents > 0 ? formatNumber(s.residents, 0) : '—'}</td>
+        <td style="padding:10px 12px;font-size:12px;text-align:right;">${ratioTxt}</td>
+        <td style="padding:10px 12px;font-size:12px;text-align:right;">${energieTxt}</td>
+        <td style="padding:10px 12px;font-size:12px;text-align:right;">${coutTxt}</td>
+        ${bailCols}
+      </tr>`;
+    }).join('');
+  }
+
+  // Tableau domaine public
+  const tbodyPublic = el('table-immo-public-body');
+  if (tbodyPublic) tbodyPublic.innerHTML = lignesSite(sitesPublic, false);
+  const sectionPublic = el('immo-section-public');
+  if (sectionPublic) sectionPublic.style.display = sitesPublic.length > 0 ? '' : 'none';
+
+  // Tableau baux privés
+  const tbodyPrive = el('table-immo-prive-body');
+  if (tbodyPrive) tbodyPrive.innerHTML = lignesSite(sitesPrive, true);
+  const sectionPrive = el('immo-section-prive');
+  if (sectionPrive) sectionPrive.style.display = sitesPrive.length > 0 ? '' : 'none';
+
+  // ── Commentaire ────────────────────────────────────────────────
+  initSectionMDE('immo-commentaire', structureId, annee, 'Immobilier');
+}
+
+function refreshImmobilierPlaceholder() {
+  const ids = ['immo-sub-value','immo-sites-value','immo-ratio-value','immo-cout-value'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '—';
+  });
+  ['immo-ratio-comp','immo-cout-evol','immo-cout-comp'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+  const tbody = document.getElementById('table-immo-public-body');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:16px;color:var(--gris2);font-style:italic;">Aucune donnée immobilier</td></tr>';
+  const tbodyP = document.getElementById('table-immo-prive-body');
+  if (tbodyP) tbodyP.innerHTML = '';
+}
+
+function formatDateBail(ts) {
+  if (!ts) return '—';
+  // Grist stocke les dates en jours depuis 2000-01-01
+  const d = new Date(Date.UTC(2000, 0, 1) + ts * 86400000);
+  return d.toLocaleDateString('fr-FR');
+}
+
+function createImmobilierCoutChart(structureId) {
+  // Alias pour compatibilité — appelle refreshImmobilier
+}
+
+function function_renderMarkdownToPDF_placeholder() {} // sentinelle
+
+// ═══════════════════════════════════════════════════════════════
 function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
   if (!markdownText || !markdownText.trim()) return;
 
