@@ -218,6 +218,7 @@
         <option value="Informatique">Informatique (Matériel IT)</option>
         <option value="Communication">Communication (Dépenses de communication)</option>
         <option value="Fonctionnement">Fonctionnement (Dépenses de fonctionnement courant)</option>
+        <option value="Immobilier">Immobilier (Biens immobiliers et charges)</option>
       </select>
       <div id="table-info" class="table-info"></div>
     </div>
@@ -384,6 +385,51 @@ const TABLE_CONFIG = {
       'CP_2023_maitrisable': 'CP_2023_maitrisable',
       'CP_2024_maitrisable': 'CP_2024_maitrisable',
       'CP_2025_maitrisable': 'CP_2025_maitrisable'
+    }
+  },
+  'Immobilier': {
+    description: 'Biens immobiliers par site (une ligne par site)',
+    columns: [
+      'Site', 'Libelle', 'Structure', 'Ville', 'Departement',
+      'SUB', 'Residents', 'Type_Bien', 'Statut',
+      'Date_Fin_Bail', 'Bailleur', 'Loyer_Annuel',
+      'Elec_2022', 'Elec_2023', 'Elec_2024', 'Elec_2025',
+      'Gaz_2022',  'Gaz_2023',  'Gaz_2024',  'Gaz_2025',
+      'Eau_2022',  'Eau_2023',  'Eau_2024',  'Eau_2025',
+      'Energie_2022', 'Energie_2023', 'Energie_2024', 'Energie_2025'
+    ],
+    keyFields: ['Site'],
+    needsStructure: true,
+    mapping: {
+      // colonnes Excel → colonnes Grist
+      'site':           'Site',
+      'libellé':        'Libelle',
+      'HIErattachement':'Structure',
+      'ville':          'Ville',
+      'dpt':            'Departement',
+      'SUB':            'SUB',
+      'Résidents':      'Residents',
+      'type':           'Type_Bien',
+      'statut':         'Statut',
+      // charges élec
+      'Elec2022': 'Elec_2022', 'Elec2023': 'Elec_2023',
+      'Elec2024': 'Elec_2024', 'Elec2025': 'Elec_2025',
+      // charges gaz
+      'Gaz2022':  'Gaz_2022',  'Gaz2023':  'Gaz_2023',
+      'Gaz2024':  'Gaz_2024',  'Gaz2025':  'Gaz_2025',
+      // charges eau
+      'Eau2022':  'Eau_2022',  'Eau2023':  'Eau_2023',
+      'Eau2024':  'Eau_2024',  'Eau2025':  'Eau_2025',
+      // énergie totale (calculée dans le fichier, on l'importe quand même)
+      'Energie2022': 'Energie_2022', 'Energie2023': 'Energie_2023',
+      'Energie2024': 'Energie_2024', 'Energie2025': 'Energie_2025',
+      // colonnes ignorées (calculées dans Grist)
+      'région':                  '[Ignorer]',
+      'RatioSUBres':             '[Ignorer]',
+      'Ratio_energie_surface2022': '[Ignorer]',
+      'Ratio_energie_surface2023': '[Ignorer]',
+      'Ratio_energie_surface2024': '[Ignorer]',
+      'Ratio_energie_surface2025': '[Ignorer]'
     }
   }
 };
