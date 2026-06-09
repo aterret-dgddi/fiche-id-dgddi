@@ -3318,6 +3318,9 @@ function refreshImmobilier(structureId, annee) {
   // Pill 2 : Ratio occupation — comparaison périmètre uniquement
   const ratio = data?.ratio_occupation;
   el('immo-ratio-value').textContent = ratio != null ? formatNumber(ratio, 1) + ' m²/rés.' : '—';
+  // Résidents total sous la valeur
+  const resEl = el('immo-ratio-residents');
+  if (resEl) resEl.textContent = data?.residents_total > 0 ? formatNumber(data.residents_total, 0) + ' résidents' : '';
   if (consol?.moy_ratio_occupation && ratio != null) {
     const ecart    = ratio - consol.moy_ratio_occupation;
     const ecartPct = (ecart / consol.moy_ratio_occupation) * 100;
@@ -3359,13 +3362,37 @@ function refreshImmobilier(structureId, annee) {
 
   el('immo-badge-4ans').textContent = `Lissé ${labels[0]}–${labels[labels.length - 1]}`;
   el('immo-cout-moyen').textContent = moy4ans != null ? formatNumber(moy4ans, 2) + ' €/m²' : '—';
+  const elEnergieNote = el('immo-energie-note');
+  if (elEnergieNote) elEnergieNote.textContent = 'Électricité + gaz + eau';
 
   const chartEl = document.getElementById('chart-immo-cout');
   if (chartEl) {
     const existing = Chart.getChart('chart-immo-cout');
     if (existing) existing.destroy();
+
+    // Plugin inline pour afficher les valeurs au-dessus des points (sans datalabels externe)
+    const pointLabelsPlugin = {
+      id: 'immoPointLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx, data, scales: { x, y } } = chart;
+        ctx.save();
+        ctx.font = '500 10px Marianne, system-ui, sans-serif';
+        ctx.fillStyle = '#002F6C';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        data.datasets[0].data.forEach((val, i) => {
+          if (val == null) return;
+          const px = x.getPixelForValue(i);
+          const py = y.getPixelForValue(val);
+          ctx.fillText(val.toFixed(1), px, py - 6);
+        });
+        ctx.restore();
+      }
+    };
+
     new Chart(chartEl, {
       type: 'line',
+      plugins: [pointLabelsPlugin],
       data: {
         labels,
         datasets: [{
@@ -3377,7 +3404,6 @@ function refreshImmobilier(structureId, annee) {
           fill: true,
           tension: 0.3,
           spanGaps: true,
-          datalabels: { display: false }
         }]
       },
       options: {
@@ -3386,15 +3412,6 @@ function refreshImmobilier(structureId, annee) {
           legend: { display: false },
           tooltip: {
             callbacks: { label: ctx => (ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + ' €/m²' : '—') }
-          },
-          // Afficher la valeur au-dessus de chaque point
-          datalabels: {
-            display: true,
-            anchor: 'end',
-            align: 'top',
-            color: '#002F6C',
-            font: { size: 10, weight: '500' },
-            formatter: v => v != null ? v.toFixed(1) : ''
           }
         },
         scales: {
@@ -3402,11 +3419,10 @@ function refreshImmobilier(structureId, annee) {
           y: {
             grid: { color: '#f0f0f0' },
             ticks: { font: { size: 10 }, callback: v => v.toFixed(1) },
-            // Ajouter de la marge en haut pour les labels
-            suggestedMax: moy4ans != null ? moy4ans * 1.25 : undefined
+            suggestedMax: moy4ans != null ? moy4ans * 1.4 : undefined
           }
         },
-        layout: { padding: { top: 20 } }
+        layout: { padding: { top: 22 } }
       }
     });
   }
