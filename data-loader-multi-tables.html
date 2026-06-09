@@ -719,7 +719,7 @@ function generatePreview() {
       if (f === 'Mois' && (val === undefined || val === null || val === '' || val === 0)) {
         return 'NULL';
       }
-      return val;
+      return val !== null && val !== undefined ? String(val).trim() : null;
     });
     const key = keyValues.join('|');
     existingIndex[key] = id;
@@ -825,8 +825,9 @@ function generatePreview() {
         return previewRow[f];
       });
       
-      if (keyValues.every(v => v !== undefined && v !== null)) {
-        const key = keyValues.join('|');
+      const keyValuesStr = keyValues.map(v => v !== null && v !== undefined ? String(v).trim() : null);
+      if (keyValuesStr.every(v => v !== null)) {
+        const key = keyValuesStr.join('|');
         
         if (existingIndex[key]) {
           previewRow._status = 'update';
