@@ -390,7 +390,7 @@ const TABLE_CONFIG = {
   'Immobilier': {
     description: 'Biens immobiliers par site (une ligne par site)',
     columns: [
-      'Site', 'Libelle', 'Structure', 'Ville', 'Departement',
+      'site', 'Libelle', 'Structure', 'Ville', 'Departement',
       'SUB', 'Residents', 'Type_Bien', 'Statut',
       'Date_Fin_Bail', 'Bailleur', 'Loyer_Annuel',
       'Elec_2022', 'Elec_2023', 'Elec_2024', 'Elec_2025',
@@ -398,11 +398,11 @@ const TABLE_CONFIG = {
       'Eau_2022',  'Eau_2023',  'Eau_2024',  'Eau_2025',
       'Energie_2022', 'Energie_2023', 'Energie_2024', 'Energie_2025'
     ],
-    keyFields: ['Site'],
+    keyFields: ['site'],
     needsStructure: true,
     mapping: {
       // colonnes Excel → colonnes Grist
-      'site':           'Site',
+      'site':           'site',
       'libellé':        'Libelle',
       'HIErattachement':'Structure',
       'ville':          'Ville',

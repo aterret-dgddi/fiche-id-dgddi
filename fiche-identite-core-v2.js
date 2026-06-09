@@ -3250,8 +3250,12 @@ function getImmobilierSites(structureId) {
   const colCout    = `Cout_Surfacique_${annee}`;
 
   const sites = [];
+  const seenSite = new Set();
   for (let i = 0; i < immo.id.length; i++) {
     if (immo.Structure[i] !== structureId) continue;
+    const siteKey = immo.site?.[i] || immo.Libelle?.[i] || String(immo.id[i]);
+    if (seenSite.has(siteKey)) continue;
+    seenSite.add(siteKey);
     sites.push({
       libelle:        immo.Libelle?.[i]        || '—',
       ville:          immo.Ville?.[i]           || '—',
