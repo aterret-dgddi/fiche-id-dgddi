@@ -913,6 +913,15 @@
           <td class="number">${formatMilliers(dr.budget_it_4ans)} k€</td>
           <td class="number">${formatEuro(dr.it_par_agent)}</td>
           <td class="number">${formatEuro(dr.it_par_agent_lisse)}</td>
+        </tr>`,
+        immo: `<tr class="row-dr-child ${hiddenClass}" data-section="${section}" data-parent="${dr.parent}">
+          <td><span class="badge badge-dr">DR</span>${dr.sigle}</td>
+          <td class="number">${dr.sub_total > 0 ? formatNumber(dr.sub_total) + ' m²' : '—'}</td>
+          <td class="number">${dr.nb_sites > 0 ? dr.nb_sites : '—'}</td>
+          <td class="number">${dr.residents_total > 0 ? formatNumber(dr.residents_total) : '—'}</td>
+          <td class="number">${dr.ratio_occupation > 0 ? Number(dr.ratio_occupation).toFixed(1) + ' m²/rés.' : '—'}</td>
+          <td class="number">${dr.charges_energie > 0 ? formatMilliers(dr.charges_energie) + ' k€' : '—'}</td>
+          <td class="number">${dr.cout_surfacique > 0 ? Number(dr.cout_surfacique).toFixed(1) + ' €/m²' : '—'}</td>
         </tr>`
       };
     }
@@ -1016,6 +1025,8 @@
         fonct_par_agent:    Number(d.Moy_Fonct_CP_Par_Agent?.[i])                || 0,
         fonct_par_agent_4ans: Number(d.Moy_Fonct_Par_Agent_4ans?.[i])            || 0,
         pct_maitrisable:    Number(d.Moy_Pct_Maitrisable?.[i])                   || 0,
+        moy_ratio_occupation: Number(d.Moy_Ratio_Occupation?.[i])                || 0,
+        moy_cout_surfacique:  Number(d.Moy_Cout_Surfacique?.[i])                 || 0,
       };
     }
 
@@ -1055,7 +1066,15 @@
             budget_it: Number(consolidationData.Budget_IT_CP?.[i]) || 0,
             budget_it_4ans: Number(consolidationData.Budget_IT_4ans?.[i]) || 0,
             it_par_agent: Number(consolidationData.IT_Par_Agent?.[i]) || 0,
-            it_par_agent_lisse: Number(consolidationData.IT_Par_Agent_Lisse?.[i]) || 0
+            it_par_agent_lisse: Number(consolidationData.IT_Par_Agent_Lisse?.[i]) || 0,
+
+            // IMMOBILIER
+            sub_total:       Number(consolidationData.SUB_Total?.[i])       || 0,
+            nb_sites:        Number(consolidationData.Nb_Sites?.[i])        || 0,
+            residents_total: Number(consolidationData.Residents_Total?.[i]) || 0,
+            ratio_occupation:Number(consolidationData.Ratio_Occupation?.[i])|| 0,
+            charges_energie: Number(consolidationData.Charges_Energie?.[i]) || 0,
+            cout_surfacique: Number(consolidationData.Cout_Surfacique?.[i]) || 0,
           };
         }
       }
@@ -1255,6 +1274,7 @@
         ${renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
         ${renderCommunicationSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
         ${renderFonctionnementSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
+        ${renderImmobilierSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes)}
       `;
     }
 
@@ -1321,6 +1341,17 @@
             <td class="number">${formatMilliers(s.budget_it_4ans)} k€</td>
             <td class="number">${formatEuro(s.it_par_agent)}${moyennes ? formatEcartMoyenne(s.it_par_agent, moyennes.it_par_agent) : ''}</td>
             <td class="number">${formatEuro(s.it_par_agent_lisse)}${moyennes ? formatEcartMoyenne(s.it_par_agent_lisse, moyennes.it_par_agent_lisse) : ''}</td>
+          </tr>
+        `,
+        immo: `
+          <tr class="${rowClass} ${extraClass}">
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+            <td class="number">${s.sub_total > 0 ? formatNumber(s.sub_total) + ' m²' : '—'}</td>
+            <td class="number">${s.nb_sites > 0 ? s.nb_sites : '—'}</td>
+            <td class="number">${s.residents_total > 0 ? formatNumber(s.residents_total) : '—'}</td>
+            <td class="number">${s.ratio_occupation > 0 ? Number(s.ratio_occupation).toFixed(1) + ' m²/rés.' : '—'}${moyennes ? formatEcartMoyenne(s.ratio_occupation, moyennes.moy_ratio_occupation) : ''}</td>
+            <td class="number">${s.charges_energie > 0 ? formatMilliers(s.charges_energie) + ' k€' : '—'}</td>
+            <td class="number">${s.cout_surfacique > 0 ? Number(s.cout_surfacique).toFixed(1) + ' €/m²' : '—'}${moyennes ? formatEcartMoyenne(s.cout_surfacique, moyennes.moy_cout_surfacique) : ''}</td>
           </tr>
         `
       };
@@ -1389,6 +1420,15 @@
           <td class="number">${formatMilliers(s.budget_it_4ans)} k€</td>
           <td class="number">${formatEuro(s.it_par_agent)}${moyennes ? formatEcartMoyenne(s.it_par_agent, moyennes.it_par_agent) : ''}</td>
           <td class="number">${formatEuro(s.it_par_agent_lisse)}${moyennes ? formatEcartMoyenne(s.it_par_agent_lisse, moyennes.it_par_agent_lisse) : ''}</td>
+        </tr>`,
+        immo: `<tr ${trAttr}>
+          ${cell1}
+          <td class="number">${s.sub_total > 0 ? formatNumber(s.sub_total) + ' m²' : '—'}</td>
+          <td class="number">${s.nb_sites > 0 ? s.nb_sites : '—'}</td>
+          <td class="number">${s.residents_total > 0 ? formatNumber(s.residents_total) : '—'}</td>
+          <td class="number">${s.ratio_occupation > 0 ? Number(s.ratio_occupation).toFixed(1) + ' m²/rés.' : '—'}${moyennes ? formatEcartMoyenne(s.ratio_occupation, moyennes.moy_ratio_occupation) : ''}</td>
+          <td class="number">${s.charges_energie > 0 ? formatMilliers(s.charges_energie) + ' k€' : '—'}</td>
+          <td class="number">${s.cout_surfacique > 0 ? Number(s.cout_surfacique).toFixed(1) + ' €/m²' : '—'}${moyennes ? formatEcartMoyenne(s.cout_surfacique, moyennes.moy_cout_surfacique) : ''}</td>
         </tr>`
       };
     }
@@ -2471,6 +2511,185 @@
       `;
     }
 
+
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // SECTION IMMOBILIER
+    // ══════════════════════════════════════════════════════════════════
+
+    function getTotauxImmoAnnee(annee) {
+      const i = getNationalRow(annee);
+      if (i === null) return null;
+      const d = consolidationNationaleData;
+      const sub     = Number(d.SUB_Total?.[i])          || 0; // non dispo en National — agrégé depuis structure
+      const ratio   = Number(d.Moy_Ratio_Occupation?.[i])   || 0;
+      const cout    = Number(d.Moy_Cout_Surfacique?.[i])    || 0;
+      if (ratio === 0 && cout === 0) return null;
+      // SUB et charges : agrégés depuis Consolidation_Structure
+      let subTotal = 0, chargesTotal = 0, nbSites = 0;
+      const chargesCol = `Charges_Energie`;
+      for (let j = 0; j < consolidationData.Annee.length; j++) {
+        if (consolidationData.Annee[j] === annee) {
+          subTotal     += Number(consolidationData.SUB_Total?.[j])       || 0;
+          chargesTotal += Number(consolidationData.Charges_Energie?.[j]) || 0;
+          nbSites      += Number(consolidationData.Nb_Sites?.[j])        || 0;
+        }
+      }
+      return { sub: subTotal, nb_sites: nbSites, ratio, cout, charges: chargesTotal };
+    }
+
+    function renderImmobilierSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes) {
+      const rows = buildSectionRows('immo', blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes);
+
+      // ── KPI strip ────────────────────────────────────────────────
+      const anneesValides = ANNEES_DISPO.filter(a => getTotauxImmoAnnee(a) !== null);
+      let kpiStrip = '';
+
+      if (anneesValides.length > 0) {
+        const sN   = getTotauxImmoAnnee(anneesValides[anneesValides.length - 1]);
+        const sN1  = anneesValides.length >= 2 ? getTotauxImmoAnnee(anneesValides[anneesValides.length - 2]) : null;
+        const sDep = getTotauxImmoAnnee(anneesValides[0]);
+        const annN1  = anneesValides.length >= 2 ? anneesValides[anneesValides.length - 2] : null;
+        const annDep = anneesValides[0];
+
+        const evol = (vN, vN1, annRef, plusBas = true) => {
+          if (!vN1 || vN1 === 0 || !annRef) return '';
+          const p = ((vN - vN1) / vN1 * 100);
+          const s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 0.5 ? '#8A9BAA'
+            : (plusBas ? (p > 0 ? '#B52020' : '#1A6B3C') : (p > 0 ? '#1A6B3C' : '#B52020'));
+          return `<span style="color:${c};font-weight:700;">${s}${p.toFixed(1)}%</span> vs ${annRef}`;
+        };
+        const evolDepuis = (vN, vDep, annDep, plusBas = true) => {
+          if (!vDep || vDep === 0 || vDep === vN) return '';
+          const p = ((vN - vDep) / vDep * 100);
+          const s = p > 0 ? '+' : '';
+          const c = Math.abs(p) < 1 ? '#8A9BAA'
+            : (plusBas ? (p > 0 ? '#B52020' : '#1A6B3C') : (p > 0 ? '#1A6B3C' : '#B52020'));
+          return ` — <span style="color:${c};">${s}${p.toFixed(1)}% depuis ${annDep}</span>`;
+        };
+
+        const makeHistoRow = (formatFn, getVal) => anneesValides.map(a => {
+          const sv = getTotauxImmoAnnee(a);
+          const val = sv ? getVal(sv) : null;
+          const isLast = (a === anneesValides[anneesValides.length - 1]);
+          return `<div style="text-align:center;">
+            <div style="font-size:9px;color:var(--gris3);font-weight:600;">${a}</div>
+            <div style="font-size:10px;font-weight:${isLast ? '700' : '500'};color:${isLast ? 'var(--gris1)' : 'var(--gris2)'};">${val !== null ? formatFn(val) : '—'}</div>
+          </div>`;
+        }).join('');
+
+        const fmtM2   = v => Math.round(v).toLocaleString('fr-FR') + ' m²';
+        const fmtRatio = v => v.toFixed(1) + ' m²/r.';
+        const fmtCout  = v => v.toFixed(1) + ' €/m²';
+        const fmtNb    = v => Math.round(v).toString();
+
+        kpiStrip = `
+        <div class="kpi-strip">
+
+          <div class="kpi-evol-card" style="border-left-color:var(--rep2);">
+            <div class="kpi-evol-label">SUB totale</div>
+            <div class="kpi-evol-value" style="font-size:18px;">${fmtM2(sN.sub)}</div>
+            <div class="kpi-evol-sub">${evol(sN.sub, sN1?.sub, annN1, false)}${evolDepuis(sN.sub, sDep?.sub, annDep, false)}</div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtM2, s => s.sub)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:var(--gris3);">
+            <div class="kpi-evol-label">Nb sites</div>
+            <div class="kpi-evol-value">${fmtNb(sN.nb_sites)}</div>
+            <div class="kpi-evol-sub">${evol(sN.nb_sites, sN1?.nb_sites, annN1, false)}${evolDepuis(sN.nb_sites, sDep?.nb_sites, annDep, false)}</div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtNb, s => s.nb_sites)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:var(--orange);">
+            <div class="kpi-evol-label">Ratio Occupation moy.</div>
+            <div class="kpi-evol-value">${fmtRatio(sN.ratio)}</div>
+            <div class="kpi-evol-sub">${evol(sN.ratio, sN1?.ratio, annN1)}${evolDepuis(sN.ratio, sDep?.ratio, annDep)}</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Bureaux — m²/résident</div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtRatio, s => s.ratio)}
+            </div>
+          </div>
+
+          <div class="kpi-evol-card" style="border-left-color:var(--vert);">
+            <div class="kpi-evol-label">Coût Surfacique moy.</div>
+            <div class="kpi-evol-value">${fmtCout(sN.cout)}</div>
+            <div class="kpi-evol-sub">${evol(sN.cout, sN1?.cout, annN1)}${evolDepuis(sN.cout, sDep?.cout, annDep)}</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Élec. + gaz + eau / m²</div>
+            <div style="display:grid;grid-template-columns:repeat(${anneesValides.length},1fr);gap:2px;margin-top:6px;border-top:1px solid var(--bord);padding-top:5px;">
+              ${makeHistoRow(fmtCout, s => s.cout)}
+            </div>
+          </div>
+
+        </div>`;
+      }
+
+      // Totaux pour la ligne de bas de tableau
+      let totSub = 0, totSites = 0, totRes = 0, totCharges = 0;
+      [blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN].forEach(bloc => bloc.forEach(s => {
+        totSub     += s.sub_total       || 0;
+        totSites   += s.nb_sites        || 0;
+        totRes     += s.residents_total || 0;
+        totCharges += s.charges_energie || 0;
+      }));
+      const totCout = totSub > 0 ? totCharges / totSub : 0;
+
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">🏛️</div>
+            <div class="section-title">Immobilier</div>
+          </div>
+
+          ${kpiStrip}
+
+          <button id="immo-toggle-btn" onclick="(function(){
+            var w   = document.getElementById('immo-table-wrapper');
+            var btn = document.getElementById('immo-toggle-btn');
+            var open = w.style.display !== 'none';
+            w.style.display = open ? 'none' : 'block';
+            btn.innerHTML = open ? '&#9654;&nbsp; Voir le détail par structure' : '&#9660;&nbsp; Masquer le détail';
+          })()"
+          style="background:none;border:1px solid var(--bord);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gris2);cursor:pointer;margin-bottom:12px;">
+            &#9654;&nbsp; Voir le détail par structure
+          </button>
+
+          <div id="immo-table-wrapper" style="display:none;">
+            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Cliquez sur une DI pour déplier ses DR rattachées — <strong>Données ${ANNEE}</strong></div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Structure</th>
+                  <th class="number">SUB (m²)</th>
+                  <th class="number">Nb sites</th>
+                  <th class="number">Résidents</th>
+                  <th class="number">Ratio occ. (m²/rés.)</th>
+                  <th class="number">Charges énergie</th>
+                  <th class="number">Coût surf. (€/m²)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+                <tr class="row-total">
+                  <td>TOTAL / MOY.</td>
+                  <td class="number">${totSub > 0 ? formatNumber(totSub) + ' m²' : '—'}</td>
+                  <td class="number">${totSites > 0 ? totSites : '—'}</td>
+                  <td class="number">${totRes > 0 ? formatNumber(totRes) : '—'}</td>
+                  <td class="number">—</td>
+                  <td class="number">${totCharges > 0 ? formatMilliers(totCharges) + ' k€' : '—'}</td>
+                  <td class="number">${totCout > 0 ? totCout.toFixed(1) + ' €/m²' : '—'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
 
     // ══════════════════════════════════════════════════════════════════
     // MODULE EXPORT HTML / PDF — TABLEAU DE BORD
