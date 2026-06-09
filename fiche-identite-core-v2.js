@@ -3269,6 +3269,7 @@ function getImmobilierSites(structureId) {
       bailleur:       immo.Bailleur?.[i]        || '—',
       date_fin_bail:  immo.Date_Fin_Bail?.[i]   || null,
       loyer_annuel:   immo.Loyer_Annuel?.[i]    || 0,
+      ratio_loyer:    immo.Ratio_Loyer_SUB?.[i] || null,
     });
   }
 
@@ -3445,20 +3446,24 @@ function refreshImmobilier(structureId, annee) {
   }
 
   function lignesSite(sites, avecBail) {
-    if (sites.length === 0) return `<tr><td colspan="${avecBail ? 10 : 7}" style="text-align:center;padding:16px;color:var(--gris2);font-style:italic;">Aucun site</td></tr>`;
+    if (sites.length === 0) return `<tr><td colspan="${avecBail ? 9 : 7}" style="text-align:center;padding:16px;color:var(--gris2);font-style:italic;">Aucun site</td></tr>`;
     return sites.map(s => {
       const ratioTxt  = (s.type_bien === 'Bureau' && s.ratio_occ != null) ? formatNumber(s.ratio_occ, 1) : '—';
       const ratioCss  = (s.type_bien === 'Bureau' && s.ratio_occ != null) ? colorVsAvg(s.ratio_occ, moyRatio) : '';
       const energieTxt = s.energie > 0 ? formatNumber(s.energie, 0) + ' €' : '—';
       const coutTxt   = s.cout_surf != null ? formatNumber(s.cout_surf, 1) : '—';
       const coutCss   = s.cout_surf != null ? colorVsAvg(s.cout_surf, moyCout) : '';
-      const loyerTxt  = s.loyer_annuel > 0 ? formatNumber(s.loyer_annuel, 0) + ' €' : '—';
+      const loyerTxt   = s.loyer_annuel > 0 ? formatNumber(s.loyer_annuel, 0) + ' €' : '—';
+      const ratioLoyer = s.ratio_loyer != null ? formatNumber(s.ratio_loyer, 1) + ' €/m²' : '—';
       const bailCols  = avecBail ? `
-        <td style="padding:10px 12px;font-size:12px;">${s.bailleur}</td>
         <td style="padding:10px 12px;font-size:12px;white-space:nowrap;">${s.date_fin_bail ? formatDateBail(s.date_fin_bail) : '—'}</td>
-        <td style="padding:10px 12px;font-size:12px;text-align:right;">${loyerTxt}</td>` : '';
+        <td style="padding:10px 12px;font-size:12px;text-align:right;">${loyerTxt}</td>
+        <td style="padding:10px 12px;font-size:12px;text-align:right;">${ratioLoyer}</td>` : '';
+      const libelleCell = avecBail && s.bailleur && s.bailleur !== '—'
+        ? `<td style="padding:10px 12px;font-size:12px;font-weight:500;">${s.libelle}<br><span style="font-weight:400;color:var(--gris2);font-size:11px;">${s.bailleur}</span></td>`
+        : `<td style="padding:10px 12px;font-size:12px;font-weight:500;">${s.libelle}</td>`;
       return `<tr style="border-bottom:0.5px solid var(--bord);">
-        <td style="padding:10px 12px;font-size:12px;font-weight:500;">${s.libelle}</td>
+        ${libelleCell}
         <td style="padding:10px 12px;font-size:12px;">${s.ville}</td>
         <td style="padding:10px 12px;font-size:12px;">${s.type_bien}</td>
         <td style="padding:10px 12px;font-size:12px;text-align:right;">${s.sub > 0 ? formatNumber(s.sub, 0) : '—'}</td>
