@@ -3273,6 +3273,8 @@ function getImmobilierSites(structureId) {
     });
   }
 
+  const avecDate = sites.filter(s => s.date_fin_bail);
+  if (avecDate.length > 0) console.log('DEBUG date_fin_bail exemple:', avecDate[0].date_fin_bail, typeof avecDate[0].date_fin_bail);
   sites.sort((a, b) => a.ville.localeCompare(b.ville) || a.libelle.localeCompare(b.libelle));
 
   return {
