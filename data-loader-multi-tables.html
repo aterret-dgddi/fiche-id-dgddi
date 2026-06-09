@@ -759,7 +759,8 @@ function generatePreview() {
       _source: row,
       _index: idx,
       _status: 'insert',
-      _error: null
+      _error: null,
+      _display: {}
     };
     
     // Mapper les colonnes
@@ -821,6 +822,8 @@ function generatePreview() {
           }
           if (dateObj && !isNaN(dateObj)) {
             previewRow[targetCol] = Math.round((dateObj - GRIST_EPOCH) / 86400000);
+            // Valeur lisible pour la preview
+            previewRow._display[targetCol] = dateObj.toISOString().slice(0,10).split('-').reverse().join('/');
           } else {
             previewRow[targetCol] = null;
           }
@@ -899,7 +902,7 @@ function showPreview() {
     
     mappedCols.forEach(col => {
       const td = document.createElement('td');
-      td.textContent = prow[col] ?? '';
+      td.textContent = (prow._display && prow._display[col] !== undefined) ? prow._display[col] : (prow[col] ?? '');
       tr.appendChild(td);
     });
     
