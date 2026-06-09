@@ -3273,8 +3273,6 @@ function getImmobilierSites(structureId) {
     });
   }
 
-  const avecDate = sites.filter(s => s.date_fin_bail);
-  if (avecDate.length > 0) console.log('DEBUG date_fin_bail exemple:', avecDate[0].date_fin_bail, typeof avecDate[0].date_fin_bail);
   sites.sort((a, b) => a.ville.localeCompare(b.ville) || a.libelle.localeCompare(b.libelle));
 
   return {
@@ -3524,8 +3522,8 @@ function formatDateBail(ts) {
     const p = ts.split('-');
     d = new Date(Date.UTC(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2])));
   } else {
-    // Entier : jours depuis 2000-01-01 (ancien format)
-    d = new Date(Date.UTC(2000, 0, 1) + ts * 86400000);
+    // Timestamp Unix en secondes (format Grist pour colonnes Date)
+    d = new Date(ts * 1000);
   }
   if (isNaN(d)) return '—';
   return d.toLocaleDateString('fr-FR');
