@@ -724,6 +724,7 @@ function generatePreview() {
     const key = keyValues.join('|');
     existingIndex[key] = id;
   });
+  addLog(`Index existant : ${Object.keys(existingIndex).length} entrées. Exemples : ${Object.keys(existingIndex).slice(0,3).join(', ')}`);
   
   // Résolution HIE si besoin
   let equivMap = {};
@@ -828,11 +829,13 @@ function generatePreview() {
       const keyValuesStr = keyValues.map(v => v !== null && v !== undefined ? String(v).trim() : null);
       if (keyValuesStr.every(v => v !== null)) {
         const key = keyValuesStr.join('|');
-        
+        if (idx < 2) addLog(`Clé ligne ${idx} : "${key}" → ${existingIndex[key] ? 'UPDATE id=' + existingIndex[key] : 'INSERT (non trouvé)'}`);
         if (existingIndex[key]) {
           previewRow._status = 'update';
           previewRow._existingId = existingIndex[key];
         }
+      } else {
+        if (idx < 2) addLog(`Clé ligne ${idx} : valeur(s) null dans keyValues=${JSON.stringify(keyValuesStr)} — skip lookup`);
       }
     }
     
