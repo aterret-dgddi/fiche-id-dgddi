@@ -806,7 +806,7 @@ function generatePreview() {
       } else {
         // Nettoyage valeur
         const isDateField = (config.dateFields || []).includes(targetCol);
-        if (idx === 0 && targetCol === 'Date_Fin_Bail') addLog(`DEBUG Date_Fin_Bail : isDateField=${isDateField}, typeof=${typeof value}, valeur="${value}", null=${value === null}, vide=${value === ''}`);
+        if (targetCol === 'Date_Fin_Bail' && value !== null && value !== '') addLog(`DEBUG Date_Fin_Bail ligne ${idx} : typeof=${typeof value}, valeur="${value}"`);
         if (value === null || value === '') {
           previewRow[targetCol] = (targetCol === 'Mois') ? null : null;
         } else if (isDateField) {
