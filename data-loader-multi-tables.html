@@ -391,7 +391,7 @@ const TABLE_CONFIG = {
   'Budget': {
     description: 'Suivi budgétaire AE/CP par poste (une ligne par structure × année)',
     columns: [
-      'Structure', 'Annee',
+      'Structure', 'Annee', 'Date_Import',
       'dot_AE_vehicules', 'dot_CP_vehicules', 'Conso_AE_vehicules', 'Conso_CP_vehicules',
       'dot_AE_fonctionnement', 'dot_CP_fonctionnement', 'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
       'Dot_AE_T6', 'Dot_CP_T6', 'Conso_AE_T6', 'Conso_CP_T6',
@@ -972,17 +972,18 @@ document.getElementById('btn-write').onclick = async () => {
     
     const mappedCols = Object.values(G.mapping).filter(v => v !== '[Ignorer]');
 
-    // Pour la table Communication : injecter Date_Import_2026 = aujourd'hui
+    // Pour la table Communication ou Budget : injecter la date d'import = aujourd'hui
     // Grist stocke les dates en nombre de jours depuis le 1er janvier 2000 (epoch Grist)
-    const isComTable = G.targetTable === 'Communication';
+    const isComTable    = G.targetTable === 'Communication';
+    const isBudgetTable = G.targetTable === 'Budget';
     let dateImportGrist = null;
-    if (isComTable) {
+    if (isComTable || isBudgetTable) {
       const today = new Date();
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
       const yyyy = today.getFullYear();
       dateImportGrist = `${dd}-${mm}-${yyyy}`;
-      addLog(`Date_Import_2026 = ${dateImportGrist}`);
+      addLog(`Date_Import = ${dateImportGrist}`);
     }
     
     if (toInsert.length > 0) {
@@ -993,6 +994,10 @@ document.getElementById('btn-write').onclick = async () => {
       if (isComTable) {
         colData['Date_Import_2026'] = Array(toInsert.length).fill(dateImportGrist);
         addLog(`Date_Import_2026 = ${dateImportGrist}`);
+      }
+      if (isBudgetTable) {
+        colData['Date_Import'] = Array(toInsert.length).fill(dateImportGrist);
+        addLog(`Date_Import = ${dateImportGrist}`);
       }
 
       await grist.docApi.applyUserActions([
@@ -1010,6 +1015,10 @@ document.getElementById('btn-write').onclick = async () => {
       if (isComTable) {
         colData['Date_Import_2026'] = Array(toUpdate.length).fill(dateImportGrist);
         addLog(`Date_Import_2026 = ${dateImportGrist}`);
+      }
+      if (isBudgetTable) {
+        colData['Date_Import'] = Array(toUpdate.length).fill(dateImportGrist);
+        addLog(`Date_Import = ${dateImportGrist}`);
       }
 
       await grist.docApi.applyUserActions([

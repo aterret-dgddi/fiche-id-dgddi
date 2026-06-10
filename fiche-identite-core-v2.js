@@ -3256,9 +3256,7 @@ const BUDGET_ITEMS = [
     col_taux_ae: 'Taux_AE_vehicules',
     col_taux_cp: 'Taux_CP_vehicules',
     col_moy_ae: 'Moy_Taux_AE_vehicules',
-    col_moy_cp: 'Moy_Taux_CP_vehicules',
-    col_nat_ae: 'Nat_Taux_AE_vehicules',
-    col_nat_cp: 'Nat_Taux_CP_vehicules'
+    col_moy_cp: 'Moy_Taux_CP_vehicules'
   },
   {
     key: 'fonctionnement',
@@ -3270,9 +3268,7 @@ const BUDGET_ITEMS = [
     col_taux_ae: 'Taux_AE_fonctionnement',
     col_taux_cp: 'Taux_CP_fonctionnement',
     col_moy_ae: 'Moy_Taux_AE_fonctionnement',
-    col_moy_cp: 'Moy_Taux_CP_fonctionnement',
-    col_nat_ae: 'Nat_Taux_AE_fonctionnement',
-    col_nat_cp: 'Nat_Taux_CP_fonctionnement'
+    col_moy_cp: 'Moy_Taux_CP_fonctionnement'
   },
   {
     key: 't6',
@@ -3284,9 +3280,7 @@ const BUDGET_ITEMS = [
     col_taux_ae: 'Taux_AE_T6',
     col_taux_cp: 'Taux_CP_T6',
     col_moy_ae: 'Moy_Taux_AE_T6',
-    col_moy_cp: 'Moy_Taux_CP_T6',
-    col_nat_ae: 'Nat_Taux_AE_T6',
-    col_nat_cp: 'Nat_Taux_CP_T6'
+    col_moy_cp: 'Moy_Taux_CP_T6'
   },
   {
     key: 'immo',
@@ -3298,9 +3292,7 @@ const BUDGET_ITEMS = [
     col_taux_ae: 'Taux_AE_Immo',
     col_taux_cp: 'Taux_CP_Immo',
     col_moy_ae: 'Moy_Taux_AE_Immo',
-    col_moy_cp: 'Moy_Taux_CP_Immo',
-    col_nat_ae: 'Nat_Taux_AE_Immo',
-    col_nat_cp: 'Nat_Taux_CP_Immo'
+    col_moy_cp: 'Moy_Taux_CP_Immo'
   }
 ];
 
@@ -3362,6 +3354,18 @@ function getBudgetData(structureId, annee) {
 
   const perimetre = getPerimetreBudget(structureId);
 
+  // Date d'import (même format DD-MM-YYYY que Communication)
+  const dateRaw = bud['Date_Import'] ? (bud['Date_Import'][idx] ?? null) : null;
+  let date_import = null;
+  if (dateRaw) {
+    if (typeof dateRaw === 'string' && dateRaw.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      const [dd, mm, yyyy] = dateRaw.split('-');
+      date_import = new Date(+yyyy, +mm - 1, +dd);
+    } else if (typeof dateRaw === 'number' && dateRaw > 0) {
+      date_import = new Date(dateRaw * 1000);
+    }
+  }
+
   const items = BUDGET_ITEMS.map(item => {
     const dot_ae   = v(item.col_dot_ae);
     const dot_cp   = v(item.col_dot_cp);
@@ -3373,8 +3377,8 @@ function getBudgetData(structureId, annee) {
     // Moyennes depuis Consolidation
     const moy_ae = getBudgetMoyConsolidation(perimetre, annee, item.col_moy_ae);
     const moy_cp = getBudgetMoyConsolidation(perimetre, annee, item.col_moy_cp);
-    const nat_ae = getBudgetMoyConsolidation('National', annee, item.col_nat_ae);
-    const nat_cp = getBudgetMoyConsolidation('National', annee, item.col_nat_cp);
+    const nat_ae = getBudgetMoyConsolidation('National', annee, item.col_moy_ae);
+    const nat_cp = getBudgetMoyConsolidation('National', annee, item.col_moy_cp);
     return {
       key: item.key,
       label: item.label,
@@ -3384,7 +3388,7 @@ function getBudgetData(structureId, annee) {
     };
   });
 
-  return { annee, perimetre, items };
+  return { annee, perimetre, date_import, items };
 }
 
 /**
@@ -3443,6 +3447,16 @@ function refreshBudget(structureId, annee) {
   const fmt  = formatBudgetMontant;
   const fmtT = formatBudgetTaux;
 
+  // ── Date d'import ─────────────────────────────────────────────
+  const dateFmt = (d.date_import && !isNaN(d.date_import))
+    ? d.date_import.toLocaleDateString('fr-FR') : null;
+  const dateSuffix = dateFmt ? ` au ${dateFmt}` : '';
+  const elDate = document.getElementById('budget-date-import');
+  if (elDate) {
+    if (dateFmt) { elDate.textContent = `Données au ${dateFmt}`; elDate.style.display = ''; }
+    else elDate.style.display = 'none';
+  }
+
   const itemsActifs = d.items.filter(i => i.actif);
   if (itemsActifs.length === 0) {
     container.innerHTML = `<p style="color:var(--orange);font-style:italic;text-align:center;padding:20px;">⚠️ Aucun item budgétaire renseigné.</p>`;
@@ -3465,12 +3479,12 @@ function refreshBudget(structureId, annee) {
   const pillsHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
       <div class="kpi-card" style="border-left:3px solid ${stAE.color};background:${stAE.bg};">
-        <div style="font-size:11px;font-weight:500;color:${stAE.color};margin-bottom:4px;">Consommation AE globale ${annee}</div>
+        <div style="font-size:11px;font-weight:500;color:${stAE.color};margin-bottom:4px;">Consommation AE globale ${annee}${dateSuffix}</div>
         <div style="font-size:22px;font-weight:700;color:${stAE.color};">${fmtT(taux_glob_ae)}</div>
         <div style="font-size:11px;color:var(--gris2);margin-top:4px;">${fmt(tot_conso_ae)} / ${fmt(tot_dot_ae)}</div>
       </div>
       <div class="kpi-card" style="border-left:3px solid ${stCP.color};background:${stCP.bg};">
-        <div style="font-size:11px;font-weight:500;color:${stCP.color};margin-bottom:4px;">Consommation CP globale ${annee}</div>
+        <div style="font-size:11px;font-weight:500;color:${stCP.color};margin-bottom:4px;">Consommation CP globale ${annee}${dateSuffix}</div>
         <div style="font-size:22px;font-weight:700;color:${stCP.color};">${fmtT(taux_glob_cp)}</div>
         <div style="font-size:11px;color:var(--gris2);margin-top:4px;">${fmt(tot_conso_cp)} / ${fmt(tot_dot_cp)}</div>
       </div>
