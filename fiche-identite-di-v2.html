@@ -1072,6 +1072,151 @@
       </div>
     </div>
     
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- PARTIE 1 : GESTION BUDGÉTAIRE 2026                     -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div style="margin: 28px 0 12px 0; padding: 10px 18px; background: linear-gradient(90deg, var(--rep) 0%, #1351a8 100%); border-radius: 8px; display:flex; align-items:center; gap:10px;">
+      <span style="font-size:18px;">📊</span>
+      <span style="color:#fff; font-size:15px; font-weight:700; letter-spacing:0.02em;">Gestion budgétaire 2026</span>
+    </div>
+
+    <!-- SECTION SUIVI BUDGÉTAIRE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">💰</div>
+        <div class="section-title">Suivi budgétaire</div>
+      </div>
+
+      <!-- Contenu généré dynamiquement par refreshBudget() -->
+      <div id="budget-suivi-container">
+        <p style="color:var(--orange);font-style:italic;text-align:center;padding:20px;">⏳ Chargement…</p>
+      </div>
+
+      <!-- Commentaire Budget -->
+      <div style="margin-top:16px;">
+        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur</label>
+        <textarea id="budget-suivi-commentaire"
+                  style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
+                  placeholder="Ajouter un commentaire sur le suivi budgétaire…"></textarea>
+      </div>
+    </div><!-- fin section Suivi budgétaire -->
+
+    <!-- SECTION DÉPENSES DE COMMUNICATION -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📣</div>
+        <div class="section-title">Dépenses de communication</div>
+      </div>
+
+        <!-- En-tête date d'import -->
+        <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:18px;">
+          <span id="com-date-import" style="font-size:11px;color:var(--gris3);font-style:italic;display:none;"></span>
+        </div>
+
+        <!-- 3 Pills : Cible · CP · Disponible CP — labels mis à jour dynamiquement -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+
+          <div class="kpi-card" style="border-left:3px solid var(--vert);">
+            <div id="com-pill-cible-label" style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">Cible de dépenses 2026 (CP)</div>
+            <div style="font-size:19px;font-weight:600;color:var(--vert);" id="com-pill-cible-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">(80 % des CP 2024)</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid var(--rep2);">
+            <div id="com-pill-cp-label" style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
+            <div style="font-size:19px;font-weight:600;color:var(--rep);" id="com-pill-cp-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Paiements</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
+            <div id="com-pill-cap-cp-label" style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Disponible en CP 2026</div>
+            <div style="font-size:19px;font-weight:600;color:#6B3FA0;" id="com-pill-cap-cp-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité restante</div>
+          </div>
+        </div>
+
+        <!-- KPI Saturation -->
+        <div id="com-sat-wrap" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;background:#F9FAFB;transition:background 0.3s,border-color 0.3s;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span id="com-sat-titre" style="font-size:12px;font-weight:600;color:var(--gris2);">Consommation par rapport à la cible 2026</span>
+            <div style="display:flex;align-items:baseline;gap:8px;">
+              <span id="com-sat-pct" style="font-size:22px;font-weight:700;color:var(--gris2);">—</span>
+              <span id="com-sat-label" style="font-size:11px;font-weight:500;">—</span>
+            </div>
+          </div>
+          <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px;">
+            <div id="com-sat-jauge" style="height:100%;border-radius:4px;width:0%;transition:width 0.5s,background 0.3s;"></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:11px;color:var(--gris2);">Reste disponible</span>
+            <span id="com-sat-reste" style="font-size:13px;font-weight:600;color:var(--gris2);">—</span>
+          </div>
+          <div style="border-top:1px solid #e5e7eb;padding-top:8px;display:flex;flex-direction:column;gap:4px;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+              <span style="color:var(--gris3);">🌍 National :</span>
+              <span id="com-sat-vs-nat" style="font-weight:500;">—</span>
+            </div>
+            <div id="com-sat-vs-per-row" style="display:flex;align-items:center;gap:6px;font-size:11px;">
+              <span style="color:var(--gris3);">📍 Périmètre :</span>
+              <span id="com-sat-vs-per" style="font-weight:500;">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Graphique -->
+        <div class="chart-container" style="margin-bottom:16px;">
+          <div id="com-chart-title" class="chart-title">Consommation de CP de 2022 à 2026</div>
+          <div class="chart-wrapper" style="height:200px;">
+            <canvas id="chart-com-evolution"></canvas>
+          </div>
+        </div>
+
+        <!-- Tableau récapitulatif -->
+        <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;min-width:860px;">
+            <thead>
+              <tr id="com-thead-2026">
+                <th style="background:var(--gris4);border-bottom:0.5px solid var(--bord);padding:6px 12px;"></th>
+                <th colspan="4" style="background:var(--gris4);padding:6px 12px;text-align:center;font-weight:500;font-size:11px;color:var(--gris2);border-bottom:0.5px solid var(--bord);">Historique</th>
+                <th id="com-th-2026-label" colspan="6" style="background:#D4D9F5;padding:6px 12px;text-align:center;font-weight:600;font-size:11px;color:var(--rep);border-bottom:0.5px solid var(--bord);">Consommation budgétaire 2026</th>
+              </tr>
+              <tr style="background:var(--gris4);">
+                <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Structure</th>
+                <th id="com-th-2022" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2022</th>
+                <th id="com-th-2023" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2023</th>
+                <th id="com-th-2024" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2024</th>
+                <th id="com-th-2025" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2025</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--orange);">Restes à payer<br><span style="font-weight:400;">issus 2025</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">AE 2026</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">CP 2026</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--vert);">Cible 2026<br><span style="font-weight:400;font-size:10px;">(80 % CP 2024)</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">AE</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">CP</span></th>
+              </tr>
+            </thead>
+            <tbody id="table-com-body">
+              <tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Commentaire Communication -->
+        <div style="margin-top: 16px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+          <textarea id="com-commentaire"
+                    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+                    placeholder="Ajouter un commentaire sur les dépenses de communication..."></textarea>
+        </div>
+    </div><!-- fin section Dépenses de communication -->
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- PARTIE 2 : INDICATEURS DE GESTION                      -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div style="margin: 28px 0 12px 0; padding: 10px 18px; background: linear-gradient(90deg, #374151 0%, #4b5563 100%); border-radius: 8px; display:flex; align-items:center; gap:10px;">
+      <span style="font-size:18px;">⚙️</span>
+      <span style="color:#fff; font-size:15px; font-weight:700; letter-spacing:0.02em;">Indicateurs de gestion</span>
+    </div>
+
     <!-- SECTION RH -->
     <div class="section">
       <div class="section-header">
@@ -1184,202 +1329,6 @@
       </div>
     </div>
     
-    <!-- SECTION BUDGET -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-icon">📈</div>
-        <div class="section-title">Budget & Consommation</div>
-      </div>
-      
-      <!-- KPI Pills -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px;">
-        <!-- Taux Conso AE -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">Consommation AE</div>
-          <div class="kpi-card-value" style="font-size: 28px;" id="budget-pill-taux-ae">—</div>
-          <div class="kpi-card-details">
-            <div id="budget-pill-montants-ae" style="font-weight: 600; margin-bottom: 4px;">—</div>
-            <div id="budget-pill-ae-groupe">—</div>
-            <div id="budget-pill-ae-national">—</div>
-          </div>
-        </div>
-        
-        <!-- Taux Conso CP -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">Consommation CP</div>
-          <div class="kpi-card-value" style="font-size: 28px;" id="budget-pill-taux-cp">—</div>
-          <div class="kpi-card-details">
-            <div id="budget-pill-montants-cp" style="font-weight: 600; margin-bottom: 4px;">—</div>
-            <div id="budget-pill-cp-groupe">—</div>
-            <div id="budget-pill-cp-national">—</div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Graphiques Evolution Mensuelle -->
-      <div class="chart-grid">
-        <div class="chart-container">
-          <div class="chart-title">Évolution Mensuelle AE (cumul)</div>
-          <div class="chart-subtitle">Comparaison des années disponibles</div>
-          <div class="chart-wrapper">
-            <canvas id="chart-budget-ae"></canvas>
-          </div>
-        </div>
-        <div class="chart-container">
-          <div class="chart-title">Évolution Mensuelle CP (cumul)</div>
-          <div class="chart-subtitle">Comparaison des années disponibles</div>
-          <div class="chart-wrapper">
-            <canvas id="chart-budget-cp"></canvas>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Tableau par Type -->
-      <div style="margin-top: 24px;">
-        <div class="chart-title">Exécution Budgétaire par Type</div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th rowspan="2">Type</th>
-              <th colspan="2" id="budget-header-n2">—</th>
-              <th colspan="2" id="budget-header-n1">—</th>
-              <th colspan="2" id="budget-header-n-notif">—</th>
-              <th colspan="2" id="budget-header-n-conso">—</th>
-            </tr>
-            <tr>
-              <th>AE</th>
-              <th>CP</th>
-              <th>AE</th>
-              <th>CP</th>
-              <th>AE</th>
-              <th>CP</th>
-              <th>AE</th>
-              <th>CP</th>
-            </tr>
-          </thead>
-          <tbody id="budget-types-tbody"></tbody>
-        </table>
-      </div>
-      
-      <!-- Commentaire Budget -->
-      <div style="margin-top: 20px;">
-        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
-        <textarea id="budget-commentaire" 
-                  style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
-                  placeholder="Ajouter un commentaire sur le budget et la consommation..."></textarea>
-      </div>
-
-    </div><!-- fin section Budget & Consommation -->
-
-    <!-- SECTION DÉPENSES DE COMMUNICATION -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-icon">📣</div>
-        <div class="section-title">Dépenses de communication</div>
-      </div>
-
-        <!-- En-tête date d'import -->
-        <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:18px;">
-          <span id="com-date-import" style="font-size:11px;color:var(--gris3);font-style:italic;display:none;"></span>
-        </div>
-
-        <!-- 3 Pills : Cible · CP · Disponible CP — labels mis à jour dynamiquement -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
-
-          <div class="kpi-card" style="border-left:3px solid var(--vert);">
-            <div id="com-pill-cible-label" style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">Cible de dépenses 2026 (CP)</div>
-            <div style="font-size:19px;font-weight:600;color:var(--vert);" id="com-pill-cible-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">(80 % des CP 2024)</div>
-          </div>
-
-          <div class="kpi-card" style="border-left:3px solid var(--rep2);">
-            <div id="com-pill-cp-label" style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
-            <div style="font-size:19px;font-weight:600;color:var(--rep);" id="com-pill-cp-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Paiements</div>
-          </div>
-
-          <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
-            <div id="com-pill-cap-cp-label" style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Disponible en CP 2026</div>
-            <div style="font-size:19px;font-weight:600;color:#6B3FA0;" id="com-pill-cap-cp-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité restante</div>
-          </div>
-        </div>
-
-        <!-- KPI Saturation -->
-        <div id="com-sat-wrap" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;background:#F9FAFB;transition:background 0.3s,border-color 0.3s;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <span id="com-sat-titre" style="font-size:12px;font-weight:600;color:var(--gris2);">Consommation par rapport à la cible 2026</span>
-            <div style="display:flex;align-items:baseline;gap:8px;">
-              <span id="com-sat-pct" style="font-size:22px;font-weight:700;color:var(--gris2);">—</span>
-              <span id="com-sat-label" style="font-size:11px;font-weight:500;">—</span>
-            </div>
-          </div>
-          <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px;">
-            <div id="com-sat-jauge" style="height:100%;border-radius:4px;width:0%;transition:width 0.5s,background 0.3s;"></div>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <span style="font-size:11px;color:var(--gris2);">Reste disponible</span>
-            <span id="com-sat-reste" style="font-size:13px;font-weight:600;color:var(--gris2);">—</span>
-          </div>
-          <div style="border-top:1px solid #e5e7eb;padding-top:8px;display:flex;flex-direction:column;gap:4px;">
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
-              <span style="color:var(--gris3);">🌍 National :</span>
-              <span id="com-sat-vs-nat" style="font-weight:500;">—</span>
-            </div>
-            <div id="com-sat-vs-per-row" style="display:flex;align-items:center;gap:6px;font-size:11px;">
-              <span style="color:var(--gris3);">📍 Périmètre :</span>
-              <span id="com-sat-vs-per" style="font-weight:500;">—</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Graphique -->
-        <div class="chart-container" style="margin-bottom:16px;">
-          <div id="com-chart-title" class="chart-title">Consommation de CP de 2022 à 2026</div>
-          <div class="chart-wrapper" style="height:200px;">
-            <canvas id="chart-com-evolution"></canvas>
-          </div>
-        </div>
-
-        <!-- Tableau récapitulatif -->
-        <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;min-width:860px;">
-            <thead>
-              <tr id="com-thead-2026">
-                <th style="background:var(--gris4);border-bottom:0.5px solid var(--bord);padding:6px 12px;"></th>
-                <th colspan="4" style="background:var(--gris4);padding:6px 12px;text-align:center;font-weight:500;font-size:11px;color:var(--gris2);border-bottom:0.5px solid var(--bord);">Historique</th>
-                <th id="com-th-2026-label" colspan="6" style="background:#D4D9F5;padding:6px 12px;text-align:center;font-weight:600;font-size:11px;color:var(--rep);border-bottom:0.5px solid var(--bord);">Consommation budgétaire 2026</th>
-              </tr>
-              <tr style="background:var(--gris4);">
-                <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Structure</th>
-                <th id="com-th-2022" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2022</th>
-                <th id="com-th-2023" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2023</th>
-                <th id="com-th-2024" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2024</th>
-                <th id="com-th-2025" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2025</th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--orange);">Restes à payer<br><span style="font-weight:400;">issus 2025</span></th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">AE 2026</th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">CP 2026</th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--vert);">Cible 2026<br><span style="font-weight:400;font-size:10px;">(80 % CP 2024)</span></th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">AE</span></th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">CP</span></th>
-              </tr>
-            </thead>
-            <tbody id="table-com-body">
-              <tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Commentaire Communication -->
-        <div style="margin-top: 16px;">
-          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
-          <textarea id="com-commentaire"
-                    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
-                    placeholder="Ajouter un commentaire sur les dépenses de communication..."></textarea>
-        </div>
-    </div><!-- fin section Dépenses de communication -->
-
-    <!-- SECTION FONCTIONNEMENT COURANT -->
     <div class="section">
       <div class="section-header">
         <div class="section-icon">🏛️</div>

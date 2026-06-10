@@ -218,6 +218,7 @@
         <option value="Informatique">Informatique (Matériel IT)</option>
         <option value="Communication">Communication (Dépenses de communication)</option>
         <option value="Fonctionnement">Fonctionnement (Dépenses de fonctionnement courant)</option>
+        <option value="Budget">Budget (Suivi budgétaire AE/CP)</option>
         <option value="Immobilier">Immobilier (Biens immobiliers et charges)</option>
       </select>
       <div id="table-info" class="table-info"></div>
@@ -385,6 +386,34 @@ const TABLE_CONFIG = {
       'CP_2023_maitrisable': 'CP_2023_maitrisable',
       'CP_2024_maitrisable': 'CP_2024_maitrisable',
       'CP_2025_maitrisable': 'CP_2025_maitrisable'
+    }
+  },
+  'Budget': {
+    description: 'Suivi budgétaire AE/CP par poste (une ligne par structure × année)',
+    columns: [
+      'Structure', 'Annee',
+      'dot_AE_vehicules', 'dot_CP_vehicules', 'Conso_AE_vehicules', 'Conso_CP_vehicules',
+      'dot_AE_fonctionnement', 'dot_CP_fonctionnement', 'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
+      'Dot_AE_T6', 'Dot_CP_T6', 'Conso_AE_T6', 'Conso_CP_T6',
+      'dot_AE_Immo', 'dot_CP_Immo', 'Conso_AE_Immo', 'Conso_CP_Immo'
+    ],
+    keyFields: ['Structure', 'Annee'],
+    needsStructure: true,
+    mapping: {
+      'HIE': 'Structure',
+      // variantes de nommage tolerées
+      'dot_AE_Vehicules': 'dot_AE_vehicules',
+      'dot_CP_Vehicules': 'dot_CP_vehicules',
+      'Conso_AE_Vehicules': 'Conso_AE_vehicules',
+      'Conso_CP_Vehicules': 'Conso_CP_vehicules',
+      'dot_AE_Fonctionnement': 'dot_AE_fonctionnement',
+      'dot_CP_Fonctionnement': 'dot_CP_fonctionnement',
+      'Conso_AE_Fonctionnement': 'Conso_AE_fonctionnement',
+      'Conso_CP_Fonctionnement': 'Conso_CP_fonctionnement',
+      'dot_AE_immo': 'dot_AE_Immo',
+      'dot_CP_immo': 'dot_CP_Immo',
+      'Conso_AE_immo': 'Conso_AE_Immo',
+      'Conso_CP_immo': 'Conso_CP_Immo'
     }
   },
   'Immobilier': {
