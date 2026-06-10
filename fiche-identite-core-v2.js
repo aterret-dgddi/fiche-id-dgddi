@@ -3249,10 +3249,18 @@ function getImmobilierSites(structureId) {
   const colEnergie = `Energie_${annee}`;
   const colCout    = `Cout_Surfacique_${annee}`;
 
+  // Pour une DI, inclure les DR rattachées (ex: DI 972 → DR 971/972/973)
+  const currentStruct = FICHE_STATE.data.structures;
+  const structIdx = currentStruct ? currentStruct.id.indexOf(structureId) : -1;
+  let structureIds = [structureId];
+  if (structIdx !== -1 && currentStruct.Type[structIdx] === 'DI') {
+    structureIds = structureIds.concat(getDRRattachees(structureId));
+  }
+
   const sites = [];
   const seenSite = new Set();
   for (let i = 0; i < immo.id.length; i++) {
-    if (immo.Structure[i] !== structureId) continue;
+    if (!structureIds.includes(immo.Structure[i])) continue;
     const siteKey = immo.site?.[i] || immo.Libelle?.[i] || String(immo.id[i]);
     if (seenSite.has(siteKey)) continue;
     seenSite.add(siteKey);
