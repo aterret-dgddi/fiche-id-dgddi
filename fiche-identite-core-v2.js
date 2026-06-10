@@ -3361,6 +3361,9 @@ function getBudgetData(structureId, annee) {
     if (typeof dateRaw === 'string' && dateRaw.match(/^\d{2}-\d{2}-\d{4}$/)) {
       const [dd, mm, yyyy] = dateRaw.split('-');
       date_import = new Date(+yyyy, +mm - 1, +dd);
+    } else if (typeof dateRaw === 'string' && dateRaw.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [yyyy, mm, dd] = dateRaw.split('-');
+      date_import = new Date(+yyyy, +mm - 1, +dd);
     } else if (typeof dateRaw === 'number' && dateRaw > 0) {
       date_import = new Date(dateRaw * 1000);
     }
