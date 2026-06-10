@@ -274,7 +274,7 @@ async function loadAllData() {
       grist.docApi.fetchTable('Consolidation'),
 	  grist.docApi.fetchTable('Consolidation_Structure'),
       grist.docApi.fetchTable('Commentaires'),
-      grist.docApi.fetchTable('INFBUD40_2'),
+      grist.docApi.fetchTable('INFBUD40_2').catch(() => null),
       grist.docApi.fetchTable('Budget').catch(() => null),
       grist.docApi.fetchTable('Immobilier').catch(() => null)
     ]);
