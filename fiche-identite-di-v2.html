@@ -2041,14 +2041,11 @@
 
     // Override onDataLoaded
     function onDataLoaded() {
-      console.log('[DEBUG] onDataLoaded START');
       // Définir automatiquement la dernière année disponible
       FICHE_STATE.annee = getDerniereAnnee();
-      console.log('[DEBUG] annee=', FICHE_STATE.annee);
       
       // Construire la liste des structures
       const structures = FICHE_STATE.data.structures;
-      console.log('[DEBUG] structures=', structures ? structures.id.length : 'NULL');
       
       // Filtrer : Siège, DI, SCN, DR Outremer uniquement
       allStructures = structures.id.map((id, idx) => ({
@@ -2060,13 +2057,11 @@
         region: structures.Region[idx] || '',
         est_outremer: structures.Est_Outremer ? structures.Est_Outremer[idx] : false
       })).filter(s => {
-        // Garder : Siège, DI, SCN, ou (DR Outremer)
         return s.type === 'Siège' || 
                s.type === 'DI' || 
                s.type === 'SCN' || 
                (s.type === 'DR' && s.est_outremer === true);
       });
-      console.log('[DEBUG] allStructures=', allStructures.length);
       
       // Trier par type puis nom
       allStructures.sort((a, b) => {
@@ -2077,28 +2072,21 @@
         return a.nom.localeCompare(b.nom);
       });
       
-      
       // Initialiser les composants
-      console.log('[DEBUG] renderQuickNav...');
       renderQuickNav();
-      console.log('[DEBUG] renderDropdownList...');
       renderDropdownList();
       
       // Sélectionner la première DI (pas le Siège)
       const premieresDI = allStructures.filter(s => s.type === 'DI');
-      console.log('[DEBUG] premieresDI=', premieresDI.length);
       if (premieresDI.length > 0) {
-        console.log('[DEBUG] selectStructure', premieresDI[0].id);
         selectStructure(premieresDI[0].id);
       } else if (allStructures.length > 0) {
         selectStructure(allStructures[0].id);
       }
       
       // Afficher la fiche
-      console.log('[DEBUG] showing fiche-body');
       document.getElementById('loading').style.display = 'none';
       document.getElementById('fiche-body').style.display = 'block';
-      console.log('[DEBUG] onDataLoaded END');
     }
 
     function refreshFiche() {
@@ -2894,115 +2882,6 @@
       
       // Charger le commentaire RH
       initSectionMDE('rh-commentaire', structureId, annee, 'RH');
-    }
-
-    function refreshBudget(structureId, annee) {
-      
-      // FORCER ANNÉE 2026
-      annee = 2026;
-      
-      // Récupérer données année en cours
-      const dataN = getBudgetDataInfbud(structureId, annee);
-      const notifN = getNotificationsBOP(structureId, annee);
-      
-      if (!dataN || !notifN) {
-        
-        // Vider tous les champs
-        document.getElementById('budget-pill-montants-ae').textContent = '—';
-        document.getElementById('budget-pill-taux-ae').textContent = '—';
-        document.getElementById('budget-pill-montants-cp').textContent = '—';
-        document.getElementById('budget-pill-taux-cp').textContent = '—';
-        document.getElementById('budget-pill-ae-groupe').innerHTML = '—';
-        document.getElementById('budget-pill-ae-national').innerHTML = '—';
-        document.getElementById('budget-pill-cp-groupe').innerHTML = '—';
-        document.getElementById('budget-pill-cp-national').innerHTML = '—';
-        
-        // Détruire les graphiques
-        const chartAE = Chart.getChart('chart-budget-cumul-ae');
-        if (chartAE) chartAE.destroy();
-        const chartCP = Chart.getChart('chart-budget-cumul-cp');
-        if (chartCP) chartCP.destroy();
-        
-        // Vider le tableau
-        const tbody = document.getElementById('budget-table-tbody');
-        if (tbody) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée budgétaire disponible</td></tr>';
-        }
-        
-        // Réinitialiser le commentaire pour la structure courante
-        initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
-        
-        return;
-      }
-      
-      // Calculer consommations cumulées année N
-      let consoAE_N = 0;
-      let consoCP_N = 0;
-      Object.values(dataN).forEach(mois => {
-        consoAE_N += mois.ae;
-        consoCP_N += mois.cp;
-      });
-      
-      // Calculer taux de consommation année N
-      const tauxAE_N = notifN.ae > 0 ? (consoAE_N / notifN.ae * 100) : 0;
-      const tauxCP_N = notifN.cp > 0 ? (consoCP_N / notifN.cp * 100) : 0;
-      
-      // Afficher Pills avec montants
-      document.getElementById('budget-pill-montants-ae').textContent = 
-        `${formatCurrency(consoAE_N, 0)} / ${formatCurrency(notifN.ae, 0)}`;
-      document.getElementById('budget-pill-taux-ae').textContent = formatNumber(tauxAE_N, 1) + ' %';
-      
-      document.getElementById('budget-pill-montants-cp').textContent = 
-        `${formatCurrency(consoCP_N, 0)} / ${formatCurrency(notifN.cp, 0)}`;
-      document.getElementById('budget-pill-taux-cp').textContent = formatNumber(tauxCP_N, 1) + ' %';
-      
-      // Comparaisons groupe/national
-      const structures = FICHE_STATE.data.structures;
-      const structIdx = structures.id.indexOf(structureId);
-      const type = structIdx >= 0 ? structures.Type[structIdx] : 'DI';
-      
-      const tauxGroupe = getTauxConsoComparaison(type, annee);
-      const tauxNational = getTauxConsoComparaison('National', annee);
-      
-      // Comparaison AE
-      if (tauxGroupe && tauxGroupe.taux_ae > 0) {
-        const diffGroupe = tauxAE_N - tauxGroupe.taux_ae;
-        const symbol = diffGroupe >= 0 ? '+' : '';
-        document.getElementById('budget-pill-ae-groupe').innerHTML =
-          `Moy. ${type}: ${symbol}${formatNumber(diffGroupe, 1)} pts`;
-      }
-      
-      if (tauxNational && tauxNational.taux_ae > 0) {
-        const diffNational = tauxAE_N - tauxNational.taux_ae;
-        const symbol = diffNational >= 0 ? '+' : '';
-        document.getElementById('budget-pill-ae-national').innerHTML =
-          `National: ${symbol}${formatNumber(diffNational, 1)} pts`;
-      }
-      
-      // Comparaison CP
-      if (tauxGroupe && tauxGroupe.taux_cp > 0) {
-        const diffGroupe = tauxCP_N - tauxGroupe.taux_cp;
-        const symbol = diffGroupe >= 0 ? '+' : '';
-        document.getElementById('budget-pill-cp-groupe').innerHTML =
-          `Moy. ${type}: ${symbol}${formatNumber(diffGroupe, 1)} pts`;
-      }
-      
-      if (tauxNational && tauxNational.taux_cp > 0) {
-        const diffNational = tauxCP_N - tauxNational.taux_cp;
-        const symbol = diffNational >= 0 ? '+' : '';
-        document.getElementById('budget-pill-cp-national').innerHTML =
-          `National: ${symbol}${formatNumber(diffNational, 1)} pts`;
-      }
-      
-      // Créer graphiques séparés AE et CP (en barres)
-      createBudgetCumulChartAE(structureId, annee);
-      createBudgetCumulChartCP(structureId, annee);
-      
-      // Créer tableau par Type
-      createBudgetTableByType(structureId, annee);
-      
-      // Charger le commentaire Budget
-      initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
     }
 
     function refreshFraisMission(structureId, annee) {
