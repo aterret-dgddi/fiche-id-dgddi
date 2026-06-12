@@ -471,6 +471,7 @@
     let consolidationNationaleData = null;
     let communicationData = null;
     let fonctionnementData = null;
+    let budgetData = null;
     let ANNEES_DISPO = [];
     // État dépliage: "section-structId" => true(ouvert)/false(fermé)
     const expandedState = {};
@@ -931,12 +932,13 @@
         await grist.ready();
         
         // Charger les données
-        const [consolidationStructure, structures, consolidationNationale, communication, fonctionnement] = await Promise.all([
+        const [consolidationStructure, structures, consolidationNationale, communication, fonctionnement, budget] = await Promise.all([
           grist.docApi.fetchTable('Consolidation_Structure'),
           grist.docApi.fetchTable('Structures'),
           grist.docApi.fetchTable('Consolidation'),
           grist.docApi.fetchTable('Communication').catch(() => null),
-          grist.docApi.fetchTable('Fonctionnement').catch(() => null)
+          grist.docApi.fetchTable('Fonctionnement').catch(() => null),
+          grist.docApi.fetchTable('Budget').catch(() => null)
         ]);
         
         consolidationData = consolidationStructure;
@@ -944,6 +946,7 @@
         consolidationNationaleData = consolidationNationale;
         communicationData = communication;
         fonctionnementData = fonctionnement;
+        budgetData = budget;
         
         console.log('✅ Données chargées:', {
           consolidation_structure: consolidationStructure.id.length,
@@ -1268,11 +1271,26 @@
       const moyennes = getMoyennes(ANNEE);
       
       document.getElementById('content').innerHTML = `
+
+        <!-- PARTIE 1 : GESTION BUDGÉTAIRE 2026 -->
+        <div style="margin: 16px 0 12px 0; padding: 10px 18px; background: linear-gradient(90deg, var(--rep) 0%, #1351a8 100%); border-radius: 8px; display:flex; align-items:center; gap:10px;">
+          <span style="font-size:18px;">📊</span>
+          <span style="color:#fff; font-size:15px; font-weight:700; letter-spacing:0.02em;">Gestion budgétaire 2026</span>
+        </div>
+
+        ${renderBudgetSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
+        ${renderCommunicationSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
+
+        <!-- PARTIE 2 : INDICATEURS DE GESTION -->
+        <div style="margin: 28px 0 12px 0; padding: 10px 18px; background: linear-gradient(90deg, #374151 0%, #4b5563 100%); border-radius: 8px; display:flex; align-items:center; gap:10px;">
+          <span style="font-size:18px;">⚙️</span>
+          <span style="color:#fff; font-size:15px; font-weight:700; letter-spacing:0.02em;">Indicateurs de gestion</span>
+        </div>
+
         ${renderRHSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
         ${renderVehiculesSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
         ${renderFraisMissionSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
         ${renderInformatiqueSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, totaux, moyennes)}
-        ${renderCommunicationSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
         ${renderFonctionnementSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
         ${renderImmobilierSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN, moyennes)}
       `;
@@ -2082,6 +2100,216 @@
       return { cp_2022: v('CP_2022'), cp_2023: v('CP_2023'), cp_2024, cp_2025, cp_2026,
                ej_2026: v('EJ_2026'), cible_2026, cap_cp_2026: v('Capacite_CP_2026'),
                taux_conso: taux, date_import: date_import_str };
+    }
+
+    }
+
+    // ── Helpers Budget ─────────────────────────────────────────────
+
+    function getBudgetTDB(structureId) {
+      if (!budgetData || !budgetData.Structure) return null;
+      const ANNEE_BUD = 2026;
+      const idx = budgetData.Structure.findIndex((s, i) =>
+        s === structureId && budgetData.Annee?.[i] === ANNEE_BUD
+      );
+      if (idx === -1) return null;
+      const v = (col) => budgetData[col] ? (Number(budgetData[col][idx]) || 0) : 0;
+      const dot_ae = ['dot_AE_vehicules','dot_AE_fonctionnement','Dot_AE_T6','dot_AE_Immo'].reduce((s,c) => s + v(c), 0);
+      const dot_cp = ['dot_CP_vehicules','dot_CP_fonctionnement','Dot_CP_T6','dot_CP_Immo'].reduce((s,c) => s + v(c), 0);
+      const conso_ae = ['Conso_AE_vehicules','Conso_AE_fonctionnement','Conso_AE_T6','Conso_AE_Immo'].reduce((s,c) => s + v(c), 0);
+      const conso_cp = ['Conso_CP_vehicules','Conso_CP_fonctionnement','Conso_CP_T6','Conso_CP_Immo'].reduce((s,c) => s + v(c), 0);
+      const taux_ae = dot_ae ? conso_ae / dot_ae : null;
+      const taux_cp = dot_cp ? conso_cp / dot_cp : null;
+
+      // Détail par poste
+      const postes = [
+        { label: 'Véhicules',              ae: v('dot_AE_vehicules'),    cp: v('dot_CP_vehicules'),    cae: v('Conso_AE_vehicules'),    ccp: v('Conso_CP_vehicules') },
+        { label: 'Fonctionnement',         ae: v('dot_AE_fonctionnement'),cp: v('dot_CP_fonctionnement'),cae: v('Conso_AE_fonctionnement'),ccp: v('Conso_CP_fonctionnement') },
+        { label: 'Subventions buralistes', ae: v('Dot_AE_T6'),           cp: v('Dot_CP_T6'),           cae: v('Conso_AE_T6'),           ccp: v('Conso_CP_T6') },
+        { label: 'Immobilier',             ae: v('dot_AE_Immo'),         cp: v('dot_CP_Immo'),         cae: v('Conso_AE_Immo'),         ccp: v('Conso_CP_Immo') },
+      ].filter(p => p.ae > 0 || p.cp > 0);
+
+      const dateRaw = budgetData.Date_Import?.[idx];
+      let date_import = null;
+      if (typeof dateRaw === 'string' && dateRaw.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [y,m,d] = dateRaw.split('-');
+        date_import = new Date(+y, +m-1, +d).toLocaleDateString('fr-FR');
+      } else if (typeof dateRaw === 'number' && dateRaw > 0) {
+        date_import = new Date(dateRaw * 1000).toLocaleDateString('fr-FR');
+      }
+
+      return { dot_ae, dot_cp, conso_ae, conso_cp, taux_ae, taux_cp, postes, date_import };
+    }
+
+    function fmtBud(val) {
+      if (!val && val !== 0) return '—';
+      if (Math.abs(val) >= 1000000) return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(val / 1000000) + ' M€';
+      if (Math.abs(val) >= 1000) return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(val / 1000)) + ' K€';
+      return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(val) + ' €';
+    }
+
+    function fmtTaux(val) {
+      if (val === null || val === undefined) return '—';
+      return (val * 100).toFixed(1).replace('.', ',') + ' %';
+    }
+
+    function tauxStyle(t) {
+      if (t === null || t === undefined) return { color: 'var(--gris3)', bg: 'transparent', border: 'var(--bord)' };
+      if (t > 1.00) return { color: '#c0392b', bg: '#FEF2F2', border: '#c0392b' };
+      if (t >= 0.80) return { color: '#d35400', bg: '#FFF7ED', border: '#d35400' };
+      return { color: '#1a6b3c', bg: '#F0FDF4', border: '#22c55e' };
+    }
+
+    function renderBudgetSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN) {
+      const ANNEE_BUD = 2026;
+      if (!budgetData) {
+        return `<div class="section">
+          <div class="section-header"><div class="section-icon">💰</div><div class="section-title">Suivi budgétaire ${ANNEE_BUD}</div></div>
+          <p style="color:var(--gris3);font-style:italic;text-align:center;padding:20px;">⚠️ Table <code>Budget</code> non disponible dans Grist.</p>
+        </div>`;
+      }
+
+      // ── Totaux globaux ────────────────────────────────────────────
+      let tot_dot_ae = 0, tot_dot_cp = 0, tot_conso_ae = 0, tot_conso_cp = 0;
+      let dateImport = null;
+
+      const allBlocs = [blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN];
+      allBlocs.forEach(bloc => bloc.forEach(s => {
+        const d = getBudgetTDB(s.id);
+        if (!d) return;
+        tot_dot_ae   += d.dot_ae;
+        tot_dot_cp   += d.dot_cp;
+        tot_conso_ae += d.conso_ae;
+        tot_conso_cp += d.conso_cp;
+        if (!dateImport && d.date_import) dateImport = d.date_import;
+      }));
+
+      const taux_ae_global = tot_dot_ae ? tot_conso_ae / tot_dot_ae : null;
+      const taux_cp_global = tot_dot_cp ? tot_conso_cp / tot_dot_cp : null;
+      const stAE = tauxStyle(taux_ae_global);
+      const stCP = tauxStyle(taux_cp_global);
+
+      // ── KPIs ──────────────────────────────────────────────────────
+      const kpis = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+          <div style="background:${stAE.bg};border-radius:8px;padding:14px 16px;border-left:3px solid ${stAE.border};">
+            <div style="font-size:10px;font-weight:700;color:${stAE.color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Consommation AE globale</div>
+            <div style="font-size:26px;font-weight:700;color:${stAE.color};line-height:1.1;">${fmtTaux(taux_ae_global)}</div>
+            <div style="height:5px;background:rgba(0,0,0,.1);border-radius:3px;margin-top:8px;overflow:hidden;">
+              <div style="width:${Math.min((taux_ae_global||0)*100,100).toFixed(1)}%;height:100%;background:${stAE.color};border-radius:3px;"></div>
+            </div>
+            <div style="font-size:11px;color:var(--gris3);margin-top:6px;">${fmtBud(tot_conso_ae)} / ${fmtBud(tot_dot_ae)}</div>
+          </div>
+          <div style="background:${stCP.bg};border-radius:8px;padding:14px 16px;border-left:3px solid ${stCP.border};">
+            <div style="font-size:10px;font-weight:700;color:${stCP.color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Consommation CP globale</div>
+            <div style="font-size:26px;font-weight:700;color:${stCP.color};line-height:1.1;">${fmtTaux(taux_cp_global)}</div>
+            <div style="height:5px;background:rgba(0,0,0,.1);border-radius:3px;margin-top:8px;overflow:hidden;">
+              <div style="width:${Math.min((taux_cp_global||0)*100,100).toFixed(1)}%;height:100%;background:${stCP.color};border-radius:3px;"></div>
+            </div>
+            <div style="font-size:11px;color:var(--gris3);margin-top:6px;">${fmtBud(tot_conso_cp)} / ${fmtBud(tot_dot_cp)}</div>
+          </div>
+        </div>`;
+
+      // ── Tableau par structure ─────────────────────────────────────
+      let rows = '';
+      allBlocs.forEach(bloc => bloc.forEach((s, bIdx) => {
+        const indent = (bloc === blocOutremer && bIdx > 0);
+        const d = getBudgetTDB(s.id);
+        const badgeClass = getBadgeClass(s.typeAffichage);
+        const badgeLabel = getBadgeLabel(s.typeAffichage, s.type);
+        const rowClass = indent ? 'row-indent' : '';
+        const extraClass = s.typeAffichage === 'DI_Outremer' ? 'row-di-outremer' : '';
+
+        const st_ae = tauxStyle(d?.taux_ae);
+        const st_cp = tauxStyle(d?.taux_cp);
+
+        const barAE = d?.taux_ae != null ? `
+          <div style="display:flex;align-items:center;gap:5px;">
+            <div style="flex:1;height:5px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+              <div style="width:${Math.min(d.taux_ae*100,100).toFixed(1)}%;height:100%;background:${st_ae.color};border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px;font-weight:600;color:${st_ae.color};min-width:40px;text-align:right;">${fmtTaux(d.taux_ae)}</span>
+          </div>` : '—';
+
+        const barCP = d?.taux_cp != null ? `
+          <div style="display:flex;align-items:center;gap:5px;">
+            <div style="flex:1;height:5px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+              <div style="width:${Math.min(d.taux_cp*100,100).toFixed(1)}%;height:100%;background:${st_cp.color};border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px;font-weight:600;color:${st_cp.color};min-width:40px;text-align:right;">${fmtTaux(d.taux_cp)}</span>
+          </div>` : '—';
+
+        rows += `<tr class="${rowClass} ${extraClass}">
+          <td><span class="badge ${badgeClass}">${badgeLabel}</span>${s.sigle}</td>
+          <td class="number">${d ? fmtBud(d.dot_ae) : '—'}</td>
+          <td class="number">${d ? fmtBud(d.conso_ae) : '—'}</td>
+          <td style="min-width:140px;padding:8px 10px;">${barAE}</td>
+          <td class="number">${d ? fmtBud(d.dot_cp) : '—'}</td>
+          <td class="number">${d ? fmtBud(d.conso_cp) : '—'}</td>
+          <td style="min-width:140px;padding:8px 10px;">${barCP}</td>
+        </tr>`;
+      }));
+
+      // Ligne totaux
+      const stAEtot = tauxStyle(taux_ae_global);
+      const stCPtot = tauxStyle(taux_cp_global);
+      const totalRow = `<tr style="font-weight:700;background:var(--rep-pale);">
+        <td>TOTAL</td>
+        <td class="number">${fmtBud(tot_dot_ae)}</td>
+        <td class="number">${fmtBud(tot_conso_ae)}</td>
+        <td style="padding:8px 10px;"><span style="font-weight:700;color:${stAEtot.color};">${fmtTaux(taux_ae_global)}</span></td>
+        <td class="number">${fmtBud(tot_dot_cp)}</td>
+        <td class="number">${fmtBud(tot_conso_cp)}</td>
+        <td style="padding:8px 10px;"><span style="font-weight:700;color:${stCPtot.color};">${fmtTaux(taux_cp_global)}</span></td>
+      </tr>`;
+
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-icon">💰</div>
+            <div class="section-title">Suivi budgétaire ${ANNEE_BUD}</div>
+          </div>
+
+          ${kpis}
+
+          ${dateImport ? `<div style="font-size:11px;color:var(--gris2);margin-bottom:14px;">📅 Données au <strong>${dateImport}</strong></div>` : ''}
+
+          <button id="bud-toggle-btn" onclick="(function(){
+            var w = document.getElementById('bud-table-wrapper');
+            var btn = document.getElementById('bud-toggle-btn');
+            var open = w.style.display !== 'none';
+            w.style.display = open ? 'none' : 'block';
+            btn.innerHTML = open ? '&#9654;&nbsp; Voir le détail par structure' : '&#9660;&nbsp; Masquer le détail';
+          })()"
+          style="background:none;border:1px solid var(--bord);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gris2);cursor:pointer;margin-bottom:12px;">
+            &#9654;&nbsp; Voir le détail par structure
+          </button>
+
+          <div id="bud-table-wrapper" style="display:none;">
+            <div style="font-size:11px;color:var(--gris3);margin-bottom:8px;">▶ Dotation et consommation AE/CP — <strong>Données ${ANNEE_BUD}</strong></div>
+            <table>
+              <thead>
+                <tr>
+                  <th rowspan="2">Structure</th>
+                  <th colspan="3" style="text-align:center;background:#EEF2FF;color:var(--rep);">AE</th>
+                  <th colspan="3" style="text-align:center;background:#F0FDF4;color:#1a6b3c;">CP</th>
+                </tr>
+                <tr>
+                  <th style="background:#EEF2FF;">Dotation</th>
+                  <th style="background:#EEF2FF;">Consommation</th>
+                  <th style="background:#EEF2FF;">Taux</th>
+                  <th style="background:#F0FDF4;">Dotation</th>
+                  <th style="background:#F0FDF4;">Consommation</th>
+                  <th style="background:#F0FDF4;">Taux</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${totalRow}
+                ${rows}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
     }
 
     function fmtCom(val) {
