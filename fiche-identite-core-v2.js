@@ -23,6 +23,7 @@ const FICHE_STATE = {
     consolidation: null,
 	consolidation_structure: null,
     commentaires: null,
+    budget: null,
     immobilier: null
   }
 };
@@ -261,7 +262,7 @@ async function loadAllData() {
     showLoader('Chargement des données...');
     
     // Charger toutes les tables en parallèle
-    const [structures, rh, vehicules, frais_mission, informatique, communication, fonctionnement, notif_bop, consolidation, consolidation_structure, commentaires, infbud40, immobilier] = await Promise.all([
+    const [structures, rh, vehicules, frais_mission, informatique, communication, fonctionnement, notif_bop, consolidation, consolidation_structure, commentaires, infbud40, budget, immobilier] = await Promise.all([
       grist.docApi.fetchTable('Structures'),
       grist.docApi.fetchTable('RH'),
       grist.docApi.fetchTable('Vehicules'),
@@ -273,7 +274,8 @@ async function loadAllData() {
       grist.docApi.fetchTable('Consolidation'),
 	  grist.docApi.fetchTable('Consolidation_Structure'),
       grist.docApi.fetchTable('Commentaires'),
-      grist.docApi.fetchTable('INFBUD40_2'),
+      grist.docApi.fetchTable('INFBUD40_2').catch(() => null),
+      grist.docApi.fetchTable('Budget').catch(() => null),
       grist.docApi.fetchTable('Immobilier').catch(() => null)
     ]);
     
@@ -289,6 +291,7 @@ async function loadAllData() {
 	FICHE_STATE.data.consolidation_structure = consolidation_structure;
     FICHE_STATE.data.commentaires = commentaires;
     FICHE_STATE.data.infbud40 = infbud40;
+    FICHE_STATE.data.budget = budget;
     FICHE_STATE.data.immobilier = immobilier;
     
     hideLoader();
@@ -638,29 +641,6 @@ function getVehiculesData(structureId, annee) {
 
 
 
-function getBudgetData(structureId, annee) {
-  const notif = FICHE_STATE.data.notif_bop;
-  const results = {};
-  
-  // Récupérer toutes les lignes pour cette structure/année
-  notif.id.forEach((id, i) => {
-    if (notif.Structure[i] === structureId && notif.Annee[i] === annee) {
-      const type = notif.Type[i];
-      results[type] = {
-        notif_ae: notif.Notif_AE[i] || 0,
-        notif_cp: notif.Notif_CP[i] || 0,
-        conso_ae: notif.Conso_AE[i] || 0,
-        conso_cp: notif.Conso_CP[i] || 0,
-        taux_conso_ae: notif.Taux_Conso_AE[i] || 0,
-        taux_conso_cp: notif.Taux_Conso_CP[i] || 0,
-        reste_ae: notif.Reste_AE[i] || 0,
-        reste_cp: notif.Reste_CP[i] || 0
-      };
-    }
-  });
-  
-  return results;
-}
 
 /**
  * Retourne les données de consolidation pour un périmètre et une année
@@ -3234,6 +3214,344 @@ async function exportAllStructuresAsZIP(filters) {
  *                       ctx.y est lu ET mis à jour directement (passage par référence objet).
  *                       ctx.addPage() doit effectuer le saut de page et mettre ctx.y à jour.
  */
+// ═══════════════════════════════════════════════════════════════
+// MODULE SUIVI BUDGÉTAIRE (table Budget)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Items budgétaires avec leurs colonnes Grist.
+ * Les items absents (dot AE + dot CP = 0) sont masqués.
+ */
+const BUDGET_ITEMS = [
+  {
+    key: 'vehicules',
+    label: 'Véhicules',
+    col_dot_ae: 'dot_AE_vehicules',
+    col_dot_cp: 'dot_CP_vehicules',
+    col_conso_ae: 'Conso_AE_vehicules',
+    col_conso_cp: 'Conso_CP_vehicules',
+    col_taux_ae: 'Taux_AE_vehicules',
+    col_taux_cp: 'Taux_CP_vehicules',
+    col_moy_ae: 'Moy_Taux_AE_vehicules',
+    col_moy_cp: 'Moy_Taux_CP_vehicules'
+  },
+  {
+    key: 'fonctionnement',
+    label: 'Fonctionnement',
+    col_dot_ae: 'dot_AE_fonctionnement',
+    col_dot_cp: 'dot_CP_fonctionnement',
+    col_conso_ae: 'Conso_AE_fonctionnement',
+    col_conso_cp: 'Conso_CP_fonctionnement',
+    col_taux_ae: 'Taux_AE_fonctionnement',
+    col_taux_cp: 'Taux_CP_fonctionnement',
+    col_moy_ae: 'Moy_Taux_AE_fonctionnement',
+    col_moy_cp: 'Moy_Taux_CP_fonctionnement'
+  },
+  {
+    key: 't6',
+    label: 'Subventions buralistes',
+    col_dot_ae: 'Dot_AE_T6',
+    col_dot_cp: 'Dot_CP_T6',
+    col_conso_ae: 'Conso_AE_T6',
+    col_conso_cp: 'Conso_CP_T6',
+    col_taux_ae: 'Taux_AE_T6',
+    col_taux_cp: 'Taux_CP_T6',
+    col_moy_ae: 'Moy_Taux_AE_T6',
+    col_moy_cp: 'Moy_Taux_CP_T6'
+  },
+  {
+    key: 'immo',
+    label: 'Immobilier',
+    col_dot_ae: 'dot_AE_Immo',
+    col_dot_cp: 'dot_CP_Immo',
+    col_conso_ae: 'Conso_AE_Immo',
+    col_conso_cp: 'Conso_CP_Immo',
+    col_taux_ae: 'Taux_AE_Immo',
+    col_taux_cp: 'Taux_CP_Immo',
+    col_moy_ae: 'Moy_Taux_AE_Immo',
+    col_moy_cp: 'Moy_Taux_CP_Immo'
+  }
+];
+
+/**
+ * Récupère les données Budget pour une structure et une année.
+ * La table Budget a une ligne par structure × année.
+ * Colonnes calculées dans Grist : Taux_AE_*, Taux_CP_*, Moy_*, Nat_*.
+ *
+ * @param {number} structureId
+ * @param {number} annee
+ * @returns {Object|null}
+ */
+/**
+ * Retourne le périmètre de comparaison pour le suivi budgétaire.
+ * Même logique que Communication / Frais de Mission.
+ * @param {number} structureId
+ * @returns {string} 'National' | 'Metropole' | 'Outremer' | 'SCN'
+ */
+function getPerimetreBudget(structureId) {
+  const structures = FICHE_STATE.data.structures;
+  if (!structures) return 'National';
+  const idx = structures.id.indexOf(structureId);
+  if (idx === -1) return 'National';
+  const type        = structures.Type?.[idx];
+  const estOutremer = structures.Est_Outremer?.[idx];
+  if (type === 'SCN')                return 'SCN';
+  if (type === 'DI' && estOutremer)  return 'Outremer';
+  if (type === 'DI' && !estOutremer) return 'Metropole';
+  return 'National';
+}
+
+/**
+ * Lit une valeur de moyenne dans Consolidation pour un périmètre, une année et une colonne.
+ * @param {string} perimetre - 'National' | 'Metropole' | 'Outremer' | 'SCN'
+ * @param {number} annee
+ * @param {string} colonne - ex. 'Moy_Taux_AE_vehicules'
+ * @returns {number|null}
+ */
+function getBudgetMoyConsolidation(perimetre, annee, colonne) {
+  const conso = FICHE_STATE.data.consolidation;
+  if (!conso || !conso.Perimetre) return null;
+  const idx = conso.id.findIndex((_, i) =>
+    conso.Perimetre[i] === perimetre && conso.Annee[i] === annee
+  );
+  if (idx === -1) return null;
+  return conso[colonne]?.[idx] ?? null;
+}
+
+function getBudgetData(structureId, annee) {
+  const bud = FICHE_STATE.data.budget;
+  if (!bud || !bud.Structure) return null;
+
+  const idx = bud.Structure.findIndex(
+    (s, i) => s === structureId && bud.Annee?.[i] === annee
+  );
+  if (idx === -1) return null;
+
+  const v = (col) => (bud[col] != null ? (bud[col][idx] ?? 0) : 0);
+
+  const perimetre = getPerimetreBudget(structureId);
+
+  // Date d'import (même format DD-MM-YYYY que Communication)
+  const dateRaw = bud['Date_Import'] ? (bud['Date_Import'][idx] ?? null) : null;
+  let date_import = null;
+  if (dateRaw) {
+    if (typeof dateRaw === 'string' && dateRaw.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      const [dd, mm, yyyy] = dateRaw.split('-');
+      date_import = new Date(+yyyy, +mm - 1, +dd);
+    } else if (typeof dateRaw === 'string' && dateRaw.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [yyyy, mm, dd] = dateRaw.split('-');
+      date_import = new Date(+yyyy, +mm - 1, +dd);
+    } else if (typeof dateRaw === 'number' && dateRaw > 0) {
+      date_import = new Date(dateRaw * 1000);
+    }
+  }
+
+  const items = BUDGET_ITEMS.map(item => {
+    const dot_ae   = v(item.col_dot_ae);
+    const dot_cp   = v(item.col_dot_cp);
+    const conso_ae = v(item.col_conso_ae);
+    const conso_cp = v(item.col_conso_cp);
+    // Taux depuis Grist ou calcul local
+    const taux_ae  = v(item.col_taux_ae) || (dot_ae ? conso_ae / dot_ae : 0);
+    const taux_cp  = v(item.col_taux_cp) || (dot_cp ? conso_cp / dot_cp : 0);
+    // Moyennes depuis Consolidation
+    const moy_ae = getBudgetMoyConsolidation(perimetre, annee, item.col_moy_ae);
+    const moy_cp = getBudgetMoyConsolidation(perimetre, annee, item.col_moy_cp);
+    const nat_ae = getBudgetMoyConsolidation('National', annee, item.col_moy_ae);
+    const nat_cp = getBudgetMoyConsolidation('National', annee, item.col_moy_cp);
+    return {
+      key: item.key,
+      label: item.label,
+      dot_ae, dot_cp, conso_ae, conso_cp,
+      taux_ae, taux_cp, moy_ae, moy_cp, nat_ae, nat_cp,
+      actif: (dot_ae > 0 || dot_cp > 0)
+    };
+  });
+
+  return { annee, perimetre, date_import, items };
+}
+
+/**
+ * Formate un montant en k€ arrondi, avec '—' si absent.
+ */
+function formatBudgetMontant(val) {
+  if (val === null || val === undefined || val === 0) return '—';
+  const k = Math.round(val / 1000);
+  return new Intl.NumberFormat('fr-FR').format(k) + ' k€';
+}
+
+/**
+ * Formate un taux en % avec 1 décimale.
+ */
+function formatBudgetTaux(val) {
+  if (val === null || val === undefined) return '—';
+  return (val * 100).toFixed(1).replace('.', ',') + ' %';
+}
+
+/**
+ * Retourne les classes de dépassement : vert si <= dotation, orange si 80-100%, rouge si > 100%.
+ */
+function getBudgetTauxStyle(taux) {
+  if (taux === null || taux === undefined) return { color: 'var(--gris3)', bg: 'transparent' };
+  if (taux > 1.00) return { color: '#c0392b', bg: '#FEF2F2' };
+  if (taux >= 0.80) return { color: '#d35400', bg: '#FFF7ED' };
+  return { color: '#1a6b3c', bg: '#F0FDF4' };
+}
+
+/**
+ * Formatte le delta vs référence (moy. périmètre ou national).
+ */
+function formatBudgetDelta(taux, ref, label) {
+  if (ref === null || ref === undefined || taux === null) return null;
+  const delta = taux - ref;
+  const sign  = delta >= 0 ? '+' : '';
+  const col   = delta > 0 ? '#c0392b' : '#1a6b3c';
+  return { text: `${sign}${(delta * 100).toFixed(1).replace('.', ',')} pts vs ${label}`, color: col };
+}
+
+/**
+ * Rafraîchit la section Suivi budgétaire.
+ * @param {number} structureId
+ * @param {number} annee
+ */
+function refreshBudget(structureId, annee) {
+  const d = getBudgetData(structureId, annee);
+  const container = document.getElementById('budget-suivi-container');
+  if (!container) return;
+
+  if (!d) {
+    container.innerHTML = `<p style="color:var(--orange);font-style:italic;text-align:center;padding:20px;">⚠️ Aucune donnée budgétaire disponible pour ${annee}.</p>`;
+    return;
+  }
+
+  const fmt  = formatBudgetMontant;
+  const fmtT = formatBudgetTaux;
+
+  // ── Date d'import ─────────────────────────────────────────────
+  const dateFmt = (d.date_import && !isNaN(d.date_import))
+    ? d.date_import.toLocaleDateString('fr-FR') : null;
+  const dateSuffix = dateFmt ? ` au ${dateFmt}` : '';
+  const elDate = document.getElementById('budget-date-import');
+  if (elDate) {
+    if (dateFmt) { elDate.textContent = `Données au ${dateFmt}`; elDate.style.display = ''; }
+    else elDate.style.display = 'none';
+  }
+
+  const itemsActifs = d.items.filter(i => i.actif);
+  if (itemsActifs.length === 0) {
+    container.innerHTML = `<p style="color:var(--orange);font-style:italic;text-align:center;padding:20px;">⚠️ Aucun item budgétaire renseigné.</p>`;
+    return;
+  }
+
+  // ── KPI pills résumé (taux globaux pondérés) ─────────────────
+  let tot_dot_ae = 0, tot_conso_ae = 0, tot_dot_cp = 0, tot_conso_cp = 0;
+  itemsActifs.forEach(i => {
+    tot_dot_ae   += i.dot_ae;
+    tot_conso_ae += i.conso_ae;
+    tot_dot_cp   += i.dot_cp;
+    tot_conso_cp += i.conso_cp;
+  });
+  const taux_glob_ae = tot_dot_ae ? tot_conso_ae / tot_dot_ae : 0;
+  const taux_glob_cp = tot_dot_cp ? tot_conso_cp / tot_dot_cp : 0;
+  const stAE = getBudgetTauxStyle(taux_glob_ae);
+  const stCP = getBudgetTauxStyle(taux_glob_cp);
+
+  const pillsHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+      <div class="kpi-card" style="border-left:3px solid ${stAE.color};background:${stAE.bg};">
+        <div style="font-size:11px;font-weight:500;color:${stAE.color};margin-bottom:4px;">Consommation AE globale ${annee}${dateSuffix}</div>
+        <div style="font-size:22px;font-weight:700;color:${stAE.color};">${fmtT(taux_glob_ae)}</div>
+        <div style="font-size:11px;color:var(--gris2);margin-top:4px;">${fmt(tot_conso_ae)} / ${fmt(tot_dot_ae)}</div>
+      </div>
+      <div class="kpi-card" style="border-left:3px solid ${stCP.color};background:${stCP.bg};">
+        <div style="font-size:11px;font-weight:500;color:${stCP.color};margin-bottom:4px;">Consommation CP globale ${annee}${dateSuffix}</div>
+        <div style="font-size:22px;font-weight:700;color:${stCP.color};">${fmtT(taux_glob_cp)}</div>
+        <div style="font-size:11px;color:var(--gris2);margin-top:4px;">${fmt(tot_conso_cp)} / ${fmt(tot_dot_cp)}</div>
+      </div>
+    </div>`;
+
+  // ── Tableau par item ──────────────────────────────────────────
+  const libPer = {
+    Metropole: 'moy. DI Métropole',
+    Outremer:  'moy. Outre-Mer',
+    SCN:       'moy. SCN',
+    National:  'moy. nationale'
+  }[d.perimetre] || 'moy. périmètre';
+
+  const rowsHTML = itemsActifs.map(item => {
+    const stAe = getBudgetTauxStyle(item.taux_ae);
+    const stCp = getBudgetTauxStyle(item.taux_cp);
+
+    const deltaAE    = formatBudgetDelta(item.taux_ae, item.nat_ae, 'national');
+    const deltaMoyAE = d.perimetre !== 'National'
+      ? formatBudgetDelta(item.taux_ae, item.moy_ae, libPer) : null;
+
+    const deltaCP    = formatBudgetDelta(item.taux_cp, item.nat_cp, 'national');
+    const deltaMoyCP = d.perimetre !== 'National'
+      ? formatBudgetDelta(item.taux_cp, item.moy_cp, libPer) : null;
+
+    const deltaAEHtml = deltaAE
+      ? `<div style="font-size:10px;color:${deltaAE.color};margin-top:2px;">${deltaAE.text}</div>${deltaMoyAE ? `<div style="font-size:10px;color:${deltaMoyAE.color};">${deltaMoyAE.text}</div>` : ''}`
+      : '';
+    const deltaCPHtml = deltaCP
+      ? `<div style="font-size:10px;color:${deltaCP.color};margin-top:2px;">${deltaCP.text}</div>${deltaMoyCP ? `<div style="font-size:10px;color:${deltaMoyCP.color};">${deltaMoyCP.text}</div>` : ''}`
+      : '';
+
+    // Barre de progression AE
+    const barAE = `<div style="background:#e5e7eb;border-radius:3px;height:6px;overflow:hidden;margin-top:4px;"><div style="height:100%;border-radius:3px;width:${Math.min(item.taux_ae * 100, 100)}%;background:${stAe.color};"></div></div>`;
+    const barCP = `<div style="background:#e5e7eb;border-radius:3px;height:6px;overflow:hidden;margin-top:4px;"><div style="height:100%;border-radius:3px;width:${Math.min(item.taux_cp * 100, 100)}%;background:${stCp.color};"></div></div>`;
+
+    const td = 'padding:10px 12px;vertical-align:top;border-bottom:0.5px solid var(--bord);font-size:12px;';
+    const tdNum = td + 'text-align:right;';
+    const tdTaux = (st) => `${td}text-align:center;background:${st.bg};`;
+
+    return `<tr>
+      <td style="${td}font-weight:600;">${item.label}</td>
+      <td style="${tdNum}">${fmt(item.dot_ae)}</td>
+      <td style="${tdNum}">${fmt(item.conso_ae)}</td>
+      <td style="${tdTaux(stAe)}">
+        <span style="font-weight:700;color:${stAe.color};font-size:13px;">${fmtT(item.taux_ae)}</span>
+        ${barAE}
+        ${deltaAEHtml}
+      </td>
+      <td style="${tdNum}">${fmt(item.dot_cp)}</td>
+      <td style="${tdNum}">${fmt(item.conso_cp)}</td>
+      <td style="${tdTaux(stCp)}">
+        <span style="font-weight:700;color:${stCp.color};font-size:13px;">${fmtT(item.taux_cp)}</span>
+        ${barCP}
+        ${deltaCPHtml}
+      </td>
+    </tr>`;
+  }).join('');
+
+  const tableHTML = `
+    <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;margin-bottom:16px;">
+      <table style="width:100%;border-collapse:collapse;min-width:700px;">
+        <thead>
+          <tr>
+            <th rowspan="2" style="background:var(--gris4);padding:8px 12px;text-align:left;font-size:12px;border-bottom:0.5px solid var(--bord);">Poste</th>
+            <th colspan="3" style="background:#EEF2FF;padding:6px 12px;text-align:center;font-size:11px;color:var(--rep);border-bottom:0.5px solid var(--bord);border-left:1px solid #c7d2fe;">AE — Autorisations d'engagement</th>
+            <th colspan="3" style="background:#F0FDF4;padding:6px 12px;text-align:center;font-size:11px;color:#1a6b3c;border-bottom:0.5px solid var(--bord);border-left:1px solid #bbf7d0;">CP — Crédits de paiement</th>
+          </tr>
+          <tr style="background:var(--gris4);">
+            <th style="padding:7px 12px;text-align:right;font-size:11px;font-weight:500;border-bottom:0.5px solid var(--bord);background:#EEF2FF;border-left:1px solid #c7d2fe;">Dotation</th>
+            <th style="padding:7px 12px;text-align:right;font-size:11px;font-weight:500;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">Consommation</th>
+            <th style="padding:7px 12px;text-align:center;font-size:11px;font-weight:500;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">Taux</th>
+            <th style="padding:7px 12px;text-align:right;font-size:11px;font-weight:500;border-bottom:0.5px solid var(--bord);background:#F0FDF4;border-left:1px solid #bbf7d0;">Dotation</th>
+            <th style="padding:7px 12px;text-align:right;font-size:11px;font-weight:500;border-bottom:0.5px solid var(--bord);background:#F0FDF4;">Consommation</th>
+            <th style="padding:7px 12px;text-align:center;font-size:11px;font-weight:500;border-bottom:0.5px solid var(--bord);background:#F0FDF4;">Taux</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+    </div>`;
+
+  container.innerHTML = pillsHTML + tableHTML;
+
+  // ── Commentaire ───────────────────────────────────────────────
+  initSectionMDE('budget-suivi-commentaire', structureId, annee, 'Budget');
+}
+
 // ═══════════════════════════════════════════════════════════════
 // IMMOBILIER
 // ═══════════════════════════════════════════════════════════════
