@@ -1072,154 +1072,6 @@
       </div>
     </div>
     
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- PARTIE 1 : GESTION BUDGÉTAIRE 2026                     -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div style="margin: 28px 0 12px 0; padding: 10px 18px; background: linear-gradient(90deg, var(--rep) 0%, #1351a8 100%); border-radius: 8px; display:flex; align-items:center; gap:10px;">
-      <span style="font-size:18px;">📊</span>
-      <span style="color:#fff; font-size:15px; font-weight:700; letter-spacing:0.02em;">Gestion budgétaire 2026</span>
-    </div>
-
-    <!-- SECTION SUIVI BUDGÉTAIRE -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-icon">💰</div>
-        <div class="section-title">Suivi budgétaire</div>
-      </div>
-
-      <!-- Contenu généré dynamiquement par refreshBudget() -->
-      <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:14px;">
-        <span id="budget-date-import" style="font-size:11px;color:var(--gris3);font-style:italic;display:none;"></span>
-      </div>
-      <div id="budget-suivi-container">
-        <p style="color:var(--orange);font-style:italic;text-align:center;padding:20px;">⏳ Chargement…</p>
-      </div>
-
-      <!-- Commentaire Budget -->
-      <div style="margin-top:16px;">
-        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur</label>
-        <textarea id="budget-suivi-commentaire"
-                  style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
-                  placeholder="Ajouter un commentaire sur le suivi budgétaire…"></textarea>
-      </div>
-    </div><!-- fin section Suivi budgétaire -->
-
-    <!-- SECTION DÉPENSES DE COMMUNICATION -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-icon">📣</div>
-        <div class="section-title">Dépenses de communication</div>
-      </div>
-
-        <!-- En-tête date d'import -->
-        <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:18px;">
-          <span id="com-date-import" style="font-size:11px;color:var(--gris3);font-style:italic;display:none;"></span>
-        </div>
-
-        <!-- 3 Pills : Cible · CP · Disponible CP — labels mis à jour dynamiquement -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
-
-          <div class="kpi-card" style="border-left:3px solid var(--vert);">
-            <div id="com-pill-cible-label" style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">Cible de dépenses 2026 (CP)</div>
-            <div style="font-size:19px;font-weight:600;color:var(--vert);" id="com-pill-cible-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">(80 % des CP 2024)</div>
-          </div>
-
-          <div class="kpi-card" style="border-left:3px solid var(--rep2);">
-            <div id="com-pill-cp-label" style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
-            <div style="font-size:19px;font-weight:600;color:var(--rep);" id="com-pill-cp-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Paiements</div>
-          </div>
-
-          <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
-            <div id="com-pill-cap-cp-label" style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Disponible en CP 2026</div>
-            <div style="font-size:19px;font-weight:600;color:#6B3FA0;" id="com-pill-cap-cp-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité restante</div>
-          </div>
-        </div>
-
-        <!-- KPI Saturation -->
-        <div id="com-sat-wrap" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;background:#F9FAFB;transition:background 0.3s,border-color 0.3s;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <span id="com-sat-titre" style="font-size:12px;font-weight:600;color:var(--gris2);">Consommation par rapport à la cible 2026</span>
-            <div style="display:flex;align-items:baseline;gap:8px;">
-              <span id="com-sat-pct" style="font-size:22px;font-weight:700;color:var(--gris2);">—</span>
-              <span id="com-sat-label" style="font-size:11px;font-weight:500;">—</span>
-            </div>
-          </div>
-          <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px;">
-            <div id="com-sat-jauge" style="height:100%;border-radius:4px;width:0%;transition:width 0.5s,background 0.3s;"></div>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <span style="font-size:11px;color:var(--gris2);">Reste disponible</span>
-            <span id="com-sat-reste" style="font-size:13px;font-weight:600;color:var(--gris2);">—</span>
-          </div>
-          <div style="border-top:1px solid #e5e7eb;padding-top:8px;display:flex;flex-direction:column;gap:4px;">
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
-              <span style="color:var(--gris3);">🌍 National :</span>
-              <span id="com-sat-vs-nat" style="font-weight:500;">—</span>
-            </div>
-            <div id="com-sat-vs-per-row" style="display:flex;align-items:center;gap:6px;font-size:11px;">
-              <span style="color:var(--gris3);">📍 Périmètre :</span>
-              <span id="com-sat-vs-per" style="font-weight:500;">—</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Graphique -->
-        <div class="chart-container" style="margin-bottom:16px;">
-          <div id="com-chart-title" class="chart-title">Consommation de CP de 2022 à 2026</div>
-          <div class="chart-wrapper" style="height:200px;">
-            <canvas id="chart-com-evolution"></canvas>
-          </div>
-        </div>
-
-        <!-- Tableau récapitulatif -->
-        <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;min-width:860px;">
-            <thead>
-              <tr id="com-thead-2026">
-                <th style="background:var(--gris4);border-bottom:0.5px solid var(--bord);padding:6px 12px;"></th>
-                <th colspan="4" style="background:var(--gris4);padding:6px 12px;text-align:center;font-weight:500;font-size:11px;color:var(--gris2);border-bottom:0.5px solid var(--bord);">Historique</th>
-                <th id="com-th-2026-label" colspan="6" style="background:#D4D9F5;padding:6px 12px;text-align:center;font-weight:600;font-size:11px;color:var(--rep);border-bottom:0.5px solid var(--bord);">Consommation budgétaire 2026</th>
-              </tr>
-              <tr style="background:var(--gris4);">
-                <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Structure</th>
-                <th id="com-th-2022" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2022</th>
-                <th id="com-th-2023" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2023</th>
-                <th id="com-th-2024" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2024</th>
-                <th id="com-th-2025" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2025</th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--orange);">Restes à payer<br><span style="font-weight:400;">issus 2025</span></th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">AE 2026</th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">CP 2026</th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--vert);">Cible 2026<br><span style="font-weight:400;font-size:10px;">(80 % CP 2024)</span></th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">AE</span></th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">CP</span></th>
-              </tr>
-            </thead>
-            <tbody id="table-com-body">
-              <tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Commentaire Communication -->
-        <div style="margin-top: 16px;">
-          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
-          <textarea id="com-commentaire"
-                    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
-                    placeholder="Ajouter un commentaire sur les dépenses de communication..."></textarea>
-        </div>
-    </div><!-- fin section Dépenses de communication -->
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- PARTIE 2 : INDICATEURS DE GESTION                      -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div style="margin: 28px 0 12px 0; padding: 10px 18px; background: linear-gradient(90deg, #374151 0%, #4b5563 100%); border-radius: 8px; display:flex; align-items:center; gap:10px;">
-      <span style="font-size:18px;">⚙️</span>
-      <span style="color:#fff; font-size:15px; font-weight:700; letter-spacing:0.02em;">Indicateurs de gestion</span>
-    </div>
-
     <!-- SECTION RH -->
     <div class="section">
       <div class="section-header">
@@ -1332,6 +1184,202 @@
       </div>
     </div>
     
+    <!-- SECTION BUDGET -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📈</div>
+        <div class="section-title">Budget & Consommation</div>
+      </div>
+
+      <!-- KPI Pills : taux globaux -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;">
+        <div class="kpi-card">
+          <div class="kpi-card-label">Consommation AE globale</div>
+          <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-ae">—</div>
+          <div class="kpi-card-details">
+            <div id="budget-pill-montants-ae" style="font-weight:600;margin-bottom:4px;">—</div>
+            <div id="budget-pill-ae-groupe">—</div>
+            <div id="budget-pill-ae-national">—</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Consommation CP globale</div>
+          <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-cp">—</div>
+          <div class="kpi-card-details">
+            <div id="budget-pill-montants-cp" style="font-weight:600;margin-bottom:4px;">—</div>
+            <div id="budget-pill-cp-groupe">—</div>
+            <div id="budget-pill-cp-national">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Graphiques : radar structure + taux par catégorie -->
+      <div class="chart-grid">
+        <!-- Radar répartition dotations -->
+        <div class="chart-container">
+          <div class="chart-title">Répartition des dotations (AE)</div>
+          <div class="chart-subtitle" id="budget-radar-subtitle">Structure vs moyenne périmètre</div>
+          <div class="chart-wrapper" style="position:relative;height:280px;">
+            <canvas id="chart-budget-radar-ae"></canvas>
+          </div>
+        </div>
+        <!-- Taux de consommation par catégorie -->
+        <div class="chart-container">
+          <div class="chart-title">Taux de consommation par catégorie (CP)</div>
+          <div class="chart-subtitle" id="budget-taux-subtitle">Structure vs moyenne périmètre</div>
+          <div class="chart-wrapper" style="position:relative;height:280px;">
+            <canvas id="chart-budget-taux-cp"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vue évolutive multi-années -->
+      <div style="margin-top:24px;">
+        <div class="chart-title">Évolution des dotations et consommations (CP)</div>
+        <div class="chart-wrapper" style="position:relative;height:240px;">
+          <canvas id="chart-budget-evol"></canvas>
+        </div>
+      </div>
+
+      <!-- Tableau par catégorie -->
+      <div style="margin-top:24px;">
+        <div class="chart-title" id="budget-table-title">Exécution budgétaire par catégorie — 2026</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Catégorie</th>
+              <th style="text-align:right;">Dotation AE</th>
+              <th style="text-align:right;">Conso AE</th>
+              <th style="text-align:right;">Taux AE</th>
+              <th style="text-align:right;">Dotation CP</th>
+              <th style="text-align:right;">Conso CP</th>
+              <th style="text-align:right;">Taux CP</th>
+              <th style="text-align:right;">Moy. périmètre CP</th>
+            </tr>
+          </thead>
+          <tbody id="budget-types-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Commentaire Budget -->
+      <div style="margin-top:20px;">
+        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur</label>
+        <textarea id="budget-commentaire"
+                  style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
+                  placeholder="Ajouter un commentaire sur le budget et la consommation..."></textarea>
+      </div>
+
+    </div><!-- fin section Budget & Consommation -->
+
+    <!-- SECTION DÉPENSES DE COMMUNICATION -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📣</div>
+        <div class="section-title">Dépenses de communication</div>
+      </div>
+
+        <!-- En-tête date d'import -->
+        <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:18px;">
+          <span id="com-date-import" style="font-size:11px;color:var(--gris3);font-style:italic;display:none;"></span>
+        </div>
+
+        <!-- 3 Pills : Cible · CP · Disponible CP — labels mis à jour dynamiquement -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+
+          <div class="kpi-card" style="border-left:3px solid var(--vert);">
+            <div id="com-pill-cible-label" style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">Cible de dépenses 2026 (CP)</div>
+            <div style="font-size:19px;font-weight:600;color:var(--vert);" id="com-pill-cible-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">(80 % des CP 2024)</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid var(--rep2);">
+            <div id="com-pill-cp-label" style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
+            <div style="font-size:19px;font-weight:600;color:var(--rep);" id="com-pill-cp-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Paiements</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
+            <div id="com-pill-cap-cp-label" style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Disponible en CP 2026</div>
+            <div style="font-size:19px;font-weight:600;color:#6B3FA0;" id="com-pill-cap-cp-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité restante</div>
+          </div>
+        </div>
+
+        <!-- KPI Saturation -->
+        <div id="com-sat-wrap" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;background:#F9FAFB;transition:background 0.3s,border-color 0.3s;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span id="com-sat-titre" style="font-size:12px;font-weight:600;color:var(--gris2);">Consommation par rapport à la cible 2026</span>
+            <div style="display:flex;align-items:baseline;gap:8px;">
+              <span id="com-sat-pct" style="font-size:22px;font-weight:700;color:var(--gris2);">—</span>
+              <span id="com-sat-label" style="font-size:11px;font-weight:500;">—</span>
+            </div>
+          </div>
+          <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px;">
+            <div id="com-sat-jauge" style="height:100%;border-radius:4px;width:0%;transition:width 0.5s,background 0.3s;"></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:11px;color:var(--gris2);">Reste disponible</span>
+            <span id="com-sat-reste" style="font-size:13px;font-weight:600;color:var(--gris2);">—</span>
+          </div>
+          <div style="border-top:1px solid #e5e7eb;padding-top:8px;display:flex;flex-direction:column;gap:4px;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+              <span style="color:var(--gris3);">🌍 National :</span>
+              <span id="com-sat-vs-nat" style="font-weight:500;">—</span>
+            </div>
+            <div id="com-sat-vs-per-row" style="display:flex;align-items:center;gap:6px;font-size:11px;">
+              <span style="color:var(--gris3);">📍 Périmètre :</span>
+              <span id="com-sat-vs-per" style="font-weight:500;">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Graphique -->
+        <div class="chart-container" style="margin-bottom:16px;">
+          <div id="com-chart-title" class="chart-title">Consommation de CP de 2022 à 2026</div>
+          <div class="chart-wrapper" style="height:200px;">
+            <canvas id="chart-com-evolution"></canvas>
+          </div>
+        </div>
+
+        <!-- Tableau récapitulatif -->
+        <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;min-width:860px;">
+            <thead>
+              <tr id="com-thead-2026">
+                <th style="background:var(--gris4);border-bottom:0.5px solid var(--bord);padding:6px 12px;"></th>
+                <th colspan="4" style="background:var(--gris4);padding:6px 12px;text-align:center;font-weight:500;font-size:11px;color:var(--gris2);border-bottom:0.5px solid var(--bord);">Historique</th>
+                <th id="com-th-2026-label" colspan="6" style="background:#D4D9F5;padding:6px 12px;text-align:center;font-weight:600;font-size:11px;color:var(--rep);border-bottom:0.5px solid var(--bord);">Consommation budgétaire 2026</th>
+              </tr>
+              <tr style="background:var(--gris4);">
+                <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Structure</th>
+                <th id="com-th-2022" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2022</th>
+                <th id="com-th-2023" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2023</th>
+                <th id="com-th-2024" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2024</th>
+                <th id="com-th-2025" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2025</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--orange);">Restes à payer<br><span style="font-weight:400;">issus 2025</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">AE 2026</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">CP 2026</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--vert);">Cible 2026<br><span style="font-weight:400;font-size:10px;">(80 % CP 2024)</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">AE</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">CP</span></th>
+              </tr>
+            </thead>
+            <tbody id="table-com-body">
+              <tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Commentaire Communication -->
+        <div style="margin-top: 16px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+          <textarea id="com-commentaire"
+                    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+                    placeholder="Ajouter un commentaire sur les dépenses de communication..."></textarea>
+        </div>
+    </div><!-- fin section Dépenses de communication -->
+
+    <!-- SECTION FONCTIONNEMENT COURANT -->
     <div class="section">
       <div class="section-header">
         <div class="section-icon">🏛️</div>
@@ -1848,7 +1896,7 @@
   </div>
 
   <!-- Core functions -->
-  <script src="https://aterret-dgddi.github.io/fiche-id-dgddi/fiche-identite-core-v2.js?v=20260612"></script>
+  <script src="https://aterret-dgddi.github.io/fiche-id-dgddi/fiche-identite-core-v2.js"></script>
 
   <script>
     // État global
@@ -2057,6 +2105,7 @@
         region: structures.Region[idx] || '',
         est_outremer: structures.Est_Outremer ? structures.Est_Outremer[idx] : false
       })).filter(s => {
+        // Garder : Siège, DI, SCN, ou (DR Outremer)
         return s.type === 'Siège' || 
                s.type === 'DI' || 
                s.type === 'SCN' || 
@@ -2071,6 +2120,7 @@
         }
         return a.nom.localeCompare(b.nom);
       });
+      
       
       // Initialiser les composants
       renderQuickNav();
@@ -2103,8 +2153,8 @@
       
       // Charger les sections
       refreshRH(struct.id, annee);
-      refreshBudget(struct.id, 2026);
-      refreshCommunication(struct.id, 2026);
+      refreshBudget(struct.id, annee);
+      refreshCommunication(struct.id, annee);
       refreshFonctionnement(struct.id, annee);
       refreshFraisMission(struct.id, annee);
       refreshInformatique(struct.id, annee);
@@ -2884,6 +2934,292 @@
       initSectionMDE('rh-commentaire', structureId, annee, 'RH');
     }
 
+    function refreshBudget(structureId, annee) {
+
+      annee = 2026;
+
+      const dataN = getBudgetData(structureId, annee);
+      const perimetre = getPerimetreBudget(structureId);
+      const libPerimetre = { 'Metropole': 'DI Métropole', 'SCN': 'SCN', 'Outremer': 'Outremer', 'National': 'National' }[perimetre] || perimetre;
+      const moyPerimetre = getBudgetMoyennes(perimetre, annee);
+      const moyNational  = getBudgetMoyennes('National', annee);
+
+      // ── Vider si pas de données ───────────────────────────────
+      if (!dataN) {
+        ['budget-pill-taux-ae','budget-pill-taux-cp',
+         'budget-pill-montants-ae','budget-pill-montants-cp',
+         'budget-pill-ae-groupe','budget-pill-ae-national',
+         'budget-pill-cp-groupe','budget-pill-cp-national'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.innerHTML = '—';
+        });
+        ['chart-budget-radar-ae','chart-budget-taux-cp','chart-budget-evol'].forEach(id => {
+          const c = Chart.getChart(id); if (c) c.destroy();
+        });
+        const tbody = document.getElementById('budget-types-tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée budgétaire disponible pour ' + annee + '</td></tr>';
+        initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
+        return;
+      }
+
+      // ── Pills globales ────────────────────────────────────────
+      const pctAE = (dataN.taux_ae_total * 100).toFixed(1) + ' %';
+      const pctCP = (dataN.taux_cp_total * 100).toFixed(1) + ' %';
+      document.getElementById('budget-pill-taux-ae').textContent = pctAE;
+      document.getElementById('budget-pill-taux-cp').textContent = pctCP;
+      document.getElementById('budget-pill-montants-ae').textContent =
+        formatCurrency(dataN.conso_ae_total, 0) + ' / ' + formatCurrency(dataN.dot_ae_total, 0);
+      document.getElementById('budget-pill-montants-cp').textContent =
+        formatCurrency(dataN.conso_cp_total, 0) + ' / ' + formatCurrency(dataN.dot_cp_total, 0);
+
+      const fmtDiff = (val, moy, label) => {
+        if (!moy || moy === 0) return '—';
+        const diff = (val - moy) * 100;
+        const s = diff >= 0 ? '+' : '';
+        return `${label} : ${s}${diff.toFixed(1)} pts`;
+      };
+
+      if (moyPerimetre) {
+        document.getElementById('budget-pill-ae-groupe').innerHTML =
+          fmtDiff(dataN.taux_ae_total, moyPerimetre.taux_ae_total, `Moy. ${libPerimetre}`);
+        document.getElementById('budget-pill-cp-groupe').innerHTML =
+          fmtDiff(dataN.taux_cp_total, moyPerimetre.taux_cp_total, `Moy. ${libPerimetre}`);
+      }
+      if (moyNational) {
+        document.getElementById('budget-pill-ae-national').innerHTML =
+          fmtDiff(dataN.taux_ae_total, moyNational.taux_ae_total, 'National');
+        document.getElementById('budget-pill-cp-national').innerHTML =
+          fmtDiff(dataN.taux_cp_total, moyNational.taux_cp_total, 'National');
+      }
+
+      // ── Radar répartition dotations AE ───────────────────────
+      createBudgetRadarAE(dataN, moyPerimetre, libPerimetre);
+
+      // ── Barres taux CP par catégorie ─────────────────────────
+      createBudgetTauxCP(dataN, moyPerimetre, moyNational, libPerimetre);
+
+      // ── Évolution multi-années ────────────────────────────────
+      createBudgetEvol(structureId);
+
+      // ── Tableau par catégorie ─────────────────────────────────
+      createBudgetTable(dataN, moyPerimetre, libPerimetre, annee);
+
+      initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
+    }
+
+    function createBudgetRadarAE(data, moy, libPerimetre) {
+      const canvas = document.getElementById('chart-budget-radar-ae');
+      if (!canvas) return;
+      const existing = Chart.getChart('chart-budget-radar-ae');
+      if (existing) existing.destroy();
+
+      const total = data.dot_ae_total || 1;
+      const moyTotal = moy ? (moy.taux_ae_vehicules !== undefined ? 1 : 1) : 1; // non utilisé
+
+      // Répartition en % des dotations AE
+      const labels = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
+      const structPct = [
+        data.dot_ae_vehicules / total * 100,
+        data.dot_ae_fonctionnement / total * 100,
+        data.dot_ae_t6 / total * 100,
+        data.dot_ae_immo / total * 100,
+      ];
+
+      // Répartition périmètre — calculée depuis les taux moyens pondérés si dispo
+      // Ici on affiche uniquement la structure (radar mono) faute de répartition périmètre disponible
+      new Chart(canvas, {
+        type: 'radar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Cette structure',
+            data: structPct,
+            backgroundColor: 'rgba(19,81,168,0.15)',
+            borderColor: 'rgba(19,81,168,0.9)',
+            borderWidth: 2,
+            pointBackgroundColor: 'rgba(19,81,168,0.9)',
+            pointRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label} : ${ctx.parsed.r.toFixed(1)} %`
+              }
+            }
+          },
+          scales: {
+            r: {
+              beginAtZero: true,
+              ticks: { callback: v => v + ' %', font: { size: 10 } },
+              pointLabels: { font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    function createBudgetTauxCP(data, moy, moyNat, libPerimetre) {
+      const canvas = document.getElementById('chart-budget-taux-cp');
+      if (!canvas) return;
+      const existing = Chart.getChart('chart-budget-taux-cp');
+      if (existing) existing.destroy();
+
+      const labels = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
+      const structTaux = [
+        data.taux_cp_vehicules * 100,
+        data.taux_cp_fonctionnement * 100,
+        data.taux_cp_t6 * 100,
+        data.taux_cp_immo * 100,
+      ];
+      const moyTaux = moy ? [
+        moy.taux_cp_vehicules * 100,
+        moy.taux_cp_fonctionnement * 100,
+        moy.taux_cp_t6 * 100,
+        moy.taux_cp_immo * 100,
+      ] : null;
+
+      const datasets = [{
+        label: 'Cette structure',
+        data: structTaux,
+        backgroundColor: 'rgba(19,81,168,0.7)',
+        borderColor: 'rgba(19,81,168,1)',
+        borderWidth: 1,
+      }];
+
+      if (moyTaux) {
+        datasets.push({
+          label: `Moy. ${libPerimetre}`,
+          data: moyTaux,
+          backgroundColor: 'rgba(180,180,180,0.5)',
+          borderColor: 'rgba(120,120,120,0.8)',
+          borderWidth: 1,
+        });
+      }
+
+      new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label} : ${ctx.parsed.y.toFixed(1)} %`
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: { callback: v => v + ' %', font: { size: 10 } }
+            },
+            x: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    function createBudgetEvol(structureId) {
+      const canvas = document.getElementById('chart-budget-evol');
+      if (!canvas) return;
+      const existing = Chart.getChart('chart-budget-evol');
+      if (existing) existing.destroy();
+
+      const historique = getBudgetHistorique(structureId);
+      const annees = Object.keys(historique).map(Number).sort();
+      if (annees.length === 0) return;
+
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: annees,
+          datasets: [
+            {
+              label: 'Dotation CP',
+              data: annees.map(a => historique[a].dot_cp_total),
+              backgroundColor: 'rgba(180,180,180,0.6)',
+              borderColor: 'rgba(120,120,120,0.8)',
+              borderWidth: 1,
+              order: 2,
+            },
+            {
+              label: 'Consommation CP',
+              data: annees.map(a => historique[a].conso_cp_total),
+              backgroundColor: 'rgba(19,81,168,0.7)',
+              borderColor: 'rgba(19,81,168,1)',
+              borderWidth: 1,
+              order: 1,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label} : ${formatCurrency(ctx.parsed.y, 0)}`
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { callback: v => formatCurrency(v, 0), font: { size: 10 } }
+            },
+            x: { ticks: { font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function createBudgetTable(data, moy, libPerimetre, annee) {
+      const tbody = document.getElementById('budget-types-tbody');
+      if (!tbody) return;
+      document.getElementById('budget-table-title').textContent =
+        `Exécution budgétaire par catégorie — ${annee}`;
+
+      const categories = [
+        { label: 'Véhicules',        dot_ae: data.dot_ae_vehicules,      conso_ae: data.conso_ae_vehicules,      taux_ae: data.taux_ae_vehicules,      dot_cp: data.dot_cp_vehicules,      conso_cp: data.conso_cp_vehicules,      taux_cp: data.taux_cp_vehicules,      moy_cp: moy?.taux_cp_vehicules },
+        { label: 'Fonctionnement',   dot_ae: data.dot_ae_fonctionnement,  conso_ae: data.conso_ae_fonctionnement, taux_ae: data.taux_ae_fonctionnement,  dot_cp: data.dot_cp_fonctionnement,  conso_cp: data.conso_cp_fonctionnement, taux_cp: data.taux_cp_fonctionnement,  moy_cp: moy?.taux_cp_fonctionnement },
+        { label: 'T6 Buralistes',    dot_ae: data.dot_ae_t6,             conso_ae: data.conso_ae_t6,            taux_ae: data.taux_ae_t6,             dot_cp: data.dot_cp_t6,             conso_cp: data.conso_cp_t6,            taux_cp: data.taux_cp_t6,            moy_cp: moy?.taux_cp_t6 },
+        { label: 'Immobilier',       dot_ae: data.dot_ae_immo,           conso_ae: data.conso_ae_immo,          taux_ae: data.taux_ae_immo,           dot_cp: data.dot_cp_immo,           conso_cp: data.conso_cp_immo,          taux_cp: data.taux_cp_immo,          moy_cp: moy?.taux_cp_immo },
+        { label: '<strong>Total</strong>', dot_ae: data.dot_ae_total, conso_ae: data.conso_ae_total, taux_ae: data.taux_ae_total, dot_cp: data.dot_cp_total, conso_cp: data.conso_cp_total, taux_cp: data.taux_cp_total, moy_cp: moy?.taux_cp_total, isTotal: true },
+      ];
+
+      const fmtTaux = (v) => {
+        if (v === null || v === undefined || isNaN(v)) return '—';
+        const pct = v * 100;
+        const color = pct >= 80 ? 'var(--rouge)' : pct >= 50 ? 'var(--orange)' : 'var(--vert)';
+        return `<span style="color:${color};font-weight:600;">${pct.toFixed(1)} %</span>`;
+      };
+      const fmtMoy = (v) => {
+        if (v === null || v === undefined || isNaN(v) || v === 0) return '—';
+        return `${(v * 100).toFixed(1)} %`;
+      };
+
+      tbody.innerHTML = categories.map(c => `
+        <tr${c.isTotal ? ' style="font-weight:600;border-top:2px solid var(--bord);background:var(--gris4);"' : ''}>
+          <td>${c.label}</td>
+          <td style="text-align:right;">${formatCurrency(c.dot_ae, 0)}</td>
+          <td style="text-align:right;">${formatCurrency(c.conso_ae, 0)}</td>
+          <td style="text-align:right;">${fmtTaux(c.taux_ae)}</td>
+          <td style="text-align:right;">${formatCurrency(c.dot_cp, 0)}</td>
+          <td style="text-align:right;">${formatCurrency(c.conso_cp, 0)}</td>
+          <td style="text-align:right;">${fmtTaux(c.taux_cp)}</td>
+          <td style="text-align:right;color:var(--gris2);">${fmtMoy(c.moy_cp)}</td>
+        </tr>`).join('');
+    }
+
     function refreshFraisMission(structureId, annee) {
   // Année courante et année précédente
   const anneeCourante = annee;
@@ -3528,6 +3864,11 @@ function createInformatiqueChart(annees, portables, fixes) {
   });
 }
 
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // FONCTIONS GRAPHIQUES ET TABLEAU BUDGET
+    // ═══════════════════════════════════════════════════════════════
 
 
     // Initialisation
