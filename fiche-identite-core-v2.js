@@ -270,9 +270,9 @@ async function loadAllData() {
       grist.docApi.fetchTable('Communication').catch(() => null),
       grist.docApi.fetchTable('Fonctionnement').catch(() => null),
       grist.docApi.fetchTable('Budget').catch(() => null),
-      grist.docApi.fetchTable('Consolidation'),
-      grist.docApi.fetchTable('Consolidation_Structure'),
-      grist.docApi.fetchTable('Commentaires'),
+      grist.docApi.fetchTable('Consolidation').catch(() => null),
+      grist.docApi.fetchTable('Consolidation_Structure').catch(() => null),
+      grist.docApi.fetchTable('Commentaires').catch(() => null),
       grist.docApi.fetchTable('Immobilier').catch(() => null)
     ]);
     
