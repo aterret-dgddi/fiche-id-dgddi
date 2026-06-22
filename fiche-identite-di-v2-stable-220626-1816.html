@@ -1,0 +1,3878 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fiche Identité - Indicateurs de gestion</title>
+  
+  <!-- Fonts -->
+  <link href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/icons/icons.min.css" rel="stylesheet">
+  
+  <!-- Scripts externes -->
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Éditeur Markdown pour les zones de commentaires -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+  
+  <style>
+    @font-face {
+  font-family: 'Marianne';
+  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Light.woff2') format('woff2');
+  font-weight: 300; font-style: normal;
+}
+@font-face {
+  font-family: 'Marianne';
+  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal;
+}
+@font-face {
+  font-family: 'Marianne';
+  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Medium.woff2') format('woff2');
+  font-weight: 500; font-style: normal;
+}
+@font-face {
+  font-family: 'Marianne';
+  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Bold.woff2') format('woff2');
+  font-weight: 700; font-style: normal;
+}
+@font-face {
+  font-family: 'Marianne';
+  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Heavy.woff2') format('woff2');
+  font-weight: 800; font-style: normal;
+}
+
+    :root {
+      --rep: #002F6C;
+      --rep2: #1351A8;
+      --rep-pale: #E6ECF8;
+      --rouge: #B52020;
+      --vert: #1A6B3C;
+      --orange: #C05A00;
+      --jaune: #8A6800;
+      --gris1: #1E2D3D;
+      --gris2: #4A5A6A;
+      --gris3: #8A9BAA;
+      --gris4: #EEF2F7;
+      --blanc: #FFFFFF;
+      --bord: #CDD6E4;
+      --shadow: 0 2px 8px rgba(0,30,80,.10);
+      --shadow-lg: 0 8px 32px rgba(0,20,70,.22);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 13px; }
+    body {
+      font-family: 'Marianne', sans-serif;
+      background: #F2F5FA;
+      color: var(--gris1);
+      line-height: 1.5;
+    }
+
+    /* ══════════════════════════════════ */
+    /* BARRE SÉLECTEUR */
+    /* ══════════════════════════════════ */
+    #selbar {
+      background: #fff;
+      border-bottom: 2px solid var(--rep);
+      padding: 8px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      box-shadow: 0 2px 6px rgba(0,20,70,.07);
+    }
+
+    #selbar label {
+      font-weight: 700;
+      color: var(--rep);
+      font-size: 11.5px;
+      white-space: nowrap;
+    }
+
+    #selector-wrap {
+      position: relative;
+      flex: 1;
+      max-width: 520px;
+    }
+
+    #sel-input {
+      width: 100%;
+      padding: 7px 35px 7px 12px;
+      border: 2px solid var(--bord);
+      border-radius: 6px;
+      font-family: 'Marianne', sans-serif;
+      font-size: 12.5px;
+      font-weight: 600;
+      background: var(--blanc);
+      color: var(--gris1);
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    #sel-input:focus,
+    #sel-input.open {
+      outline: none;
+      border-color: var(--rep);
+      box-shadow: 0 0 0 3px var(--rep-pale);
+    }
+
+    #sel-chevron {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gris3);
+      pointer-events: none;
+      transition: transform .2s;
+    }
+
+    #sel-input.open + #sel-chevron {
+      transform: translateY(-50%) rotate(180deg);
+    }
+
+    #sel-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 4px;
+      background: var(--blanc);
+      border: 2px solid var(--rep);
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      max-height: 420px;
+      display: none;
+      flex-direction: column;
+      z-index: 250;
+    }
+
+    #sel-dropdown.open {
+      display: flex;
+    }
+
+    #sel-search-wrap {
+      position: relative;
+      padding: 10px;
+      border-bottom: 1px solid var(--bord);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: var(--gris3);
+    }
+
+    #sel-search {
+      width: 100%;
+      padding: 8px 12px 8px 35px;
+      border: 1px solid var(--bord);
+      border-radius: 5px;
+      font-size: 12.5px;
+      font-family: 'Marianne', sans-serif;
+    }
+
+    #sel-search:focus {
+      outline: none;
+      border-color: var(--rep);
+    }
+
+    #sel-list {
+      overflow-y: auto;
+      max-height: 340px;
+    }
+
+    .sel-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background .12s;
+      border-bottom: 1px solid var(--gris4);
+    }
+
+    .sel-item:hover {
+      background: var(--rep-pale);
+    }
+
+    .sel-item.active {
+      background: var(--rep);
+      color: white;
+    }
+
+    .sel-item-main {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .sel-item-meta {
+      font-size: 11px;
+      color: var(--gris3);
+    }
+
+    .sel-item.active .sel-item-meta {
+      color: rgba(255,255,255,0.8);
+    }
+
+    #cur-badge {
+      padding: 3px 9px;
+      border-radius: 4px;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    #cur-badge.DI { background: #007bff; color: white; }
+    #cur-badge.SCN { background: #198754; color: white; }
+    #cur-badge.Siège { background: #003366; color: white; }
+    #cur-badge.Outremer { background: #6f42c1; color: white; }
+
+    /* Boutons d'export dans selbar */
+    #selbar .tbtn {
+      background: var(--rep);
+      border: 1px solid var(--rep2);
+      color: #fff;
+      padding: 5px 11px;
+      border-radius: 5px;
+      font-family: 'Marianne', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    #selbar .tbtn:hover {
+      background: var(--rep2);
+      box-shadow: 0 2px 6px rgba(0,47,108,0.3);
+    }
+
+    #selbar .tbtn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    /* ══════════════════════════════════ */
+    /* ENCADRÉ COMMENTAIRE */
+    /* ══════════════════════════════════ */
+    .comment-box {
+      background: linear-gradient(135deg, #f8f9fd 0%, #ffffff 100%);
+      border: 2px solid var(--rep);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .comment-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--rep-pale);
+    }
+
+    .comment-icon {
+      font-size: 20px;
+      color: var(--rep);
+    }
+
+    .comment-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--rep);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .comment-description {
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--gris1);
+      margin-bottom: 16px;
+      padding: 0 4px;
+    }
+    .comment-description p { margin: 0 0 6px 0; }
+    .comment-description p:last-child { margin-bottom: 0; }
+    .comment-description strong { font-weight: 700; }
+    .comment-description em { font-style: italic; }
+    .comment-description ul, .comment-description ol { padding-left: 18px; margin: 4px 0; }
+    .comment-description li { margin: 2px 0; }
+
+    .comment-pills-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .comment-pills-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gris3);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      flex-shrink: 0;
+    }
+
+    .comment-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    .comment-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 16px;
+      font-size: 11.5px;
+      font-weight: 600;
+      transition: all .2s;
+      border: 1.5px solid transparent;
+    }
+
+    .comment-pill.urgent {
+      background: linear-gradient(135deg, #fee 0%, #fcc 100%);
+      color: var(--rouge);
+      border-color: #fcc;
+    }
+
+    .comment-pill.urgent:hover {
+      background: linear-gradient(135deg, #fcc 0%, #faa 100%);
+      box-shadow: 0 2px 8px rgba(181, 32, 32, 0.25);
+    }
+
+    .comment-pill.important {
+      background: linear-gradient(135deg, #fff5e6 0%, #ffe4b3 100%);
+      color: var(--orange);
+      border-color: #ffe4b3;
+    }
+
+    .comment-pill.important:hover {
+      background: linear-gradient(135deg, #ffe4b3 0%, #ffd699 100%);
+      box-shadow: 0 2px 8px rgba(192, 90, 0, 0.25);
+    }
+
+    .comment-pill.watch {
+      background: linear-gradient(135deg, #e6f3ff 0%, #cce5ff 100%);
+      color: #0066cc;
+      border-color: #cce5ff;
+    }
+
+    .comment-pill.watch:hover {
+      background: linear-gradient(135deg, #cce5ff 0%, #b3d9ff 100%);
+      box-shadow: 0 2px 8px rgba(0, 102, 204, 0.25);
+    }
+
+    .comment-pill.opportunity {
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      color: var(--vert);
+      border-color: #c8e6c9;
+    }
+
+    .comment-pill.opportunity:hover {
+      background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
+      box-shadow: 0 2px 8px rgba(26, 107, 60, 0.25);
+    }
+
+    .comment-pill-icon {
+      font-size: 13px;
+    }
+
+    /* ══════════════════════════════════ */
+    /* NAVIGATION RAPIDE */
+    /* ══════════════════════════════════ */
+    #quick-nav {
+      background: #fff;
+      border-bottom: 1px solid var(--bord);
+      padding: 5px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 5px 6px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 41px;
+      z-index: 190;
+      box-shadow: 0 2px 4px rgba(0,20,70,.05);
+    }
+
+    #qnav-items { display: contents; }
+
+    .qnav-label {
+      font-size: 10px;
+      color: var(--gris3);
+      flex-shrink: 0;
+      white-space: nowrap;
+      align-self: center;
+      margin-right: 2px;
+      font-weight: 600;
+    }
+
+    .qnav-btn {
+      border: none;
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-size: 10.5px;
+      cursor: pointer;
+      margin: 1px 2px;
+      color: white;
+      font-weight: 600;
+      white-space: nowrap;
+      line-height: 1.2;
+      transition: all .15s;
+    }
+
+    .qnav-btn.Siège { background: #003366; }
+    .qnav-btn.DI { background: #007bff; }
+    .qnav-btn.Outremer { background: #6f42c1; }
+    .qnav-btn.SCN { background: #198754; }
+
+    .qnav-btn.active {
+      outline: 2px solid #fff;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+      filter: brightness(1.15);
+    }
+
+    .qnav-btn:hover {
+      filter: brightness(1.1);
+    }
+
+    /* ══════════════════════════════════ */
+    /* LOADER */
+    /* ══════════════════════════════════ */
+    #loading {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--gris2);
+    }
+
+    .spin {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--gris4);
+      border-top-color: var(--rep);
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ══════════════════════════════════ */
+    /* EN-TÊTE FICHE IDENTITÉ */
+    /* ══════════════════════════════════ */
+    .fiche-header {
+      background: white;
+      border-radius: 12px;
+      padding: 24px 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-lg);
+      border-left: 5px solid var(--rep);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .fiche-header-logo {
+      flex-shrink: 0;
+    }
+
+    .fiche-header-logo img,
+    .fiche-header-logo svg {
+      height: 80px;
+      width: auto;
+      display: block;
+    }
+
+    .fiche-header-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .fiche-header-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--rep);
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    .fiche-header-subtitle {
+      font-size: 16px;
+      color: var(--gris2);
+      font-weight: 500;
+    }
+
+    .fiche-header-meta {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .fiche-header-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--gris2);
+    }
+
+    .fiche-header-meta-item svg {
+      width: 16px;
+      height: 16px;
+      fill: var(--rep2);
+    }
+
+    .fiche-header-meta-label {
+      font-weight: 600;
+      color: var(--gris3);
+    }
+
+    .fiche-header-meta-value {
+      color: var(--gris1);
+      font-weight: 500;
+    }
+
+    /* ══════════════════════════════════ */
+    /* CONTENU FICHE */
+    /* ══════════════════════════════════ */
+    #fiche-body {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--gris4);
+    }
+
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--rep), var(--rep2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: white;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--gris1);
+    }
+
+    /* Metrics */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--gris4);
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid var(--bord);
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--gris2);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--gris1);
+    }
+
+    .metric-unit {
+      font-size: 14px;
+      color: var(--gris2);
+      font-weight: 400;
+      margin-left: 4px;
+    }
+
+    /* KPI Cards Style Douane */
+    .kpi-card {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-left: 3px solid #0053A0;
+      padding: 14px 16px;
+      border-radius: 4px;
+    }
+
+    .kpi-card-label {
+      font-size: 10px;
+      color: #6c757d;
+      font-weight: 600;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .kpi-card-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #0053A0;
+      margin-bottom: 6px;
+      line-height: 1;
+    }
+
+    .kpi-card-details {
+      font-size: 10px;
+      color: #495057;
+      line-height: 1.4;
+    }
+
+    .kpi-card-details > div {
+      margin-bottom: 2px;
+    }
+
+    /* Charts */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .chart-container {
+      background: white;
+      border: 1px solid var(--bord);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gris2);
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 200px;
+    }
+
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table thead {
+      background: var(--gris4);
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 12px;
+      font-weight: 600;
+      color: var(--gris2);
+      border-bottom: 2px solid var(--bord);
+    }
+
+    .data-table td {
+      padding: 12px;
+      border-bottom: 1px solid var(--gris4);
+    }
+
+    .data-table tbody tr:hover {
+      background: var(--gris4);
+    }
+
+    .table-value {
+      font-weight: 500;
+      color: var(--gris1);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-success { background: #D1FAE5; color: #065F46; }
+    .badge-warning { background: #FEF3C7; color: #92400E; }
+    .badge-danger { background: #FEE2E2; color: #991B1B; }
+    .badge-info { background: #DBEAFE; color: #1E40AF; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .metrics-grid { grid-template-columns: 1fr; }
+      .chart-grid { grid-template-columns: 1fr; }
+      #toolbar { flex-direction: column; }
+    }
+
+    @media print {
+      #toolbar, #selbar, #quick-nav, .tbtn { display: none !important; }
+      .section { 
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .kpi-card {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .metrics-grid {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .chart-container {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .data-table {
+        page-break-inside: auto;
+      }
+      .data-table tbody tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+    }
+	
+	
+	/* ══════════════════════════════════ */
+/* FRAIS DE MISSION - PILLS */
+/* ══════════════════════════════════ */
+
+/* Tous les KPI utilisent maintenant le style .kpi-card défini plus haut */
+	
+	/* ══════════════════════════════════ */
+/* INFORMATIQUE - KPI utilisent aussi .kpi-card */
+/* ══════════════════════════════════ */
+
+/* Tous les KPI utilisent .kpi-card */
+	
+	/* ══════════════════════════════════ */
+
+.it-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.6);
+  margin-bottom: 8px;
+}
+	
+	
+/* ========================= VÉHICULES PILLS ========================= */
+
+.veh-pill {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.veh-pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%);
+  opacity: 0.8;
+}
+
+.veh-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Pill Vétusté (rouge) */
+.veh-pill-red {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid #fecaca;
+}
+
+.veh-pill-red::before {
+  background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+}
+
+.veh-pill-red:hover {
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+/* Pill Budget (vert) */
+.veh-pill-green {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0;
+}
+
+.veh-pill-green::before {
+  background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
+}
+
+.veh-pill-green:hover {
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+}
+
+/* Pill Ratio (bleu) */
+.veh-pill-blue {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+}
+
+.veh-pill-blue::before {
+  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+}
+
+.veh-pill-blue:hover {
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* Pill Coût (violet) */
+.veh-pill-purple {
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #e9d5ff;
+}
+
+.veh-pill-purple::before {
+  background: linear-gradient(90deg, #a855f7 0%, #c084fc 100%);
+}
+
+.veh-pill-purple:hover {
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.15);
+}
+
+/* Pill Ratio SU (orange) */
+.veh-pill-orange {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border: 1px solid #fed7aa;
+}
+
+.veh-pill-orange::before {
+  background: linear-gradient(90deg, #f97316 0%, #fb923c 100%);
+}
+
+.veh-pill-orange:hover {
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+}
+
+/* Badge évolution */
+.veh-evolution-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .veh-pill {
+    padding: 14px 16px;
+  }
+  
+  .veh-pill div[style*="font-size:26px"] {
+    font-size: 22px !important;
+  }
+}	
+	
+  /* ═══════════════════════════════════════════════════════════════
+     ÉDITEUR MARKDOWN (EasyMDE) — intégration institutionnelle
+     ═══════════════════════════════════════════════════════════════ */
+  .EasyMDEContainer {
+    font-family: 'Marianne', sans-serif;
+  }
+  .EasyMDEContainer .CodeMirror {
+    font-family: 'Marianne', sans-serif;
+    font-size: 13px;
+    border: 1px solid var(--bord);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    background: #fff;
+    color: var(--gris1);
+    min-height: 90px;
+    padding: 8px;
+  }
+  .EasyMDEContainer .CodeMirror-scroll {
+    min-height: 80px;
+  }
+  .EasyMDEContainer .editor-toolbar {
+    border: 1px solid var(--bord);
+    border-radius: 4px 4px 0 0;
+    background: var(--gris4);
+    padding: 2px 4px;
+    opacity: 1;
+  }
+  .EasyMDEContainer .editor-toolbar button {
+    color: var(--gris2);
+    border-radius: 3px;
+    width: 28px;
+    height: 26px;
+  }
+  .EasyMDEContainer .editor-toolbar button:hover,
+  .EasyMDEContainer .editor-toolbar button.active {
+    background: var(--rep-pale);
+    border-color: var(--rep);
+    color: var(--rep);
+  }
+  .EasyMDEContainer .editor-toolbar i.separator {
+    border-color: var(--bord);
+  }
+  /* Preview Markdown */
+  .EasyMDEContainer .editor-preview {
+    font-family: 'Marianne', sans-serif;
+    font-size: 13px;
+    background: #fafbfd;
+    border: 1px solid var(--bord);
+    color: var(--gris1);
+    padding: 10px 12px;
+  }
+  .EasyMDEContainer .editor-preview p { margin: 0 0 6px 0; }
+  .EasyMDEContainer .editor-preview strong { font-weight: 700; }
+  .EasyMDEContainer .editor-preview ul,
+  .EasyMDEContainer .editor-preview ol { padding-left: 20px; margin: 4px 0; }
+  .EasyMDEContainer .editor-preview li { margin: 2px 0; }
+  /* Rendu Markdown inline (mode lecture) */
+  .md-render p { margin: 0 0 5px 0; }
+  .md-render p:last-child { margin-bottom: 0; }
+  .md-render strong { font-weight: 700; }
+  .md-render em { font-style: italic; }
+  .md-render ul, .md-render ol { padding-left: 18px; margin: 4px 0; }
+  .md-render li { margin: 2px 0; }
+  /* Cache le textarea natif géré par EasyMDE */
+  .easymde-managed { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- ═══════════ SÉLECTEUR ═══════════ -->
+  <div id="selbar">
+    <label>Structure :</label>
+    <div id="selector-wrap">
+      <input type="text" id="sel-input" placeholder="Choisir une structure…" readonly onclick="toggleDropdown()" autocomplete="off">
+      <span id="sel-chevron">▾</span>
+      <div id="sel-dropdown">
+        <div id="sel-search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="sel-search" placeholder="Rechercher par nom, région…" oninput="renderDropdownList(this.value)">
+        </div>
+        <div id="sel-list"></div>
+      </div>
+    </div>
+    <span id="cur-badge"></span>
+    <button class="tbtn" onclick="exportToHTML()">📄 Export HTML</button>
+    <button class="tbtn" onclick="exportToPDF()">📑 Export PDF</button>
+  </div>
+
+  <!-- ═══════════ NAVIGATION RAPIDE ═══════════ -->
+  <div id="quick-nav">
+    <span class="qnav-label">Accès rapide :</span>
+    <div id="qnav-items"></div>
+  </div>
+
+  <!-- ═══════════ FICHE ═══════════ -->
+  <div id="loading">
+    <div class="spin"></div>
+    <span>Connexion à Grist…</span>
+  </div>
+
+  <div id="fiche-body" style="display:none;">
+    
+    <!-- EN-TÊTE FICHE IDENTITÉ -->
+    <div class="fiche-header">
+      <div class="fiche-header-logo">
+        <!-- Logo officiel des Douanes Françaises -->
+        <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg" 
+             alt="Logo des Douanes Françaises" 
+             style="height: 80px; width: auto;">
+      </div>
+      <div class="fiche-header-content">
+        <h1 class="fiche-header-title" id="header-nom">—</h1>
+        <div class="fiche-header-subtitle" id="header-sigle">—</div>
+        <div class="fiche-header-meta">
+          <div class="fiche-header-meta-item">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+            <span class="fiche-header-meta-label">Région :</span>
+            <span class="fiche-header-meta-value" id="header-region">—</span>
+          </div>
+          <div class="fiche-header-meta-item">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+            <span class="fiche-header-meta-label">Responsable :</span>
+            <span class="fiche-header-meta-value" id="header-responsable">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ENCADRÉ COMMENTAIRE GÉNÉRAL -->
+    <div class="comment-box" id="main-comment-box">
+      <div class="comment-header">
+        <span class="comment-icon">💡</span>
+        <span class="comment-title">Vue d'ensemble et points d'attention</span>
+      </div>
+      <div class="comment-pills-wrapper">
+        <span class="comment-pills-label">Sujets :</span>
+        <div class="comment-pills" id="comment-pills">
+          <!-- Pills chargées dynamiquement -->
+        </div>
+      </div>
+      <div class="comment-description" id="comment-description">
+        [Description générale de la structure - sera chargée dynamiquement]
+      </div>
+    </div>
+    
+    <!-- SECTION RH -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🛃</div>
+        <div class="section-title">Ressources Humaines</div>
+      </div>
+      
+      <!-- KPI Pills -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px;">
+        <!-- Effectif Total -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">ETPT Total</div>
+          <div class="kpi-card-value" id="rh-effectif-total">—</div>
+          <div class="kpi-card-details">
+            <div id="rh-effectif-evolution">—</div>
+            <div id="rh-effectif-compare">—</div>
+            <div id="rh-effectif-rang">—</div>
+          </div>
+        </div>
+        
+        <!-- Effectif AGCO -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">ETPT AGCO</div>
+          <div class="kpi-card-value" id="rh-agco-total">—</div>
+          <div class="kpi-card-details">
+            <div id="rh-agco-evolution">—</div>
+            <div id="rh-agco-compare">—</div>
+          </div>
+        </div>
+        
+        <!-- Effectif SU -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">ETPT SU</div>
+          <div class="kpi-card-value" id="rh-su-total">—</div>
+          <div class="kpi-card-details">
+            <div id="rh-su-evolution">—</div>
+            <div id="rh-su-compare">—</div>
+          </div>
+        </div>
+        
+        <!-- Âge Moyen -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">Âge Moyen</div>
+          <div class="kpi-card-value">
+            <span id="rh-age-moyen">—</span>
+            <span style="font-size: 14px; font-weight: 600; color: #6c757d;">ans</span>
+          </div>
+          <div class="kpi-card-details">
+            <div id="rh-age-compare-groupe">—</div>
+            <div id="rh-age-compare-national">—</div>
+          </div>
+        </div>
+        
+        <!-- MS / Agent -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">MS / Agent</div>
+          <div class="kpi-card-value" style="font-size: 28px;" id="rh-ms-par-agent">—</div>
+          <div class="kpi-card-details">
+            <div id="rh-ms-compare-groupe">—</div>
+            <div id="rh-ms-compare-national">—</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Tableau détaillé par DR -->
+      <div style="margin-bottom: 20px;">
+        <h4 style="font-size: 13px; font-weight: 600; color: var(--gris2); margin-bottom: 8px;">📋 Détail par structure</h4>
+        <div style="overflow-x: auto;">
+          <table class="data-table" style="font-size: 11px;">
+            <thead>
+              <tr>
+                <th>Structure</th>
+                <th style="text-align: right;">ETPT Total</th>
+                <th style="text-align: center;">AGCO</th>
+                <th style="text-align: center;">SU</th>
+                <th style="text-align: center;">Autres</th>
+                <th style="text-align: right;">Masse Salariale</th>
+                <th style="text-align: right;">MS/Agent</th>
+                <th style="text-align: center;">Âge Moyen</th>
+              </tr>
+            </thead>
+            <tbody id="rh-detail-tbody"></tbody>
+            <tfoot id="rh-detail-tfoot" style="font-weight: 600; background: var(--gris4);"></tfoot>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Graphiques côte à côte -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+        <div class="chart-container">
+          <div class="chart-title">Évolution des ETPT (toute la série)</div>
+          <div class="chart-wrapper" style="height: 220px;">
+            <canvas id="chart-rh-evolution"></canvas>
+          </div>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Répartition AGCO / SU</div>
+          <div class="chart-wrapper" style="height: 220px;">
+            <canvas id="chart-rh-repartition"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Commentaire RH -->
+      <div>
+        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+        <textarea id="rh-commentaire" 
+                  style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+                  placeholder="Ajouter un commentaire sur les ressources humaines..."></textarea>
+      </div>
+    </div>
+    
+    <!-- SECTION BUDGET -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📈</div>
+        <div class="section-title">Budget & Consommation</div>
+      </div>
+
+      <!-- KPI Pills : taux globaux -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;">
+        <div class="kpi-card">
+          <div class="kpi-card-label">Consommation AE globale</div>
+          <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-ae">—</div>
+          <div class="kpi-card-details">
+            <div id="budget-pill-montants-ae" style="font-weight:600;margin-bottom:4px;">—</div>
+            <div id="budget-pill-ae-groupe">—</div>
+            <div id="budget-pill-ae-national">—</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-label">Consommation CP globale</div>
+          <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-cp">—</div>
+          <div class="kpi-card-details">
+            <div id="budget-pill-montants-cp" style="font-weight:600;margin-bottom:4px;">—</div>
+            <div id="budget-pill-cp-groupe">—</div>
+            <div id="budget-pill-cp-national">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Graphiques : radar structure + taux par catégorie -->
+      <div class="chart-grid">
+        <!-- Radar répartition dotations -->
+        <div class="chart-container">
+          <div class="chart-title">Répartition des dotations (AE)</div>
+          <div class="chart-subtitle" id="budget-radar-subtitle">Structure vs moyenne périmètre</div>
+          <div class="chart-wrapper" style="position:relative;height:280px;">
+            <canvas id="chart-budget-radar-ae"></canvas>
+          </div>
+        </div>
+        <!-- Taux de consommation par catégorie -->
+        <div class="chart-container">
+          <div class="chart-title">Taux de consommation par catégorie (CP)</div>
+          <div class="chart-subtitle" id="budget-taux-subtitle">Structure vs moyenne périmètre</div>
+          <div class="chart-wrapper" style="position:relative;height:280px;">
+            <canvas id="chart-budget-taux-cp"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vue évolutive multi-années -->
+      <div style="margin-top:24px;">
+        <div class="chart-title">Évolution des dotations et consommations (CP)</div>
+        <div class="chart-wrapper" style="position:relative;height:240px;">
+          <canvas id="chart-budget-evol"></canvas>
+        </div>
+      </div>
+
+      <!-- Tableau par catégorie -->
+      <div style="margin-top:24px;">
+        <div class="chart-title" id="budget-table-title">Exécution budgétaire par catégorie — 2026</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Catégorie</th>
+              <th style="text-align:right;">Dotation AE</th>
+              <th style="text-align:right;">Conso AE</th>
+              <th style="text-align:right;">Taux AE</th>
+              <th style="text-align:right;">Dotation CP</th>
+              <th style="text-align:right;">Conso CP</th>
+              <th style="text-align:right;">Taux CP</th>
+              <th style="text-align:right;">Moy. périmètre CP</th>
+            </tr>
+          </thead>
+          <tbody id="budget-types-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Commentaire Budget -->
+      <div style="margin-top:20px;">
+        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur</label>
+        <textarea id="budget-commentaire"
+                  style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
+                  placeholder="Ajouter un commentaire sur le budget et la consommation..."></textarea>
+      </div>
+
+    </div><!-- fin section Budget & Consommation -->
+
+    <!-- SECTION DÉPENSES DE COMMUNICATION -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📣</div>
+        <div class="section-title">Dépenses de communication</div>
+      </div>
+
+        <!-- En-tête date d'import -->
+        <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:18px;">
+          <span id="com-date-import" style="font-size:11px;color:var(--gris3);font-style:italic;display:none;"></span>
+        </div>
+
+        <!-- 3 Pills : Cible · CP · Disponible CP — labels mis à jour dynamiquement -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+
+          <div class="kpi-card" style="border-left:3px solid var(--vert);">
+            <div id="com-pill-cible-label" style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">Cible de dépenses 2026 (CP)</div>
+            <div style="font-size:19px;font-weight:600;color:var(--vert);" id="com-pill-cible-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">(80 % des CP 2024)</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid var(--rep2);">
+            <div id="com-pill-cp-label" style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
+            <div style="font-size:19px;font-weight:600;color:var(--rep);" id="com-pill-cp-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Paiements</div>
+          </div>
+
+          <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
+            <div id="com-pill-cap-cp-label" style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Disponible en CP 2026</div>
+            <div style="font-size:19px;font-weight:600;color:#6B3FA0;" id="com-pill-cap-cp-val">—</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité restante</div>
+          </div>
+        </div>
+
+        <!-- KPI Saturation -->
+        <div id="com-sat-wrap" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;background:#F9FAFB;transition:background 0.3s,border-color 0.3s;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span id="com-sat-titre" style="font-size:12px;font-weight:600;color:var(--gris2);">Consommation par rapport à la cible 2026</span>
+            <div style="display:flex;align-items:baseline;gap:8px;">
+              <span id="com-sat-pct" style="font-size:22px;font-weight:700;color:var(--gris2);">—</span>
+              <span id="com-sat-label" style="font-size:11px;font-weight:500;">—</span>
+            </div>
+          </div>
+          <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px;">
+            <div id="com-sat-jauge" style="height:100%;border-radius:4px;width:0%;transition:width 0.5s,background 0.3s;"></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:11px;color:var(--gris2);">Reste disponible</span>
+            <span id="com-sat-reste" style="font-size:13px;font-weight:600;color:var(--gris2);">—</span>
+          </div>
+          <div style="border-top:1px solid #e5e7eb;padding-top:8px;display:flex;flex-direction:column;gap:4px;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+              <span style="color:var(--gris3);">🌍 National :</span>
+              <span id="com-sat-vs-nat" style="font-weight:500;">—</span>
+            </div>
+            <div id="com-sat-vs-per-row" style="display:flex;align-items:center;gap:6px;font-size:11px;">
+              <span style="color:var(--gris3);">📍 Périmètre :</span>
+              <span id="com-sat-vs-per" style="font-weight:500;">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Graphique -->
+        <div class="chart-container" style="margin-bottom:16px;">
+          <div id="com-chart-title" class="chart-title">Consommation de CP de 2022 à 2026</div>
+          <div class="chart-wrapper" style="height:200px;">
+            <canvas id="chart-com-evolution"></canvas>
+          </div>
+        </div>
+
+        <!-- Tableau récapitulatif -->
+        <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;min-width:860px;">
+            <thead>
+              <tr id="com-thead-2026">
+                <th style="background:var(--gris4);border-bottom:0.5px solid var(--bord);padding:6px 12px;"></th>
+                <th colspan="4" style="background:var(--gris4);padding:6px 12px;text-align:center;font-weight:500;font-size:11px;color:var(--gris2);border-bottom:0.5px solid var(--bord);">Historique</th>
+                <th id="com-th-2026-label" colspan="6" style="background:#D4D9F5;padding:6px 12px;text-align:center;font-weight:600;font-size:11px;color:var(--rep);border-bottom:0.5px solid var(--bord);">Consommation budgétaire 2026</th>
+              </tr>
+              <tr style="background:var(--gris4);">
+                <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Structure</th>
+                <th id="com-th-2022" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2022</th>
+                <th id="com-th-2023" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2023</th>
+                <th id="com-th-2024" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2024</th>
+                <th id="com-th-2025" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2025</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--orange);">Restes à payer<br><span style="font-weight:400;">issus 2025</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">AE 2026</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">CP 2026</th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--vert);">Cible 2026<br><span style="font-weight:400;font-size:10px;">(80 % CP 2024)</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">AE</span></th>
+                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">CP</span></th>
+              </tr>
+            </thead>
+            <tbody id="table-com-body">
+              <tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Commentaire Communication -->
+        <div style="margin-top: 16px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+          <textarea id="com-commentaire"
+                    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+                    placeholder="Ajouter un commentaire sur les dépenses de communication..."></textarea>
+        </div>
+    </div><!-- fin section Dépenses de communication -->
+
+    <!-- SECTION FONCTIONNEMENT COURANT -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🏛️</div>
+        <div class="section-title">Fonctionnement courant</div>
+      </div>
+
+      <!-- 4 KPI Pills -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:24px;">
+
+        <!-- PILL 1 : Dépenses de fonctionnement courant en CP -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">Dépenses de fonctionnement courant en CP</div>
+          <div id="fonct-pill-evol">—</div>
+          <div id="fonct-pill-evol-detail" class="kpi-card-details"></div>
+        </div>
+
+        <!-- PILL 2 : Dépenses maîtrisables en CP -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">Dépenses maîtrisables en CP</div>
+          <div id="fonct-pill-pct-m">—</div>
+          <div id="fonct-pill-pct-m-detail" class="kpi-card-details"></div>
+        </div>
+
+        <!-- PILL 3 : Part des dépenses maîtrisables -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">Part des dépenses maîtrisables</div>
+          <div id="fonct-pill-agent-2025">—</div>
+          <div id="fonct-pill-agent-2025-detail" class="kpi-card-details"></div>
+        </div>
+
+        <!-- PILL 4 : Dépenses maîtrisables par ETPT -->
+        <div class="kpi-card">
+          <div class="kpi-card-label">Dépenses maîtrisables par ETPT</div>
+          <div id="fonct-pill-agent-4ans">—</div>
+          <div id="fonct-pill-agent-4ans-detail" class="kpi-card-details"></div>
+        </div>
+
+      </div>
+
+      <!-- Tableau multi-années -->
+      <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;margin-bottom:20px;">
+        <table style="width:100%;border-collapse:collapse;min-width:520px;">
+          <thead>
+            <tr style="background:var(--gris4);">
+              <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Indicateur</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2022</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2023</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2024</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:600;font-size:12px;border-bottom:0.5px solid var(--bord);color:var(--rep);">2025</th>
+            </tr>
+          </thead>
+          <tbody id="fonct-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Commentaire -->
+      <div style="margin-top:4px;">
+        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur</label>
+        <textarea id="fonct-commentaire"
+                  style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
+                  placeholder="Ajouter un commentaire sur le fonctionnement courant..."></textarea>
+      </div>
+    </div><!-- fin section Fonctionnement courant -->
+
+     <!-- SECTION FRAIS DE MISSION -->
+    <!-- À insérer après la section Informatique (ligne 825) et avant la section Véhicules (ligne 828) -->
+    
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">✈️</div>
+        <div class="section-title">Frais de Mission</div>
+      </div>
+      
+      <!-- KPI Pills -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
+        
+        <!-- Total Frais Mission -->
+        <div class="kpi-card" id="fm-pill-total">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">📊</span>
+            <span style="font-size:12px;font-weight:500;">Total frais mission</span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-total-value">—</div>
+          <div class="fm-evolution-badge" id="fm-total-evol"></div>
+          <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="fm-total-comp"></div>
+        </div>
+
+        <!-- Formation -->
+        <div class="kpi-card" id="fm-pill-formation">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">🎓</span>
+            <span style="font-size:12px;font-weight:500;">Formation</span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-formation-value">—</div>
+          <div class="fm-evolution-badge" id="fm-formation-evol"></div>
+          <div style="font-size:10px;opacity:0.6;margin-top:10px;" id="fm-formation-pct"></div>
+        </div>
+
+        <!-- Autres missions -->
+        <div class="kpi-card" id="fm-pill-autres">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">✈️</span>
+            <span style="font-size:12px;font-weight:500;">Autres missions</span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-autres-value">—</div>
+          <div class="fm-evolution-badge" id="fm-autres-evol"></div>
+          <div style="font-size:10px;opacity:0.6;margin-top:10px;" id="fm-autres-pct"></div>
+        </div>
+
+        <!-- Coût moyen par ETPT -->
+        <div class="kpi-card" id="fm-pill-agent">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">👤</span>
+            <span style="font-size:12px;font-weight:500;">Coût moyen / ETPT</span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-agent-value">—</div>
+          <div class="fm-evolution-badge" id="fm-agent-evol"></div>
+          <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="fm-agent-comp"></div>
+        </div>
+
+      </div>
+
+      <!-- Graphique Répartition -->
+      <div class="chart-container" style="margin-bottom:2rem;">
+        <div class="chart-title">Répartition des frais par type (% du total)</div>
+        <div class="chart-wrapper">
+          <canvas id="chart-fm-repartition"></canvas>
+        </div>
+      </div>
+
+      <!-- Tableau détaillé -->
+      <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
+        <table id="table-fm" style="width:100%;border-collapse:collapse;">
+          <thead style="background:var(--gris4);">
+            <tr>
+              <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année / Type</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Transport</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Hébergement</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Repas</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total</th>
+            </tr>
+          </thead>
+          <tbody id="table-fm-body">
+            <!-- Rempli dynamiquement -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Commentaire Frais de Mission -->
+      <div style="margin-top: 20px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+        <textarea id="fm-commentaire" 
+                  style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+                  placeholder="Ajouter un commentaire sur les frais de mission..."></textarea>
+      </div>
+    </div>
+    
+   <!-- SECTION INFORMATIQUE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">💻</div>
+        <div class="section-title">Informatique</div>
+      </div>
+      
+      <!-- KPI Pills -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:2rem;">
+        
+        <!-- Total Postes -->
+        <div class="kpi-card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">💻</span>
+            <span style="font-size:12px;font-weight:500;flex:1;color:#3C3489;">Postes de travail</span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#26215C;" id="it-total">—</div>
+          <div class="it-evolution" id="it-total-evol"></div>
+          <div style="font-size:10px;line-height:1.5;margin-top:10px;opacity:0.6;" id="it-pct-portables"></div>
+        </div>
+
+        <!-- Ratio Poste/Agent -->
+        <div class="kpi-card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">👤</span>
+            <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Ratio poste / ETPT</span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="it-ratio">—</div>
+          <div class="it-evolution" id="it-ratio-evol"></div>
+          <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="it-ratio-comp"></div>
+        </div>
+
+        <!-- Budget IT annuel -->
+        <div class="kpi-card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">💰</span>
+            <span style="font-size:12px;font-weight:500;flex:1;color:#27500A;">Budget IT <span id="it-annee-label">2025</span></span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#173404;" id="it-budget-annuel">—</div>
+          <div class="it-evolution" id="it-budget-annuel-evol"></div>
+          <div style="font-size:10px;line-height:1.5;margin-top:10px;opacity:0.6;">Budget IT total</div>
+        </div>
+
+        <!-- Budget IT Moyen 4 ans -->
+        <div class="kpi-card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">📈</span>
+            <span style="font-size:12px;font-weight:500;flex:1;color:#085041;">Budget IT moyen 4 ans</span>
+          </div>
+          <div class="it-badge" id="it-badge-4ans">Lissé 2022-2025</div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#04342C;" id="it-budget-moyen">—</div>
+          <div style="font-size:10px;line-height:1.5;margin-top:8px;opacity:0.8;">Moyenne lissée pour atténuer<br>l'effet des renouvellements</div>
+        </div>
+
+        <!-- Budget IT par Agent annuel -->
+        <div class="kpi-card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">📊</span>
+            <span style="font-size:12px;font-weight:500;flex:1;color:#633806;">Budget IT / ETPT <span id="it-annee-label2">2025</span></span>
+          </div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#412402;" id="it-budget-agent-annuel">—</div>
+          <div class="it-evolution" id="it-budget-agent-annuel-evol"></div>
+          <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="it-budget-agent-annuel-comp"></div>
+        </div>
+
+        <!-- Budget IT Moyen par Agent 4 ans -->
+        <div class="kpi-card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:18px;line-height:1;">💡</span>
+            <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Budget IT / ETPT moyen 4 ans</span>
+          </div>
+          <div class="it-badge" id="it-badge-4ans2">Lissé 2022-2025</div>
+          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="it-budget-agent-moyen">—</div>
+          <div style="font-size:10px;line-height:1.5;margin-top:8px;" id="it-budget-agent-moyen-comp"></div>
+        </div>
+
+      </div>
+
+      <!-- Graphique -->
+      <div class="chart-container">
+        <div class="chart-title">Répartition du parc (portables vs fixes)</div>
+        <div class="chart-wrapper">
+          <canvas id="chart-it-type"></canvas>
+        </div>
+      </div>
+
+      <!-- Tableau -->
+      <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead style="background:var(--gris4);">
+            <tr>
+              <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Portables</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Fixes</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total postes</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Ratio / ETPT</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Budget IT</th>
+              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Budget / ETPT</th>
+            </tr>
+          </thead>
+          <tbody id="table-it-body">
+            <!-- Rempli dynamiquement -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Commentaire Informatique -->
+      <div style="margin-top: 20px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+        <textarea id="it-commentaire" 
+                  style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+                  placeholder="Ajouter un commentaire sur l'informatique..."></textarea>
+      </div>
+    </div>
+    
+    <!-- ========================= SECTION VÉHICULES ========================= -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🚗</div>
+    <div class="section-title">Parc Automobile</div>
+  </div>
+  
+  <!-- KPI Pills -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
+    
+    <!-- Total Véhicules -->
+    <div class="kpi-card" id="veh-pill-total">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">🚗</span>
+        <span style="font-size:12px;font-weight:500;">Total véhicules</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-total-value">—</div>
+      <div class="veh-evolution-badge" id="veh-total-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-total-comp"></div>
+    </div>
+
+    <!-- Budget Total -->
+    <div class="kpi-card" id="veh-pill-budget">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">💼</span>
+        <span style="font-size:12px;font-weight:500;">Budget total</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-budget-value">—</div>
+      <div class="veh-evolution-badge" id="veh-budget-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-budget-comp"></div>
+    </div>
+
+    <!-- Ratio Véhicule/ETPT -->
+    <div class="kpi-card" id="veh-pill-ratio">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">👤</span>
+        <span style="font-size:12px;font-weight:500;">Véhicule / ETPT</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-ratio-value">—</div>
+      <div class="veh-evolution-badge" id="veh-ratio-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-ratio-comp"></div>
+    </div>
+
+    <!-- Coût par véhicule -->
+    <div class="kpi-card" id="veh-pill-cout">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">💸</span>
+        <span style="font-size:12px;font-weight:500;">Coût fonct. / véhicule</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-cout-value">—</div>
+      <div class="veh-evolution-badge" id="veh-cout-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-cout-comp"></div>
+    </div>
+
+    <!-- Ratio SU (ETPT) -->
+    <div class="kpi-card" id="veh-pill-ratio-su">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">👥</span>
+        <span style="font-size:12px;font-weight:500;">Ratio véhicule / SU (ETPT)</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-ratio-su-value">—</div>
+      <div class="veh-evolution-badge" id="veh-ratio-su-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-ratio-su-comp"></div>
+    </div>
+
+  </div>
+
+  <!-- Graphiques -->
+  <div class="chart-grid">
+    <div class="chart-container">
+      <div class="chart-title">Répartition Vétusté</div>
+      <div class="chart-subtitle">État du parc automobile</div>
+      <div class="chart-wrapper">
+        <canvas id="chart-veh-vetuste"></canvas>
+      </div>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Évolution Budget</div>
+      <div class="chart-subtitle">Fonctionnement + Investissement (K€)</div>
+      <div class="chart-wrapper">
+        <canvas id="chart-veh-budget"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tableau détaillé -->
+  <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;margin-top:2rem;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead style="background:var(--gris4);">
+        <tr>
+          <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Vétustes</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">% Vétusté</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Fonct.</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Invest.</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total Budget</th>
+          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Ratio/ETPT</th>
+        </tr>
+      </thead>
+      <tbody id="table-veh-body">
+        <!-- Rempli dynamiquement -->
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- Commentaire Parc Automobile -->
+  <div style="margin-top: 20px;">
+    <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+    <textarea id="veh-commentaire" 
+              style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+              placeholder="Ajouter un commentaire sur le parc automobile..."></textarea>
+  </div>
+</div>
+
+<!-- ========================= SECTION IMMOBILIER ========================= -->
+<div class="section" id="section-immobilier">
+  <div class="section-header">
+    <div class="section-icon">🏛️</div>
+    <div class="section-title">Immobilier</div>
+  </div>
+
+  <!-- KPI Pills -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
+
+    <!-- SUB Totale + Nb sites fusionnés -->
+    <div class="kpi-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">📐</span>
+        <span style="font-size:12px;font-weight:500;color:#042C53;">Surface SUB totale</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:4px;line-height:1;color:#042C53;" id="immo-sub-value">—</div>
+      <div style="font-size:11px;color:var(--gris2);margin-top:6px;" id="immo-sites-detail"></div>
+    </div>
+
+    <!-- Ratio Occupation -->
+    <div class="kpi-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">👤</span>
+        <span style="font-size:12px;font-weight:500;color:#042C53;">Ratio d'occupation</span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="immo-ratio-value">—</div>
+      <div style="font-size:11px;color:var(--gris2);margin-top:4px;" id="immo-ratio-residents"></div>
+      <div style="font-size:10px;color:var(--gris2);margin-top:2px;">Bureaux uniquement</div>
+      <div style="font-size:10px;line-height:1.5;margin-top:6px;" id="immo-ratio-comp"></div>
+    </div>
+
+    <!-- Coût Surfacique + évolution fusionnés -->
+    <div class="kpi-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">💶</span>
+        <span style="font-size:12px;font-weight:500;color:#042C53;">Coût surfacique <span id="immo-annee-label">N</span></span>
+      </div>
+      <div style="font-size:26px;font-weight:500;margin-bottom:4px;line-height:1;color:#042C53;" id="immo-cout-value">—</div>
+      <div style="font-size:10px;margin-top:4px;" id="immo-cout-evol"></div>
+      <div style="font-size:10px;line-height:1.5;margin-top:4px;" id="immo-cout-comp"></div>
+    </div>
+
+    <!-- Évolution coût surfacique (sparkline) -->
+    <div class="kpi-card" style="grid-column: span 2;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;line-height:1;">📈</span>
+        <span style="font-size:12px;font-weight:500;color:#042C53;">Évolution coût surfacique</span>
+        <span class="it-badge" id="immo-badge-4ans" style="margin-left:auto;">Lissé 2022–2025</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:24px;">
+        <div>
+          <div style="font-size:11px;color:var(--gris2);margin-bottom:4px;">Moyenne 4 ans</div>
+          <div style="font-size:22px;font-weight:500;color:#042C53;" id="immo-cout-moyen">—</div>
+          <div style="font-size:10px;color:var(--gris2);margin-top:4px;" id="immo-energie-note">Électricité + gaz + eau</div>
+        </div>
+        <div style="flex:1;height:80px;position:relative;">
+          <canvas id="chart-immo-cout" width="300" height="80" style="display:block;"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Tableau Domaine public -->
+  <div id="immo-section-public" style="margin-bottom:1.5rem;">
+    <div style="font-size:13px;font-weight:600;color:#042C53;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+      🏛️ Domaine public / mise à disposition
+    </div>
+    <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead style="background:var(--gris4);">
+          <tr>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Libellé</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ville</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Type</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">SUB (m²)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Résidents</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ. (m²/rés.)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Énergie (€)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Coût surf. (€/m²)</th>
+          </tr>
+        </thead>
+        <tbody id="table-immo-public-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tableau Baux privés -->
+  <div id="immo-section-prive" style="margin-bottom:1.5rem;">
+    <div style="font-size:13px;font-weight:600;color:#042C53;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+      🔑 Baux privés
+    </div>
+    <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead style="background:var(--gris4);">
+          <tr>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Libellé</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ville</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Type</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">SUB (m²)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Résidents</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ. (m²/rés.)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Énergie (€)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Coût surf. (€/m²)</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Fin de bail</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Loyer annuel (€)</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Loyer/m² (€)</th>
+          </tr>
+        </thead>
+        <tbody id="table-immo-prive-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Commentaire Immobilier -->
+  <div style="margin-top:20px;">
+    <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur Immobilier</label>
+    <textarea id="immo-commentaire"
+              style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
+              placeholder="Ajouter un commentaire sur l'immobilier..."></textarea>
+  </div>
+</div>
+    
+  </div>
+
+  <!-- Core functions -->
+  <script src="https://aterret-dgddi.github.io/fiche-id-dgddi/fiche-identite-core-v2.js"></script>
+
+  <script>
+    // État global
+    let allStructures = [];
+    let filteredStructures = [];
+
+    // Sélecteur
+    function toggleDropdown() {
+      const dropdown = document.getElementById('sel-dropdown');
+      const input = document.getElementById('sel-input');
+      const isOpen = dropdown.classList.contains('open');
+      
+      if (isOpen) {
+        closeDropdown();
+      } else {
+        dropdown.classList.add('open');
+        input.classList.add('open');
+        document.getElementById('sel-search').focus();
+      }
+    }
+
+    function closeDropdown() {
+      document.getElementById('sel-dropdown').classList.remove('open');
+      document.getElementById('sel-input').classList.remove('open');
+      document.getElementById('sel-search').value = '';
+    }
+
+    function renderDropdownList(searchTerm = '') {
+      const list = document.getElementById('sel-list');
+      list.innerHTML = '';
+      
+      const term = searchTerm.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      
+      filteredStructures = allStructures.filter(s => {
+        const nom = s.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const sigle = (s.sigle || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const region = (s.region || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return nom.includes(term) || sigle.includes(term) || region.includes(term);
+      });
+      
+      filteredStructures.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'sel-item';
+        if (FICHE_STATE.structure && FICHE_STATE.structure.id === s.id) {
+          item.classList.add('active');
+        }
+        item.innerHTML = `
+          <div class="sel-item-main">${s.sigle} — ${s.nom}</div>
+          <div class="sel-item-meta">${s.type} • ${s.region || ''}</div>
+        `;
+        item.onclick = () => {
+          selectStructure(s.id);
+          closeDropdown();
+        };
+        list.appendChild(item);
+      });
+      
+      if (filteredStructures.length === 0) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gris3)">Aucune structure trouvée</div>';
+      }
+    }
+
+    function selectStructure(id) {
+      setStructure(id);
+      updateSelectorDisplay();
+      updateQuickNavActive();
+      updateFicheHeader(); // Mettre à jour l'en-tête
+    }
+
+    function updateFicheHeader() {
+      if (!FICHE_STATE.structure) return;
+      
+      const s = FICHE_STATE.structure;
+      
+      // Mettre à jour le nom
+      document.getElementById('header-nom').textContent = s.nom || '—';
+      
+      // Mettre à jour le sigle
+      const sigleElement = document.getElementById('header-sigle');
+      if (s.sigle) {
+        sigleElement.textContent = s.sigle;
+        sigleElement.style.display = 'block';
+      } else {
+        sigleElement.style.display = 'none';
+      }
+      
+      // Mettre à jour la région
+      const regionElement = document.getElementById('header-region');
+      if (s.region) {
+        regionElement.textContent = s.region;
+        regionElement.parentElement.style.display = 'flex';
+      } else {
+        regionElement.parentElement.style.display = 'none';
+      }
+      
+      // Mettre à jour le responsable
+      const structures = FICHE_STATE.data.structures;
+      const idx = structures.id.indexOf(s.id);
+      const responsable = idx !== -1 && structures.Responsable ? structures.Responsable[idx] : '';
+      
+      const responsableElement = document.getElementById('header-responsable');
+      if (responsable) {
+        responsableElement.textContent = responsable;
+        responsableElement.parentElement.style.display = 'flex';
+      } else {
+        responsableElement.textContent = 'Non renseigné';
+        responsableElement.parentElement.style.display = 'flex';
+      }
+    }
+
+    function updateSelectorDisplay() {
+      if (!FICHE_STATE.structure) return;
+      
+      const s = FICHE_STATE.structure;
+      document.getElementById('sel-input').value = `${s.sigle} — ${s.nom}`;
+      
+      const badge = document.getElementById('cur-badge');
+      badge.textContent = s.type;
+      badge.className = s.type;
+    }
+
+    function renderQuickNav() {
+      const container = document.getElementById('qnav-items');
+      container.innerHTML = '';
+      
+      // Grouper par catégorie
+      const siege = allStructures.filter(s => s.type === 'Siège');
+      const di = allStructures.filter(s => s.type === 'DI');
+      const scn = allStructures.filter(s => s.type === 'SCN');
+      const drOutremer = allStructures.filter(s => s.type === 'DR' && s.est_outremer);
+      
+      // Afficher Siège
+      siege.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'qnav-btn Siège';
+        btn.textContent = s.sigle || 'Siège';
+        btn.dataset.id = s.id;
+        btn.onclick = () => selectStructure(s.id);
+        container.appendChild(btn);
+      });
+      
+      // Afficher DI
+      di.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'qnav-btn DI';
+        btn.textContent = s.sigle;
+        btn.dataset.id = s.id;
+        btn.onclick = () => selectStructure(s.id);
+        container.appendChild(btn);
+      });
+      
+      // Afficher SCN
+      scn.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'qnav-btn SCN';
+        btn.textContent = s.sigle;
+        btn.dataset.id = s.id;
+        btn.onclick = () => selectStructure(s.id);
+        container.appendChild(btn);
+      });
+      
+      // Afficher DR Outremer
+      drOutremer.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'qnav-btn Outremer';
+        btn.textContent = s.sigle || s.nom.substring(0, 15);
+        btn.dataset.id = s.id;
+        btn.onclick = () => selectStructure(s.id);
+        container.appendChild(btn);
+      });
+    }
+
+    function updateQuickNavActive() {
+      document.querySelectorAll('.qnav-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      if (FICHE_STATE.structure) {
+        const btn = document.querySelector(`.qnav-btn[data-id="${FICHE_STATE.structure.id}"]`);
+        if (btn) btn.classList.add('active');
+      }
+    }
+
+    // Click outside pour fermer dropdown
+    document.addEventListener('click', (e) => {
+      if (!document.getElementById('selector-wrap').contains(e.target)) {
+        closeDropdown();
+      }
+    });
+
+    // Override onDataLoaded
+    function onDataLoaded() {
+      // Définir automatiquement la dernière année disponible
+      FICHE_STATE.annee = getDerniereAnnee();
+      
+      // Construire la liste des structures
+      const structures = FICHE_STATE.data.structures;
+      
+      // Filtrer : Siège, DI, SCN, DR Outremer uniquement
+      allStructures = structures.id.map((id, idx) => ({
+        id: id,
+        hie: structures.HIE[idx],
+        nom: structures.Nom[idx],
+        sigle: structures.Sigle[idx],
+        type: structures.Type[idx],
+        region: structures.Region[idx] || '',
+        est_outremer: structures.Est_Outremer ? structures.Est_Outremer[idx] : false
+      })).filter(s => {
+        // Garder : Siège, DI, SCN, ou (DR Outremer)
+        return s.type === 'Siège' || 
+               s.type === 'DI' || 
+               s.type === 'SCN' || 
+               (s.type === 'DR' && s.est_outremer === true);
+      });
+      
+      // Trier par type puis nom
+      allStructures.sort((a, b) => {
+        const typeOrder = { 'Siège': 0, 'DI': 1, 'SCN': 2, 'DR': 3 };
+        if (typeOrder[a.type] !== typeOrder[b.type]) {
+          return typeOrder[a.type] - typeOrder[b.type];
+        }
+        return a.nom.localeCompare(b.nom);
+      });
+      
+      
+      // Initialiser les composants
+      renderQuickNav();
+      renderDropdownList();
+      
+      // Sélectionner la première DI (pas le Siège)
+      const premieresDI = allStructures.filter(s => s.type === 'DI');
+      if (premieresDI.length > 0) {
+        selectStructure(premieresDI[0].id);
+      } else if (allStructures.length > 0) {
+        selectStructure(allStructures[0].id);
+      }
+      
+      // Afficher la fiche
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('fiche-body').style.display = 'block';
+    }
+
+    function refreshFiche() {
+      if (!FICHE_STATE.structure) return;
+      
+      // Détruire les éditeurs MDE avant de recharger (évite les doublons au changement de structure)
+      if (typeof destroyAllMDE === 'function') destroyAllMDE();
+      
+      const struct = FICHE_STATE.structure;
+      const annee = FICHE_STATE.annee;
+      
+      // Charger l'encadré commentaire global (section = 'Synthese')
+      refreshMainComment(struct.id, annee);
+      
+      // Charger les sections
+      refreshRH(struct.id, annee);
+      refreshBudget(struct.id, annee);
+      refreshCommunication(struct.id, annee);
+      refreshFonctionnement(struct.id, annee);
+      refreshFraisMission(struct.id, annee);
+      refreshInformatique(struct.id, annee);
+      refreshVehicules(struct.id, annee);
+      refreshImmobilier(struct.id, annee);
+      
+      // Charger le commentaire Parc Automobile
+      setTimeout(() => {
+        initSectionMDE('veh-commentaire', struct.id, annee, 'Vehicules');
+      }, 100);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ENCADRÉ COMMENTAIRE GLOBAL
+    // ═══════════════════════════════════════════════════════════════
+    
+    /**
+     * Charge et affiche l'encadré commentaire global avec description et pills
+     */
+    function refreshMainComment(structureId, annee) {
+      const comments = FICHE_STATE.data.commentaires;
+      if (!comments || !comments.id) return;
+      
+      // Chercher le commentaire de section "Synthese"
+      const idx = comments.id.findIndex((id, i) => 
+        comments.Structure[i] === structureId &&
+        comments.Annee[i] === annee &&
+        comments.Section[i] === 'Synthese'
+      );
+      
+      const descriptionEl = document.getElementById('comment-description');
+      const pillsContainer = document.getElementById('comment-pills');
+      
+      if (idx !== -1) {
+        // Récupérer la synthèse (description)
+        const synthese = comments.Commentaire?.[idx] || '';
+        descriptionEl.innerHTML = synthese
+          ? mdToHtml(synthese)
+          : '<em style="color:var(--gris3);">Aucune description disponible pour cette structure.</em>';
+        
+        // Récupérer et parser les pills
+        const pillsText = comments.Pills?.[idx] || '';
+        pillsContainer.innerHTML = '';
+        
+        if (pillsText && pillsText.trim()) {
+          const pills = pillsText.split(',').map(p => p.trim()).filter(p => p);
+          
+          pills.forEach(pillStr => {
+            const [category, text] = pillStr.split(':').map(s => s.trim());
+            if (category && text) {
+              const pill = createPill(category, text);
+              pillsContainer.appendChild(pill);
+            }
+          });
+        } else {
+          // Aucune pill définie
+          pillsContainer.innerHTML = '<span style="font-size: 11px; color: var(--gris3); font-style: italic;">Aucun sujet signalé</span>';
+        }
+      } else {
+        // Pas de commentaire trouvé
+        descriptionEl.innerHTML = '<em style="color:var(--gris3);">Aucune description disponible pour cette structure.</em>';
+        pillsContainer.innerHTML = '<span style="font-size: 11px; color: var(--gris3); font-style: italic;">Aucun sujet signalé</span>';
+      }
+      
+      // Rendre l'encadré éditable (optionnel)
+      makeCommentBoxEditable(structureId, annee);
+    }
+    
+    /**
+     * Crée un élément pill avec la catégorie et le texte
+     */
+    function createPill(category, text) {
+      const pill = document.createElement('span');
+      pill.className = `comment-pill ${category}`;
+      
+      // Icônes selon la catégorie
+      const icons = {
+        'urgent': '🔴',
+        'important': '🟠',
+        'watch': '🔵',
+        'opportunity': '🟢'
+      };
+      
+      const icon = document.createElement('span');
+      icon.className = 'comment-pill-icon';
+      icon.textContent = icons[category] || '●';
+      
+      const textSpan = document.createElement('span');
+      textSpan.textContent = text;
+      
+      pill.appendChild(icon);
+      pill.appendChild(textSpan);
+      
+      return pill;
+    }
+    
+    /**
+     * Rend l'encadré commentaire éditable avec sauvegarde dans Grist
+     */
+    function makeCommentBoxEditable(structureId, annee) {
+      const header = document.querySelector('.comment-header');
+      const descriptionEl = document.getElementById('comment-description');
+      const pillsContainer = document.getElementById('comment-pills');
+      
+      // Supprimer les boutons existants pour les recréer avec les bons paramètres
+      const existingEditBtn = header.querySelector('.comment-edit-btn');
+      const existingSaveBtn = header.querySelector('.comment-save-btn');
+      const existingCancelBtn = header.querySelector('.comment-cancel-btn');
+      if (existingEditBtn) existingEditBtn.remove();
+      if (existingSaveBtn) existingSaveBtn.remove();
+      if (existingCancelBtn) existingCancelBtn.remove();
+      
+      // Bouton Modifier
+      const editBtn = document.createElement('button');
+      editBtn.className = 'comment-edit-btn';
+      editBtn.innerHTML = '✏️ Modifier';
+      editBtn.title = 'Modifier la description et les sujets';
+      editBtn.style.cssText = `
+        margin-left: auto;
+        background: var(--rep);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 5px 12px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: 'Marianne', sans-serif;
+        transition: all .2s;
+      `;
+      editBtn.onmouseover = function() {
+        this.style.background = 'var(--rep2)';
+        this.style.boxShadow = '0 2px 6px rgba(0,47,108,0.3)';
+      };
+      editBtn.onmouseout = function() {
+        this.style.background = 'var(--rep)';
+        this.style.boxShadow = 'none';
+      };
+      
+      // Bouton Sauvegarder (caché par défaut)
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'comment-save-btn';
+      saveBtn.innerHTML = '💾 Sauvegarder';
+      saveBtn.style.cssText = `
+        margin-left: 8px;
+        background: var(--vert);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 5px 12px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: 'Marianne', sans-serif;
+        transition: all .2s;
+        display: none;
+      `;
+      saveBtn.onmouseover = function() {
+        this.style.background = '#148a46';
+        this.style.boxShadow = '0 2px 6px rgba(26,107,60,0.3)';
+      };
+      saveBtn.onmouseout = function() {
+        this.style.background = 'var(--vert)';
+        this.style.boxShadow = 'none';
+      };
+      
+      // Bouton Annuler (caché par défaut)
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'comment-cancel-btn';
+      cancelBtn.innerHTML = '❌ Annuler';
+      cancelBtn.style.cssText = `
+        margin-left: 8px;
+        background: var(--gris3);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 5px 12px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: 'Marianne', sans-serif;
+        transition: all .2s;
+        display: none;
+      `;
+      cancelBtn.onmouseover = function() {
+        this.style.background = 'var(--gris2)';
+      };
+      cancelBtn.onmouseout = function() {
+        this.style.background = 'var(--gris3)';
+      };
+      
+      header.appendChild(editBtn);
+      header.appendChild(saveBtn);
+      header.appendChild(cancelBtn);
+      
+      let isEditing = false;
+      let originalDescription = '';
+      let originalPills = '';
+      let textareaEl = null;
+      let pillsEditorEl = null;
+      
+      // Mode édition
+      editBtn.onclick = function() {
+        if (isEditing) return;
+        
+        isEditing = true;
+        editBtn.style.display = 'none';
+        saveBtn.style.display = 'inline-block';
+        cancelBtn.style.display = 'inline-block';
+        
+        // Sauvegarder l'original
+        originalDescription = descriptionEl.textContent;
+        
+        // Récupérer les pills actuelles
+        const comments = FICHE_STATE.data.commentaires;
+        const idx = comments.id.findIndex((id, i) => 
+          comments.Structure[i] === structureId &&
+          comments.Annee[i] === annee &&
+          comments.Section[i] === 'Synthese'
+        );
+        originalPills = (idx !== -1 && comments.Pills) ? (comments.Pills[idx] || '') : '';
+        
+        // Créer un conteneur pour l'éditeur MDE
+        textareaEl = document.createElement('textarea');
+        textareaEl.id = 'synthese-mde-textarea';
+        textareaEl.placeholder = 'Décrivez la situation générale de la structure...';
+        textareaEl.style.marginBottom = '16px';
+        
+        descriptionEl.style.display = 'none';
+        descriptionEl.parentNode.insertBefore(textareaEl, descriptionEl);
+        
+        // Initialiser EasyMDE — réutiliser `comments` et `idx` déjà déclarés plus haut
+        const mdRaw = idx !== -1 ? (comments.Commentaire?.[idx] || '') : '';
+        
+        initMDE('synthese-mde-textarea', mdRaw, null);
+        
+        // Éditeur de pills
+        pillsEditorEl = createPillsEditor(originalPills);
+        pillsContainer.style.display = 'none';
+        pillsContainer.parentNode.insertBefore(pillsEditorEl, pillsContainer);
+      };
+      
+      // Annuler
+      cancelBtn.onclick = function() {
+        if (!isEditing) return;
+        
+        isEditing = false;
+        editBtn.style.display = 'inline-block';
+        saveBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        
+        // Restaurer l'affichage normal
+        if (textareaEl) {
+          if (_mdeInstances['synthese-mde-textarea']) {
+            try { _mdeInstances['synthese-mde-textarea'].toTextArea(); } catch(e) {}
+            delete _mdeInstances['synthese-mde-textarea'];
+          }
+          textareaEl.remove();
+          descriptionEl.style.display = 'block';
+        }
+        if (pillsEditorEl) {
+          pillsEditorEl.remove();
+          pillsContainer.style.display = 'flex';
+        }
+      };
+      
+      // Sauvegarder
+      saveBtn.onclick = async function() {
+        if (!isEditing) return;
+        
+        const newDescription = getMDEValue('synthese-mde-textarea').trim();
+        const newPills = getPillsFromEditor(pillsEditorEl);
+        
+        // Validation
+        if (!newDescription) {
+          alert('La description ne peut pas être vide.');
+          return;
+        }
+        
+        // Désactiver les boutons pendant la sauvegarde
+        saveBtn.disabled = true;
+        cancelBtn.disabled = true;
+        saveBtn.innerHTML = '⏳ Sauvegarde...';
+        
+        try {
+          await saveMainComment(structureId, annee, newDescription, newPills);
+          
+          // Mettre à jour l'affichage (rendu Markdown)
+          descriptionEl.innerHTML = newDescription ? mdToHtml(newDescription)
+            : '<em style="color:var(--gris3);">Aucune description disponible pour cette structure.</em>';
+          
+          // Reconstruire les pills
+          pillsContainer.innerHTML = '';
+          if (newPills && newPills.trim()) {
+            const pills = newPills.split(',').map(p => p.trim()).filter(p => p);
+            pills.forEach(pillStr => {
+              const [category, text] = pillStr.split(':').map(s => s.trim());
+              if (category && text) {
+                const pill = createPill(category, text);
+                pillsContainer.appendChild(pill);
+              }
+            });
+          } else {
+            pillsContainer.innerHTML = '<span style="font-size: 11px; color: var(--gris3); font-style: italic;">Aucun sujet signalé</span>';
+          }
+          
+          // Sortir du mode édition
+          isEditing = false;
+          editBtn.style.display = 'inline-block';
+          saveBtn.style.display = 'none';
+          cancelBtn.style.display = 'none';
+          saveBtn.innerHTML = '💾 Sauvegarder';
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+          
+          if (textareaEl) {
+            if (_mdeInstances['synthese-mde-textarea']) {
+              try { _mdeInstances['synthese-mde-textarea'].toTextArea(); } catch(e) {}
+              delete _mdeInstances['synthese-mde-textarea'];
+            }
+            textareaEl.remove();
+            descriptionEl.style.display = 'block';
+          }
+          if (pillsEditorEl) {
+            pillsEditorEl.remove();
+            pillsContainer.style.display = 'flex';
+          }
+          
+          alert('✅ Commentaire sauvegardé avec succès !');
+          
+        } catch (err) {
+          alert('❌ Erreur lors de la sauvegarde : ' + err.message);
+          saveBtn.innerHTML = '💾 Sauvegarder';
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+        }
+      };
+    }
+    
+    /**
+     * Crée l'éditeur de pills
+     */
+    function createPillsEditor(pillsText) {
+      const editor = document.createElement('div');
+      editor.className = 'pills-editor';
+      editor.style.cssText = `
+        background: var(--gris4);
+        border: 2px solid var(--bord);
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 16px;
+      `;
+      
+      // Titre
+      const title = document.createElement('div');
+      title.style.cssText = `
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--gris2);
+        margin-bottom: 10px;
+      `;
+      title.textContent = '🏷️ Sujets à enjeux (pills)';
+      editor.appendChild(title);
+      
+      // Container des pills existantes
+      const pillsList = document.createElement('div');
+      pillsList.className = 'pills-list';
+      pillsList.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+      `;
+      
+      // Parser les pills existantes
+      if (pillsText && pillsText.trim()) {
+        const pills = pillsText.split(',').map(p => p.trim()).filter(p => p);
+        pills.forEach(pillStr => {
+          const [category, text] = pillStr.split(':').map(s => s.trim());
+          if (category && text) {
+            pillsList.appendChild(createPillEditorRow(category, text));
+          }
+        });
+      }
+      
+      editor.appendChild(pillsList);
+      
+      // Bouton ajouter pill
+      const addBtn = document.createElement('button');
+      addBtn.innerHTML = '➕ Ajouter un sujet';
+      addBtn.style.cssText = `
+        background: var(--rep);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: 'Marianne', sans-serif;
+      `;
+      addBtn.onclick = function() {
+        pillsList.appendChild(createPillEditorRow('watch', ''));
+      };
+      editor.appendChild(addBtn);
+      
+      // Aide
+      const help = document.createElement('div');
+      help.style.cssText = `
+        margin-top: 10px;
+        font-size: 10px;
+        color: var(--gris3);
+        line-height: 1.4;
+      `;
+      help.innerHTML = `
+        <strong>Catégories :</strong> 
+        🔴 urgent (critique) • 🟠 important (majeur) • 🔵 watch (veille) • 🟢 opportunity (positif)
+      `;
+      editor.appendChild(help);
+      
+      return editor;
+    }
+    
+    /**
+     * Crée une ligne d'édition de pill
+     */
+    function createPillEditorRow(category, text) {
+      const row = document.createElement('div');
+      row.style.cssText = `
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      `;
+      
+      // Select catégorie
+      const select = document.createElement('select');
+      select.style.cssText = `
+        padding: 6px;
+        border: 1px solid var(--bord);
+        border-radius: 4px;
+        font-size: 11px;
+        font-family: 'Marianne', sans-serif;
+      `;
+      ['urgent', 'important', 'watch', 'opportunity'].forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        if (cat === category) option.selected = true;
+        select.appendChild(option);
+      });
+      
+      // Input texte
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = text;
+      input.placeholder = 'Texte du sujet (ex: Budget véhicules)';
+      input.style.cssText = `
+        flex: 1;
+        padding: 6px 10px;
+        border: 1px solid var(--bord);
+        border-radius: 4px;
+        font-size: 11px;
+        font-family: 'Marianne', sans-serif;
+      `;
+      
+      // Bouton supprimer
+      const delBtn = document.createElement('button');
+      delBtn.innerHTML = '🗑️';
+      delBtn.title = 'Supprimer';
+      delBtn.style.cssText = `
+        background: var(--rouge);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 12px;
+      `;
+      delBtn.onclick = function() {
+        row.remove();
+      };
+      
+      row.appendChild(select);
+      row.appendChild(input);
+      row.appendChild(delBtn);
+      
+      return row;
+    }
+    
+    /**
+     * Récupère les pills depuis l'éditeur au format texte
+     */
+    function getPillsFromEditor(editor) {
+      const rows = editor.querySelectorAll('.pills-list > div');
+      const pills = [];
+      
+      rows.forEach(row => {
+        const select = row.querySelector('select');
+        const input = row.querySelector('input');
+        if (select && input && input.value.trim()) {
+          pills.push(`${select.value}:${input.value.trim()}`);
+        }
+      });
+      
+      return pills.join(',');
+    }
+    
+    /**
+     * Sauvegarde le commentaire principal dans Grist
+     */
+    async function saveMainComment(structureId, annee, description, pillsText) {
+      
+      const comments = FICHE_STATE.data.commentaires;
+      if (!comments) throw new Error('Table Commentaires non chargée');
+      
+      // Chercher si un commentaire Synthese existe déjà
+      const existingIdx = comments.id.findIndex((id, i) => 
+        comments.Structure[i] === structureId &&
+        comments.Annee[i] === annee &&
+        comments.Section[i] === 'Synthese'
+      );
+      
+      const now = new Date().toISOString();
+      
+      if (existingIdx !== -1) {
+        // UPDATE
+        await grist.docApi.applyUserActions([
+          ['UpdateRecord', 'Commentaires', comments.id[existingIdx], {
+            Commentaire: description,
+            Pills: pillsText,
+            Date_Modification: now
+          }]
+        ]);
+      } else {
+        // INSERT
+        await grist.docApi.applyUserActions([
+          ['AddRecord', 'Commentaires', null, {
+            Structure: structureId,
+            Annee: annee,
+            Section: 'Synthese',
+            Commentaire: description,
+            Pills: pillsText,
+            Date_Creation: now,
+            Date_Modification: now
+          }]
+        ]);
+      }
+      
+      // Recharger les commentaires
+      const newComments = await grist.docApi.fetchTable('Commentaires');
+      FICHE_STATE.data.commentaires = newComments;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FONCTIONS REFRESH DES SECTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    // Fonctions refresh
+    function refreshRH(structureId, annee) {
+      const dataN = getRHData(structureId, annee);
+      const dataNMoins1 = getRHData(structureId, annee - 1);
+      
+      
+      if (!dataN) {
+        
+        // Effacer tous les champs
+        document.getElementById('rh-effectif-total').textContent = '—';
+        document.getElementById('rh-effectif-evolution').textContent = '—';
+        document.getElementById('rh-effectif-compare').textContent = '—';
+        document.getElementById('rh-effectif-rang').textContent = '—';
+        document.getElementById('rh-agco-total').textContent = '—';
+        document.getElementById('rh-agco-evolution').textContent = '—';
+        document.getElementById('rh-agco-compare').textContent = '—';
+        document.getElementById('rh-su-total').textContent = '—';
+        document.getElementById('rh-su-evolution').textContent = '—';
+        document.getElementById('rh-su-compare').textContent = '—';
+        document.getElementById('rh-age-moyen').textContent = '—';
+        document.getElementById('rh-age-compare-groupe').textContent = '—';
+        document.getElementById('rh-age-compare-national').textContent = '—';
+        document.getElementById('rh-ms-par-agent').textContent = '—';
+        document.getElementById('rh-ms-compare-groupe').textContent = '—';
+        document.getElementById('rh-ms-compare-national').textContent = '—';
+        
+        // Vider le tableau
+        document.getElementById('rh-detail-tbody').innerHTML = '';
+        document.getElementById('rh-detail-tfoot').innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">
+              ⚠️ Aucune donnée RH disponible pour cette structure (${FICHE_STATE.structure.sigle || FICHE_STATE.structure.nom})
+            </td>
+          </tr>
+        `;
+        
+        // Détruire les graphiques
+        const chartEvolution = Chart.getChart('chart-rh-evolution');
+        if (chartEvolution) chartEvolution.destroy();
+        
+        const chartRepartition = Chart.getChart('chart-rh-repartition');
+        if (chartRepartition) chartRepartition.destroy();
+        
+        // Réinitialiser le commentaire pour la structure courante
+        initSectionMDE('rh-commentaire', structureId, annee, 'RH');
+        
+        return;
+      }
+      
+      // KPI - Effectif Total avec évolution, comparaison et rang
+      document.getElementById('rh-effectif-total').textContent = formatNumber(dataN.effectif_total);
+      
+      // Évolution temporelle
+      if (dataNMoins1) {
+        const diffEffectif = Math.round(dataN.effectif_total - dataNMoins1.effectif_total);
+        const pctEvolution = dataNMoins1.effectif_total > 0 ? Math.round(diffEffectif / dataNMoins1.effectif_total * 1000) / 10 : 0;
+        const color = diffEffectif >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbol = diffEffectif >= 0 ? '+' : '';
+        document.getElementById('rh-effectif-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffEffectif} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
+      }
+      
+      // Comparaison au groupe
+      const type = FICHE_STATE.structure.type;
+      const consoGroupe = getConsolidationData(type, annee);
+      
+      // Comparaison effectif total : non pertinente (valeurs absolues liées à la taille)
+      document.getElementById('rh-effectif-compare').innerHTML = '';
+      
+      // Rang
+      const rang = getRangStructure(structureId, annee, 'effectif_total');
+      if (rang) {
+        document.getElementById('rh-effectif-rang').innerHTML = `Rang: ${rang.rang}/${rang.total} ${type}`;
+      }
+      
+      // KPI - AGCO avec évolution et comparaison
+      document.getElementById('rh-agco-total').textContent = formatNumber(dataN.effectif_agco);
+      if (dataNMoins1) {
+        const diffAGCO = Math.round(dataN.effectif_agco - dataNMoins1.effectif_agco);
+        const pctEvolution = dataNMoins1.effectif_agco > 0 ? Math.round(diffAGCO / dataNMoins1.effectif_agco * 1000) / 10 : 0;
+        const color = diffAGCO >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbol = diffAGCO >= 0 ? '+' : '';
+        document.getElementById('rh-agco-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffAGCO} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
+      }
+      
+      // Comparaison effectif AGCO : non pertinente (valeurs absolues liées à la taille)
+      document.getElementById('rh-agco-compare').innerHTML = '';
+      
+      // KPI - SU avec évolution et comparaison
+      document.getElementById('rh-su-total').textContent = formatNumber(dataN.effectif_su);
+      if (dataNMoins1) {
+        const diffSU = Math.round(dataN.effectif_su - dataNMoins1.effectif_su);
+        const pctEvolution = dataNMoins1.effectif_su > 0 ? Math.round(diffSU / dataNMoins1.effectif_su * 1000) / 10 : 0;
+        const color = diffSU >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbol = diffSU >= 0 ? '+' : '';
+        document.getElementById('rh-su-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffSU} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
+      }
+      
+      // Comparaison effectif SU : non pertinente (valeurs absolues liées à la taille)
+      document.getElementById('rh-su-compare').innerHTML = '';
+      
+      // KPI - Âge Moyen avec comparaisons
+      const ageMoyen = dataN.effectif_total > 0 ? 
+        Math.round((dataN.age_moyen_agco * dataN.effectif_agco + dataN.age_moyen_su * dataN.effectif_su + dataN.age_moyen_autres * dataN.effectif_autres) / dataN.effectif_total * 10) / 10 : 0;
+      document.getElementById('rh-age-moyen').textContent = formatNumber(ageMoyen, 1);
+      
+      // Comparaison âge moyen avec groupe (depuis Consolidation)
+      if (consoGroupe && consoGroupe.age_moyen_global > 0) {
+        const ageMoyenGroupe = consoGroupe.age_moyen_global;
+        const diffAge = Math.round((ageMoyen - ageMoyenGroupe) * 10) / 10;
+        const colorAge = diffAge >= 0 ? 'var(--rouge)' : 'var(--vert)'; // Inversé : plus jeune = mieux
+        const symbolAge = diffAge >= 0 ? '+' : '';
+        document.getElementById('rh-age-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorAge};">${symbolAge}${diffAge} ans</span>`;
+      } else {
+      }
+      
+      // Comparaison âge moyen avec National (depuis Consolidation)
+      const consoNational = getConsolidationData('National', annee);
+      if (consoNational && consoNational.age_moyen_global > 0) {
+        const ageMoyenNational = consoNational.age_moyen_global;
+        const diffAge = Math.round((ageMoyen - ageMoyenNational) * 10) / 10;
+        const colorAge = diffAge >= 0 ? 'var(--rouge)' : 'var(--vert)';
+        const symbolAge = diffAge >= 0 ? '+' : '';
+        document.getElementById('rh-age-compare-national').innerHTML = `vs National: <span style="color: ${colorAge};">${symbolAge}${diffAge} ans</span>`;
+      }
+      
+      // KPI - MS / Agent avec comparaisons
+      const msParAgent = dataN.effectif_total > 0 ? Math.round(dataN.masse_salariale / dataN.effectif_total) : 0;
+      document.getElementById('rh-ms-par-agent').textContent = formatCurrency(msParAgent, 0);
+      
+      // Comparaison MS/Agent avec groupe
+      if (consoGroupe && consoGroupe.moyenne_ms_par_agent) {
+        const diffMS = msParAgent - consoGroupe.moyenne_ms_par_agent;
+        const pctDiffMS = consoGroupe.moyenne_ms_par_agent > 0 ? Math.round(diffMS / consoGroupe.moyenne_ms_par_agent * 1000) / 10 : 0;
+        const colorMS = diffMS >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbolMS = diffMS >= 0 ? '+' : '';
+        document.getElementById('rh-ms-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
+      } else {
+        document.getElementById('rh-ms-compare-groupe').innerHTML = '';
+      }
+      
+      // Comparaison MS/Agent avec National
+      if (consoNational && consoNational.moyenne_ms_par_agent) {
+        const diffMS = msParAgent - consoNational.moyenne_ms_par_agent;
+        const pctDiffMS = consoNational.moyenne_ms_par_agent > 0 ? Math.round(diffMS / consoNational.moyenne_ms_par_agent * 1000) / 10 : 0;
+        const colorMS = diffMS >= 0 ? 'var(--vert)' : 'var(--rouge)';
+        const symbolMS = diffMS >= 0 ? '+' : '';
+        document.getElementById('rh-ms-compare-national').innerHTML = `vs National: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
+      } else {
+        document.getElementById('rh-ms-compare-national').innerHTML = '';
+      }
+      
+      // Tableau détaillé par DR (uniquement pour les DI)
+      const details = getRHDetailParDR(structureId, annee);
+      const tbody = document.getElementById('rh-detail-tbody');
+      const tfoot = document.getElementById('rh-detail-tfoot');
+      tbody.innerHTML = '';
+      
+      if (details && details.length > 0) {
+        // Afficher le tableau pour les DI
+        details.forEach(d => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${d.sigle}</strong></td>
+            <td style="text-align: right;">${formatNumber(d.effectif_total)}</td>
+            <td style="text-align: center;">${formatNumber(d.effectif_agco)}</td>
+            <td style="text-align: center;">${formatNumber(d.effectif_su)}</td>
+            <td style="text-align: center;">${formatNumber(d.effectif_autres)}</td>
+            <td style="text-align: right;">${formatCurrency(d.masse_salariale, 0)}</td>
+            <td style="text-align: right;">${formatCurrency(d.ms_par_agent, 0)}</td>
+            <td style="text-align: center;">${formatNumber(d.age_moyen_total, 1)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        
+        // Ligne TOTAL
+        const msParAgent = dataN.effectif_total > 0 ? Math.round(dataN.masse_salariale / dataN.effectif_total) : 0;
+        tfoot.innerHTML = `
+          <tr>
+            <td>TOTAL</td>
+            <td style="text-align: right;">${formatNumber(dataN.effectif_total)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_agco)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_su)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_autres)}</td>
+            <td style="text-align: right;">${formatCurrency(dataN.masse_salariale, 0)}</td>
+            <td style="text-align: right;">${formatCurrency(msParAgent, 0)}</td>
+            <td style="text-align: center;">${formatNumber(ageMoyen, 1)}</td>
+          </tr>
+        `;
+      } else {
+        // Pour Siège/SCN : afficher juste les totaux sans détail par DR
+        const msParAgent = dataN.effectif_total > 0 ? Math.round(dataN.masse_salariale / dataN.effectif_total) : 0;
+        tfoot.innerHTML = `
+          <tr>
+            <td><strong>${FICHE_STATE.structure.sigle || FICHE_STATE.structure.nom}</strong></td>
+            <td style="text-align: right;">${formatNumber(dataN.effectif_total)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_agco)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_su)}</td>
+            <td style="text-align: center;">${formatNumber(dataN.effectif_autres)}</td>
+            <td style="text-align: right;">${formatCurrency(dataN.masse_salariale, 0)}</td>
+            <td style="text-align: right;">${formatCurrency(msParAgent, 0)}</td>
+            <td style="text-align: center;">${formatNumber(ageMoyen, 1)}</td>
+          </tr>
+        `;
+      }
+      
+      // Graphique évolution (toute la série)
+      const historique = getRHHistorique(structureId);
+      createStackedAreaChart('chart-rh-evolution', historique);
+      
+      // Graphique répartition AGCO / SU avec pourcentages
+      const pctAGCO = dataN.pct_agco;
+      const pctSU = dataN.pct_su;
+      createPieChart('chart-rh-repartition', 
+        [`AGCO (${formatPercent(pctAGCO)})`, `SU (${formatPercent(pctSU)})`],
+        [dataN.effectif_agco, dataN.effectif_su],
+        ['#007bff', '#198754']
+      );
+      
+      // Charger le commentaire RH
+      initSectionMDE('rh-commentaire', structureId, annee, 'RH');
+    }
+
+    function refreshBudget(structureId, annee) {
+
+      annee = 2026;
+
+      const dataN = getBudgetData(structureId, annee);
+      const perimetre = getPerimetreBudget(structureId);
+      const libPerimetre = { 'Metropole': 'DI Métropole', 'SCN': 'SCN', 'Outremer': 'Outremer', 'National': 'National' }[perimetre] || perimetre;
+      const moyPerimetre = getBudgetMoyennes(perimetre, annee);
+      const moyNational  = getBudgetMoyennes('National', annee);
+
+      // ── Vider si pas de données ───────────────────────────────
+      if (!dataN) {
+        ['budget-pill-taux-ae','budget-pill-taux-cp',
+         'budget-pill-montants-ae','budget-pill-montants-cp',
+         'budget-pill-ae-groupe','budget-pill-ae-national',
+         'budget-pill-cp-groupe','budget-pill-cp-national'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.innerHTML = '—';
+        });
+        ['chart-budget-radar-ae','chart-budget-taux-cp','chart-budget-evol'].forEach(id => {
+          const c = Chart.getChart(id); if (c) c.destroy();
+        });
+        const tbody = document.getElementById('budget-types-tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée budgétaire disponible pour ' + annee + '</td></tr>';
+        initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
+        return;
+      }
+
+      // ── Pills globales ────────────────────────────────────────
+      const pctAE = (dataN.taux_ae_total * 100).toFixed(1) + ' %';
+      const pctCP = (dataN.taux_cp_total * 100).toFixed(1) + ' %';
+      document.getElementById('budget-pill-taux-ae').textContent = pctAE;
+      document.getElementById('budget-pill-taux-cp').textContent = pctCP;
+      document.getElementById('budget-pill-montants-ae').textContent =
+        formatCurrency(dataN.conso_ae_total, 0) + ' / ' + formatCurrency(dataN.dot_ae_total, 0);
+      document.getElementById('budget-pill-montants-cp').textContent =
+        formatCurrency(dataN.conso_cp_total, 0) + ' / ' + formatCurrency(dataN.dot_cp_total, 0);
+
+      const fmtDiff = (val, moy, label) => {
+        if (!moy || moy === 0) return '—';
+        const diff = (val - moy) * 100;
+        const s = diff >= 0 ? '+' : '';
+        return `${label} : ${s}${diff.toFixed(1)} pts`;
+      };
+
+      if (moyPerimetre) {
+        document.getElementById('budget-pill-ae-groupe').innerHTML =
+          fmtDiff(dataN.taux_ae_total, moyPerimetre.taux_ae_total, `Moy. ${libPerimetre}`);
+        document.getElementById('budget-pill-cp-groupe').innerHTML =
+          fmtDiff(dataN.taux_cp_total, moyPerimetre.taux_cp_total, `Moy. ${libPerimetre}`);
+      }
+      if (moyNational) {
+        document.getElementById('budget-pill-ae-national').innerHTML =
+          fmtDiff(dataN.taux_ae_total, moyNational.taux_ae_total, 'National');
+        document.getElementById('budget-pill-cp-national').innerHTML =
+          fmtDiff(dataN.taux_cp_total, moyNational.taux_cp_total, 'National');
+      }
+
+      // ── Radar répartition dotations AE ───────────────────────
+      createBudgetRadarAE(dataN, moyPerimetre, libPerimetre);
+
+      // ── Barres taux CP par catégorie ─────────────────────────
+      createBudgetTauxCP(dataN, moyPerimetre, moyNational, libPerimetre);
+
+      // ── Évolution multi-années ────────────────────────────────
+      createBudgetEvol(structureId);
+
+      // ── Tableau par catégorie ─────────────────────────────────
+      createBudgetTable(dataN, moyPerimetre, libPerimetre, annee);
+
+      initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
+    }
+
+    function createBudgetRadarAE(data, moy, libPerimetre) {
+      const canvas = document.getElementById('chart-budget-radar-ae');
+      if (!canvas) return;
+      const existing = Chart.getChart('chart-budget-radar-ae');
+      if (existing) existing.destroy();
+
+      const total = data.dot_ae_total || 1;
+      const moyTotal = moy ? (moy.taux_ae_vehicules !== undefined ? 1 : 1) : 1; // non utilisé
+
+      // Répartition en % des dotations AE
+      const labels = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
+      const structPct = [
+        data.dot_ae_vehicules / total * 100,
+        data.dot_ae_fonctionnement / total * 100,
+        data.dot_ae_t6 / total * 100,
+        data.dot_ae_immo / total * 100,
+      ];
+
+      // Répartition périmètre — calculée depuis les taux moyens pondérés si dispo
+      // Ici on affiche uniquement la structure (radar mono) faute de répartition périmètre disponible
+      new Chart(canvas, {
+        type: 'radar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Cette structure',
+            data: structPct,
+            backgroundColor: 'rgba(19,81,168,0.15)',
+            borderColor: 'rgba(19,81,168,0.9)',
+            borderWidth: 2,
+            pointBackgroundColor: 'rgba(19,81,168,0.9)',
+            pointRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label} : ${ctx.parsed.r.toFixed(1)} %`
+              }
+            }
+          },
+          scales: {
+            r: {
+              beginAtZero: true,
+              ticks: { callback: v => v + ' %', font: { size: 10 } },
+              pointLabels: { font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    function createBudgetTauxCP(data, moy, moyNat, libPerimetre) {
+      const canvas = document.getElementById('chart-budget-taux-cp');
+      if (!canvas) return;
+      const existing = Chart.getChart('chart-budget-taux-cp');
+      if (existing) existing.destroy();
+
+      const labels = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
+      const structTaux = [
+        data.taux_cp_vehicules * 100,
+        data.taux_cp_fonctionnement * 100,
+        data.taux_cp_t6 * 100,
+        data.taux_cp_immo * 100,
+      ];
+      const moyTaux = moy ? [
+        moy.taux_cp_vehicules * 100,
+        moy.taux_cp_fonctionnement * 100,
+        moy.taux_cp_t6 * 100,
+        moy.taux_cp_immo * 100,
+      ] : null;
+
+      const datasets = [{
+        label: 'Cette structure',
+        data: structTaux,
+        backgroundColor: 'rgba(19,81,168,0.7)',
+        borderColor: 'rgba(19,81,168,1)',
+        borderWidth: 1,
+      }];
+
+      if (moyTaux) {
+        datasets.push({
+          label: `Moy. ${libPerimetre}`,
+          data: moyTaux,
+          backgroundColor: 'rgba(180,180,180,0.5)',
+          borderColor: 'rgba(120,120,120,0.8)',
+          borderWidth: 1,
+        });
+      }
+
+      new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label} : ${ctx.parsed.y.toFixed(1)} %`
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: { callback: v => v + ' %', font: { size: 10 } }
+            },
+            x: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    function createBudgetEvol(structureId) {
+      const canvas = document.getElementById('chart-budget-evol');
+      if (!canvas) return;
+      const existing = Chart.getChart('chart-budget-evol');
+      if (existing) existing.destroy();
+
+      const historique = getBudgetHistorique(structureId);
+      const annees = Object.keys(historique).map(Number).sort();
+      if (annees.length === 0) return;
+
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: annees,
+          datasets: [
+            {
+              label: 'Dotation CP',
+              data: annees.map(a => historique[a].dot_cp_total),
+              backgroundColor: 'rgba(180,180,180,0.6)',
+              borderColor: 'rgba(120,120,120,0.8)',
+              borderWidth: 1,
+              order: 2,
+            },
+            {
+              label: 'Consommation CP',
+              data: annees.map(a => historique[a].conso_cp_total),
+              backgroundColor: 'rgba(19,81,168,0.7)',
+              borderColor: 'rgba(19,81,168,1)',
+              borderWidth: 1,
+              order: 1,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label} : ${formatCurrency(ctx.parsed.y, 0)}`
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { callback: v => formatCurrency(v, 0), font: { size: 10 } }
+            },
+            x: { ticks: { font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function createBudgetTable(data, moy, libPerimetre, annee) {
+      const tbody = document.getElementById('budget-types-tbody');
+      if (!tbody) return;
+      document.getElementById('budget-table-title').textContent =
+        `Exécution budgétaire par catégorie — ${annee}`;
+
+      const categories = [
+        { label: 'Véhicules',        dot_ae: data.dot_ae_vehicules,      conso_ae: data.conso_ae_vehicules,      taux_ae: data.taux_ae_vehicules,      dot_cp: data.dot_cp_vehicules,      conso_cp: data.conso_cp_vehicules,      taux_cp: data.taux_cp_vehicules,      moy_cp: moy?.taux_cp_vehicules },
+        { label: 'Fonctionnement',   dot_ae: data.dot_ae_fonctionnement,  conso_ae: data.conso_ae_fonctionnement, taux_ae: data.taux_ae_fonctionnement,  dot_cp: data.dot_cp_fonctionnement,  conso_cp: data.conso_cp_fonctionnement, taux_cp: data.taux_cp_fonctionnement,  moy_cp: moy?.taux_cp_fonctionnement },
+        { label: 'T6 Buralistes',    dot_ae: data.dot_ae_t6,             conso_ae: data.conso_ae_t6,            taux_ae: data.taux_ae_t6,             dot_cp: data.dot_cp_t6,             conso_cp: data.conso_cp_t6,            taux_cp: data.taux_cp_t6,            moy_cp: moy?.taux_cp_t6 },
+        { label: 'Immobilier',       dot_ae: data.dot_ae_immo,           conso_ae: data.conso_ae_immo,          taux_ae: data.taux_ae_immo,           dot_cp: data.dot_cp_immo,           conso_cp: data.conso_cp_immo,          taux_cp: data.taux_cp_immo,          moy_cp: moy?.taux_cp_immo },
+        { label: '<strong>Total</strong>', dot_ae: data.dot_ae_total, conso_ae: data.conso_ae_total, taux_ae: data.taux_ae_total, dot_cp: data.dot_cp_total, conso_cp: data.conso_cp_total, taux_cp: data.taux_cp_total, moy_cp: moy?.taux_cp_total, isTotal: true },
+      ];
+
+      const fmtTaux = (v) => {
+        if (v === null || v === undefined || isNaN(v)) return '—';
+        const pct = v * 100;
+        const color = pct >= 80 ? 'var(--rouge)' : pct >= 50 ? 'var(--orange)' : 'var(--vert)';
+        return `<span style="color:${color};font-weight:600;">${pct.toFixed(1)} %</span>`;
+      };
+      const fmtMoy = (v) => {
+        if (v === null || v === undefined || isNaN(v) || v === 0) return '—';
+        return `${(v * 100).toFixed(1)} %`;
+      };
+
+      tbody.innerHTML = categories.map(c => `
+        <tr${c.isTotal ? ' style="font-weight:600;border-top:2px solid var(--bord);background:var(--gris4);"' : ''}>
+          <td>${c.label}</td>
+          <td style="text-align:right;">${formatCurrency(c.dot_ae, 0)}</td>
+          <td style="text-align:right;">${formatCurrency(c.conso_ae, 0)}</td>
+          <td style="text-align:right;">${fmtTaux(c.taux_ae)}</td>
+          <td style="text-align:right;">${formatCurrency(c.dot_cp, 0)}</td>
+          <td style="text-align:right;">${formatCurrency(c.conso_cp, 0)}</td>
+          <td style="text-align:right;">${fmtTaux(c.taux_cp)}</td>
+          <td style="text-align:right;color:var(--gris2);">${fmtMoy(c.moy_cp)}</td>
+        </tr>`).join('');
+    }
+
+    function refreshFraisMission(structureId, annee) {
+  // Année courante et année précédente
+  const anneeCourante = annee;
+  const anneePrecedente = annee - 1;
+  
+  // Récupérer données
+  const dataCourante = getFraisMissionData(structureId, anneeCourante);
+  const dataPrecedente = getFraisMissionData(structureId, anneePrecedente);
+  
+  if (!dataCourante) {
+    
+    // Vider tous les KPIs
+    document.getElementById('fm-total-value').textContent = '—';
+    document.getElementById('fm-total-evol').className = 'fm-evolution-badge';
+    document.getElementById('fm-total-evol').innerHTML = '';
+    document.getElementById('fm-total-comp').innerHTML = '';
+    
+    document.getElementById('fm-formation-value').textContent = '—';
+    document.getElementById('fm-formation-evol').className = 'fm-evolution-badge';
+    document.getElementById('fm-formation-evol').innerHTML = '';
+    document.getElementById('fm-formation-pct').textContent = '';
+    
+    document.getElementById('fm-autres-value').textContent = '—';
+    document.getElementById('fm-autres-evol').className = 'fm-evolution-badge';
+    document.getElementById('fm-autres-evol').innerHTML = '';
+    document.getElementById('fm-autres-pct').textContent = '';
+    
+    document.getElementById('fm-agent-value').textContent = '—';
+    document.getElementById('fm-agent-evol').className = 'fm-evolution-badge';
+    document.getElementById('fm-agent-evol').innerHTML = '';
+    document.getElementById('fm-agent-comp').innerHTML = '';
+    
+    // Détruire le graphique
+    const chartFM = Chart.getChart('chart-fm-repartition');
+    if (chartFM) chartFM.destroy();
+    
+    // Vider le tableau (ID correct: table-fm-body)
+    const tbody = document.getElementById('table-fm-body');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
+    }
+    
+    // Réinitialiser le commentaire pour la structure courante
+    initSectionMDE('fm-commentaire', structureId, annee, 'Frais_Mission');
+    
+    return;
+  }
+  
+  // Périmètre et moyennes
+  const perimetre = getPerimetreFraisMission(structureId);
+  const libellePerimetre = getLibellePerimetreFraisMission(perimetre);
+  const moyennesPerimetre = getFraisMissionMoyennes(perimetre, anneeCourante);
+  const moyennesNational = getFraisMissionMoyennes('National', anneeCourante);
+  
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI PILLS
+  // ═══════════════════════════════════════════════════════════════
+  
+  // Total Frais Mission
+  document.getElementById('fm-total-value').textContent = formatNumber(dataCourante.montant_total / 1000, 0) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.montant_total > 0) {
+    const evolPct = ((dataCourante.montant_total - dataPrecedente.montant_total) / dataPrecedente.montant_total * 100);
+    const badge = document.getElementById('fm-total-evol');
+    badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  if (moyennesPerimetre && moyennesNational) {
+    const ecartPerimetre = moyennesPerimetre.moy_frais_par_agent > 0
+      ? ((dataCourante.frais_par_agent - moyennesPerimetre.moy_frais_par_agent) / moyennesPerimetre.moy_frais_par_agent * 100)
+      : 0;
+    const ecartNational = moyennesNational.moy_frais_par_agent > 0
+      ? ((dataCourante.frais_par_agent - moyennesNational.moy_frais_par_agent) / moyennesNational.moy_frais_par_agent * 100)
+      : 0;
+    
+    document.getElementById('fm-total-comp').innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-top:3px;">
+        <span>vs ${libellePerimetre}</span>
+        <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;">
+        <span>vs National</span>
+        <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+      </div>
+    `;
+  } else {
+    document.getElementById('fm-total-comp').innerHTML = '';
+  }
+  
+  // Formation
+  document.getElementById('fm-formation-value').textContent = formatNumber(dataCourante.total_formation / 1000, 0) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.total_formation > 0) {
+    const evolPct = ((dataCourante.total_formation - dataPrecedente.total_formation) / dataPrecedente.total_formation * 100);
+    const badge = document.getElementById('fm-formation-evol');
+    badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  document.getElementById('fm-formation-pct').textContent = `${dataCourante.pct_formation.toFixed(1)}% du total`;
+  
+  // Autres missions
+  document.getElementById('fm-autres-value').textContent = formatNumber(dataCourante.total_autres / 1000, 0) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.total_autres > 0) {
+    const evolPct = ((dataCourante.total_autres - dataPrecedente.total_autres) / dataPrecedente.total_autres * 100);
+    const badge = document.getElementById('fm-autres-evol');
+    badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  document.getElementById('fm-autres-pct').textContent = `${dataCourante.pct_autres.toFixed(1)}% du total`;
+  
+  // Coût moyen par agent
+  document.getElementById('fm-agent-value').textContent = formatCurrency(dataCourante.frais_par_agent);
+  
+  if (dataPrecedente && dataPrecedente.frais_par_agent > 0) {
+    const evolPct = ((dataCourante.frais_par_agent - dataPrecedente.frais_par_agent) / dataPrecedente.frais_par_agent * 100);
+    const badge = document.getElementById('fm-agent-evol');
+    badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  if (moyennesPerimetre && moyennesNational) {
+    const ecartPerimetre = moyennesPerimetre.moy_frais_par_agent > 0
+      ? ((dataCourante.frais_par_agent - moyennesPerimetre.moy_frais_par_agent) / moyennesPerimetre.moy_frais_par_agent * 100)
+      : 0;
+    const ecartNational = moyennesNational.moy_frais_par_agent > 0
+      ? ((dataCourante.frais_par_agent - moyennesNational.moy_frais_par_agent) / moyennesNational.moy_frais_par_agent * 100)
+      : 0;
+    
+    document.getElementById('fm-agent-comp').innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-top:3px;">
+        <span>vs ${libellePerimetre}</span>
+        <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;">
+        <span>vs National</span>
+        <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+      </div>
+    `;
+  } else {
+    document.getElementById('fm-agent-comp').innerHTML = '';
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // GRAPHIQUE RÉPARTITION
+  // ═══════════════════════════════════════════════════════════════
+  
+  const annees = [anneeCourante - 3, anneeCourante - 2, anneeCourante - 1, anneeCourante];
+  const dataMultiAnnees = getFraisMissionMultiAnnees(structureId, annees);
+  
+  const totaux = dataMultiAnnees.map(d => d.montant_total || 0);
+  const transport = dataMultiAnnees.map(d => d.total_transport || 0);
+  const hebergement = dataMultiAnnees.map(d => d.total_hebergement || 0);
+  const repas = dataMultiAnnees.map(d => d.total_repas || 0);
+  
+  const transportPct = transport.map((v, i) => totaux[i] > 0 ? (v / totaux[i] * 100).toFixed(1) : 0);
+  const hebergementPct = hebergement.map((v, i) => totaux[i] > 0 ? (v / totaux[i] * 100).toFixed(1) : 0);
+  const repasPct = repas.map((v, i) => totaux[i] > 0 ? (v / totaux[i] * 100).toFixed(1) : 0);
+  
+  createFraisMissionRepartitionChart(annees, transportPct, hebergementPct, repasPct, transport, hebergement, repas);
+  
+  // ═══════════════════════════════════════════════════════════════
+  // TABLEAU DÉTAILLÉ
+  // ═══════════════════════════════════════════════════════════════
+  
+  const tbody = document.getElementById('table-fm-body');
+  tbody.innerHTML = '';
+  
+  annees.forEach((annee, idx) => {
+    const data = dataMultiAnnees[idx];
+    
+    // Ligne année (totaux)
+    const rowAnnee = tbody.insertRow();
+    rowAnnee.style.background = '#F1EFE8';
+    rowAnnee.style.fontWeight = '500';
+    rowAnnee.innerHTML = `
+      <td style="padding:12px 16px;">${annee}</td>
+      <td style="padding:12px 16px;text-align:right;">${formatNumber(data.total_transport / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;">${formatNumber(data.total_hebergement / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;">${formatNumber(data.total_repas / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-weight:500;">${formatNumber(data.montant_total / 1000, 0)} K€</td>
+    `;
+    
+    // Ligne Formation
+    const rowFormation = tbody.insertRow();
+    rowFormation.style.background = 'rgba(241, 239, 232, 0.4)';
+    rowFormation.innerHTML = `
+      <td style="padding:12px 16px 12px 32px;font-size:13px;">Formation</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.formation_transport / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.formation_hebergement / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.formation_repas / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.total_formation / 1000, 0)} K€</td>
+    `;
+    
+    // Ligne Autres missions
+    const rowAutres = tbody.insertRow();
+    rowAutres.style.background = 'rgba(241, 239, 232, 0.4)';
+    rowAutres.innerHTML = `
+      <td style="padding:12px 16px 12px 32px;font-size:13px;">Autres missions</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.autres_transport / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.autres_hebergement / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.autres_repas / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.total_autres / 1000, 0)} K€</td>
+    `;
+  });
+  
+  // Charger le commentaire Frais de Mission
+  initSectionMDE('fm-commentaire', structureId, annee, 'Frais_Mission');
+}
+
+function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct, repasPct, transportMontants, hebergementMontants, repasMontants) {
+  const canvas = document.getElementById('chart-fm-repartition');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  // Détruire graphique existant
+  if (window.chartFMRepartition) {
+    window.chartFMRepartition.destroy();
+  }
+  
+  window.chartFMRepartition = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: annees.map(a => String(a)),
+      datasets: [
+        {
+          label: 'Transport',
+          data: transportPct,
+          backgroundColor: '#A8CEF0',
+          borderColor: 'transparent',
+          borderWidth: 0
+        },
+        {
+          label: 'Hébergement',
+          data: hebergementPct,
+          backgroundColor: '#A3DCC5',
+          borderColor: 'transparent',
+          borderWidth: 0
+        },
+        {
+          label: 'Repas',
+          data: repasPct,
+          backgroundColor: '#F5D6A8',
+          borderColor: 'transparent',
+          borderWidth: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
+            padding: 15,
+            font: { size: 12 }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const datasetLabel = context.dataset.label;
+              const percentage = context.parsed.y;
+              const yearIndex = context.dataIndex;
+              let montant;
+              if (datasetLabel === 'Transport') montant = transportMontants[yearIndex];
+              else if (datasetLabel === 'Hébergement') montant = hebergementMontants[yearIndex];
+              else montant = repasMontants[yearIndex];
+              return datasetLabel + ': ' + percentage + '% (' + formatCurrency(montant / 1000, 0) + ' K€)';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { font: { size: 12 } }
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            font: { size: 12 },
+            callback: function(value) {
+              return value + '%';
+            }
+          },
+          grid: {
+            color: 'rgba(0,0,0,0.05)'
+          }
+        }
+      }
+    }
+  });
+}
+
+    function refreshInformatique(structureId, annee) {
+  const anneeCourante = annee;
+  const anneePrecedente = annee - 1;
+  
+  const dataCourante = getInformatiqueData(structureId, anneeCourante);
+  const dataPrecedente = getInformatiqueData(structureId, anneePrecedente);
+  
+  if (!dataCourante) {
+    
+    // Vider tous les KPIs avec les bons IDs
+    document.getElementById('it-total').textContent = '—';
+    document.getElementById('it-total-evol').className = 'it-evolution';
+    document.getElementById('it-total-evol').innerHTML = '—';
+    document.getElementById('it-pct-portables').textContent = '';
+    
+    document.getElementById('it-ratio').textContent = '—';
+    document.getElementById('it-ratio-evol').className = 'it-evolution';
+    document.getElementById('it-ratio-evol').innerHTML = '—';
+    document.getElementById('it-ratio-comp').innerHTML = '';
+    
+    document.getElementById('it-budget-annuel').textContent = '—';
+    document.getElementById('it-budget-annuel-evol').className = 'it-evolution';
+    document.getElementById('it-budget-annuel-evol').innerHTML = '—';
+    
+    document.getElementById('it-budget-moyen').textContent = '—';
+    
+    document.getElementById('it-budget-agent-annuel').textContent = '—';
+    document.getElementById('it-budget-agent-annuel-evol').className = 'it-evolution';
+    document.getElementById('it-budget-agent-annuel-evol').innerHTML = '—';
+    document.getElementById('it-budget-agent-annuel-comp').innerHTML = '';
+    
+    document.getElementById('it-budget-agent-moyen').textContent = '—';
+    document.getElementById('it-budget-agent-moyen-comp').innerHTML = '';
+    
+    // Détruire le graphique
+    const chartIT = Chart.getChart('chart-it-type');
+    if (chartIT) chartIT.destroy();
+    
+    // Vider le tableau
+    const tbody = document.getElementById('table-it-body');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
+    }
+    
+    // Réinitialiser le commentaire pour la structure courante
+    initSectionMDE('it-commentaire', structureId, annee, 'Informatique');
+    
+    return;
+  }
+  
+  // Périmètre et moyennes
+  const perimetre = getPerimetreInformatique(structureId);
+  const libellePerimetre = getLibellePerimetreInformatique(perimetre);
+  const moyennesPerimetre = getInformatiqueMoyennes(perimetre, anneeCourante);
+  const moyennesNational = getInformatiqueMoyennes('National', anneeCourante);
+  
+  // Labels année
+  document.getElementById('it-annee-label').textContent = anneeCourante;
+  document.getElementById('it-annee-label2').textContent = anneeCourante;
+  const immoLabel = document.getElementById('immo-annee-label');
+  if (immoLabel) immoLabel.textContent = anneeCourante;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 1 : Total Postes
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.getElementById('it-total').textContent = formatNumber(dataCourante.nb_postes_travail);
+  
+  if (dataPrecedente && dataPrecedente.nb_postes_travail > 0) {
+    const evolPct = ((dataCourante.nb_postes_travail - dataPrecedente.nb_postes_travail) / dataPrecedente.nb_postes_travail * 100);
+    const badge = document.getElementById('it-total-evol');
+    badge.className = 'it-evolution ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  document.getElementById('it-pct-portables').textContent = `${dataCourante.pct_portables.toFixed(0)}% de portables`;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 2 : Ratio Poste/Agent
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.getElementById('it-ratio').textContent = formatNumber(dataCourante.ratio_poste_agent, 2);
+  
+  if (dataPrecedente && dataPrecedente.ratio_poste_agent > 0) {
+    const evolPct = ((dataCourante.ratio_poste_agent - dataPrecedente.ratio_poste_agent) / dataPrecedente.ratio_poste_agent * 100);
+    const badge = document.getElementById('it-ratio-evol');
+    badge.className = 'it-evolution ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  if (moyennesPerimetre && moyennesNational) {
+    const ecartPerimetre = moyennesPerimetre.moy_ratio_poste_agent > 0
+      ? ((dataCourante.ratio_poste_agent - moyennesPerimetre.moy_ratio_poste_agent) / moyennesPerimetre.moy_ratio_poste_agent * 100)
+      : 0;
+    const ecartNational = moyennesNational.moy_ratio_poste_agent > 0
+      ? ((dataCourante.ratio_poste_agent - moyennesNational.moy_ratio_poste_agent) / moyennesNational.moy_ratio_poste_agent * 100)
+      : 0;
+    
+    document.getElementById('it-ratio-comp').innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.6;">
+        <span>vs ${libellePerimetre}</span>
+        <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.6;">
+        <span>vs National</span>
+        <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+      </div>
+    `;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 3 : Budget IT annuel
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.getElementById('it-budget-annuel').textContent = formatNumber(dataCourante.budget_it / 1000, 0) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.budget_it > 0) {
+    const evolPct = ((dataCourante.budget_it - dataPrecedente.budget_it) / dataPrecedente.budget_it * 100);
+    const badge = document.getElementById('it-budget-annuel-evol');
+    badge.className = 'it-evolution ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 4 : Budget IT Moyen 4 ans
+  // ═══════════════════════════════════════════════════════════════
+  
+  const annees4 = [anneeCourante, anneeCourante - 1, anneeCourante - 2, anneeCourante - 3];
+  document.getElementById('it-badge-4ans').textContent = `Lissé ${annees4[3]}-${annees4[0]}`;
+  document.getElementById('it-budget-moyen').textContent = formatNumber(dataCourante.budget_it_moyen_4ans / 1000, 0) + ' K€';
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 5 : Budget IT par Agent annuel
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.getElementById('it-budget-agent-annuel').textContent = formatCurrency(dataCourante.budget_it_par_agent);
+  
+  if (dataPrecedente && dataPrecedente.budget_it_par_agent > 0) {
+    const evolPct = ((dataCourante.budget_it_par_agent - dataPrecedente.budget_it_par_agent) / dataPrecedente.budget_it_par_agent * 100);
+    const badge = document.getElementById('it-budget-agent-annuel-evol');
+    badge.className = 'it-evolution ' + (evolPct >= 0 ? 'positive' : 'negative');
+    badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  if (moyennesPerimetre && moyennesNational) {
+    const ecartPerimetre = moyennesPerimetre.moy_budget_it_par_agent > 0
+      ? ((dataCourante.budget_it_par_agent - moyennesPerimetre.moy_budget_it_par_agent) / moyennesPerimetre.moy_budget_it_par_agent * 100)
+      : 0;
+    const ecartNational = moyennesNational.moy_budget_it_par_agent > 0
+      ? ((dataCourante.budget_it_par_agent - moyennesNational.moy_budget_it_par_agent) / moyennesNational.moy_budget_it_par_agent * 100)
+      : 0;
+    
+    document.getElementById('it-budget-agent-annuel-comp').innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.6;">
+        <span>vs ${libellePerimetre}</span>
+        <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.6;">
+        <span>vs National</span>
+        <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+      </div>
+    `;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 6 : Budget IT Moyen par Agent 4 ans
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.getElementById('it-badge-4ans2').textContent = `Lissé ${annees4[3]}-${annees4[0]}`;
+  document.getElementById('it-budget-agent-moyen').textContent = formatCurrency(dataCourante.budget_it_moyen_par_agent_4ans);
+  
+  if (moyennesPerimetre && moyennesNational) {
+    const ecartPerimetre = moyennesPerimetre.moy_budget_it_moyen_par_agent_4ans > 0
+      ? ((dataCourante.budget_it_moyen_par_agent_4ans - moyennesPerimetre.moy_budget_it_moyen_par_agent_4ans) / moyennesPerimetre.moy_budget_it_moyen_par_agent_4ans * 100)
+      : 0;
+    const ecartNational = moyennesNational.moy_budget_it_moyen_par_agent_4ans > 0
+      ? ((dataCourante.budget_it_moyen_par_agent_4ans - moyennesNational.moy_budget_it_moyen_par_agent_4ans) / moyennesNational.moy_budget_it_moyen_par_agent_4ans * 100)
+      : 0;
+    
+    document.getElementById('it-budget-agent-moyen-comp').innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.8;">
+        <span>vs ${libellePerimetre}</span>
+        <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.8;">
+        <span>vs National</span>
+        <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+      </div>
+    `;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // GRAPHIQUE
+  // ═══════════════════════════════════════════════════════════════
+  
+  const dataMultiAnnees = getInformatiqueMultiAnnees(structureId, annees4);
+  
+  const portables = dataMultiAnnees.map(d => d.nb_portables || 0);
+  const fixes = dataMultiAnnees.map(d => d.nb_fixes || 0);
+  
+  createInformatiqueChart(annees4, portables, fixes);
+  
+  // ═══════════════════════════════════════════════════════════════
+  // TABLEAU
+  // ═══════════════════════════════════════════════════════════════
+  
+  const tbody = document.getElementById('table-it-body');
+  tbody.innerHTML = '';
+  
+  let somme_budget = 0;
+  let somme_budget_agent = 0;
+  let nb_annees = 0;
+  
+  dataMultiAnnees.forEach((data, idx) => {
+    const row = tbody.insertRow();
+    if (idx === dataMultiAnnees.length - 1) {
+      row.style.background = '#F1EFE8';
+      row.style.fontWeight = '500';
+    }
+    
+    const hasInventaire = data.nb_postes_travail > 0;
+    
+    row.innerHTML = `
+      <td style="padding:12px 16px;">${data.annee}</td>
+      <td style="padding:12px 16px;text-align:right;">${hasInventaire ? formatNumber(data.nb_portables) : '—'}</td>
+      <td style="padding:12px 16px;text-align:right;">${hasInventaire ? formatNumber(data.nb_fixes) : '—'}</td>
+      <td style="padding:12px 16px;text-align:right;">${hasInventaire ? formatNumber(data.nb_postes_travail) : '—'}</td>
+      <td style="padding:12px 16px;text-align:right;">${hasInventaire ? formatNumber(data.ratio_poste_agent, 2) : '—'}</td>
+      <td style="padding:12px 16px;text-align:right;">${formatNumber(data.budget_it / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;">${data.budget_it_par_agent > 0 ? formatCurrency(data.budget_it_par_agent) : '—'}</td>
+    `;
+    
+    if (data.budget_it > 0) {
+      somme_budget += data.budget_it;
+      somme_budget_agent += data.budget_it_par_agent;
+      nb_annees++;
+    }
+  });
+  
+  // Ligne moyenne
+  if (nb_annees > 0) {
+    const rowMoyenne = tbody.insertRow();
+    rowMoyenne.style.background = '#E8F7F2';
+    rowMoyenne.style.fontWeight = '500';
+    rowMoyenne.style.borderTop = '2px solid #1D9E75';
+    
+    const moy_budget = somme_budget / nb_annees;
+    const moy_budget_agent = somme_budget_agent / nb_annees;
+    
+    rowMoyenne.innerHTML = `
+      <td colspan="5" style="padding:12px 16px;color:#085041;">Moyenne ${annees4[3]}-${annees4[0]} (lissée)</td>
+      <td style="padding:12px 16px;text-align:right;color:#04342C;">${formatNumber(moy_budget / 1000, 0)} K€</td>
+      <td style="padding:12px 16px;text-align:right;color:#04342C;">${formatCurrency(moy_budget_agent)}</td>
+    `;
+  }
+  
+  // Charger le commentaire Informatique
+  initSectionMDE('it-commentaire', structureId, annee, 'Informatique');
+}
+
+function createInformatiqueChart(annees, portables, fixes) {
+  const canvas = document.getElementById('chart-it-type');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  if (window.chartITType) {
+    window.chartITType.destroy();
+  }
+  
+  window.chartITType = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: annees.map(a => String(a)),
+      datasets: [
+        {
+          label: 'Portables',
+          data: portables,
+          backgroundColor: '#7F77DD',
+          borderColor: 'transparent',
+          borderWidth: 0
+        },
+        {
+          label: 'Fixes',
+          data: fixes,
+          backgroundColor: '#D3D1C7',
+          borderColor: 'transparent',
+          borderWidth: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
+            padding: 15,
+            font: { size: 12 }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label + ': ' + context.parsed.y + ' postes';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { font: { size: 12 } }
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          ticks: {
+            font: { size: 12 },
+            callback: function(value) {
+              return value;
+            }
+          },
+          grid: {
+            color: 'rgba(0,0,0,0.05)'
+          }
+        }
+      }
+    }
+  });
+}
+
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // FONCTIONS GRAPHIQUES ET TABLEAU BUDGET
+    // ═══════════════════════════════════════════════════════════════
+
+
+    // Initialisation
+    window.addEventListener('load', initGrist);
+  </script>
+</body>
+</html>
