@@ -989,6 +989,33 @@
   .md-render li { margin: 2px 0; }
   /* Cache le textarea natif géré par EasyMDE */
   .easymde-managed { display: none !important; }
+
+  /* ══════════════════════════════════ */
+  /* ZONE HEADERS (groupes de sections) */
+  /* ══════════════════════════════════ */
+  .zone-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    margin: 8px 0 4px 0;
+    border-radius: 6px;
+    border-left: 4px solid var(--rep);
+    background: var(--rep-pale);
+  }
+  .zone-header-icon { font-size: 16px; line-height: 1; }
+  .zone-header-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--rep);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  .zone-gestion {
+    border-left-color: var(--gris2);
+    background: var(--gris4);
+  }
+  .zone-gestion .zone-header-title { color: var(--gris2); }
   </style>
 </head>
 <body>
@@ -1073,826 +1100,834 @@
     </div>
     
     <!-- SECTION RH -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-icon">🛃</div>
-        <div class="section-title">Ressources Humaines</div>
-      </div>
-      
-      <!-- KPI Pills -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px;">
-        <!-- Effectif Total -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">ETPT Total</div>
-          <div class="kpi-card-value" id="rh-effectif-total">—</div>
-          <div class="kpi-card-details">
-            <div id="rh-effectif-evolution">—</div>
-            <div id="rh-effectif-compare">—</div>
-            <div id="rh-effectif-rang">—</div>
-          </div>
-        </div>
-        
-        <!-- Effectif AGCO -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">ETPT AGCO</div>
-          <div class="kpi-card-value" id="rh-agco-total">—</div>
-          <div class="kpi-card-details">
-            <div id="rh-agco-evolution">—</div>
-            <div id="rh-agco-compare">—</div>
-          </div>
-        </div>
-        
-        <!-- Effectif SU -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">ETPT SU</div>
-          <div class="kpi-card-value" id="rh-su-total">—</div>
-          <div class="kpi-card-details">
-            <div id="rh-su-evolution">—</div>
-            <div id="rh-su-compare">—</div>
-          </div>
-        </div>
-        
-        <!-- Âge Moyen -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">Âge Moyen</div>
-          <div class="kpi-card-value">
-            <span id="rh-age-moyen">—</span>
-            <span style="font-size: 14px; font-weight: 600; color: #6c757d;">ans</span>
-          </div>
-          <div class="kpi-card-details">
-            <div id="rh-age-compare-groupe">—</div>
-            <div id="rh-age-compare-national">—</div>
-          </div>
-        </div>
-        
-        <!-- MS / Agent -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">MS / Agent</div>
-          <div class="kpi-card-value" style="font-size: 28px;" id="rh-ms-par-agent">—</div>
-          <div class="kpi-card-details">
-            <div id="rh-ms-compare-groupe">—</div>
-            <div id="rh-ms-compare-national">—</div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Tableau détaillé par DR -->
-      <div style="margin-bottom: 20px;">
-        <h4 style="font-size: 13px; font-weight: 600; color: var(--gris2); margin-bottom: 8px;">📋 Détail par structure</h4>
-        <div style="overflow-x: auto;">
-          <table class="data-table" style="font-size: 11px;">
-            <thead>
-              <tr>
-                <th>Structure</th>
-                <th style="text-align: right;">ETPT Total</th>
-                <th style="text-align: center;">AGCO</th>
-                <th style="text-align: center;">SU</th>
-                <th style="text-align: center;">Autres</th>
-                <th style="text-align: right;">Masse Salariale</th>
-                <th style="text-align: right;">MS/Agent</th>
-                <th style="text-align: center;">Âge Moyen</th>
-              </tr>
-            </thead>
-            <tbody id="rh-detail-tbody"></tbody>
-            <tfoot id="rh-detail-tfoot" style="font-weight: 600; background: var(--gris4);"></tfoot>
-          </table>
-        </div>
-      </div>
-      
-      <!-- Graphiques côte à côte -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-        <div class="chart-container">
-          <div class="chart-title">Évolution des ETPT (toute la série)</div>
-          <div class="chart-wrapper" style="height: 220px;">
-            <canvas id="chart-rh-evolution"></canvas>
-          </div>
-        </div>
-        <div class="chart-container">
-          <div class="chart-title">Répartition AGCO / SU</div>
-          <div class="chart-wrapper" style="height: 220px;">
-            <canvas id="chart-rh-repartition"></canvas>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Commentaire RH -->
-      <div>
-        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
-        <textarea id="rh-commentaire" 
-                  style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
-                  placeholder="Ajouter un commentaire sur les ressources humaines..."></textarea>
-      </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- ZONE : INDICATEURS BUDGÉTAIRES 2026                -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="zone-header zone-budget">
+      <div class="zone-header-icon">📊</div>
+      <div class="zone-header-title">Indicateurs budgétaires 2026</div>
     </div>
-    
-    <!-- SECTION BUDGET -->
+
     <div class="section">
-      <div class="section-header">
-        <div class="section-icon">📈</div>
-        <div class="section-title">Budget & Consommation</div>
-      </div>
+    <div class="section-header">
+    <div class="section-icon">📈</div>
+    <div class="section-title">Budget & Consommation</div>
+    </div>
 
-      <!-- KPI Pills : taux globaux -->
-      <div style="text-align:right;font-size:11px;color:var(--gris2);font-style:italic;margin-bottom:8px;" id="budget-date-import"></div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;">
-        <div class="kpi-card">
-          <div class="kpi-card-label">Consommation AE globale</div>
-          <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-ae">—</div>
-          <div class="kpi-card-details">
-            <div id="budget-pill-montants-ae" style="font-weight:600;margin-bottom:4px;">—</div>
-            <div id="budget-pill-ae-groupe">—</div>
-            <div id="budget-pill-ae-national">—</div>
-          </div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-card-label">Consommation CP globale</div>
-          <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-cp">—</div>
-          <div class="kpi-card-details">
-            <div id="budget-pill-montants-cp" style="font-weight:600;margin-bottom:4px;">—</div>
-            <div id="budget-pill-cp-groupe">—</div>
-            <div id="budget-pill-cp-national">—</div>
-          </div>
-        </div>
-      </div>
+    <!-- KPI Pills : taux globaux -->
+    <div style="text-align:right;font-size:11px;color:var(--gris2);font-style:italic;margin-bottom:8px;" id="budget-date-import"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;">
+    <div class="kpi-card">
+    <div class="kpi-card-label">Consommation AE globale</div>
+    <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-ae">—</div>
+    <div class="kpi-card-details">
+    <div id="budget-pill-montants-ae" style="font-weight:600;margin-bottom:4px;">—</div>
+    <div id="budget-pill-ae-groupe">—</div>
+    <div id="budget-pill-ae-national">—</div>
+    </div>
+    </div>
+    <div class="kpi-card">
+    <div class="kpi-card-label">Consommation CP globale</div>
+    <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-cp">—</div>
+    <div class="kpi-card-details">
+    <div id="budget-pill-montants-cp" style="font-weight:600;margin-bottom:4px;">—</div>
+    <div id="budget-pill-cp-groupe">—</div>
+    <div id="budget-pill-cp-national">—</div>
+    </div>
+    </div>
+    </div>
 
-      <!-- Graphiques : radar structure + taux par catégorie -->
-      <div class="chart-grid">
-        <!-- Radar répartition dotations -->
-        <div class="chart-container">
-          <div class="chart-title">Taux de consommation CP par catégorie</div>
-          <div class="chart-subtitle" id="budget-radar-subtitle">Structure vs moyenne périmètre</div>
-          <div class="chart-wrapper" style="position:relative;height:280px;">
-            <canvas id="chart-budget-radar-ae"></canvas>
-          </div>
-        </div>
-        <!-- Taux de consommation par catégorie -->
-        <div class="chart-container">
-          <div class="chart-title">Taux de consommation par catégorie (CP)</div>
-          <div class="chart-subtitle" id="budget-taux-subtitle">Structure vs moyenne périmètre</div>
-          <div class="chart-wrapper" style="position:relative;height:280px;">
-            <canvas id="chart-budget-taux-cp"></canvas>
-          </div>
-        </div>
-      </div>
+    <!-- Graphiques : radar structure + taux par catégorie -->
+    <div class="chart-grid">
+    <!-- Radar répartition dotations -->
+    <div class="chart-container">
+    <div class="chart-title">Taux de consommation CP par catégorie</div>
+    <div class="chart-subtitle" id="budget-radar-subtitle">Structure vs moyenne périmètre</div>
+    <div class="chart-wrapper" style="position:relative;height:280px;">
+    <canvas id="chart-budget-radar-ae"></canvas>
+    </div>
+    </div>
+    <!-- Taux de consommation par catégorie -->
+    <div class="chart-container">
+    <div class="chart-title">Taux de consommation par catégorie (CP)</div>
+    <div class="chart-subtitle" id="budget-taux-subtitle">Structure vs moyenne périmètre</div>
+    <div class="chart-wrapper" style="position:relative;height:280px;">
+    <canvas id="chart-budget-taux-cp"></canvas>
+    </div>
+    </div>
+    </div>
 
-      <!-- Vue évolutive multi-années -->
-      <div style="margin-top:24px;">
-        <div class="chart-title">Évolution des dotations et consommations (CP)</div>
-        <div class="chart-wrapper" style="position:relative;height:240px;">
-          <canvas id="chart-budget-evol"></canvas>
-        </div>
-      </div>
+    <!-- Vue évolutive multi-années -->
+    <div style="margin-top:24px;">
+    <div class="chart-title">Évolution des dotations et consommations (CP)</div>
+    <div class="chart-wrapper" style="position:relative;height:240px;">
+    <canvas id="chart-budget-evol"></canvas>
+    </div>
+    </div>
 
-      <!-- Tableau par catégorie -->
-      <div style="margin-top:24px;">
-        <div class="chart-title" id="budget-table-title">Exécution budgétaire par catégorie — 2026</div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Catégorie</th>
-              <th style="text-align:right;">Dotation AE</th>
-              <th style="text-align:right;">Conso AE</th>
-              <th style="text-align:right;">Taux AE</th>
-              <th style="text-align:right;">Dotation CP</th>
-              <th style="text-align:right;">Conso CP</th>
-              <th style="text-align:right;">Taux CP</th>
-              <th style="text-align:right;">Moy. périmètre CP</th>
-            </tr>
-          </thead>
-          <tbody id="budget-types-tbody"></tbody>
-        </table>
-      </div>
+    <!-- Tableau par catégorie -->
+    <div style="margin-top:24px;">
+    <div class="chart-title" id="budget-table-title">Exécution budgétaire par catégorie — 2026</div>
+    <table class="data-table">
+    <thead>
+    <tr>
+    <th>Catégorie</th>
+    <th style="text-align:right;">Dotation AE</th>
+    <th style="text-align:right;">Conso AE</th>
+    <th style="text-align:right;">Taux AE</th>
+    <th style="text-align:right;">Dotation CP</th>
+    <th style="text-align:right;">Conso CP</th>
+    <th style="text-align:right;">Taux CP</th>
+    <th style="text-align:right;">Moy. périmètre CP</th>
+    </tr>
+    </thead>
+    <tbody id="budget-types-tbody"></tbody>
+    </table>
+    </div>
 
-      <!-- Commentaire Budget -->
-      <div style="margin-top:20px;">
-        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur</label>
-        <textarea id="budget-commentaire"
-                  style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
-                  placeholder="Ajouter un commentaire sur le budget et la consommation..."></textarea>
-      </div>
+    <!-- Commentaire Budget -->
+    <div style="margin-top:20px;">
+    <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur</label>
+    <textarea id="budget-commentaire"
+    style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
+    placeholder="Ajouter un commentaire sur le budget et la consommation..."></textarea>
+    </div>
 
     </div><!-- fin section Budget & Consommation -->
 
-    <!-- SECTION DÉPENSES DE COMMUNICATION -->
     <div class="section">
-      <div class="section-header">
-        <div class="section-icon">📣</div>
-        <div class="section-title">Dépenses de communication</div>
-      </div>
+    <div class="section-header">
+    <div class="section-icon">📣</div>
+    <div class="section-title">Dépenses de communication</div>
+    </div>
 
-        <!-- En-tête date d'import -->
-        <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:18px;">
-          <span id="com-date-import" style="font-size:11px;color:var(--gris3);font-style:italic;display:none;"></span>
-        </div>
+    <!-- En-tête date d'import -->
+    <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:18px;">
+    <span id="com-date-import" style="font-size:11px;color:var(--gris3);font-style:italic;display:none;"></span>
+    </div>
 
-        <!-- 3 Pills : Cible · CP · Disponible CP — labels mis à jour dynamiquement -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+    <!-- 3 Pills : Cible · CP · Disponible CP — labels mis à jour dynamiquement -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
 
-          <div class="kpi-card" style="border-left:3px solid var(--vert);">
-            <div id="com-pill-cible-label" style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">Cible de dépenses 2026 (CP)</div>
-            <div style="font-size:19px;font-weight:600;color:var(--vert);" id="com-pill-cible-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">(80 % des CP 2024)</div>
-          </div>
+    <div class="kpi-card" style="border-left:3px solid var(--vert);">
+    <div id="com-pill-cible-label" style="font-size:11px;font-weight:500;color:var(--vert);margin-bottom:6px;">Cible de dépenses 2026 (CP)</div>
+    <div style="font-size:19px;font-weight:600;color:var(--vert);" id="com-pill-cible-val">—</div>
+    <div style="font-size:10px;color:var(--gris3);margin-top:4px;">(80 % des CP 2024)</div>
+    </div>
 
-          <div class="kpi-card" style="border-left:3px solid var(--rep2);">
-            <div id="com-pill-cp-label" style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
-            <div style="font-size:19px;font-weight:600;color:var(--rep);" id="com-pill-cp-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Paiements</div>
-          </div>
+    <div class="kpi-card" style="border-left:3px solid var(--rep2);">
+    <div id="com-pill-cp-label" style="font-size:11px;font-weight:500;color:var(--rep2);margin-bottom:6px;">💳 CP 2026</div>
+    <div style="font-size:19px;font-weight:600;color:var(--rep);" id="com-pill-cp-val">—</div>
+    <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Paiements</div>
+    </div>
 
-          <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
-            <div id="com-pill-cap-cp-label" style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Disponible en CP 2026</div>
-            <div style="font-size:19px;font-weight:600;color:#6B3FA0;" id="com-pill-cap-cp-val">—</div>
-            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité restante</div>
-          </div>
-        </div>
+    <div class="kpi-card" style="border-left:3px solid #6B3FA0;">
+    <div id="com-pill-cap-cp-label" style="font-size:11px;font-weight:500;color:#6B3FA0;margin-bottom:6px;">🔓 Disponible en CP 2026</div>
+    <div style="font-size:19px;font-weight:600;color:#6B3FA0;" id="com-pill-cap-cp-val">—</div>
+    <div style="font-size:10px;color:var(--gris3);margin-top:4px;">Capacité restante</div>
+    </div>
+    </div>
 
-        <!-- KPI Saturation -->
-        <div id="com-sat-wrap" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;background:#F9FAFB;transition:background 0.3s,border-color 0.3s;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <span id="com-sat-titre" style="font-size:12px;font-weight:600;color:var(--gris2);">Consommation par rapport à la cible 2026</span>
-            <div style="display:flex;align-items:baseline;gap:8px;">
-              <span id="com-sat-pct" style="font-size:22px;font-weight:700;color:var(--gris2);">—</span>
-              <span id="com-sat-label" style="font-size:11px;font-weight:500;">—</span>
-            </div>
-          </div>
-          <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px;">
-            <div id="com-sat-jauge" style="height:100%;border-radius:4px;width:0%;transition:width 0.5s,background 0.3s;"></div>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <span style="font-size:11px;color:var(--gris2);">Reste disponible</span>
-            <span id="com-sat-reste" style="font-size:13px;font-weight:600;color:var(--gris2);">—</span>
-          </div>
-          <div style="border-top:1px solid #e5e7eb;padding-top:8px;display:flex;flex-direction:column;gap:4px;">
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
-              <span style="color:var(--gris3);">🌍 National :</span>
-              <span id="com-sat-vs-nat" style="font-weight:500;">—</span>
-            </div>
-            <div id="com-sat-vs-per-row" style="display:flex;align-items:center;gap:6px;font-size:11px;">
-              <span style="color:var(--gris3);">📍 Périmètre :</span>
-              <span id="com-sat-vs-per" style="font-weight:500;">—</span>
-            </div>
-          </div>
-        </div>
+    <!-- KPI Saturation -->
+    <div id="com-sat-wrap" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;background:#F9FAFB;transition:background 0.3s,border-color 0.3s;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <span id="com-sat-titre" style="font-size:12px;font-weight:600;color:var(--gris2);">Consommation par rapport à la cible 2026</span>
+    <div style="display:flex;align-items:baseline;gap:8px;">
+    <span id="com-sat-pct" style="font-size:22px;font-weight:700;color:var(--gris2);">—</span>
+    <span id="com-sat-label" style="font-size:11px;font-weight:500;">—</span>
+    </div>
+    </div>
+    <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px;">
+    <div id="com-sat-jauge" style="height:100%;border-radius:4px;width:0%;transition:width 0.5s,background 0.3s;"></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <span style="font-size:11px;color:var(--gris2);">Reste disponible</span>
+    <span id="com-sat-reste" style="font-size:13px;font-weight:600;color:var(--gris2);">—</span>
+    </div>
+    <div style="border-top:1px solid #e5e7eb;padding-top:8px;display:flex;flex-direction:column;gap:4px;">
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+    <span style="color:var(--gris3);">🌍 National :</span>
+    <span id="com-sat-vs-nat" style="font-weight:500;">—</span>
+    </div>
+    <div id="com-sat-vs-per-row" style="display:flex;align-items:center;gap:6px;font-size:11px;">
+    <span style="color:var(--gris3);">📍 Périmètre :</span>
+    <span id="com-sat-vs-per" style="font-weight:500;">—</span>
+    </div>
+    </div>
+    </div>
 
-        <!-- Graphique -->
-        <div class="chart-container" style="margin-bottom:16px;">
-          <div id="com-chart-title" class="chart-title">Consommation de CP de 2022 à 2026</div>
-          <div class="chart-wrapper" style="height:200px;">
-            <canvas id="chart-com-evolution"></canvas>
-          </div>
-        </div>
+    <!-- Graphique -->
+    <div class="chart-container" style="margin-bottom:16px;">
+    <div id="com-chart-title" class="chart-title">Consommation de CP de 2022 à 2026</div>
+    <div class="chart-wrapper" style="height:200px;">
+    <canvas id="chart-com-evolution"></canvas>
+    </div>
+    </div>
 
-        <!-- Tableau récapitulatif -->
-        <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;min-width:860px;">
-            <thead>
-              <tr id="com-thead-2026">
-                <th style="background:var(--gris4);border-bottom:0.5px solid var(--bord);padding:6px 12px;"></th>
-                <th colspan="4" style="background:var(--gris4);padding:6px 12px;text-align:center;font-weight:500;font-size:11px;color:var(--gris2);border-bottom:0.5px solid var(--bord);">Historique</th>
-                <th id="com-th-2026-label" colspan="6" style="background:#D4D9F5;padding:6px 12px;text-align:center;font-weight:600;font-size:11px;color:var(--rep);border-bottom:0.5px solid var(--bord);">Consommation budgétaire 2026</th>
-              </tr>
-              <tr style="background:var(--gris4);">
-                <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Structure</th>
-                <th id="com-th-2022" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2022</th>
-                <th id="com-th-2023" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2023</th>
-                <th id="com-th-2024" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2024</th>
-                <th id="com-th-2025" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2025</th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--orange);">Restes à payer<br><span style="font-weight:400;">issus 2025</span></th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">AE 2026</th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">CP 2026</th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--vert);">Cible 2026<br><span style="font-weight:400;font-size:10px;">(80 % CP 2024)</span></th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">AE</span></th>
-                <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">CP</span></th>
-              </tr>
-            </thead>
-            <tbody id="table-com-body">
-              <tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
-            </tbody>
-          </table>
-        </div>
+    <!-- Tableau récapitulatif -->
+    <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;min-width:860px;">
+    <thead>
+    <tr id="com-thead-2026">
+    <th style="background:var(--gris4);border-bottom:0.5px solid var(--bord);padding:6px 12px;"></th>
+    <th colspan="4" style="background:var(--gris4);padding:6px 12px;text-align:center;font-weight:500;font-size:11px;color:var(--gris2);border-bottom:0.5px solid var(--bord);">Historique</th>
+    <th id="com-th-2026-label" colspan="6" style="background:#D4D9F5;padding:6px 12px;text-align:center;font-weight:600;font-size:11px;color:var(--rep);border-bottom:0.5px solid var(--bord);">Consommation budgétaire 2026</th>
+    </tr>
+    <tr style="background:var(--gris4);">
+    <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Structure</th>
+    <th id="com-th-2022" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2022</th>
+    <th id="com-th-2023" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2023</th>
+    <th id="com-th-2024" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2024</th>
+    <th id="com-th-2025" style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">CP 2025</th>
+    <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--orange);">Restes à payer<br><span style="font-weight:400;">issus 2025</span></th>
+    <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">AE 2026</th>
+    <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;">CP 2026</th>
+    <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:var(--vert);">Cible 2026<br><span style="font-weight:400;font-size:10px;">(80 % CP 2024)</span></th>
+    <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">AE</span></th>
+    <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:11px;border-bottom:0.5px solid var(--bord);background:#EEF2FF;color:#6B3FA0;">Disponible<br><span style="font-weight:400;">CP</span></th>
+    </tr>
+    </thead>
+    <tbody id="table-com-body">
+    <tr><td colspan="11" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
+    </tbody>
+    </table>
+    </div>
 
-        <!-- Commentaire Communication -->
-        <div style="margin-top: 16px;">
-          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
-          <textarea id="com-commentaire"
-                    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
-                    placeholder="Ajouter un commentaire sur les dépenses de communication..."></textarea>
-        </div>
+    <!-- Commentaire Communication -->
+    <div style="margin-top: 16px;">
+    <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+    <textarea id="com-commentaire"
+    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+    placeholder="Ajouter un commentaire sur les dépenses de communication..."></textarea>
+    </div>
     </div><!-- fin section Dépenses de communication -->
 
-    <!-- SECTION FONCTIONNEMENT COURANT -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- ZONE : INDICATEURS DE GESTION                      -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="zone-header zone-gestion">
+      <div class="zone-header-icon">📋</div>
+      <div class="zone-header-title">Indicateurs de gestion</div>
+    </div>
+
     <div class="section">
-      <div class="section-header">
-        <div class="section-icon">🏛️</div>
-        <div class="section-title">Fonctionnement courant</div>
-      </div>
+    <div class="section-header">
+    <div class="section-icon">🛃</div>
+    <div class="section-title">Ressources Humaines</div>
+    </div>
+      
+    <!-- KPI Pills -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px;">
+    <!-- Effectif Total -->
+    <div class="kpi-card">
+    <div class="kpi-card-label">ETPT Total</div>
+    <div class="kpi-card-value" id="rh-effectif-total">—</div>
+    <div class="kpi-card-details">
+    <div id="rh-effectif-evolution">—</div>
+    <div id="rh-effectif-compare">—</div>
+    <div id="rh-effectif-rang">—</div>
+    </div>
+    </div>
+        
+    <!-- Effectif AGCO -->
+    <div class="kpi-card">
+    <div class="kpi-card-label">ETPT AGCO</div>
+    <div class="kpi-card-value" id="rh-agco-total">—</div>
+    <div class="kpi-card-details">
+    <div id="rh-agco-evolution">—</div>
+    <div id="rh-agco-compare">—</div>
+    </div>
+    </div>
+        
+    <!-- Effectif SU -->
+    <div class="kpi-card">
+    <div class="kpi-card-label">ETPT SU</div>
+    <div class="kpi-card-value" id="rh-su-total">—</div>
+    <div class="kpi-card-details">
+    <div id="rh-su-evolution">—</div>
+    <div id="rh-su-compare">—</div>
+    </div>
+    </div>
+        
+    <!-- Âge Moyen -->
+    <div class="kpi-card">
+    <div class="kpi-card-label">Âge Moyen</div>
+    <div class="kpi-card-value">
+    <span id="rh-age-moyen">—</span>
+    <span style="font-size: 14px; font-weight: 600; color: #6c757d;">ans</span>
+    </div>
+    <div class="kpi-card-details">
+    <div id="rh-age-compare-groupe">—</div>
+    <div id="rh-age-compare-national">—</div>
+    </div>
+    </div>
+        
+    <!-- MS / Agent -->
+    <div class="kpi-card">
+    <div class="kpi-card-label">MS / Agent</div>
+    <div class="kpi-card-value" style="font-size: 28px;" id="rh-ms-par-agent">—</div>
+    <div class="kpi-card-details">
+    <div id="rh-ms-compare-groupe">—</div>
+    <div id="rh-ms-compare-national">—</div>
+    </div>
+    </div>
+    </div>
+      
+    <!-- Tableau détaillé par DR -->
+    <div style="margin-bottom: 20px;">
+    <h4 style="font-size: 13px; font-weight: 600; color: var(--gris2); margin-bottom: 8px;">📋 Détail par structure</h4>
+    <div style="overflow-x: auto;">
+    <table class="data-table" style="font-size: 11px;">
+    <thead>
+    <tr>
+    <th>Structure</th>
+    <th style="text-align: right;">ETPT Total</th>
+    <th style="text-align: center;">AGCO</th>
+    <th style="text-align: center;">SU</th>
+    <th style="text-align: center;">Autres</th>
+    <th style="text-align: right;">Masse Salariale</th>
+    <th style="text-align: right;">MS/Agent</th>
+    <th style="text-align: center;">Âge Moyen</th>
+    </tr>
+    </thead>
+    <tbody id="rh-detail-tbody"></tbody>
+    <tfoot id="rh-detail-tfoot" style="font-weight: 600; background: var(--gris4);"></tfoot>
+    </table>
+    </div>
+    </div>
+      
+    <!-- Graphiques côte à côte -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+    <div class="chart-container">
+    <div class="chart-title">Évolution des ETPT (toute la série)</div>
+    <div class="chart-wrapper" style="height: 220px;">
+    <canvas id="chart-rh-evolution"></canvas>
+    </div>
+    </div>
+    <div class="chart-container">
+    <div class="chart-title">Répartition AGCO / SU</div>
+    <div class="chart-wrapper" style="height: 220px;">
+    <canvas id="chart-rh-repartition"></canvas>
+    </div>
+    </div>
+    </div>
+      
+    <!-- Commentaire RH -->
+    <div>
+    <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+    <textarea id="rh-commentaire" 
+    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+    placeholder="Ajouter un commentaire sur les ressources humaines..."></textarea>
+    </div>
+    </div>
 
-      <!-- 4 KPI Pills -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:24px;">
+    <div class="section">
+    <div class="section-header">
+    <div class="section-icon">💻</div>
+    <div class="section-title">Informatique</div>
+    </div>
+      
+    <!-- KPI Pills -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:2rem;">
+        
+    <!-- Total Postes -->
+    <div class="kpi-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">💻</span>
+    <span style="font-size:12px;font-weight:500;flex:1;color:#3C3489;">Postes de travail</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#26215C;" id="it-total">—</div>
+    <div class="it-evolution" id="it-total-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;opacity:0.6;" id="it-pct-portables"></div>
+    </div>
 
-        <!-- PILL 1 : Dépenses de fonctionnement courant en CP -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">Dépenses de fonctionnement courant en CP</div>
-          <div id="fonct-pill-evol">—</div>
-          <div id="fonct-pill-evol-detail" class="kpi-card-details"></div>
-        </div>
+    <!-- Ratio Poste/Agent -->
+    <div class="kpi-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">👤</span>
+    <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Ratio poste / ETPT</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="it-ratio">—</div>
+    <div class="it-evolution" id="it-ratio-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="it-ratio-comp"></div>
+    </div>
 
-        <!-- PILL 2 : Dépenses maîtrisables en CP -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">Dépenses maîtrisables en CP</div>
-          <div id="fonct-pill-pct-m">—</div>
-          <div id="fonct-pill-pct-m-detail" class="kpi-card-details"></div>
-        </div>
+    <!-- Budget IT annuel -->
+    <div class="kpi-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">💰</span>
+    <span style="font-size:12px;font-weight:500;flex:1;color:#27500A;">Budget IT <span id="it-annee-label">2025</span></span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#173404;" id="it-budget-annuel">—</div>
+    <div class="it-evolution" id="it-budget-annuel-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;opacity:0.6;">Budget IT total</div>
+    </div>
 
-        <!-- PILL 3 : Part des dépenses maîtrisables -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">Part des dépenses maîtrisables</div>
-          <div id="fonct-pill-agent-2025">—</div>
-          <div id="fonct-pill-agent-2025-detail" class="kpi-card-details"></div>
-        </div>
+    <!-- Budget IT Moyen 4 ans -->
+    <div class="kpi-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">📈</span>
+    <span style="font-size:12px;font-weight:500;flex:1;color:#085041;">Budget IT moyen 4 ans</span>
+    </div>
+    <div class="it-badge" id="it-badge-4ans">Lissé 2022-2025</div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#04342C;" id="it-budget-moyen">—</div>
+    <div style="font-size:10px;line-height:1.5;margin-top:8px;opacity:0.8;">Moyenne lissée pour atténuer<br>l'effet des renouvellements</div>
+    </div>
 
-        <!-- PILL 4 : Dépenses maîtrisables par ETPT -->
-        <div class="kpi-card">
-          <div class="kpi-card-label">Dépenses maîtrisables par ETPT</div>
-          <div id="fonct-pill-agent-4ans">—</div>
-          <div id="fonct-pill-agent-4ans-detail" class="kpi-card-details"></div>
-        </div>
+    <!-- Budget IT par Agent annuel -->
+    <div class="kpi-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">📊</span>
+    <span style="font-size:12px;font-weight:500;flex:1;color:#633806;">Budget IT / ETPT <span id="it-annee-label2">2025</span></span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#412402;" id="it-budget-agent-annuel">—</div>
+    <div class="it-evolution" id="it-budget-agent-annuel-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="it-budget-agent-annuel-comp"></div>
+    </div>
 
-      </div>
+    <!-- Budget IT Moyen par Agent 4 ans -->
+    <div class="kpi-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">💡</span>
+    <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Budget IT / ETPT moyen 4 ans</span>
+    </div>
+    <div class="it-badge" id="it-badge-4ans2">Lissé 2022-2025</div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="it-budget-agent-moyen">—</div>
+    <div style="font-size:10px;line-height:1.5;margin-top:8px;" id="it-budget-agent-moyen-comp"></div>
+    </div>
 
-      <!-- Tableau multi-années -->
-      <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;margin-bottom:20px;">
-        <table style="width:100%;border-collapse:collapse;min-width:520px;">
-          <thead>
-            <tr style="background:var(--gris4);">
-              <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Indicateur</th>
-              <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2022</th>
-              <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2023</th>
-              <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2024</th>
-              <th style="padding:8px 12px;text-align:right;font-weight:600;font-size:12px;border-bottom:0.5px solid var(--bord);color:var(--rep);">2025</th>
-            </tr>
-          </thead>
-          <tbody id="fonct-tbody">
-            <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
-          </tbody>
-        </table>
-      </div>
+    </div>
 
-      <!-- Commentaire -->
-      <div style="margin-top:4px;">
-        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur</label>
-        <textarea id="fonct-commentaire"
-                  style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
-                  placeholder="Ajouter un commentaire sur le fonctionnement courant..."></textarea>
-      </div>
+    <!-- Graphique -->
+    <div class="chart-container">
+    <div class="chart-title">Répartition du parc (portables vs fixes)</div>
+    <div class="chart-wrapper">
+    <canvas id="chart-it-type"></canvas>
+    </div>
+    </div>
+
+    <!-- Tableau -->
+    <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;">
+    <thead style="background:var(--gris4);">
+    <tr>
+    <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Portables</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Fixes</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total postes</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Ratio / ETPT</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Budget IT</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Budget / ETPT</th>
+    </tr>
+    </thead>
+    <tbody id="table-it-body">
+    <!-- Rempli dynamiquement -->
+    </tbody>
+    </table>
+    </div>
+      
+    <!-- Commentaire Informatique -->
+    <div style="margin-top: 20px;">
+    <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+    <textarea id="it-commentaire" 
+    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+    placeholder="Ajouter un commentaire sur l'informatique..."></textarea>
+    </div>
+    </div>
+
+    <div class="section">
+    <div class="section-header">
+    <div class="section-icon">✈️</div>
+    <div class="section-title">Frais de Mission</div>
+    </div>
+      
+    <!-- KPI Pills -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
+        
+    <!-- Total Frais Mission -->
+    <div class="kpi-card" id="fm-pill-total">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">📊</span>
+    <span style="font-size:12px;font-weight:500;">Total frais mission</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-total-value">—</div>
+    <div class="fm-evolution-badge" id="fm-total-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="fm-total-comp"></div>
+    </div>
+
+    <!-- Formation -->
+    <div class="kpi-card" id="fm-pill-formation">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">🎓</span>
+    <span style="font-size:12px;font-weight:500;">Formation</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-formation-value">—</div>
+    <div class="fm-evolution-badge" id="fm-formation-evol"></div>
+    <div style="font-size:10px;opacity:0.6;margin-top:10px;" id="fm-formation-pct"></div>
+    </div>
+
+    <!-- Autres missions -->
+    <div class="kpi-card" id="fm-pill-autres">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">✈️</span>
+    <span style="font-size:12px;font-weight:500;">Autres missions</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-autres-value">—</div>
+    <div class="fm-evolution-badge" id="fm-autres-evol"></div>
+    <div style="font-size:10px;opacity:0.6;margin-top:10px;" id="fm-autres-pct"></div>
+    </div>
+
+    <!-- Coût moyen par ETPT -->
+    <div class="kpi-card" id="fm-pill-agent">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">👤</span>
+    <span style="font-size:12px;font-weight:500;">Coût moyen / ETPT</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-agent-value">—</div>
+    <div class="fm-evolution-badge" id="fm-agent-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="fm-agent-comp"></div>
+    </div>
+
+    </div>
+
+    <!-- Graphique Répartition -->
+    <div class="chart-container" style="margin-bottom:2rem;">
+    <div class="chart-title">Répartition des frais par type (% du total)</div>
+    <div class="chart-wrapper">
+    <canvas id="chart-fm-repartition"></canvas>
+    </div>
+    </div>
+
+    <!-- Tableau détaillé -->
+    <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
+    <table id="table-fm" style="width:100%;border-collapse:collapse;">
+    <thead style="background:var(--gris4);">
+    <tr>
+    <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année / Type</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Transport</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Hébergement</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Repas</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total</th>
+    </tr>
+    </thead>
+    <tbody id="table-fm-body">
+    <!-- Rempli dynamiquement -->
+    </tbody>
+    </table>
+    </div>
+      
+    <!-- Commentaire Frais de Mission -->
+    <div style="margin-top: 20px;">
+    <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
+    <textarea id="fm-commentaire" 
+    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+    placeholder="Ajouter un commentaire sur les frais de mission..."></textarea>
+    </div>
+    </div>
+
+    <div class="section">
+    <div class="section-header">
+    <div class="section-icon">🏛️</div>
+    <div class="section-title">Fonctionnement courant</div>
+    </div>
+
+    <!-- 4 KPI Pills -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:24px;">
+
+    <!-- PILL 1 : Dépenses de fonctionnement courant en CP -->
+    <div class="kpi-card">
+    <div class="kpi-card-label">Dépenses de fonctionnement courant en CP</div>
+    <div id="fonct-pill-evol">—</div>
+    <div id="fonct-pill-evol-detail" class="kpi-card-details"></div>
+    </div>
+
+    <!-- PILL 2 : Dépenses maîtrisables en CP -->
+    <div class="kpi-card">
+    <div class="kpi-card-label">Dépenses maîtrisables en CP</div>
+    <div id="fonct-pill-pct-m">—</div>
+    <div id="fonct-pill-pct-m-detail" class="kpi-card-details"></div>
+    </div>
+
+    <!-- PILL 3 : Part des dépenses maîtrisables -->
+    <div class="kpi-card">
+    <div class="kpi-card-label">Part des dépenses maîtrisables</div>
+    <div id="fonct-pill-agent-2025">—</div>
+    <div id="fonct-pill-agent-2025-detail" class="kpi-card-details"></div>
+    </div>
+
+    <!-- PILL 4 : Dépenses maîtrisables par ETPT -->
+    <div class="kpi-card">
+    <div class="kpi-card-label">Dépenses maîtrisables par ETPT</div>
+    <div id="fonct-pill-agent-4ans">—</div>
+    <div id="fonct-pill-agent-4ans-detail" class="kpi-card-details"></div>
+    </div>
+
+    </div>
+
+    <!-- Tableau multi-années -->
+    <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;overflow-x:auto;margin-bottom:20px;">
+    <table style="width:100%;border-collapse:collapse;min-width:520px;">
+    <thead>
+    <tr style="background:var(--gris4);">
+    <th style="padding:8px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Indicateur</th>
+    <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2022</th>
+    <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2023</th>
+    <th style="padding:8px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">2024</th>
+    <th style="padding:8px 12px;text-align:right;font-weight:600;font-size:12px;border-bottom:0.5px solid var(--bord);color:var(--rep);">2025</th>
+    </tr>
+    </thead>
+    <tbody id="fonct-tbody">
+    <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée disponible</td></tr>
+    </tbody>
+    </table>
+    </div>
+
+    <!-- Commentaire -->
+    <div style="margin-top:4px;">
+    <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur</label>
+    <textarea id="fonct-commentaire"
+    style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
+    placeholder="Ajouter un commentaire sur le fonctionnement courant..."></textarea>
+    </div>
     </div><!-- fin section Fonctionnement courant -->
 
-     <!-- SECTION FRAIS DE MISSION -->
-    <!-- À insérer après la section Informatique (ligne 825) et avant la section Véhicules (ligne 828) -->
-    
     <div class="section">
-      <div class="section-header">
-        <div class="section-icon">✈️</div>
-        <div class="section-title">Frais de Mission</div>
-      </div>
-      
-      <!-- KPI Pills -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
-        
-        <!-- Total Frais Mission -->
-        <div class="kpi-card" id="fm-pill-total">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span style="font-size:18px;line-height:1;">📊</span>
-            <span style="font-size:12px;font-weight:500;">Total frais mission</span>
-          </div>
-          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-total-value">—</div>
-          <div class="fm-evolution-badge" id="fm-total-evol"></div>
-          <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="fm-total-comp"></div>
-        </div>
-
-        <!-- Formation -->
-        <div class="kpi-card" id="fm-pill-formation">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span style="font-size:18px;line-height:1;">🎓</span>
-            <span style="font-size:12px;font-weight:500;">Formation</span>
-          </div>
-          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-formation-value">—</div>
-          <div class="fm-evolution-badge" id="fm-formation-evol"></div>
-          <div style="font-size:10px;opacity:0.6;margin-top:10px;" id="fm-formation-pct"></div>
-        </div>
-
-        <!-- Autres missions -->
-        <div class="kpi-card" id="fm-pill-autres">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span style="font-size:18px;line-height:1;">✈️</span>
-            <span style="font-size:12px;font-weight:500;">Autres missions</span>
-          </div>
-          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-autres-value">—</div>
-          <div class="fm-evolution-badge" id="fm-autres-evol"></div>
-          <div style="font-size:10px;opacity:0.6;margin-top:10px;" id="fm-autres-pct"></div>
-        </div>
-
-        <!-- Coût moyen par ETPT -->
-        <div class="kpi-card" id="fm-pill-agent">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span style="font-size:18px;line-height:1;">👤</span>
-            <span style="font-size:12px;font-weight:500;">Coût moyen / ETPT</span>
-          </div>
-          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="fm-agent-value">—</div>
-          <div class="fm-evolution-badge" id="fm-agent-evol"></div>
-          <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="fm-agent-comp"></div>
-        </div>
-
-      </div>
-
-      <!-- Graphique Répartition -->
-      <div class="chart-container" style="margin-bottom:2rem;">
-        <div class="chart-title">Répartition des frais par type (% du total)</div>
-        <div class="chart-wrapper">
-          <canvas id="chart-fm-repartition"></canvas>
-        </div>
-      </div>
-
-      <!-- Tableau détaillé -->
-      <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
-        <table id="table-fm" style="width:100%;border-collapse:collapse;">
-          <thead style="background:var(--gris4);">
-            <tr>
-              <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année / Type</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Transport</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Hébergement</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Repas</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total</th>
-            </tr>
-          </thead>
-          <tbody id="table-fm-body">
-            <!-- Rempli dynamiquement -->
-          </tbody>
-        </table>
-      </div>
-      
-      <!-- Commentaire Frais de Mission -->
-      <div style="margin-top: 20px;">
-        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
-        <textarea id="fm-commentaire" 
-                  style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
-                  placeholder="Ajouter un commentaire sur les frais de mission..."></textarea>
-      </div>
-    </div>
-    
-   <!-- SECTION INFORMATIQUE -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-icon">💻</div>
-        <div class="section-title">Informatique</div>
-      </div>
-      
-      <!-- KPI Pills -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:2rem;">
-        
-        <!-- Total Postes -->
-        <div class="kpi-card">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span style="font-size:18px;line-height:1;">💻</span>
-            <span style="font-size:12px;font-weight:500;flex:1;color:#3C3489;">Postes de travail</span>
-          </div>
-          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#26215C;" id="it-total">—</div>
-          <div class="it-evolution" id="it-total-evol"></div>
-          <div style="font-size:10px;line-height:1.5;margin-top:10px;opacity:0.6;" id="it-pct-portables"></div>
-        </div>
-
-        <!-- Ratio Poste/Agent -->
-        <div class="kpi-card">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span style="font-size:18px;line-height:1;">👤</span>
-            <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Ratio poste / ETPT</span>
-          </div>
-          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="it-ratio">—</div>
-          <div class="it-evolution" id="it-ratio-evol"></div>
-          <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="it-ratio-comp"></div>
-        </div>
-
-        <!-- Budget IT annuel -->
-        <div class="kpi-card">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span style="font-size:18px;line-height:1;">💰</span>
-            <span style="font-size:12px;font-weight:500;flex:1;color:#27500A;">Budget IT <span id="it-annee-label">2025</span></span>
-          </div>
-          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#173404;" id="it-budget-annuel">—</div>
-          <div class="it-evolution" id="it-budget-annuel-evol"></div>
-          <div style="font-size:10px;line-height:1.5;margin-top:10px;opacity:0.6;">Budget IT total</div>
-        </div>
-
-        <!-- Budget IT Moyen 4 ans -->
-        <div class="kpi-card">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span style="font-size:18px;line-height:1;">📈</span>
-            <span style="font-size:12px;font-weight:500;flex:1;color:#085041;">Budget IT moyen 4 ans</span>
-          </div>
-          <div class="it-badge" id="it-badge-4ans">Lissé 2022-2025</div>
-          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#04342C;" id="it-budget-moyen">—</div>
-          <div style="font-size:10px;line-height:1.5;margin-top:8px;opacity:0.8;">Moyenne lissée pour atténuer<br>l'effet des renouvellements</div>
-        </div>
-
-        <!-- Budget IT par Agent annuel -->
-        <div class="kpi-card">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span style="font-size:18px;line-height:1;">📊</span>
-            <span style="font-size:12px;font-weight:500;flex:1;color:#633806;">Budget IT / ETPT <span id="it-annee-label2">2025</span></span>
-          </div>
-          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#412402;" id="it-budget-agent-annuel">—</div>
-          <div class="it-evolution" id="it-budget-agent-annuel-evol"></div>
-          <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="it-budget-agent-annuel-comp"></div>
-        </div>
-
-        <!-- Budget IT Moyen par Agent 4 ans -->
-        <div class="kpi-card">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span style="font-size:18px;line-height:1;">💡</span>
-            <span style="font-size:12px;font-weight:500;flex:1;color:#0C447C;">Budget IT / ETPT moyen 4 ans</span>
-          </div>
-          <div class="it-badge" id="it-badge-4ans2">Lissé 2022-2025</div>
-          <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="it-budget-agent-moyen">—</div>
-          <div style="font-size:10px;line-height:1.5;margin-top:8px;" id="it-budget-agent-moyen-comp"></div>
-        </div>
-
-      </div>
-
-      <!-- Graphique -->
-      <div class="chart-container">
-        <div class="chart-title">Répartition du parc (portables vs fixes)</div>
-        <div class="chart-wrapper">
-          <canvas id="chart-it-type"></canvas>
-        </div>
-      </div>
-
-      <!-- Tableau -->
-      <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
-        <table style="width:100%;border-collapse:collapse;">
-          <thead style="background:var(--gris4);">
-            <tr>
-              <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Portables</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Fixes</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total postes</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Ratio / ETPT</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Budget IT</th>
-              <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Budget / ETPT</th>
-            </tr>
-          </thead>
-          <tbody id="table-it-body">
-            <!-- Rempli dynamiquement -->
-          </tbody>
-        </table>
-      </div>
-      
-      <!-- Commentaire Informatique -->
-      <div style="margin-top: 20px;">
-        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
-        <textarea id="it-commentaire" 
-                  style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
-                  placeholder="Ajouter un commentaire sur l'informatique..."></textarea>
-      </div>
-    </div>
-    
-    <!-- ========================= SECTION VÉHICULES ========================= -->
-<div class="section">
-  <div class="section-header">
+    <div class="section-header">
     <div class="section-icon">🚗</div>
     <div class="section-title">Parc Automobile</div>
-  </div>
+    </div>
   
-  <!-- KPI Pills -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
+    <!-- KPI Pills -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
     
     <!-- Total Véhicules -->
     <div class="kpi-card" id="veh-pill-total">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;line-height:1;">🚗</span>
-        <span style="font-size:12px;font-weight:500;">Total véhicules</span>
-      </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-total-value">—</div>
-      <div class="veh-evolution-badge" id="veh-total-evol"></div>
-      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-total-comp"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">🚗</span>
+    <span style="font-size:12px;font-weight:500;">Total véhicules</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-total-value">—</div>
+    <div class="veh-evolution-badge" id="veh-total-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-total-comp"></div>
     </div>
 
     <!-- Budget Total -->
     <div class="kpi-card" id="veh-pill-budget">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;line-height:1;">💼</span>
-        <span style="font-size:12px;font-weight:500;">Budget total</span>
-      </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-budget-value">—</div>
-      <div class="veh-evolution-badge" id="veh-budget-evol"></div>
-      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-budget-comp"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">💼</span>
+    <span style="font-size:12px;font-weight:500;">Budget total</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-budget-value">—</div>
+    <div class="veh-evolution-badge" id="veh-budget-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-budget-comp"></div>
     </div>
 
     <!-- Ratio Véhicule/ETPT -->
     <div class="kpi-card" id="veh-pill-ratio">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;line-height:1;">👤</span>
-        <span style="font-size:12px;font-weight:500;">Véhicule / ETPT</span>
-      </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-ratio-value">—</div>
-      <div class="veh-evolution-badge" id="veh-ratio-evol"></div>
-      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-ratio-comp"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">👤</span>
+    <span style="font-size:12px;font-weight:500;">Véhicule / ETPT</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-ratio-value">—</div>
+    <div class="veh-evolution-badge" id="veh-ratio-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-ratio-comp"></div>
     </div>
 
     <!-- Coût par véhicule -->
     <div class="kpi-card" id="veh-pill-cout">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;line-height:1;">💸</span>
-        <span style="font-size:12px;font-weight:500;">Coût fonct. / véhicule</span>
-      </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-cout-value">—</div>
-      <div class="veh-evolution-badge" id="veh-cout-evol"></div>
-      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-cout-comp"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">💸</span>
+    <span style="font-size:12px;font-weight:500;">Coût fonct. / véhicule</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-cout-value">—</div>
+    <div class="veh-evolution-badge" id="veh-cout-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-cout-comp"></div>
     </div>
 
     <!-- Ratio SU (ETPT) -->
     <div class="kpi-card" id="veh-pill-ratio-su">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;line-height:1;">👥</span>
-        <span style="font-size:12px;font-weight:500;">Ratio véhicule / SU (ETPT)</span>
-      </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-ratio-su-value">—</div>
-      <div class="veh-evolution-badge" id="veh-ratio-su-evol"></div>
-      <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-ratio-su-comp"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">👥</span>
+    <span style="font-size:12px;font-weight:500;">Ratio véhicule / SU (ETPT)</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;" id="veh-ratio-su-value">—</div>
+    <div class="veh-evolution-badge" id="veh-ratio-su-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:10px;" id="veh-ratio-su-comp"></div>
     </div>
 
-  </div>
+    </div>
 
-  <!-- Graphiques -->
-  <div class="chart-grid">
+    <!-- Graphiques -->
+    <div class="chart-grid">
     <div class="chart-container">
-      <div class="chart-title">Répartition Vétusté</div>
-      <div class="chart-subtitle">État du parc automobile</div>
-      <div class="chart-wrapper">
-        <canvas id="chart-veh-vetuste"></canvas>
-      </div>
+    <div class="chart-title">Répartition Vétusté</div>
+    <div class="chart-subtitle">État du parc automobile</div>
+    <div class="chart-wrapper">
+    <canvas id="chart-veh-vetuste"></canvas>
+    </div>
     </div>
     <div class="chart-container">
-      <div class="chart-title">Évolution Budget</div>
-      <div class="chart-subtitle">Fonctionnement + Investissement (K€)</div>
-      <div class="chart-wrapper">
-        <canvas id="chart-veh-budget"></canvas>
-      </div>
+    <div class="chart-title">Évolution Budget</div>
+    <div class="chart-subtitle">Fonctionnement + Investissement (K€)</div>
+    <div class="chart-wrapper">
+    <canvas id="chart-veh-budget"></canvas>
     </div>
-  </div>
+    </div>
+    </div>
 
-  <!-- Tableau détaillé -->
-  <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;margin-top:2rem;">
+    <!-- Tableau détaillé -->
+    <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;margin-top:2rem;">
     <table style="width:100%;border-collapse:collapse;">
-      <thead style="background:var(--gris4);">
-        <tr>
-          <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année</th>
-          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total</th>
-          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Vétustes</th>
-          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">% Vétusté</th>
-          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Fonct.</th>
-          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Invest.</th>
-          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total Budget</th>
-          <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Ratio/ETPT</th>
-        </tr>
-      </thead>
-      <tbody id="table-veh-body">
-        <!-- Rempli dynamiquement -->
-      </tbody>
+    <thead style="background:var(--gris4);">
+    <tr>
+    <th style="padding:12px 16px;text-align:left;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Année</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Vétustes</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">% Vétusté</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Fonct.</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Invest.</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Total Budget</th>
+    <th style="padding:12px 16px;text-align:right;font-weight:500;font-size:13px;border-bottom:0.5px solid var(--bord);">Ratio/ETPT</th>
+    </tr>
+    </thead>
+    <tbody id="table-veh-body">
+    <!-- Rempli dynamiquement -->
+    </tbody>
     </table>
-  </div>
+    </div>
   
-  <!-- Commentaire Parc Automobile -->
-  <div style="margin-top: 20px;">
+    <!-- Commentaire Parc Automobile -->
+    <div style="margin-top: 20px;">
     <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--gris2); font-size: 12px;">💬 Analyse de l'indicateur</label>
     <textarea id="veh-commentaire" 
-              style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
-              placeholder="Ajouter un commentaire sur le parc automobile..."></textarea>
-  </div>
-</div>
+    style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--bord); border-radius: 6px; font-family: 'Marianne', sans-serif; font-size: 12px; resize: vertical;"
+    placeholder="Ajouter un commentaire sur le parc automobile..."></textarea>
+    </div>
+    </div>
 
-<!-- ========================= SECTION IMMOBILIER ========================= -->
-<div class="section" id="section-immobilier">
-  <div class="section-header">
+    <div class="section" id="section-immobilier">
+    <div class="section-header">
     <div class="section-icon">🏛️</div>
     <div class="section-title">Immobilier</div>
-  </div>
+    </div>
 
-  <!-- KPI Pills -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
+    <!-- KPI Pills -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:2rem;">
 
     <!-- SUB Totale + Nb sites fusionnés -->
     <div class="kpi-card">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;line-height:1;">📐</span>
-        <span style="font-size:12px;font-weight:500;color:#042C53;">Surface SUB totale</span>
-      </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:4px;line-height:1;color:#042C53;" id="immo-sub-value">—</div>
-      <div style="font-size:11px;color:var(--gris2);margin-top:6px;" id="immo-sites-detail"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">📐</span>
+    <span style="font-size:12px;font-weight:500;color:#042C53;">Surface SUB totale</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:4px;line-height:1;color:#042C53;" id="immo-sub-value">—</div>
+    <div style="font-size:11px;color:var(--gris2);margin-top:6px;" id="immo-sites-detail"></div>
     </div>
 
     <!-- Ratio Occupation -->
     <div class="kpi-card">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;line-height:1;">👤</span>
-        <span style="font-size:12px;font-weight:500;color:#042C53;">Ratio d'occupation</span>
-      </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="immo-ratio-value">—</div>
-      <div style="font-size:11px;color:var(--gris2);margin-top:4px;" id="immo-ratio-residents"></div>
-      <div style="font-size:10px;color:var(--gris2);margin-top:2px;">Bureaux uniquement</div>
-      <div style="font-size:10px;line-height:1.5;margin-top:6px;" id="immo-ratio-comp"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">👤</span>
+    <span style="font-size:12px;font-weight:500;color:#042C53;">Ratio d'occupation</span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:8px;line-height:1;color:#042C53;" id="immo-ratio-value">—</div>
+    <div style="font-size:11px;color:var(--gris2);margin-top:4px;" id="immo-ratio-residents"></div>
+    <div style="font-size:10px;color:var(--gris2);margin-top:2px;">Bureaux uniquement</div>
+    <div style="font-size:10px;line-height:1.5;margin-top:6px;" id="immo-ratio-comp"></div>
     </div>
 
     <!-- Coût Surfacique + évolution fusionnés -->
     <div class="kpi-card">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;line-height:1;">💶</span>
-        <span style="font-size:12px;font-weight:500;color:#042C53;">Coût surfacique <span id="immo-annee-label">N</span></span>
-      </div>
-      <div style="font-size:26px;font-weight:500;margin-bottom:4px;line-height:1;color:#042C53;" id="immo-cout-value">—</div>
-      <div style="font-size:10px;margin-top:4px;" id="immo-cout-evol"></div>
-      <div style="font-size:10px;line-height:1.5;margin-top:4px;" id="immo-cout-comp"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">💶</span>
+    <span style="font-size:12px;font-weight:500;color:#042C53;">Coût surfacique <span id="immo-annee-label">N</span></span>
+    </div>
+    <div style="font-size:26px;font-weight:500;margin-bottom:4px;line-height:1;color:#042C53;" id="immo-cout-value">—</div>
+    <div style="font-size:10px;margin-top:4px;" id="immo-cout-evol"></div>
+    <div style="font-size:10px;line-height:1.5;margin-top:4px;" id="immo-cout-comp"></div>
     </div>
 
     <!-- Évolution coût surfacique (sparkline) -->
     <div class="kpi-card" style="grid-column: span 2;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;line-height:1;">📈</span>
-        <span style="font-size:12px;font-weight:500;color:#042C53;">Évolution coût surfacique</span>
-        <span class="it-badge" id="immo-badge-4ans" style="margin-left:auto;">Lissé 2022–2025</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:24px;">
-        <div>
-          <div style="font-size:11px;color:var(--gris2);margin-bottom:4px;">Moyenne 4 ans</div>
-          <div style="font-size:22px;font-weight:500;color:#042C53;" id="immo-cout-moyen">—</div>
-          <div style="font-size:10px;color:var(--gris2);margin-top:4px;" id="immo-energie-note">Électricité + gaz + eau</div>
-        </div>
-        <div style="flex:1;height:80px;position:relative;">
-          <canvas id="chart-immo-cout" width="300" height="80" style="display:block;"></canvas>
-        </div>
-      </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <span style="font-size:18px;line-height:1;">📈</span>
+    <span style="font-size:12px;font-weight:500;color:#042C53;">Évolution coût surfacique</span>
+    <span class="it-badge" id="immo-badge-4ans" style="margin-left:auto;">Lissé 2022–2025</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:24px;">
+    <div>
+    <div style="font-size:11px;color:var(--gris2);margin-bottom:4px;">Moyenne 4 ans</div>
+    <div style="font-size:22px;font-weight:500;color:#042C53;" id="immo-cout-moyen">—</div>
+    <div style="font-size:10px;color:var(--gris2);margin-top:4px;" id="immo-energie-note">Électricité + gaz + eau</div>
+    </div>
+    <div style="flex:1;height:80px;position:relative;">
+    <canvas id="chart-immo-cout" width="300" height="80" style="display:block;"></canvas>
+    </div>
+    </div>
     </div>
 
-  </div>
+    </div>
 
-  <!-- Tableau Domaine public -->
-  <div id="immo-section-public" style="margin-bottom:1.5rem;">
+    <!-- Tableau Domaine public -->
+    <div id="immo-section-public" style="margin-bottom:1.5rem;">
     <div style="font-size:13px;font-weight:600;color:#042C53;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-      🏛️ Domaine public / mise à disposition
+    🏛️ Domaine public / mise à disposition
     </div>
     <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
-      <table style="width:100%;border-collapse:collapse;">
-        <thead style="background:var(--gris4);">
-          <tr>
-            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Libellé</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ville</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Type</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">SUB (m²)</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Résidents</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ. (m²/rés.)</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Énergie (€)</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Coût surf. (€/m²)</th>
-          </tr>
-        </thead>
-        <tbody id="table-immo-public-body"></tbody>
-      </table>
+    <table style="width:100%;border-collapse:collapse;">
+    <thead style="background:var(--gris4);">
+    <tr>
+    <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Libellé</th>
+    <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ville</th>
+    <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Type</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">SUB (m²)</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Résidents</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ. (m²/rés.)</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Énergie (€)</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Coût surf. (€/m²)</th>
+    </tr>
+    </thead>
+    <tbody id="table-immo-public-body"></tbody>
+    </table>
     </div>
-  </div>
+    </div>
 
-  <!-- Tableau Baux privés -->
-  <div id="immo-section-prive" style="margin-bottom:1.5rem;">
+    <!-- Tableau Baux privés -->
+    <div id="immo-section-prive" style="margin-bottom:1.5rem;">
     <div style="font-size:13px;font-weight:600;color:#042C53;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-      🔑 Baux privés
+    🔑 Baux privés
     </div>
     <div style="background:var(--blanc);border:0.5px solid var(--bord);border-radius:8px;overflow:hidden;">
-      <table style="width:100%;border-collapse:collapse;">
-        <thead style="background:var(--gris4);">
-          <tr>
-            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Libellé</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ville</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Type</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">SUB (m²)</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Résidents</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ. (m²/rés.)</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Énergie (€)</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Coût surf. (€/m²)</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Fin de bail</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Loyer annuel (€)</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Loyer/m² (€)</th>
-          </tr>
-        </thead>
-        <tbody id="table-immo-prive-body"></tbody>
-      </table>
+    <table style="width:100%;border-collapse:collapse;">
+    <thead style="background:var(--gris4);">
+    <tr>
+    <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Libellé</th>
+    <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ville</th>
+    <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Type</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">SUB (m²)</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Résidents</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Ratio occ. (m²/rés.)</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Énergie (€)</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Coût surf. (€/m²)</th>
+    <th style="padding:10px 12px;text-align:left;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Fin de bail</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Loyer annuel (€)</th>
+    <th style="padding:10px 12px;text-align:right;font-weight:500;font-size:12px;border-bottom:0.5px solid var(--bord);">Loyer/m² (€)</th>
+    </tr>
+    </thead>
+    <tbody id="table-immo-prive-body"></tbody>
+    </table>
     </div>
-  </div>
+    </div>
 
-  <!-- Commentaire Immobilier -->
-  <div style="margin-top:20px;">
+    <!-- Commentaire Immobilier -->
+    <div style="margin-top:20px;">
     <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--gris2);font-size:12px;">💬 Analyse de l'indicateur Immobilier</label>
     <textarea id="immo-commentaire"
-              style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
-              placeholder="Ajouter un commentaire sur l'immobilier..."></textarea>
-  </div>
-</div>
+    style="width:100%;min-height:60px;padding:10px;border:1px solid var(--bord);border-radius:6px;font-family:'Marianne',sans-serif;font-size:12px;resize:vertical;"
+    placeholder="Ajouter un commentaire sur l'immobilier..."></textarea>
+    </div>
+    </div>
     
   </div>
 
