@@ -2876,6 +2876,1200 @@ function refreshFonctionnement(structureId, annee) {
 // MODULE EXPORT PDF/HTML
 // ============================================================================
 
+// ══════════════════════════════════════════════════════════════════════
+// MODULE RH
+// ══════════════════════════════════════════════════════════════════════
+
+function refreshRH(structureId, annee) {
+  const dataN = getRHData(structureId, annee);
+  const dataNMoins1 = getRHData(structureId, annee - 1);
+  
+  
+  if (!dataN) {
+    
+    // Effacer tous les champs
+    document.getElementById('rh-effectif-total').textContent = '—';
+    document.getElementById('rh-effectif-evolution').textContent = '—';
+    document.getElementById('rh-effectif-compare').textContent = '—';
+    document.getElementById('rh-effectif-rang').textContent = '—';
+    document.getElementById('rh-agco-total').textContent = '—';
+    document.getElementById('rh-agco-evolution').textContent = '—';
+    document.getElementById('rh-agco-compare').textContent = '—';
+    document.getElementById('rh-su-total').textContent = '—';
+    document.getElementById('rh-su-evolution').textContent = '—';
+    document.getElementById('rh-su-compare').textContent = '—';
+    document.getElementById('rh-age-moyen').textContent = '—';
+    document.getElementById('rh-age-compare-groupe').textContent = '—';
+    document.getElementById('rh-age-compare-national').textContent = '—';
+    document.getElementById('rh-ms-par-agent').textContent = '—';
+    document.getElementById('rh-ms-compare-groupe').textContent = '—';
+    document.getElementById('rh-ms-compare-national').textContent = '—';
+    
+    // Vider le tableau
+    document.getElementById('rh-detail-tbody').innerHTML = '';
+    document.getElementById('rh-detail-tfoot').innerHTML = `
+      <tr>
+        <td colspan="8" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">
+          ⚠️ Aucune donnée RH disponible pour cette structure (${FICHE_STATE.structure.sigle || FICHE_STATE.structure.nom})
+        </td>
+      </tr>
+    `;
+    
+    // Détruire les graphiques
+    const chartEvolution = Chart.getChart('chart-rh-evolution');
+    if (chartEvolution) chartEvolution.destroy();
+    
+    const chartRepartition = Chart.getChart('chart-rh-repartition');
+    if (chartRepartition) chartRepartition.destroy();
+    
+    // Réinitialiser le commentaire pour la structure courante
+    initSectionMDE('rh-commentaire', structureId, annee, 'RH');
+    
+    return;
+  }
+  
+  // KPI - Effectif Total avec évolution, comparaison et rang
+  document.getElementById('rh-effectif-total').textContent = formatNumber(dataN.effectif_total);
+  
+  // Évolution temporelle
+  if (dataNMoins1) {
+    const diffEffectif = Math.round(dataN.effectif_total - dataNMoins1.effectif_total);
+    const pctEvolution = dataNMoins1.effectif_total > 0 ? Math.round(diffEffectif / dataNMoins1.effectif_total * 1000) / 10 : 0;
+    const color = diffEffectif >= 0 ? 'var(--vert)' : 'var(--rouge)';
+    const symbol = diffEffectif >= 0 ? '+' : '';
+    document.getElementById('rh-effectif-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffEffectif} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
+  }
+  
+  // Comparaison au groupe
+  const type = FICHE_STATE.structure.type;
+  const consoGroupe = getConsolidationData(type, annee);
+  
+  // Comparaison effectif total : non pertinente (valeurs absolues liées à la taille)
+  document.getElementById('rh-effectif-compare').innerHTML = '';
+  
+  // Rang
+  const rang = getRangStructure(structureId, annee, 'effectif_total');
+  if (rang) {
+    document.getElementById('rh-effectif-rang').innerHTML = `Rang: ${rang.rang}/${rang.total} ${type}`;
+  }
+  
+  // KPI - AGCO avec évolution et comparaison
+  document.getElementById('rh-agco-total').textContent = formatNumber(dataN.effectif_agco);
+  if (dataNMoins1) {
+    const diffAGCO = Math.round(dataN.effectif_agco - dataNMoins1.effectif_agco);
+    const pctEvolution = dataNMoins1.effectif_agco > 0 ? Math.round(diffAGCO / dataNMoins1.effectif_agco * 1000) / 10 : 0;
+    const color = diffAGCO >= 0 ? 'var(--vert)' : 'var(--rouge)';
+    const symbol = diffAGCO >= 0 ? '+' : '';
+    document.getElementById('rh-agco-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffAGCO} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
+  }
+  
+  // Comparaison effectif AGCO : non pertinente (valeurs absolues liées à la taille)
+  document.getElementById('rh-agco-compare').innerHTML = '';
+  
+  // KPI - SU avec évolution et comparaison
+  document.getElementById('rh-su-total').textContent = formatNumber(dataN.effectif_su);
+  if (dataNMoins1) {
+    const diffSU = Math.round(dataN.effectif_su - dataNMoins1.effectif_su);
+    const pctEvolution = dataNMoins1.effectif_su > 0 ? Math.round(diffSU / dataNMoins1.effectif_su * 1000) / 10 : 0;
+    const color = diffSU >= 0 ? 'var(--vert)' : 'var(--rouge)';
+    const symbol = diffSU >= 0 ? '+' : '';
+    document.getElementById('rh-su-evolution').innerHTML = `<span style="color: ${color};">${symbol}${diffSU} (${symbol}${pctEvolution}%)</span> vs ${annee - 1}`;
+  }
+  
+  // Comparaison effectif SU : non pertinente (valeurs absolues liées à la taille)
+  document.getElementById('rh-su-compare').innerHTML = '';
+  
+  // KPI - Âge Moyen avec comparaisons
+  const ageMoyen = dataN.effectif_total > 0 ? 
+    Math.round((dataN.age_moyen_agco * dataN.effectif_agco + dataN.age_moyen_su * dataN.effectif_su + dataN.age_moyen_autres * dataN.effectif_autres) / dataN.effectif_total * 10) / 10 : 0;
+  document.getElementById('rh-age-moyen').textContent = formatNumber(ageMoyen, 1);
+  
+  // Comparaison âge moyen avec groupe (depuis Consolidation)
+  if (consoGroupe && consoGroupe.age_moyen_global > 0) {
+    const ageMoyenGroupe = consoGroupe.age_moyen_global;
+    const diffAge = Math.round((ageMoyen - ageMoyenGroupe) * 10) / 10;
+    const colorAge = diffAge >= 0 ? 'var(--rouge)' : 'var(--vert)'; // Inversé : plus jeune = mieux
+    const symbolAge = diffAge >= 0 ? '+' : '';
+    document.getElementById('rh-age-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorAge};">${symbolAge}${diffAge} ans</span>`;
+  } else {
+  }
+  
+  // Comparaison âge moyen avec National (depuis Consolidation)
+  const consoNational = getConsolidationData('National', annee);
+  if (consoNational && consoNational.age_moyen_global > 0) {
+    const ageMoyenNational = consoNational.age_moyen_global;
+    const diffAge = Math.round((ageMoyen - ageMoyenNational) * 10) / 10;
+    const colorAge = diffAge >= 0 ? 'var(--rouge)' : 'var(--vert)';
+    const symbolAge = diffAge >= 0 ? '+' : '';
+    document.getElementById('rh-age-compare-national').innerHTML = `vs National: <span style="color: ${colorAge};">${symbolAge}${diffAge} ans</span>`;
+  }
+  
+  // KPI - MS / Agent avec comparaisons
+  const msParAgent = dataN.effectif_total > 0 ? Math.round(dataN.masse_salariale / dataN.effectif_total) : 0;
+  document.getElementById('rh-ms-par-agent').textContent = formatCurrency(msParAgent, 0);
+  
+  // Comparaison MS/Agent avec groupe
+  if (consoGroupe && consoGroupe.moyenne_ms_par_agent) {
+    const diffMS = msParAgent - consoGroupe.moyenne_ms_par_agent;
+    const pctDiffMS = consoGroupe.moyenne_ms_par_agent > 0 ? Math.round(diffMS / consoGroupe.moyenne_ms_par_agent * 1000) / 10 : 0;
+    const colorMS = diffMS >= 0 ? 'var(--vert)' : 'var(--rouge)';
+    const symbolMS = diffMS >= 0 ? '+' : '';
+    document.getElementById('rh-ms-compare-groupe').innerHTML = `vs Moy. ${type}: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
+  } else {
+    document.getElementById('rh-ms-compare-groupe').innerHTML = '';
+  }
+  
+  // Comparaison MS/Agent avec National
+  if (consoNational && consoNational.moyenne_ms_par_agent) {
+    const diffMS = msParAgent - consoNational.moyenne_ms_par_agent;
+    const pctDiffMS = consoNational.moyenne_ms_par_agent > 0 ? Math.round(diffMS / consoNational.moyenne_ms_par_agent * 1000) / 10 : 0;
+    const colorMS = diffMS >= 0 ? 'var(--vert)' : 'var(--rouge)';
+    const symbolMS = diffMS >= 0 ? '+' : '';
+    document.getElementById('rh-ms-compare-national').innerHTML = `vs National: <span style="color: ${colorMS};">${symbolMS}${formatCurrency(Math.abs(diffMS), 0)} (${symbolMS}${pctDiffMS}%)</span>`;
+  } else {
+    document.getElementById('rh-ms-compare-national').innerHTML = '';
+  }
+  
+  // Tableau détaillé par DR (uniquement pour les DI)
+  const details = getRHDetailParDR(structureId, annee);
+  const tbody = document.getElementById('rh-detail-tbody');
+  const tfoot = document.getElementById('rh-detail-tfoot');
+  tbody.innerHTML = '';
+  
+  if (details && details.length > 0) {
+    // Afficher le tableau pour les DI
+    details.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${d.sigle}</strong></td>
+        <td style="text-align: right;">${formatNumber(d.effectif_total)}</td>
+        <td style="text-align: center;">${formatNumber(d.effectif_agco)}</td>
+        <td style="text-align: center;">${formatNumber(d.effectif_su)}</td>
+        <td style="text-align: center;">${formatNumber(d.effectif_autres)}</td>
+        <td style="text-align: right;">${formatCurrency(d.masse_salariale, 0)}</td>
+        <td style="text-align: right;">${formatCurrency(d.ms_par_agent, 0)}</td>
+        <td style="text-align: center;">${formatNumber(d.age_moyen_total, 1)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    
+    // Ligne TOTAL
+    const msParAgent = dataN.effectif_total > 0 ? Math.round(dataN.masse_salariale / dataN.effectif_total) : 0;
+    tfoot.innerHTML = `
+      <tr>
+        <td>TOTAL</td>
+        <td style="text-align: right;">${formatNumber(dataN.effectif_total)}</td>
+        <td style="text-align: center;">${formatNumber(dataN.effectif_agco)}</td>
+        <td style="text-align: center;">${formatNumber(dataN.effectif_su)}</td>
+        <td style="text-align: center;">${formatNumber(dataN.effectif_autres)}</td>
+        <td style="text-align: right;">${formatCurrency(dataN.masse_salariale, 0)}</td>
+        <td style="text-align: right;">${formatCurrency(msParAgent, 0)}</td>
+        <td style="text-align: center;">${formatNumber(ageMoyen, 1)}</td>
+      </tr>
+    `;
+  } else {
+    // Pour Siège/SCN : afficher juste les totaux sans détail par DR
+    const msParAgent = dataN.effectif_total > 0 ? Math.round(dataN.masse_salariale / dataN.effectif_total) : 0;
+    tfoot.innerHTML = `
+      <tr>
+        <td><strong>${FICHE_STATE.structure.sigle || FICHE_STATE.structure.nom}</strong></td>
+        <td style="text-align: right;">${formatNumber(dataN.effectif_total)}</td>
+        <td style="text-align: center;">${formatNumber(dataN.effectif_agco)}</td>
+        <td style="text-align: center;">${formatNumber(dataN.effectif_su)}</td>
+        <td style="text-align: center;">${formatNumber(dataN.effectif_autres)}</td>
+        <td style="text-align: right;">${formatCurrency(dataN.masse_salariale, 0)}</td>
+        <td style="text-align: right;">${formatCurrency(msParAgent, 0)}</td>
+        <td style="text-align: center;">${formatNumber(ageMoyen, 1)}</td>
+      </tr>
+    `;
+  }
+  
+  // Graphique évolution (toute la série)
+  const historique = getRHHistorique(structureId);
+  createStackedAreaChart('chart-rh-evolution', historique);
+  
+  // Graphique répartition AGCO / SU avec pourcentages
+  const pctAGCO = dataN.pct_agco;
+  const pctSU = dataN.pct_su;
+  createPieChart('chart-rh-repartition', 
+    [`AGCO (${formatPercent(pctAGCO)})`, `SU (${formatPercent(pctSU)})`],
+    [dataN.effectif_agco, dataN.effectif_su],
+    ['#007bff', '#198754']
+  );
+  
+  // Charger le commentaire RH
+  initSectionMDE('rh-commentaire', structureId, annee, 'RH');
+}
+
+function refreshBudget(structureId, annee) {
+
+  annee = 2026;
+
+  const dataN = getBudgetData(structureId, annee);
+  const perimetre = getPerimetreBudget(structureId);
+  const libPerimetre = { 'Metropole': 'DI Métropole', 'SCN': 'SCN', 'Outremer': 'Outremer', 'National': 'National' }[perimetre] || perimetre;
+  const moyPerimetre = getBudgetMoyennes(perimetre, annee);
+  const moyNational  = getBudgetMoyennes('National', annee);
+
+  // ── Vider si pas de données ───────────────────────────────
+  if (!dataN) {
+    ['budget-pill-taux-ae','budget-pill-taux-cp',
+     'budget-pill-montants-ae','budget-pill-montants-cp',
+     'budget-pill-ae-groupe','budget-pill-ae-national',
+     'budget-pill-cp-groupe','budget-pill-cp-national'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '—';
+    });
+    ['chart-budget-radar-ae','chart-budget-taux-cp','chart-budget-evol'].forEach(id => {
+      const c = Chart.getChart(id); if (c) c.destroy();
+    });
+    const tbody = document.getElementById('budget-types-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée budgétaire disponible pour ' + annee + '</td></tr>';
+    initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
+    return;
+  }
+
+  // ── Date import ───────────────────────────────────────────
+  const elDate = document.getElementById('budget-date-import');
+  if (elDate) {
+    if (dataN.date_import && !isNaN(dataN.date_import)) {
+      elDate.textContent = `Données au ${dataN.date_import.toLocaleDateString('fr-FR')}`;
+    } else {
+      elDate.textContent = '';
+    }
+  }
+
+  // ── Pills globales ────────────────────────────────────────
+  const pctAE = (dataN.taux_ae_total * 100).toFixed(1) + ' %';
+  const pctCP = (dataN.taux_cp_total * 100).toFixed(1) + ' %';
+  document.getElementById('budget-pill-taux-ae').textContent = pctAE;
+  document.getElementById('budget-pill-taux-cp').textContent = pctCP;
+  document.getElementById('budget-pill-montants-ae').textContent =
+    formatCurrency(dataN.conso_ae_total, 0) + ' / ' + formatCurrency(dataN.dot_ae_total, 0);
+  document.getElementById('budget-pill-montants-cp').textContent =
+    formatCurrency(dataN.conso_cp_total, 0) + ' / ' + formatCurrency(dataN.dot_cp_total, 0);
+
+  const fmtDiff = (val, moy, label) => {
+    if (!moy || moy === 0) return '—';
+    const diff = (val - moy) * 100;
+    const s = diff >= 0 ? '+' : '';
+    return `${label} : ${s}${diff.toFixed(1)} pts`;
+  };
+
+  if (moyPerimetre) {
+    document.getElementById('budget-pill-ae-groupe').innerHTML =
+      fmtDiff(dataN.taux_ae_total, moyPerimetre.taux_ae_total, `Moy. ${libPerimetre}`);
+    document.getElementById('budget-pill-cp-groupe').innerHTML =
+      fmtDiff(dataN.taux_cp_total, moyPerimetre.taux_cp_total, `Moy. ${libPerimetre}`);
+  }
+  if (moyNational) {
+    document.getElementById('budget-pill-ae-national').innerHTML =
+      fmtDiff(dataN.taux_ae_total, moyNational.taux_ae_total, 'National');
+    document.getElementById('budget-pill-cp-national').innerHTML =
+      fmtDiff(dataN.taux_cp_total, moyNational.taux_cp_total, 'National');
+  }
+
+  // ── Radar répartition dotations AE ───────────────────────
+  createBudgetRadarAE(dataN, moyPerimetre, libPerimetre);
+
+  // ── Barres taux CP par catégorie ─────────────────────────
+  createBudgetTauxCP(dataN, moyPerimetre, moyNational, libPerimetre);
+
+  // ── Évolution multi-années ────────────────────────────────
+  createBudgetEvol(structureId);
+
+  // ── Tableau par catégorie ─────────────────────────────────
+  createBudgetTable(dataN, moyPerimetre, libPerimetre, annee);
+
+  initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
+}
+
+function createBudgetRadarAE(data, moy, libPerimetre) {
+  const canvas = document.getElementById('chart-budget-radar-ae');
+  if (!canvas) return;
+  const existing = Chart.getChart('chart-budget-radar-ae');
+  if (existing) existing.destroy();
+
+  const labels = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
+
+  const tauxStruct = [
+    data.taux_cp_vehicules != null ? data.taux_cp_vehicules * 100 : null,
+    data.taux_cp_fonctionnement != null ? data.taux_cp_fonctionnement * 100 : null,
+    data.taux_cp_t6 != null ? data.taux_cp_t6 * 100 : null,
+    data.taux_cp_immo != null ? data.taux_cp_immo * 100 : null,
+  ];
+
+  const tauxMoy = moy ? [
+    moy.taux_cp_vehicules != null ? moy.taux_cp_vehicules * 100 : null,
+    moy.taux_cp_fonctionnement != null ? moy.taux_cp_fonctionnement * 100 : null,
+    moy.taux_cp_t6 != null ? moy.taux_cp_t6 * 100 : null,
+    moy.taux_cp_immo != null ? moy.taux_cp_immo * 100 : null,
+  ] : null;
+
+  const datasets = [];
+  if (tauxMoy) {
+    datasets.push({
+      label: `Moy. ${libPerimetre}`,
+      data: tauxMoy,
+      backgroundColor: 'rgba(160,160,160,0.20)',
+      borderColor: 'rgba(120,120,120,0.65)',
+      borderWidth: 2,
+      borderDash: [5, 3],
+      pointBackgroundColor: 'rgba(120,120,120,0.65)',
+      pointRadius: 3,
+      pointHoverRadius: 5,
+    });
+  }
+  datasets.push({
+    label: 'Cette structure',
+    data: tauxStruct,
+    backgroundColor: 'rgba(19,81,168,0.18)',
+    borderColor: 'rgba(19,81,168,0.9)',
+    borderWidth: 2.5,
+    pointBackgroundColor: 'rgba(19,81,168,0.9)',
+    pointRadius: 4,
+    pointHoverRadius: 6,
+  });
+
+  new Chart(canvas, {
+    type: 'radar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed.r;
+              return v != null ? `${ctx.dataset.label} : ${v.toFixed(1)} %` : `${ctx.dataset.label} : —`;
+            }
+          }
+        }
+      },
+      scales: {
+        r: {
+          beginAtZero: true,
+          min: 0,
+          suggestedMax: 100,
+          ticks: {
+            stepSize: 25,
+            callback: v => v + ' %',
+            font: { size: 9 },
+            backdropColor: 'transparent',
+          },
+          pointLabels: { font: { size: 11 } },
+          grid: { color: 'rgba(0,0,0,0.08)' },
+          angleLines: { color: 'rgba(0,0,0,0.10)' },
+        }
+      }
+    }
+  });
+}
+
+function createBudgetTauxCP(data, moy, moyNat, libPerimetre) {
+  const canvas = document.getElementById('chart-budget-taux-cp');
+  if (!canvas) return;
+  const existing = Chart.getChart('chart-budget-taux-cp');
+  if (existing) existing.destroy();
+
+  const labels = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
+  const structTaux = [
+    data.taux_cp_vehicules * 100,
+    data.taux_cp_fonctionnement * 100,
+    data.taux_cp_t6 * 100,
+    data.taux_cp_immo * 100,
+  ];
+  const moyTaux = moy ? [
+    moy.taux_cp_vehicules * 100,
+    moy.taux_cp_fonctionnement * 100,
+    moy.taux_cp_t6 * 100,
+    moy.taux_cp_immo * 100,
+  ] : null;
+
+  const datasets = [{
+    label: 'Cette structure',
+    data: structTaux,
+    backgroundColor: 'rgba(19,81,168,0.7)',
+    borderColor: 'rgba(19,81,168,1)',
+    borderWidth: 1,
+  }];
+
+  if (moyTaux) {
+    datasets.push({
+      label: `Moy. ${libPerimetre}`,
+      data: moyTaux,
+      backgroundColor: 'rgba(180,180,180,0.5)',
+      borderColor: 'rgba(120,120,120,0.8)',
+      borderWidth: 1,
+    });
+  }
+
+  new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label} : ${ctx.parsed.y.toFixed(1)} %`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: { callback: v => v + ' %', font: { size: 10 } }
+        },
+        x: { ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+function createBudgetEvol(structureId) {
+  const canvas = document.getElementById('chart-budget-evol');
+  if (!canvas) return;
+  const existing = Chart.getChart('chart-budget-evol');
+  if (existing) existing.destroy();
+
+  const historique = getBudgetHistorique(structureId);
+  const annees = Object.keys(historique).map(Number).sort();
+  if (annees.length === 0) return;
+
+  new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: annees,
+      datasets: [
+        {
+          label: 'Dotation CP',
+          data: annees.map(a => historique[a].dot_cp_total),
+          backgroundColor: 'rgba(180,180,180,0.6)',
+          borderColor: 'rgba(120,120,120,0.8)',
+          borderWidth: 1,
+          order: 2,
+        },
+        {
+          label: 'Consommation CP',
+          data: annees.map(a => historique[a].conso_cp_total),
+          backgroundColor: 'rgba(19,81,168,0.7)',
+          borderColor: 'rgba(19,81,168,1)',
+          borderWidth: 1,
+          order: 1,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label} : ${formatCurrency(ctx.parsed.y, 0)}`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: v => formatCurrency(v, 0), font: { size: 10 } }
+        },
+        x: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function createBudgetTable(data, moy, libPerimetre, annee) {
+  const tbody = document.getElementById('budget-types-tbody');
+  if (!tbody) return;
+  document.getElementById('budget-table-title').textContent =
+    `Exécution budgétaire par catégorie — ${annee}`;
+
+  const categories = [
+    { label: 'Véhicules',        dot_ae: data.dot_ae_vehicules,      conso_ae: data.conso_ae_vehicules,      taux_ae: data.taux_ae_vehicules,      dot_cp: data.dot_cp_vehicules,      conso_cp: data.conso_cp_vehicules,      taux_cp: data.taux_cp_vehicules,      moy_cp: moy?.taux_cp_vehicules },
+    { label: 'Fonctionnement',   dot_ae: data.dot_ae_fonctionnement,  conso_ae: data.conso_ae_fonctionnement, taux_ae: data.taux_ae_fonctionnement,  dot_cp: data.dot_cp_fonctionnement,  conso_cp: data.conso_cp_fonctionnement, taux_cp: data.taux_cp_fonctionnement,  moy_cp: moy?.taux_cp_fonctionnement },
+    { label: 'T6 Buralistes',    dot_ae: data.dot_ae_t6,             conso_ae: data.conso_ae_t6,            taux_ae: data.taux_ae_t6,             dot_cp: data.dot_cp_t6,             conso_cp: data.conso_cp_t6,            taux_cp: data.taux_cp_t6,            moy_cp: moy?.taux_cp_t6 },
+    { label: 'Immobilier',       dot_ae: data.dot_ae_immo,           conso_ae: data.conso_ae_immo,          taux_ae: data.taux_ae_immo,           dot_cp: data.dot_cp_immo,           conso_cp: data.conso_cp_immo,          taux_cp: data.taux_cp_immo,          moy_cp: moy?.taux_cp_immo },
+    { label: '<strong>Total</strong>', dot_ae: data.dot_ae_total, conso_ae: data.conso_ae_total, taux_ae: data.taux_ae_total, dot_cp: data.dot_cp_total, conso_cp: data.conso_cp_total, taux_cp: data.taux_cp_total, moy_cp: moy?.taux_cp_total, isTotal: true },
+  ];
+
+  const fmtTaux = (v) => {
+    if (v === null || v === undefined || isNaN(v)) return '—';
+    const pct = v * 100;
+    const color = pct >= 80 ? 'var(--rouge)' : pct >= 50 ? 'var(--orange)' : 'var(--vert)';
+    return `<span style="color:${color};font-weight:600;">${pct.toFixed(1)} %</span>`;
+  };
+  const fmtMoy = (v) => {
+    if (v === null || v === undefined || isNaN(v) || v === 0) return '—';
+    return `${(v * 100).toFixed(1)} %`;
+  };
+
+  tbody.innerHTML = categories.map(c => `
+    <tr${c.isTotal ? ' style="font-weight:600;border-top:2px solid var(--bord);background:var(--gris4);"' : ''}>
+      <td>${c.label}</td>
+      <td style="text-align:right;">${formatCurrency(c.dot_ae, 0)}</td>
+      <td style="text-align:right;">${formatCurrency(c.conso_ae, 0)}</td>
+      <td style="text-align:right;">${fmtTaux(c.taux_ae)}</td>
+      <td style="text-align:right;">${formatCurrency(c.dot_cp, 0)}</td>
+      <td style="text-align:right;">${formatCurrency(c.conso_cp, 0)}</td>
+      <td style="text-align:right;">${fmtTaux(c.taux_cp)}</td>
+      <td style="text-align:right;color:var(--gris2);">${fmtMoy(c.moy_cp)}</td>
+    </tr>`).join('');
+}
+
+function refreshFraisMission(structureId, annee) {
+  // Année courante et année précédente
+  const anneeCourante = annee;
+  const anneePrecedente = annee - 1;
+  
+  // Récupérer données
+  const dataCourante = getFraisMissionData(structureId, anneeCourante);
+  const dataPrecedente = getFraisMissionData(structureId, anneePrecedente);
+  
+  if (!dataCourante) {
+
+// Vider tous les KPIs
+document.getElementById('fm-total-value').textContent = '—';
+document.getElementById('fm-total-evol').className = 'fm-evolution-badge';
+document.getElementById('fm-total-evol').innerHTML = '';
+document.getElementById('fm-total-comp').innerHTML = '';
+
+document.getElementById('fm-formation-value').textContent = '—';
+document.getElementById('fm-formation-evol').className = 'fm-evolution-badge';
+document.getElementById('fm-formation-evol').innerHTML = '';
+document.getElementById('fm-formation-pct').textContent = '';
+
+document.getElementById('fm-autres-value').textContent = '—';
+document.getElementById('fm-autres-evol').className = 'fm-evolution-badge';
+document.getElementById('fm-autres-evol').innerHTML = '';
+document.getElementById('fm-autres-pct').textContent = '';
+
+document.getElementById('fm-agent-value').textContent = '—';
+document.getElementById('fm-agent-evol').className = 'fm-evolution-badge';
+document.getElementById('fm-agent-evol').innerHTML = '';
+document.getElementById('fm-agent-comp').innerHTML = '';
+
+// Détruire le graphique
+const chartFM = Chart.getChart('chart-fm-repartition');
+if (chartFM) chartFM.destroy();
+
+// Vider le tableau (ID correct: table-fm-body)
+const tbody = document.getElementById('table-fm-body');
+if (tbody) {
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
+}
+
+// Réinitialiser le commentaire pour la structure courante
+initSectionMDE('fm-commentaire', structureId, annee, 'Frais_Mission');
+
+return;
+  }
+  
+  // Périmètre et moyennes
+  const perimetre = getPerimetreFraisMission(structureId);
+  const libellePerimetre = getLibellePerimetreFraisMission(perimetre);
+  const moyennesPerimetre = getFraisMissionMoyennes(perimetre, anneeCourante);
+  const moyennesNational = getFraisMissionMoyennes('National', anneeCourante);
+  
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI PILLS
+  // ═══════════════════════════════════════════════════════════════
+  
+  // Total Frais Mission
+  document.getElementById('fm-total-value').textContent = formatNumber(dataCourante.montant_total / 1000, 0) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.montant_total > 0) {
+const evolPct = ((dataCourante.montant_total - dataPrecedente.montant_total) / dataPrecedente.montant_total * 100);
+const badge = document.getElementById('fm-total-evol');
+badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  if (moyennesPerimetre && moyennesNational) {
+const ecartPerimetre = moyennesPerimetre.moy_frais_par_agent > 0
+  ? ((dataCourante.frais_par_agent - moyennesPerimetre.moy_frais_par_agent) / moyennesPerimetre.moy_frais_par_agent * 100)
+  : 0;
+const ecartNational = moyennesNational.moy_frais_par_agent > 0
+  ? ((dataCourante.frais_par_agent - moyennesNational.moy_frais_par_agent) / moyennesNational.moy_frais_par_agent * 100)
+  : 0;
+
+document.getElementById('fm-total-comp').innerHTML = `
+  <div style="display:flex;justify-content:space-between;margin-top:3px;">
+    <span>vs ${libellePerimetre}</span>
+    <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-top:3px;">
+    <span>vs National</span>
+    <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+  </div>
+`;
+  } else {
+document.getElementById('fm-total-comp').innerHTML = '';
+  }
+  
+  // Formation
+  document.getElementById('fm-formation-value').textContent = formatNumber(dataCourante.total_formation / 1000, 0) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.total_formation > 0) {
+const evolPct = ((dataCourante.total_formation - dataPrecedente.total_formation) / dataPrecedente.total_formation * 100);
+const badge = document.getElementById('fm-formation-evol');
+badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  document.getElementById('fm-formation-pct').textContent = `${dataCourante.pct_formation.toFixed(1)}% du total`;
+  
+  // Autres missions
+  document.getElementById('fm-autres-value').textContent = formatNumber(dataCourante.total_autres / 1000, 0) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.total_autres > 0) {
+const evolPct = ((dataCourante.total_autres - dataPrecedente.total_autres) / dataPrecedente.total_autres * 100);
+const badge = document.getElementById('fm-autres-evol');
+badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  document.getElementById('fm-autres-pct').textContent = `${dataCourante.pct_autres.toFixed(1)}% du total`;
+  
+  // Coût moyen par agent
+  document.getElementById('fm-agent-value').textContent = formatCurrency(dataCourante.frais_par_agent);
+  
+  if (dataPrecedente && dataPrecedente.frais_par_agent > 0) {
+const evolPct = ((dataCourante.frais_par_agent - dataPrecedente.frais_par_agent) / dataPrecedente.frais_par_agent * 100);
+const badge = document.getElementById('fm-agent-evol');
+badge.className = 'fm-evolution-badge ' + (evolPct >= 0 ? 'positive' : 'negative');
+badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  if (moyennesPerimetre && moyennesNational) {
+const ecartPerimetre = moyennesPerimetre.moy_frais_par_agent > 0
+  ? ((dataCourante.frais_par_agent - moyennesPerimetre.moy_frais_par_agent) / moyennesPerimetre.moy_frais_par_agent * 100)
+  : 0;
+const ecartNational = moyennesNational.moy_frais_par_agent > 0
+  ? ((dataCourante.frais_par_agent - moyennesNational.moy_frais_par_agent) / moyennesNational.moy_frais_par_agent * 100)
+  : 0;
+
+document.getElementById('fm-agent-comp').innerHTML = `
+  <div style="display:flex;justify-content:space-between;margin-top:3px;">
+    <span>vs ${libellePerimetre}</span>
+    <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-top:3px;">
+    <span>vs National</span>
+    <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+  </div>
+`;
+  } else {
+document.getElementById('fm-agent-comp').innerHTML = '';
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // GRAPHIQUE RÉPARTITION
+  // ═══════════════════════════════════════════════════════════════
+  
+  const annees = [anneeCourante - 3, anneeCourante - 2, anneeCourante - 1, anneeCourante];
+  const dataMultiAnnees = getFraisMissionMultiAnnees(structureId, annees);
+  
+  const totaux = dataMultiAnnees.map(d => d.montant_total || 0);
+  const transport = dataMultiAnnees.map(d => d.total_transport || 0);
+  const hebergement = dataMultiAnnees.map(d => d.total_hebergement || 0);
+  const repas = dataMultiAnnees.map(d => d.total_repas || 0);
+  
+  const transportPct = transport.map((v, i) => totaux[i] > 0 ? (v / totaux[i] * 100).toFixed(1) : 0);
+  const hebergementPct = hebergement.map((v, i) => totaux[i] > 0 ? (v / totaux[i] * 100).toFixed(1) : 0);
+  const repasPct = repas.map((v, i) => totaux[i] > 0 ? (v / totaux[i] * 100).toFixed(1) : 0);
+  
+  createFraisMissionRepartitionChart(annees, transportPct, hebergementPct, repasPct, transport, hebergement, repas);
+  
+  // ═══════════════════════════════════════════════════════════════
+  // TABLEAU DÉTAILLÉ
+  // ═══════════════════════════════════════════════════════════════
+  
+  const tbody = document.getElementById('table-fm-body');
+  tbody.innerHTML = '';
+  
+  annees.forEach((annee, idx) => {
+const data = dataMultiAnnees[idx];
+
+// Ligne année (totaux)
+const rowAnnee = tbody.insertRow();
+rowAnnee.style.background = '#F1EFE8';
+rowAnnee.style.fontWeight = '500';
+rowAnnee.innerHTML = `
+  <td style="padding:12px 16px;">${annee}</td>
+  <td style="padding:12px 16px;text-align:right;">${formatNumber(data.total_transport / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;">${formatNumber(data.total_hebergement / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;">${formatNumber(data.total_repas / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;font-weight:500;">${formatNumber(data.montant_total / 1000, 0)} K€</td>
+`;
+
+// Ligne Formation
+const rowFormation = tbody.insertRow();
+rowFormation.style.background = 'rgba(241, 239, 232, 0.4)';
+rowFormation.innerHTML = `
+  <td style="padding:12px 16px 12px 32px;font-size:13px;">Formation</td>
+  <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.formation_transport / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.formation_hebergement / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.formation_repas / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.total_formation / 1000, 0)} K€</td>
+`;
+
+// Ligne Autres missions
+const rowAutres = tbody.insertRow();
+rowAutres.style.background = 'rgba(241, 239, 232, 0.4)';
+rowAutres.innerHTML = `
+  <td style="padding:12px 16px 12px 32px;font-size:13px;">Autres missions</td>
+  <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.autres_transport / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.autres_hebergement / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.autres_repas / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;font-size:13px;">${formatNumber(data.total_autres / 1000, 0)} K€</td>
+`;
+  });
+  
+  // Charger le commentaire Frais de Mission
+  initSectionMDE('fm-commentaire', structureId, annee, 'Frais_Mission');
+}
+
+function createFraisMissionRepartitionChart(annees, transportPct, hebergementPct, repasPct, transportMontants, hebergementMontants, repasMontants) {
+  const canvas = document.getElementById('chart-fm-repartition');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  // Détruire graphique existant
+  if (window.chartFMRepartition) {
+window.chartFMRepartition.destroy();
+  }
+  
+  window.chartFMRepartition = new Chart(ctx, {
+type: 'bar',
+data: {
+  labels: annees.map(a => String(a)),
+  datasets: [
+    {
+      label: 'Transport',
+      data: transportPct,
+      backgroundColor: '#A8CEF0',
+      borderColor: 'transparent',
+      borderWidth: 0
+    },
+    {
+      label: 'Hébergement',
+      data: hebergementPct,
+      backgroundColor: '#A3DCC5',
+      borderColor: 'transparent',
+      borderWidth: 0
+    },
+    {
+      label: 'Repas',
+      data: repasPct,
+      backgroundColor: '#F5D6A8',
+      borderColor: 'transparent',
+      borderWidth: 0
+    }
+  ]
+},
+options: {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: true,
+      position: 'bottom',
+      labels: {
+        boxWidth: 12,
+        boxHeight: 12,
+        padding: 15,
+        font: { size: 12 }
+      }
+    },
+    tooltip: {
+      callbacks: {
+        label: function(context) {
+          const datasetLabel = context.dataset.label;
+          const percentage = context.parsed.y;
+          const yearIndex = context.dataIndex;
+          let montant;
+          if (datasetLabel === 'Transport') montant = transportMontants[yearIndex];
+          else if (datasetLabel === 'Hébergement') montant = hebergementMontants[yearIndex];
+          else montant = repasMontants[yearIndex];
+          return datasetLabel + ': ' + percentage + '% (' + formatCurrency(montant / 1000, 0) + ' K€)';
+        }
+      }
+    }
+  },
+  scales: {
+    x: {
+      stacked: true,
+      grid: { display: false },
+      ticks: { font: { size: 12 } }
+    },
+    y: {
+      stacked: true,
+      beginAtZero: true,
+      max: 100,
+      ticks: {
+        font: { size: 12 },
+        callback: function(value) {
+          return value + '%';
+        }
+      },
+      grid: {
+        color: 'rgba(0,0,0,0.05)'
+      }
+    }
+  }
+}
+  });
+}
+
+function refreshInformatique(structureId, annee) {
+  const anneeCourante = annee;
+  const anneePrecedente = annee - 1;
+  
+  const dataCourante = getInformatiqueData(structureId, anneeCourante);
+  const dataPrecedente = getInformatiqueData(structureId, anneePrecedente);
+  
+  if (!dataCourante) {
+
+// Vider tous les KPIs avec les bons IDs
+document.getElementById('it-total').textContent = '—';
+document.getElementById('it-total-evol').className = 'it-evolution';
+document.getElementById('it-total-evol').innerHTML = '—';
+document.getElementById('it-pct-portables').textContent = '';
+
+document.getElementById('it-ratio').textContent = '—';
+document.getElementById('it-ratio-evol').className = 'it-evolution';
+document.getElementById('it-ratio-evol').innerHTML = '—';
+document.getElementById('it-ratio-comp').innerHTML = '';
+
+document.getElementById('it-budget-annuel').textContent = '—';
+document.getElementById('it-budget-annuel-evol').className = 'it-evolution';
+document.getElementById('it-budget-annuel-evol').innerHTML = '—';
+
+document.getElementById('it-budget-moyen').textContent = '—';
+
+document.getElementById('it-budget-agent-annuel').textContent = '—';
+document.getElementById('it-budget-agent-annuel-evol').className = 'it-evolution';
+document.getElementById('it-budget-agent-annuel-evol').innerHTML = '—';
+document.getElementById('it-budget-agent-annuel-comp').innerHTML = '';
+
+document.getElementById('it-budget-agent-moyen').textContent = '—';
+document.getElementById('it-budget-agent-moyen-comp').innerHTML = '';
+
+// Détruire le graphique
+const chartIT = Chart.getChart('chart-it-type');
+if (chartIT) chartIT.destroy();
+
+// Vider le tableau
+const tbody = document.getElementById('table-it-body');
+if (tbody) {
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--orange); font-style: italic;">⚠️ Aucune donnée disponible</td></tr>';
+}
+
+// Réinitialiser le commentaire pour la structure courante
+initSectionMDE('it-commentaire', structureId, annee, 'Informatique');
+
+return;
+  }
+  
+  // Périmètre et moyennes
+  const perimetre = getPerimetreInformatique(structureId);
+  const libellePerimetre = getLibellePerimetreInformatique(perimetre);
+  const moyennesPerimetre = getInformatiqueMoyennes(perimetre, anneeCourante);
+  const moyennesNational = getInformatiqueMoyennes('National', anneeCourante);
+  
+  // Labels année
+  document.getElementById('it-annee-label').textContent = anneeCourante;
+  document.getElementById('it-annee-label2').textContent = anneeCourante;
+  const immoLabel = document.getElementById('immo-annee-label');
+  if (immoLabel) immoLabel.textContent = anneeCourante;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 1 : Total Postes
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.getElementById('it-total').textContent = formatNumber(dataCourante.nb_postes_travail);
+  
+  if (dataPrecedente && dataPrecedente.nb_postes_travail > 0) {
+const evolPct = ((dataCourante.nb_postes_travail - dataPrecedente.nb_postes_travail) / dataPrecedente.nb_postes_travail * 100);
+const badge = document.getElementById('it-total-evol');
+badge.className = 'it-evolution ' + (evolPct >= 0 ? 'positive' : 'negative');
+badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  document.getElementById('it-pct-portables').textContent = `${dataCourante.pct_portables.toFixed(0)}% de portables`;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 2 : Ratio Poste/Agent
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.getElementById('it-ratio').textContent = formatNumber(dataCourante.ratio_poste_agent, 2);
+  
+  if (dataPrecedente && dataPrecedente.ratio_poste_agent > 0) {
+const evolPct = ((dataCourante.ratio_poste_agent - dataPrecedente.ratio_poste_agent) / dataPrecedente.ratio_poste_agent * 100);
+const badge = document.getElementById('it-ratio-evol');
+badge.className = 'it-evolution ' + (evolPct >= 0 ? 'positive' : 'negative');
+badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  if (moyennesPerimetre && moyennesNational) {
+const ecartPerimetre = moyennesPerimetre.moy_ratio_poste_agent > 0
+  ? ((dataCourante.ratio_poste_agent - moyennesPerimetre.moy_ratio_poste_agent) / moyennesPerimetre.moy_ratio_poste_agent * 100)
+  : 0;
+const ecartNational = moyennesNational.moy_ratio_poste_agent > 0
+  ? ((dataCourante.ratio_poste_agent - moyennesNational.moy_ratio_poste_agent) / moyennesNational.moy_ratio_poste_agent * 100)
+  : 0;
+
+document.getElementById('it-ratio-comp').innerHTML = `
+  <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.6;">
+    <span>vs ${libellePerimetre}</span>
+    <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.6;">
+    <span>vs National</span>
+    <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+  </div>
+`;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 3 : Budget IT annuel
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.getElementById('it-budget-annuel').textContent = formatNumber(dataCourante.budget_it / 1000, 0) + ' K€';
+  
+  if (dataPrecedente && dataPrecedente.budget_it > 0) {
+const evolPct = ((dataCourante.budget_it - dataPrecedente.budget_it) / dataPrecedente.budget_it * 100);
+const badge = document.getElementById('it-budget-annuel-evol');
+badge.className = 'it-evolution ' + (evolPct >= 0 ? 'positive' : 'negative');
+badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 4 : Budget IT Moyen 4 ans
+  // ═══════════════════════════════════════════════════════════════
+  
+  const annees4 = [anneeCourante, anneeCourante - 1, anneeCourante - 2, anneeCourante - 3];
+  document.getElementById('it-badge-4ans').textContent = `Lissé ${annees4[3]}-${annees4[0]}`;
+  document.getElementById('it-budget-moyen').textContent = formatNumber(dataCourante.budget_it_moyen_4ans / 1000, 0) + ' K€';
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 5 : Budget IT par Agent annuel
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.getElementById('it-budget-agent-annuel').textContent = formatCurrency(dataCourante.budget_it_par_agent);
+  
+  if (dataPrecedente && dataPrecedente.budget_it_par_agent > 0) {
+const evolPct = ((dataCourante.budget_it_par_agent - dataPrecedente.budget_it_par_agent) / dataPrecedente.budget_it_par_agent * 100);
+const badge = document.getElementById('it-budget-agent-annuel-evol');
+badge.className = 'it-evolution ' + (evolPct >= 0 ? 'positive' : 'negative');
+badge.innerHTML = `<span>${evolPct >= 0 ? '↗' : '↘'}</span><span>${evolPct >= 0 ? '+' : ''}${evolPct.toFixed(1)}% vs ${anneePrecedente}</span>`;
+  }
+  
+  if (moyennesPerimetre && moyennesNational) {
+const ecartPerimetre = moyennesPerimetre.moy_budget_it_par_agent > 0
+  ? ((dataCourante.budget_it_par_agent - moyennesPerimetre.moy_budget_it_par_agent) / moyennesPerimetre.moy_budget_it_par_agent * 100)
+  : 0;
+const ecartNational = moyennesNational.moy_budget_it_par_agent > 0
+  ? ((dataCourante.budget_it_par_agent - moyennesNational.moy_budget_it_par_agent) / moyennesNational.moy_budget_it_par_agent * 100)
+  : 0;
+
+document.getElementById('it-budget-agent-annuel-comp').innerHTML = `
+  <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.6;">
+    <span>vs ${libellePerimetre}</span>
+    <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.6;">
+    <span>vs National</span>
+    <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+  </div>
+`;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // KPI 6 : Budget IT Moyen par Agent 4 ans
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.getElementById('it-badge-4ans2').textContent = `Lissé ${annees4[3]}-${annees4[0]}`;
+  document.getElementById('it-budget-agent-moyen').textContent = formatCurrency(dataCourante.budget_it_moyen_par_agent_4ans);
+  
+  if (moyennesPerimetre && moyennesNational) {
+const ecartPerimetre = moyennesPerimetre.moy_budget_it_moyen_par_agent_4ans > 0
+  ? ((dataCourante.budget_it_moyen_par_agent_4ans - moyennesPerimetre.moy_budget_it_moyen_par_agent_4ans) / moyennesPerimetre.moy_budget_it_moyen_par_agent_4ans * 100)
+  : 0;
+const ecartNational = moyennesNational.moy_budget_it_moyen_par_agent_4ans > 0
+  ? ((dataCourante.budget_it_moyen_par_agent_4ans - moyennesNational.moy_budget_it_moyen_par_agent_4ans) / moyennesNational.moy_budget_it_moyen_par_agent_4ans * 100)
+  : 0;
+
+document.getElementById('it-budget-agent-moyen-comp').innerHTML = `
+  <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.8;">
+    <span>vs ${libellePerimetre}</span>
+    <span style="font-weight:500;">${ecartPerimetre >= 0 ? '+' : ''}${ecartPerimetre.toFixed(1)}%</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-top:3px;opacity:0.8;">
+    <span>vs National</span>
+    <span style="font-weight:500;">${ecartNational >= 0 ? '+' : ''}${ecartNational.toFixed(1)}%</span>
+  </div>
+`;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // GRAPHIQUE
+  // ═══════════════════════════════════════════════════════════════
+  
+  const dataMultiAnnees = getInformatiqueMultiAnnees(structureId, annees4);
+  
+  const portables = dataMultiAnnees.map(d => d.nb_portables || 0);
+  const fixes = dataMultiAnnees.map(d => d.nb_fixes || 0);
+  
+  createInformatiqueChart(annees4, portables, fixes);
+  
+  // ═══════════════════════════════════════════════════════════════
+  // TABLEAU
+  // ═══════════════════════════════════════════════════════════════
+  
+  const tbody = document.getElementById('table-it-body');
+  tbody.innerHTML = '';
+  
+  let somme_budget = 0;
+  let somme_budget_agent = 0;
+  let nb_annees = 0;
+  
+  dataMultiAnnees.forEach((data, idx) => {
+const row = tbody.insertRow();
+if (idx === dataMultiAnnees.length - 1) {
+  row.style.background = '#F1EFE8';
+  row.style.fontWeight = '500';
+}
+
+const hasInventaire = data.nb_postes_travail > 0;
+
+row.innerHTML = `
+  <td style="padding:12px 16px;">${data.annee}</td>
+  <td style="padding:12px 16px;text-align:right;">${hasInventaire ? formatNumber(data.nb_portables) : '—'}</td>
+  <td style="padding:12px 16px;text-align:right;">${hasInventaire ? formatNumber(data.nb_fixes) : '—'}</td>
+  <td style="padding:12px 16px;text-align:right;">${hasInventaire ? formatNumber(data.nb_postes_travail) : '—'}</td>
+  <td style="padding:12px 16px;text-align:right;">${hasInventaire ? formatNumber(data.ratio_poste_agent, 2) : '—'}</td>
+  <td style="padding:12px 16px;text-align:right;">${formatNumber(data.budget_it / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;">${data.budget_it_par_agent > 0 ? formatCurrency(data.budget_it_par_agent) : '—'}</td>
+`;
+
+if (data.budget_it > 0) {
+  somme_budget += data.budget_it;
+  somme_budget_agent += data.budget_it_par_agent;
+  nb_annees++;
+}
+  });
+  
+  // Ligne moyenne
+  if (nb_annees > 0) {
+const rowMoyenne = tbody.insertRow();
+rowMoyenne.style.background = '#E8F7F2';
+rowMoyenne.style.fontWeight = '500';
+rowMoyenne.style.borderTop = '2px solid #1D9E75';
+
+const moy_budget = somme_budget / nb_annees;
+const moy_budget_agent = somme_budget_agent / nb_annees;
+
+rowMoyenne.innerHTML = `
+  <td colspan="5" style="padding:12px 16px;color:#085041;">Moyenne ${annees4[3]}-${annees4[0]} (lissée)</td>
+  <td style="padding:12px 16px;text-align:right;color:#04342C;">${formatNumber(moy_budget / 1000, 0)} K€</td>
+  <td style="padding:12px 16px;text-align:right;color:#04342C;">${formatCurrency(moy_budget_agent)}</td>
+`;
+  }
+  
+  // Charger le commentaire Informatique
+  initSectionMDE('it-commentaire', structureId, annee, 'Informatique');
+}
+
+function createInformatiqueChart(annees, portables, fixes) {
+  const canvas = document.getElementById('chart-it-type');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  if (window.chartITType) {
+window.chartITType.destroy();
+  }
+  
+  window.chartITType = new Chart(ctx, {
+type: 'bar',
+data: {
+  labels: annees.map(a => String(a)),
+  datasets: [
+    {
+      label: 'Portables',
+      data: portables,
+      backgroundColor: '#7F77DD',
+      borderColor: 'transparent',
+      borderWidth: 0
+    },
+    {
+      label: 'Fixes',
+      data: fixes,
+      backgroundColor: '#D3D1C7',
+      borderColor: 'transparent',
+      borderWidth: 0
+    }
+  ]
+},
+options: {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: true,
+      position: 'bottom',
+      labels: {
+        boxWidth: 12,
+        boxHeight: 12,
+        padding: 15,
+        font: { size: 12 }
+      }
+    },
+    tooltip: {
+      callbacks: {
+        label: function(context) {
+          return context.dataset.label + ': ' + context.parsed.y + ' postes';
+        }
+      }
+    }
+  },
+  scales: {
+    x: {
+      stacked: true,
+      grid: { display: false },
+      ticks: { font: { size: 12 } }
+    },
+    y: {
+      stacked: true,
+      beginAtZero: true,
+      ticks: {
+        font: { size: 12 },
+        callback: function(value) {
+          return value;
+        }
+      },
+      grid: {
+        color: 'rgba(0,0,0,0.05)'
+      }
+    }
+  }
+}
+  });
+}
+
+
 /**
  * Fonction principale d'export PDF - affiche le menu popup
  */
