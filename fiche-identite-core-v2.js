@@ -3838,7 +3838,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   // 2. Fallback : lire le textarea natif directement par id connu
   // 3. Fallback : chercher tout textarea dans la section
   const _knownMdeIds = ['rh-commentaire','budget-commentaire','com-commentaire',
-                        'fonct-commentaire','fm-commentaire','it-commentaire','veh-commentaire'];
+                        'fonct-commentaire','fm-commentaire','it-commentaire','veh-commentaire','immo-commentaire'];
 
   // D'abord : collecter toutes les valeurs depuis _mdeInstances directement
   const _mdeValueById = {};
@@ -3905,10 +3905,10 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   // Mesure la hauteur réelle après capture canvas, saute de page si nécessaire,
   // puis place l'image. Slicing uniquement pour les blocs > une page entière.
   async function captureElementToImage(element) {
-    if (!element || element.scrollHeight === 0) return;
+    if (!element || element.scrollHeight < 5) return;
 
     const canvas = await html2canvas(element, {
-      scale: 1.5, useCORS: true, logging: false,
+      scale: 2, useCORS: true, logging: false,
       backgroundColor: '#ffffff',
       width: element.scrollWidth, height: element.scrollHeight
     });
@@ -3924,7 +3924,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       // Hauteur réelle connue : saut propre si besoin, puis placement direct
       const availMm = pageHeight - footerHeight - margin - yPosition;
       if (availMm < imgHeight || availMm < 15) doPageBreak();
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgWidth, imgHeight);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPosition, imgWidth, imgHeight);
       yPosition += imgHeight + 3;
     } else {
       // Bloc plus grand qu'une page.
@@ -3956,9 +3956,9 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         for (const group of groups) {
           const captured = [];
           for (const el of group) {
-            const c2 = await html2canvas(el, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff' });
+            const c2 = await html2canvas(el, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff' });
             const h2 = c2.height * (imgWidth / c2.width);
-            captured.push({ h: h2, data: c2.toDataURL('image/jpeg', 0.82) });
+            captured.push({ h: h2, data: c2.toDataURL('image/jpeg', 0.95) });
           }
           const totalGroupH = captured.reduce((s, item) => s + item.h + 1, 0);
           const avail = pageHeight - footerHeight - margin - yPosition;
@@ -3986,7 +3986,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
           const sl = document.createElement('canvas');
           sl.width = canvasW; sl.height = slicePx;
           sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, slicePx, 0, 0, canvasW, slicePx);
-          pdf.addImage(sl.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgWidth, sliceH);
+          pdf.addImage(sl.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPosition, imgWidth, sliceH);
           yPosition += sliceH;
           srcY += slicePx;
           if (srcY < canvasH) doPageBreak();
@@ -4019,13 +4019,13 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Capturer le header fiche
     let hHeader = 0, dataHeader = null;
     if (ficheHeader && ficheHeader.offsetParent) {
-      const cHeader = await html2canvas(ficheHeader, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', width:ficheHeader.scrollWidth, height:ficheHeader.scrollHeight });
+      const cHeader = await html2canvas(ficheHeader, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width:ficheHeader.scrollWidth, height:ficheHeader.scrollHeight });
       hHeader = cHeader.height * (imgW / cHeader.width);
-      dataHeader = cHeader.toDataURL('image/jpeg', 0.82);
+      dataHeader = cHeader.toDataURL('image/jpeg', 0.95);
     }
 
     // Capturer le bloc pills (sans la description)
-    const cPills = await html2canvas(mainCommentBox, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', width:mainCommentBox.scrollWidth, height:mainCommentBox.scrollHeight });
+    const cPills = await html2canvas(mainCommentBox, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width:mainCommentBox.scrollWidth, height:mainCommentBox.scrollHeight });
     const hPills = cPills.height * (imgW / cPills.width);
 
     // Lire le markdown du commentaire général
@@ -4044,7 +4044,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Placer bloc pills : saut seulement si < 30mm disponibles
     const avail0 = pageHeight - footerHeight - margin - yPosition;
     if (avail0 < 30) _pdfCtx.addPage();
-    pdf.addImage(cPills.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgW, hPills);
+    pdf.addImage(cPills.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPosition, imgW, hPills);
     yPosition += hPills + 2;
 
     // Rendu natif du texte du commentaire général
@@ -4066,12 +4066,27 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   }
 
   // ── 3. Sections indicateurs : corps KPI en image + commentaire en natif ──
+  // On parcourt les enfants directs de fiche-body pour capturer aussi les zone-header
   const imgWidth = pageWidth - (2 * margin);
   const mdTextWidth = imgWidth - 4; // légère marge intérieure
 
-  const sections = Array.from(ficheBody.querySelectorAll('.section'));
+  const ficheBodyChildren = Array.from(ficheBody.children);
 
-  for (const section of sections) {
+  for (const child of ficheBodyChildren) {
+    // Ignorer éléments cachés et hors DOM
+    if (child.style.display === 'none' || !child.offsetParent) continue;
+
+    // Capturer les zone-header (titres de zone) en image directement
+    if (child.classList.contains('zone-header')) {
+      _checkPageBreak(12);
+      await captureElementToImage(child);
+      continue;
+    }
+
+    // Traiter uniquement les .section (ignorer tout autre div de structure)
+    if (!child.classList.contains('section')) continue;
+
+    const section = child;
     if (section.style.display === 'none' || !section.offsetParent) continue;
 
     // Valeur markdown déjà lue avant masquage (via _mdeSectionValues)
