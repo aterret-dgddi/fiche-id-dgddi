@@ -647,7 +647,53 @@ function getBudgetData(structureId, annee) {
   const idx = budget.id.findIndex((id, i) =>
     budget.Structure[i] === structureId && budget.Annee[i] === annee
   );
-  if (idx === -1) return null;
+
+  // Fallback DI sans ligne propre : agréger les DR rattachées (ex. DI 972 → DR 971/972/973)
+  if (idx === -1) {
+    const structures = FICHE_STATE.data.structures;
+    if (!structures) return null;
+    const sIdx = structures.id.indexOf(structureId);
+    if (sIdx === -1 || structures.Type[sIdx] !== 'DI') return null;
+
+    const drIds = getDRRattachees(structureId);
+    if (!drIds.length) return null;
+
+    const sum = col => drIds.reduce((acc, drId) => {
+      const i = budget.id.findIndex((_, j) =>
+        budget.Structure[j] === drId && budget.Annee[j] === annee
+      );
+      return acc + (i !== -1 ? Number(budget[col]?.[i]) || 0 : 0);
+    }, 0);
+
+    const dot_ae = ['dot_AE_vehicules','dot_AE_fonctionnement','Dot_AE_T6','dot_AE_Immo'].map(sum);
+    const dot_cp = ['dot_CP_vehicules','dot_CP_fonctionnement','Dot_CP_T6','dot_CP_Immo'].map(sum);
+    const conso_ae = ['Conso_AE_vehicules','Conso_AE_fonctionnement','Conso_AE_T6','Conso_AE_Immo'].map(sum);
+    const conso_cp = ['Conso_CP_vehicules','Conso_CP_fonctionnement','Conso_CP_T6','Conso_CP_Immo'].map(sum);
+
+    const taux = (conso, dot) => dot > 0 ? conso / dot : 0;
+
+    return {
+      dot_ae_vehicules: dot_ae[0], dot_ae_fonctionnement: dot_ae[1], dot_ae_t6: dot_ae[2], dot_ae_immo: dot_ae[3],
+      dot_cp_vehicules: dot_cp[0], dot_cp_fonctionnement: dot_cp[1], dot_cp_t6: dot_cp[2], dot_cp_immo: dot_cp[3],
+      conso_ae_vehicules: conso_ae[0], conso_ae_fonctionnement: conso_ae[1], conso_ae_t6: conso_ae[2], conso_ae_immo: conso_ae[3],
+      conso_cp_vehicules: conso_cp[0], conso_cp_fonctionnement: conso_cp[1], conso_cp_t6: conso_cp[2], conso_cp_immo: conso_cp[3],
+      taux_ae_vehicules: taux(conso_ae[0], dot_ae[0]),
+      taux_ae_fonctionnement: taux(conso_ae[1], dot_ae[1]),
+      taux_ae_t6: taux(conso_ae[2], dot_ae[2]),
+      taux_ae_immo: taux(conso_ae[3], dot_ae[3]),
+      taux_cp_vehicules: taux(conso_cp[0], dot_cp[0]),
+      taux_cp_fonctionnement: taux(conso_cp[1], dot_cp[1]),
+      taux_cp_t6: taux(conso_cp[2], dot_cp[2]),
+      taux_cp_immo: taux(conso_cp[3], dot_cp[3]),
+      date_import: null,
+      get dot_ae_total() { return dot_ae.reduce((a,b) => a+b, 0); },
+      get dot_cp_total() { return dot_cp.reduce((a,b) => a+b, 0); },
+      get conso_ae_total() { return conso_ae.reduce((a,b) => a+b, 0); },
+      get conso_cp_total() { return conso_cp.reduce((a,b) => a+b, 0); },
+      get taux_ae_total() { return this.dot_ae_total > 0 ? this.conso_ae_total / this.dot_ae_total : 0; },
+      get taux_cp_total() { return this.dot_cp_total > 0 ? this.conso_cp_total / this.dot_cp_total : 0; },
+    };
+  }
 
   const n = col => Number(budget[col]?.[idx]) || 0;
   return {
@@ -707,12 +753,27 @@ function getBudgetHistorique(structureId) {
   const budget = FICHE_STATE.data.budget;
   if (!budget) return {};
 
-  const result = {};
+  // Collecter les années via la structure ET ses DR rattachées (ex. DI 972)
+  const idsToScan = [structureId];
+  const structures = FICHE_STATE.data.structures;
+  if (structures) {
+    const sIdx = structures.id.indexOf(structureId);
+    if (sIdx !== -1 && structures.Type[sIdx] === 'DI') {
+      idsToScan.push(...getDRRattachees(structureId));
+    }
+  }
+
+  const annees = new Set();
   budget.id.forEach((id, i) => {
-    if (budget.Structure[i] !== structureId) return;
-    const annee = budget.Annee[i];
-    if (!annee) return;
-    result[annee] = getBudgetData(structureId, annee);
+    if (idsToScan.includes(budget.Structure[i]) && budget.Annee[i]) {
+      annees.add(budget.Annee[i]);
+    }
+  });
+
+  const result = {};
+  annees.forEach(annee => {
+    const d = getBudgetData(structureId, annee);
+    if (d) result[annee] = d;
   });
   return result;
 }
