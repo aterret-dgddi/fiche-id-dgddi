@@ -3942,17 +3942,39 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
           if (n !== element) innerCommentDiv = n;
         }
         const kids = Array.from(element.children).filter(c =>
-          c !== innerCommentDiv && c.style.display !== 'none' && c.scrollHeight > 0
+          c !== innerCommentDiv && c.style.display !== 'none' && c.scrollHeight > 5
         );
-        // Grouper les 2 premiers enfants (header + KPIs)
+
+        // Aplatir récursivement les enfants trop grands (> une page) en leurs sous-enfants
+        // → traite les tableaux de sites Immobilier et autres blocs profonds
+        async function flattenForPDF(el) {
+          const elH = el.scrollHeight * (imgWidth / (el.scrollWidth || 1));
+          if (elH <= fullPageH) return [el]; // tient sur une page → bloc unitaire
+          // Trop grand → descendre dans ses enfants directs visibles
+          const subKids = Array.from(el.children).filter(c =>
+            c.style.display !== 'none' && c.scrollHeight > 5
+          );
+          if (subKids.length === 0) return [el]; // pas d'enfants → forcer slicing
+          const result = [];
+          for (const k of subKids) result.push(...await flattenForPDF(k));
+          return result;
+        }
+
+        // Grouper le premier enfant (section-header, petit) avec le suivant
         let groups = [];
         if (kids.length >= 2 && (kids[0].scrollHeight || 0) < 80) {
-          // Premier enfant petit (header) → grouper avec le second
           groups.push([kids[0], kids[1]]);
-          kids.slice(2).forEach(k => groups.push([k]));
+          for (let i = 2; i < kids.length; i++) {
+            const flat = await flattenForPDF(kids[i]);
+            flat.forEach(f => groups.push([f]));
+          }
         } else {
-          kids.forEach(k => groups.push([k]));
+          for (const k of kids) {
+            const flat = await flattenForPDF(k);
+            flat.forEach(f => groups.push([f]));
+          }
         }
+
         for (const group of groups) {
           const captured = [];
           for (const el of group) {
@@ -4077,8 +4099,10 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     if (child.style.display === 'none' || !child.offsetParent) continue;
 
     // Capturer les zone-header (titres de zone) en image directement
+    // Garder solidaire avec la section suivante : si < 80mm restants, saut de page
     if (child.classList.contains('zone-header')) {
-      _checkPageBreak(12);
+      const availForZone = pageHeight - footerHeight - margin - yPosition;
+      if (availForZone < 80) _pdfCtx.addPage();
       await captureElementToImage(child);
       continue;
     }
@@ -4104,6 +4128,38 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         commentDiv.style.display = 'none';
       }
     }
+
+    // Masquer les chart-wrapper dont le canvas n'a pas de Chart.js initialisé
+    // → évite les grands rectangles blancs dans le PDF pour sections sans données
+    const _hiddenChartWrappers = [];
+    section.querySelectorAll('.chart-wrapper').forEach(wrapper => {
+      const canvas = wrapper.querySelector('canvas');
+      if (!canvas) return;
+      const chart = (typeof Chart !== 'undefined') ? Chart.getChart(canvas) : null;
+      if (!chart) {
+        wrapper.dataset.pdfChartHidden = wrapper.style.display || '';
+        wrapper.style.display = 'none';
+        _hiddenChartWrappers.push(wrapper);
+        // Si le chart-container parent n'a plus de wrappers visibles, le masquer aussi
+        const container = wrapper.closest('.chart-container');
+        if (container && !container.querySelector('.chart-wrapper:not([style*="display: none"]):not([style*="display:none"])')) {
+          container.dataset.pdfChartHidden = container.style.display || '';
+          container.style.display = 'none';
+          _hiddenChartWrappers.push(container);
+        }
+      }
+    });
+    // Idem pour .chart-grid vides (tous enfants masqués)
+    section.querySelectorAll('.chart-grid').forEach(grid => {
+      const visibleChildren = Array.from(grid.children).filter(c =>
+        c.style.display !== 'none' && !c.dataset.pdfChartHidden
+      );
+      if (visibleChildren.length === 0) {
+        grid.dataset.pdfChartHidden = grid.style.display || '';
+        grid.style.display = 'none';
+        _hiddenChartWrappers.push(grid);
+      }
+    });
 
     // Estimation hauteur section via scrollHeight/scrollWidth (ratio DOM → PDF).
     // scrollHeight est fiable dans Grist contrairement à getBoundingClientRect.
@@ -4133,6 +4189,12 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       commentDiv.style.display = commentDiv.dataset.exportHidden || '';
       delete commentDiv.dataset.exportHidden;
     }
+
+    // Restaurer les chart-wrapper masqués
+    _hiddenChartWrappers.forEach(el => {
+      el.style.display = el.dataset.pdfChartHidden || '';
+      delete el.dataset.pdfChartHidden;
+    });
 
     // Rendu natif du commentaire markdown
     if (mdValue && mdValue.trim()) {
