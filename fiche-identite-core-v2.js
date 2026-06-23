@@ -4429,15 +4429,40 @@ function getImmobilierHistorique(structureId) {
   if (!consolStruct || !consolStruct.Structure) return [];
 
   const annees = [2022, 2023, 2024, 2025];
+
+  // Pour DI sans ligne propre (ex: DI 972), agréger depuis les DR rattachées
+  const drIds = getDRRattachees(structureId);
+  const useDRFallback = drIds.length > 0;
+
   return annees.map(a => {
+    // Chercher ligne directe
     for (let i = 0; i < consolStruct.Structure.length; i++) {
       if (consolStruct.Structure[i] === structureId && consolStruct.Annee[i] === a) {
-        return {
-          annee: a,
-          cout_surfacique: consolStruct.Cout_Surfacique?.[i] || null,
-          charges_energie: consolStruct.Charges_Energie?.[i] || 0,
-        };
+        const cout = consolStruct.Cout_Surfacique?.[i] || null;
+        const energie = consolStruct.Charges_Energie?.[i] || 0;
+        const sub = consolStruct.SUB_Total?.[i] || 0;
+        // Considérer valide si SUB_Total renseigné
+        if (sub > 0 || cout != null) {
+          return { annee: a, cout_surfacique: cout, charges_energie: energie };
+        }
       }
+    }
+    // Fallback : agréger DR rattachées
+    if (useDRFallback) {
+      let totalSub = 0, totalEnergie = 0;
+      for (const drId of drIds) {
+        for (let i = 0; i < consolStruct.Structure.length; i++) {
+          if (consolStruct.Structure[i] === drId && consolStruct.Annee[i] === a) {
+            totalSub     += consolStruct.SUB_Total?.[i] || 0;
+            totalEnergie += consolStruct.Charges_Energie?.[i] || 0;
+          }
+        }
+      }
+      return {
+        annee: a,
+        cout_surfacique: totalSub > 0 ? totalEnergie / totalSub : null,
+        charges_energie: totalEnergie,
+      };
     }
     return { annee: a, cout_surfacique: null, charges_energie: 0 };
   });
@@ -4447,10 +4472,40 @@ function getImmobilierHistorique(structureId) {
  * Rafraîchit la section Immobilier
  */
 function refreshImmobilier(structureId, annee) {
-  const data    = getConsolidationStructureData(structureId, annee);
-  const dataN1  = getConsolidationStructureData(structureId, annee - 1);
+  // Récupération KPI : fallback agrégation DR rattachées pour DI sans ligne propre (ex: DI 972)
+  let data    = getConsolidationStructureData(structureId, annee);
+  let dataN1  = getConsolidationStructureData(structureId, annee - 1);
   const perimetre = getPerimetreStructure(structureId);
   const consol    = getConsolidationData(perimetre, annee);
+
+  // Fallback DI 972 : agréger SUB/residents/energie depuis les DR rattachées
+  if (!data || (data.sub_total === 0 && data.residents_total === 0)) {
+    const drIds = getDRRattachees(structureId);
+    if (drIds.length > 0) {
+      function agregImmo(ids, an) {
+        let sub = 0, res = 0, energie = 0, nbSites = 0;
+        for (const drId of ids) {
+          const d = getConsolidationStructureData(drId, an);
+          if (!d) continue;
+          sub     += d.sub_total || 0;
+          res     += d.residents_total || 0;
+          energie += d.charges_energie || 0;
+          nbSites += d.nb_sites || 0;
+        }
+        if (sub === 0 && res === 0) return null;
+        return {
+          sub_total:       sub,
+          residents_total: res,
+          charges_energie: energie,
+          nb_sites:        nbSites,
+          ratio_occupation: res > 0 ? sub / res : null,
+          cout_surfacique:  sub > 0 ? energie / sub : null,
+        };
+      }
+      data   = agregImmo(drIds, annee)   || data;
+      dataN1 = agregImmo(drIds, annee - 1) || dataN1;
+    }
+  }
 
   // ── KPI pills ──────────────────────────────────────────────────
   const el = (id) => document.getElementById(id);
