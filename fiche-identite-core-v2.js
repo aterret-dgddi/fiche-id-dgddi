@@ -681,6 +681,14 @@ function getBudgetData(structureId, annee) {
     taux_cp_fonctionnement: n('Taux_CP_fonctionnement'),
     taux_cp_t6:             n('Taux_CP_T6'),
     taux_cp_immo:           n('Taux_CP_Immo'),
+    // Date import
+    date_import: (() => {
+      const raw = budget['Date_Import']?.[idx];
+      if (!raw) return null;
+      if (typeof raw === 'string' && raw.match(/^\d{4}-\d{2}-\d{2}$/)) return new Date(raw);
+      if (typeof raw === 'number') return new Date(raw * 1000);
+      return null;
+    })(),
     // Totaux
     get dot_ae_total() { return this.dot_ae_vehicules + this.dot_ae_fonctionnement + this.dot_ae_t6 + this.dot_ae_immo; },
     get dot_cp_total() { return this.dot_cp_vehicules + this.dot_cp_fonctionnement + this.dot_cp_t6 + this.dot_cp_immo; },

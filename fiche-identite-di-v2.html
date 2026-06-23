@@ -1192,6 +1192,7 @@
       </div>
 
       <!-- KPI Pills : taux globaux -->
+      <div style="text-align:right;font-size:11px;color:var(--gris2);font-style:italic;margin-bottom:8px;" id="budget-date-import"></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;">
         <div class="kpi-card">
           <div class="kpi-card-label">Consommation AE globale</div>
@@ -1217,8 +1218,8 @@
       <div class="chart-grid">
         <!-- Radar répartition dotations -->
         <div class="chart-container">
-          <div class="chart-title">Répartition des dotations (AE)</div>
-          <div class="chart-subtitle" id="budget-radar-subtitle">Structure vs moyenne périmètre</div>
+          <div class="chart-title">Dotation vs Consommation CP par catégorie</div>
+          <div class="chart-subtitle" id="budget-radar-subtitle">Comparaison dotation / exécution</div>
           <div class="chart-wrapper" style="position:relative;height:280px;">
             <canvas id="chart-budget-radar-ae"></canvas>
           </div>
@@ -2962,6 +2963,16 @@
         return;
       }
 
+      // ── Date import ───────────────────────────────────────────
+      const elDate = document.getElementById('budget-date-import');
+      if (elDate) {
+        if (dataN.date_import && !isNaN(dataN.date_import)) {
+          elDate.textContent = `Données au ${dataN.date_import.toLocaleDateString('fr-FR')}`;
+        } else {
+          elDate.textContent = '';
+        }
+      }
+
       // ── Pills globales ────────────────────────────────────────
       const pctAE = (dataN.taux_ae_total * 100).toFixed(1) + ' %';
       const pctCP = (dataN.taux_cp_total * 100).toFixed(1) + ' %';
@@ -3013,33 +3024,46 @@
       const existing = Chart.getChart('chart-budget-radar-ae');
       if (existing) existing.destroy();
 
-      const total = data.dot_ae_total || 1;
-      const moyTotal = moy ? (moy.taux_ae_vehicules !== undefined ? 1 : 1) : 1; // non utilisé
-
-      // Répartition en % des dotations AE
       const labels = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
-      const structPct = [
-        data.dot_ae_vehicules / total * 100,
-        data.dot_ae_fonctionnement / total * 100,
-        data.dot_ae_t6 / total * 100,
-        data.dot_ae_immo / total * 100,
+      const dotations = [
+        data.dot_cp_vehicules,
+        data.dot_cp_fonctionnement,
+        data.dot_cp_t6,
+        data.dot_cp_immo,
+      ];
+      const consos = [
+        data.conso_cp_vehicules,
+        data.conso_cp_fonctionnement,
+        data.conso_cp_t6,
+        data.conso_cp_immo,
       ];
 
-      // Répartition périmètre — calculée depuis les taux moyens pondérés si dispo
-      // Ici on affiche uniquement la structure (radar mono) faute de répartition périmètre disponible
+      const fmt = v => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+
       new Chart(canvas, {
         type: 'radar',
         data: {
           labels,
-          datasets: [{
-            label: 'Cette structure',
-            data: structPct,
-            backgroundColor: 'rgba(19,81,168,0.15)',
-            borderColor: 'rgba(19,81,168,0.9)',
-            borderWidth: 2,
-            pointBackgroundColor: 'rgba(19,81,168,0.9)',
-            pointRadius: 4,
-          }]
+          datasets: [
+            {
+              label: 'Dotation CP',
+              data: dotations,
+              backgroundColor: 'rgba(180,180,180,0.15)',
+              borderColor: 'rgba(120,120,120,0.7)',
+              borderWidth: 2,
+              pointBackgroundColor: 'rgba(120,120,120,0.7)',
+              pointRadius: 4,
+            },
+            {
+              label: 'Consommation CP',
+              data: consos,
+              backgroundColor: 'rgba(19,81,168,0.15)',
+              borderColor: 'rgba(19,81,168,0.9)',
+              borderWidth: 2,
+              pointBackgroundColor: 'rgba(19,81,168,0.9)',
+              pointRadius: 4,
+            }
+          ]
         },
         options: {
           responsive: true,
@@ -3048,14 +3072,17 @@
             legend: { display: true, position: 'bottom' },
             tooltip: {
               callbacks: {
-                label: ctx => `${ctx.dataset.label} : ${ctx.parsed.r.toFixed(1)} %`
+                label: ctx => `${ctx.dataset.label} : ${fmt(ctx.parsed.r)}`
               }
             }
           },
           scales: {
             r: {
               beginAtZero: true,
-              ticks: { callback: v => v + ' %', font: { size: 10 } },
+              ticks: {
+                callback: v => new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 0 }).format(v) + ' €',
+                font: { size: 9 }
+              },
               pointLabels: { font: { size: 11 } }
             }
           }
