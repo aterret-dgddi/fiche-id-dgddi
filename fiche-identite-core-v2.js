@@ -5051,11 +5051,19 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     pdf.setDrawColor(200, 200, 200);
     pdf.setLineWidth(0.5);
     pdf.line(margin, footerY, pageWidth - margin, footerY);
-    pdf.setTextColor(100, 100, 100);
-    pdf.setFontSize(8.5);
+    pdf.setTextColor(120, 120, 120);
+    pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(`Page ${pageNum}`, margin, footerY + 5);
-    
+
+    // Gauche : sigle structure
+    pdf.text(struct.sigle || struct.nom, margin, footerY + 5);
+
+    // Centre : Page X / N (totalPages connu après génération → placeholder mis à jour via totalPagesPlaceholder)
+    const pageLabel = `Page ${pageNum}${_totalPages ? ' / ' + _totalPages : ''}`;
+    const pageLabelW = pdf.getTextWidth(pageLabel);
+    pdf.text(pageLabel, (pageWidth - pageLabelW) / 2, footerY + 5);
+
+    // Droite : date export
     const dateText = `Exporté le ${dateExport}`;
     const dateWidth = pdf.getTextWidth(dateText);
     pdf.text(dateText, pageWidth - margin - dateWidth, footerY + 5);
@@ -5073,7 +5081,85 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     return false;
   }
   
-  if (isFirstPage) addHeaderFooter(1);
+  let _totalPages = 0; // sera mis à jour après génération complète
+
+  if (!isFirstPage) addHeaderFooter(currentPage);
+
+  // ── PAGE DE GARDE (structure unique seulement) ──────────────────────
+  if (isFirstPage) {
+    // Fond blanc, logo centré, titre, infos structure, date
+    const cx = pageWidth / 2;
+
+    // Bande bleue supérieure (même hauteur que l'en-tête)
+    pdf.setFillColor(0, 47, 108);
+    pdf.rect(0, 0, pageWidth, headerHeight, 'F');
+
+    // Logo centré (si disponible)
+    const logoSize = 30;
+    const logoX = cx - logoSize / 2;
+    const logoY = 40;
+    if (logoData) {
+      pdf.addImage(logoData, 'PNG', logoX, logoY, logoSize, logoSize);
+    }
+
+    // Nom complet de la structure
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(22);
+    pdf.setTextColor(0, 47, 108);
+    const nomText = struct.sigle || struct.nom;
+    const nomW = pdf.getTextWidth(nomText);
+    pdf.text(nomText, cx - nomW / 2, logoY + logoSize + 18);
+
+    if (struct.nom && struct.nom !== struct.sigle) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(13);
+      pdf.setTextColor(74, 90, 106);
+      const nomLong = struct.nom;
+      const nlW = pdf.getTextWidth(nomLong);
+      if (nlW < pageWidth - 2 * margin) {
+        pdf.text(nomLong, cx - nlW / 2, logoY + logoSize + 28);
+      }
+    }
+
+    // Ligne décorative
+    pdf.setDrawColor(0, 47, 108);
+    pdf.setLineWidth(0.8);
+    pdf.line(margin + 30, logoY + logoSize + 34, pageWidth - margin - 30, logoY + logoSize + 34);
+
+    // Sous-infos : type, région
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(11);
+    pdf.setTextColor(100, 100, 100);
+    const infos = [
+      struct.type_label || struct.Type || '',
+      struct.region || struct.Region || ''
+    ].filter(Boolean).join('  ·  ');
+    if (infos) {
+      const infosW = pdf.getTextWidth(infos);
+      pdf.text(infos, cx - infosW / 2, logoY + logoSize + 44);
+    }
+
+    // Fiche Identité + Année
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(0, 47, 108);
+    const ficheLabel = `Fiche Identité — ${annee}`;
+    const ficheLabelW = pdf.getTextWidth(ficheLabel);
+    pdf.text(ficheLabel, cx - ficheLabelW / 2, logoY + logoSize + 60);
+
+    // Date d'export en bas de page
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(150, 150, 150);
+    const dateLabel = `Exporté le ${dateExport}`;
+    const dateLabelW = pdf.getTextWidth(dateLabel);
+    pdf.text(dateLabel, cx - dateLabelW / 2, pageHeight - 20);
+
+    pdf.addPage();
+    currentPage++;
+    yPosition = margin + headerHeight + 5;
+    addHeaderFooter(currentPage);
+  }
   
   const ficheBody = document.getElementById('fiche-body');
   
@@ -5348,10 +5434,11 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     if (child.style.display === 'none' || !child.offsetParent) continue;
 
     // Capturer les zone-header (titres de zone) en image directement
-    // Garder solidaire avec la section suivante : si < 80mm restants, saut de page
+    // Toujours commencer une nouvelle page pour chaque zone (Budget, RH, etc.)
     if (child.classList.contains('zone-header')) {
-      const availForZone = pageHeight - footerHeight - margin - yPosition;
-      if (availForZone < 80) _pdfCtx.addPage();
+      // Ne pas sauter si on est tout en haut de page (juste après un saut)
+      const topThreshold = margin + headerHeight + 8;
+      if (yPosition > topThreshold) _pdfCtx.addPage();
       await captureElementToImage(child);
       continue;
     }
@@ -5361,6 +5448,75 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
 
     const section = child;
     if (section.style.display === 'none' || !section.offsetParent) continue;
+
+    // ── Détection section sans données ──────────────────────────────────
+    // Si la section ne contient que des tirets "—" et le message "Aucune donnée",
+    // et qu'aucun Chart.js n'est initialisé → bandeau compact, pas de capture complète
+    const _hasChart = Array.from(section.querySelectorAll('canvas')).some(c =>
+      typeof Chart !== 'undefined' && Chart.getChart(c)
+    );
+    const _sectionText = section.innerText || '';
+    // Compter les cellules de valeur qui ont un vrai contenu (pas juste "—" ou vide)
+    const _kpiValues = Array.from(section.querySelectorAll('.kpi-value, .kpi-number, [class*="kpi-val"]'));
+    const _hasRealKpi = _kpiValues.some(el => {
+      const t = (el.innerText || '').trim();
+      return t && t !== '—' && t !== '-' && t !== '0' && t !== '';
+    });
+    const _isEmptySection = !_hasChart && !_hasRealKpi &&
+      (_sectionText.includes('Aucune donn') || _sectionText.includes('aucune donn') ||
+       !_sectionText.replace(/[—\-\s\n\r]/g, '').replace(/Analysedelindicateur/g, '').trim());
+
+    if (_isEmptySection) {
+      // Bandeau compact "pas de données" au lieu de la section complète
+      const mdVal0 = _mdeSectionValues.get(section) || '';
+      const secHeader = section.querySelector('.section-header, h2, h3');
+      const secTitle = secHeader ? (secHeader.innerText || '').split('\n')[0].trim() : '';
+
+      _checkPageBreak(18);
+      const bW = pageWidth - 2 * margin;
+      pdf.setFillColor(245, 246, 248);
+      pdf.setDrawColor(210, 218, 230);
+      pdf.setLineWidth(0.3);
+      pdf.roundedRect(margin, yPosition, bW, 10, 1, 1, 'FD');
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(140, 150, 165);
+      const emptyLabel = secTitle ? `${secTitle} — Aucune donnée disponible` : 'Aucune donnée disponible';
+      pdf.text(emptyLabel, margin + 4, yPosition + 6.5);
+      yPosition += 13;
+
+      // Si commentaire quand même, l'afficher dans son bloc encadré
+      if (mdVal0 && mdVal0.trim()) {
+        _checkPageBreak(22);
+        const bW2 = pageWidth - 2 * margin;
+        const innerX2 = margin + 7;
+        const innerW2 = bW2 - 10;
+        const _simCtx2 = { y: 5, availableMm() { return 9999; }, addPage() { this.y = 0; } };
+        renderMarkdownToPDF(pdf, mdVal0, innerX2, _simCtx2, innerW2);
+        const bH2 = _simCtx2.y + 4;
+        if (_pdfCtx.availableMm() < bH2 + 4) _pdfCtx.addPage();
+        const bY2 = yPosition;
+        pdf.setFillColor(248, 249, 251);
+        pdf.setDrawColor(220, 228, 240);
+        pdf.setLineWidth(0.3);
+        pdf.roundedRect(margin, bY2, bW2, bH2, 1, 1, 'FD');
+        pdf.setFillColor(0, 83, 160);
+        pdf.rect(margin, bY2, 3, bH2, 'F');
+        pdf.setFont('helvetica', 'italic');
+        pdf.setFontSize(8);
+        pdf.setTextColor(0, 83, 160);
+        pdf.text("Analyse de l'indicateur", innerX2, bY2 + 4.5);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.setTextColor(40, 40, 40);
+        yPosition = bY2 + 6;
+        _pdfCtx.y = yPosition;
+        renderMarkdownToPDF(pdf, mdVal0, innerX2, _pdfCtx, innerW2);
+        yPosition = Math.max(_pdfCtx.y, bY2 + bH2) + 4;
+      }
+      yPosition += 2;
+      continue; // sauter la capture html2canvas de cette section
+    }
 
     // Valeur markdown déjà lue avant masquage (via _mdeSectionValues)
     const mdValue = _mdeSectionValues.get(section) || '';
@@ -5448,7 +5604,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Rendu natif du commentaire markdown
     if (mdValue && mdValue.trim()) {
       // Réinitialiser explicitement tous les états graphiques PDF après html2canvas
-
       pdf.setTextColor(50, 50, 50);
       pdf.setDrawColor(0, 83, 160);
       pdf.setFillColor(255, 255, 255);
@@ -5456,30 +5611,56 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
 
-      _checkPageBreak(20);
+      _checkPageBreak(22);
       const imgWidth2 = pageWidth - (2 * margin);
+      const blockX = margin;
+      const blockW = imgWidth2;
+      const innerX = blockX + 7; // texte décalé après la bordure gauche
+      const innerW = blockW - 10;
 
-      // Filet séparateur + libellé
-      pdf.setDrawColor(0, 83, 160);
-      pdf.setLineWidth(0.4);
-      pdf.line(margin, yPosition, margin + 3, yPosition);
-      pdf.setFont('helvetica', 'italic');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(0, 83, 160);
-      pdf.text("Analyse de l'indicateur", margin + 5, yPosition + 0.5);
+      // ── Pré-calcul de la hauteur du bloc commentaire ──────────────────
+      // On simule le rendu pour connaître la hauteur avant de dessiner le rectangle
+      const _simCtx = {
+        y: 0,
+        _pages: 0,
+        availableMm() { return 9999; },
+        addPage() { this._pages++; this.y = 0; }
+      };
+      // Libellé "Analyse de l'indicateur" : 5mm
+      _simCtx.y = 5;
+      renderMarkdownToPDF(pdf, mdValue, innerX, _simCtx, innerW);
+      const textHeightMm = _simCtx.y + 4;
+      const blockH = textHeightMm + 2; // padding vertical interne
+
+      // Vérifier si le bloc tient sur la page, sinon saut
+      if (_pdfCtx.availableMm() < blockH + 4) _pdfCtx.addPage();
+
+      const boxY = yPosition;
+
+      // Fond gris très clair
+      pdf.setFillColor(248, 249, 251);
       pdf.setDrawColor(220, 228, 240);
       pdf.setLineWidth(0.3);
-      pdf.line(margin + 55, yPosition, margin + imgWidth2, yPosition);
-      yPosition += 5;
+      pdf.roundedRect(blockX, boxY, blockW, blockH, 1, 1, 'FD');
 
-      // Réinitialiser pour le texte du commentaire
+      // Bordure gauche bleue (3px simulé en rectangle plein)
+      pdf.setFillColor(0, 83, 160);
+      pdf.rect(blockX, boxY, 3, blockH, 'F');
+
+      // Libellé "Analyse de l'indicateur"
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(8);
+      pdf.setTextColor(0, 83, 160);
+      pdf.text("Analyse de l'indicateur", innerX, boxY + 4.5);
+
+      // Texte du commentaire
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
-      pdf.setTextColor(50, 50, 50);
-
+      pdf.setTextColor(40, 40, 40);
+      yPosition = boxY + 6;
       _pdfCtx.y = yPosition;
-      renderMarkdownToPDF(pdf, mdValue, margin + 3, _pdfCtx, imgWidth2 - 6);
-      yPosition = _pdfCtx.y + 4;
+      renderMarkdownToPDF(pdf, mdValue, innerX, _pdfCtx, innerW);
+      yPosition = Math.max(_pdfCtx.y, boxY + blockH) + 4;
     }
     yPosition += 4;
   }
@@ -5488,6 +5669,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   _mdeContainers.forEach(container => { container.style.display = ''; });
   
   addHeaderFooter(currentPage);
+  _totalPages = currentPage;
   return currentPage;
 }
 
