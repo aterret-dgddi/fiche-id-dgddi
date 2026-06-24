@@ -4768,6 +4768,10 @@ function cleanForPDF(str) {
 // ═══════════════════════════════════════════════════════════════
 function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
   if (!markdownText || !markdownText.trim()) return;
+  // Reset systématique avant tout rendu pour homogénéité
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  pdf.setTextColor(40, 40, 40);
 
 
   const FONT_SIZE_NORMAL = 10;
@@ -5159,20 +5163,11 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
     pdf.setTextColor(0, 47, 108);
-    const ficheLabel = `Fiche Identite — ${annee}`;
+    const ficheLabel = "Fiche Identite";
     const ficheLabelW = pdf.getTextWidth(ficheLabel);
     pdf.text(ficheLabel, cx - ficheLabelW / 2, lineY + 24);
 
-    // Titres des deux zones
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    pdf.setTextColor(120, 120, 120);
-    const zone1 = 'Indicateurs budgetaires 2026';
-    const zone2 = 'Indicateurs de gestion';
-    const z1W = pdf.getTextWidth(zone1);
-    const z2W = pdf.getTextWidth(zone2);
-    pdf.text(zone1, cx - z1W / 2, lineY + 35);
-    pdf.text(zone2, cx - z2W / 2, lineY + 41);
+
 
     // Date d'export en bas de page
     pdf.setFont('helvetica', 'normal');
@@ -5384,6 +5379,9 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   const ficheHeader = ficheBody.querySelector('.fiche-header');
   const mainCommentBox = ficheBody.querySelector('#main-comment-box');
 
+  // Masquer la vignette fiche-header (le header PDF suffit)
+  if (ficheHeader) ficheHeader.style.display = 'none';
+
   if (mainCommentBox && mainCommentBox.offsetParent) {
     const vdeBtns = mainCommentBox.querySelectorAll('.comment-edit-btn, .comment-save-btn, .comment-cancel-btn');
     vdeBtns.forEach(btn => { btn.dataset.pdfHidden = btn.style.display; btn.style.display = 'none'; });
@@ -5449,6 +5447,9 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     await captureElementToImage(ficheHeader);
   }
 
+  // Restaurer ficheHeader
+  if (ficheHeader) ficheHeader.style.display = '';
+
   // ── 3. Sections indicateurs : corps KPI en image + commentaire en natif ──
   // On parcourt les enfants directs de fiche-body pour capturer aussi les zone-header
   const imgWidth = pageWidth - (2 * margin);
@@ -5460,13 +5461,48 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Ignorer éléments cachés et hors DOM
     if (child.style.display === 'none' || !child.offsetParent) continue;
 
-    // Capturer les zone-header (titres de zone) en image directement
-    // Toujours commencer une nouvelle page pour chaque zone (Budget, RH, etc.)
+    // Zone-header → sous-page de garde dédiée
     if (child.classList.contains('zone-header')) {
-      // Ne pas sauter si on est tout en haut de page (juste après un saut)
+      // Toujours nouvelle page
       const topThreshold = margin + headerHeight + 8;
       if (yPosition > topThreshold) _pdfCtx.addPage();
-      await captureElementToImage(child);
+
+      // Lire le titre de la zone depuis le DOM
+      const zoneTitle = cleanForPDF((child.innerText || '').split('\n')[0].trim());
+      // Sous-titre selon la zone
+      const isGestion = zoneTitle.toLowerCase().includes('gestion');
+      const zoneSub = isGestion ? '2022 - 2025' : '2026';
+
+      // Dessiner la sous-page de garde (centrée, sobre)
+      const zcx = pageWidth / 2;
+      const zcy = (pageHeight - headerHeight - footerHeight) / 2 + headerHeight;
+
+      // Ligne décorative supérieure
+      pdf.setDrawColor(0, 47, 108);
+      pdf.setLineWidth(0.5);
+      pdf.line(margin + 20, zcy - 18, pageWidth - margin - 20, zcy - 18);
+
+      // Titre zone
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      pdf.setTextColor(0, 47, 108);
+      const ztW = pdf.getTextWidth(zoneTitle);
+      pdf.text(zoneTitle, zcx - ztW / 2, zcy - 8);
+
+      // Sous-titre (année)
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.setTextColor(120, 120, 120);
+      const zsW = pdf.getTextWidth(zoneSub);
+      pdf.text(zoneSub, zcx - zsW / 2, zcy + 2);
+
+      // Ligne décorative inférieure
+      pdf.setDrawColor(0, 47, 108);
+      pdf.setLineWidth(0.5);
+      pdf.line(margin + 20, zcy + 10, pageWidth - margin - 20, zcy + 10);
+
+      // Nouvelle page pour le contenu
+      _pdfCtx.addPage();
       continue;
     }
 
@@ -5479,15 +5515,26 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // ── Détection section sans données ──────────────────────────────────
     // Si la section ne contient que des tirets "—" et le message "Aucune donnée",
     // et qu'aucun Chart.js n'est initialisé → bandeau compact, pas de capture complète
-    const _hasChart = Array.from(section.querySelectorAll('canvas')).some(c =>
-      typeof Chart !== 'undefined' && Chart.getChart(c)
-    );
+    const _hasChart = Array.from(section.querySelectorAll('canvas')).some(c => {
+      if (typeof Chart === 'undefined') return false;
+      const ch = Chart.getChart(c);
+      if (!ch) return false;
+      // Un chart avec toutes les données à 0 ou null ne compte pas comme "avec données"
+      const allZero = (ch.data.datasets || []).every(ds =>
+        (ds.data || []).every(v => !v || v === 0)
+      );
+      return !allZero;
+    });
     const _sectionText = section.innerText || '';
     // Compter les cellules de valeur qui ont un vrai contenu (pas juste "—" ou vide)
     const _kpiValues = Array.from(section.querySelectorAll('.kpi-value, .kpi-number, [class*="kpi-val"]'));
     const _hasRealKpi = _kpiValues.some(el => {
       const t = (el.innerText || '').trim();
-      return t && t !== '—' && t !== '-' && t !== '0' && t !== '';
+      if (!t || t === '—' || t === '-' || t === '') return false;
+      // Valeurs réellement nulles : 0, 0 K€, 0 €, 0,00, 0.00
+      if (/^0[\s,.]?(K€|€|%)?$/.test(t)) return false;
+      if (/^0[,.]0+$/.test(t)) return false;
+      return true;
     });
     const _isEmptySection = !_hasChart && !_hasRealKpi &&
       (_sectionText.includes('Aucune donn') || _sectionText.includes('aucune donn') ||
@@ -5496,22 +5543,29 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     if (_isEmptySection) {
       // Bandeau compact "pas de données" au lieu de la section complète
       const mdVal0 = _mdeSectionValues.get(section) || '';
-      const secHeader = section.querySelector('.section-header, h2, h3');
-      const secTitleRaw = secHeader ? (secHeader.innerText || '').split('\n')[0].trim() : '';
-      const secTitle = cleanForPDF(secTitleRaw);
+      // Chercher le titre dans .section-title, h2, ou le span de titre du section-header
+      const secTitleEl = section.querySelector('.section-title, .section-header h2, .section-header h3, h2, h3, [class*="section-name"]');
+      const secTitleRaw = secTitleEl ? (secTitleEl.innerText || '').split('\n')[0].trim() : '';
+      const secTitle = cleanForPDF(secTitleRaw) || 'Indicateur';
 
-      _checkPageBreak(18);
+      _checkPageBreak(20);
       const bW = pageWidth - 2 * margin;
+      // Ligne de titre de section
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 47, 108);
+      pdf.text(secTitle, margin, yPosition + 5);
+      yPosition += 8;
+      // Bandeau "Aucune donnée disponible"
       pdf.setFillColor(245, 246, 248);
       pdf.setDrawColor(210, 218, 230);
       pdf.setLineWidth(0.3);
-      pdf.rect(margin, yPosition, bW, 10, 'FD');
+      pdf.rect(margin, yPosition, bW, 8, 'FD');
       pdf.setFont('helvetica', 'italic');
       pdf.setFontSize(8.5);
       pdf.setTextColor(140, 150, 165);
-      const emptyLabel = secTitle ? `${secTitle} — Aucune donnée disponible` : 'Aucune donnée disponible';
-      pdf.text(emptyLabel, margin + 4, yPosition + 6.5);
-      yPosition += 13;
+      pdf.text('Aucune donnee disponible', margin + 4, yPosition + 5.5);
+      yPosition += 12;
 
       // Si commentaire quand même, l'afficher sans rectangle global
       if (mdVal0 && mdVal0.trim()) {
