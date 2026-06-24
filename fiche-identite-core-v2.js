@@ -4770,20 +4770,20 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
   if (!markdownText || !markdownText.trim()) return;
   // Reset systématique avant tout rendu pour homogénéité
   pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(10);
-  pdf.setTextColor(40, 40, 40);
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(30, 30, 40);
 
 
-  const FONT_SIZE_NORMAL = 10;
-  const FONT_SIZE_H1     = 12;
-  const FONT_SIZE_H2     = 11;
-  const FONT_SIZE_H3     = 10.5;
-  const LINE_HEIGHT      = 5.5;
-  const PARA_GAP         = 2.5;
-  const LIST_INDENT      = 4;
-  const SUB_INDENT       = 8;
+  const FONT_SIZE_NORMAL = 8.5;
+  const FONT_SIZE_H1     = 10.5;
+  const FONT_SIZE_H2     = 9.5;
+  const FONT_SIZE_H3     = 9;
+  const LINE_HEIGHT      = 4.2;
+  const PARA_GAP         = 1.0;
+  const LIST_INDENT      = 3.5;
+  const SUB_INDENT       = 7;
 
-  const COLOR_TEXT   = [50,  50,  50];
+  const COLOR_TEXT   = [30,  30,  40];
   const COLOR_TITLE  = [0,   47, 108];
   const COLOR_BULLET = [0,   83, 160];
 
@@ -4829,8 +4829,10 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
       ensureSpace(LINE_HEIGHT + 1);
       // Bullet sur la première ligne seulement
       if (isBullet && isFirstLine) {
-        pdf.setFillColor(...COLOR_BULLET);
-        pdf.circle(x + indent - 2.5, ctx.y - 1.5, 0.7, 'F');
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(FONT_SIZE_NORMAL);
+        pdf.setTextColor(...COLOR_BULLET);
+        pdf.text('-', x + indent - 3, ctx.y);
         isFirstLine = false;
       }
       let curX = x + indent;
@@ -5066,7 +5068,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     pdf.setLineWidth(0.5);
     pdf.line(margin, footerY, pageWidth - margin, footerY);
     pdf.setTextColor(120, 120, 120);
-    pdf.setFontSize(8);
+    pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
 
     // Gauche : sigle structure
@@ -5159,9 +5161,9 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.text(infos, cx - infosW / 2, lineY + 10);
     }
 
-    // Fiche Identité + Année
+    // Fiche Identité
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(14);
+    pdf.setFontSize(13);
     pdf.setTextColor(0, 47, 108);
     const ficheLabel = "Fiche Identite";
     const ficheLabelW = pdf.getTextWidth(ficheLabel);
@@ -5248,6 +5250,10 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.addPage();
       currentPage++;
       yPosition = margin + headerHeight + 5;
+      // Reset police après saut de page pour éviter contamination
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(30, 30, 40);
     }
   };
   function _checkPageBreak(neededHeight) {
@@ -5468,38 +5474,47 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       if (yPosition > topThreshold) _pdfCtx.addPage();
 
       // Lire le titre de la zone depuis le DOM
-      const zoneTitle = cleanForPDF((child.innerText || '').split('\n')[0].trim());
-      // Sous-titre selon la zone
-      const isGestion = zoneTitle.toLowerCase().includes('gestion');
-      const zoneSub = isGestion ? '2022 - 2025' : '2026';
+      const zoneRaw = cleanForPDF((child.innerText || '').split('\n')[0].trim());
+      // Normaliser le titre
+      const isGestion = zoneRaw.toLowerCase().includes('gestion');
+      const zoneTitle = isGestion ? 'Indicateurs de gestion' : 'Indicateurs budgetaires 2026';
+      const zoneSub = isGestion ? '2022 - 2025' : 'Annee en cours';
 
-      // Dessiner la sous-page de garde (centrée, sobre)
+      // Sous-page de garde sobre style institutionnel
       const zcx = pageWidth / 2;
-      const zcy = (pageHeight - headerHeight - footerHeight) / 2 + headerHeight;
+      const zcy = pageHeight / 2;
 
-      // Ligne décorative supérieure
-      pdf.setDrawColor(0, 47, 108);
-      pdf.setLineWidth(0.5);
-      pdf.line(margin + 20, zcy - 18, pageWidth - margin - 20, zcy - 18);
-
-      // Titre zone
+      // Numéro de zone en très grand, gris très pâle (watermark)
+      const zoneNum = isGestion ? '02' : '01';
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
+      pdf.setFontSize(120);
+      pdf.setTextColor(235, 238, 245);
+      const znW = pdf.getTextWidth(zoneNum);
+      pdf.text(zoneNum, zcx - znW / 2, zcy + 30);
+
+      // Filet fin au-dessus du titre
+      pdf.setDrawColor(0, 47, 108);
+      pdf.setLineWidth(0.4);
+      pdf.line(margin + 25, zcy - 22, pageWidth - margin - 25, zcy - 22);
+
+      // Titre zone en bleu marine bold
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(14);
       pdf.setTextColor(0, 47, 108);
       const ztW = pdf.getTextWidth(zoneTitle);
-      pdf.text(zoneTitle, zcx - ztW / 2, zcy - 8);
+      pdf.text(zoneTitle, zcx - ztW / 2, zcy - 12);
 
-      // Sous-titre (année)
+      // Sous-titre années en gris moyen
       pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(10);
-      pdf.setTextColor(120, 120, 120);
+      pdf.setFontSize(9);
+      pdf.setTextColor(110, 120, 135);
       const zsW = pdf.getTextWidth(zoneSub);
-      pdf.text(zoneSub, zcx - zsW / 2, zcy + 2);
+      pdf.text(zoneSub, zcx - zsW / 2, zcy - 4);
 
-      // Ligne décorative inférieure
+      // Filet fin en dessous
       pdf.setDrawColor(0, 47, 108);
-      pdf.setLineWidth(0.5);
-      pdf.line(margin + 20, zcy + 10, pageWidth - margin - 20, zcy + 10);
+      pdf.setLineWidth(0.4);
+      pdf.line(margin + 25, zcy, pageWidth - margin - 25, zcy);
 
       // Nouvelle page pour le contenu
       _pdfCtx.addPage();
@@ -5550,22 +5565,26 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
 
       _checkPageBreak(20);
       const bW = pageWidth - 2 * margin;
-      // Ligne de titre de section
+      // Titre de section sobre
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
+      pdf.setFontSize(9);
       pdf.setTextColor(0, 47, 108);
-      pdf.text(secTitle, margin, yPosition + 5);
-      yPosition += 8;
-      // Bandeau "Aucune donnée disponible"
-      pdf.setFillColor(245, 246, 248);
-      pdf.setDrawColor(210, 218, 230);
-      pdf.setLineWidth(0.3);
-      pdf.rect(margin, yPosition, bW, 8, 'FD');
+      pdf.text(secTitle, margin, yPosition + 4);
+      // Filet fin sous le titre
+      pdf.setDrawColor(180, 200, 225);
+      pdf.setLineWidth(0.2);
+      pdf.line(margin, yPosition + 6, margin + bW, yPosition + 6);
+      yPosition += 9;
+      // Bandeau compact "Aucune donnée disponible"
+      pdf.setFillColor(247, 248, 250);
+      pdf.setDrawColor(215, 222, 232);
+      pdf.setLineWidth(0.2);
+      pdf.rect(margin, yPosition, bW, 6, 'FD');
       pdf.setFont('helvetica', 'italic');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(140, 150, 165);
-      pdf.text('Aucune donnee disponible', margin + 4, yPosition + 5.5);
-      yPosition += 12;
+      pdf.setFontSize(7.5);
+      pdf.setTextColor(150, 158, 172);
+      pdf.text('Aucune donnee disponible', margin + 3, yPosition + 4.2);
+      yPosition += 9;
 
       // Si commentaire quand même, l'afficher sans rectangle global
       if (mdVal0 && mdVal0.trim()) {
@@ -5573,13 +5592,13 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         const innerX2 = margin + 7;
         const innerW2 = (pageWidth - 2 * margin) - 10;
         pdf.setFont('helvetica', 'italic');
-        pdf.setFontSize(8);
-        pdf.setTextColor(0, 83, 160);
-        pdf.text("Analyse de l'indicateur", innerX2, yPosition + 4.5);
+        pdf.setFontSize(7);
+        pdf.setTextColor(80, 110, 160);
+        pdf.text("Analyse de l'indicateur", innerX2, yPosition + 3.5);
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
-        pdf.setTextColor(40, 40, 40);
-        yPosition = yPosition + 11;
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(30, 30, 40);
+        yPosition = yPosition + 7;
         _pdfCtx.y = yPosition;
         renderMarkdownToPDF(pdf, mdVal0, innerX2, _pdfCtx, innerW2);
         yPosition = _pdfCtx.y + 4;
@@ -5697,19 +5716,19 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
 
       // Label
       pdf.setFont('helvetica', 'italic');
-      pdf.setFontSize(8);
-      pdf.setTextColor(0, 83, 160);
-      pdf.text("Analyse de l'indicateur", innerX, yPosition + 4.5);
+      pdf.setFontSize(7);
+      pdf.setTextColor(80, 110, 160);
+      pdf.text("Analyse de l'indicateur", innerX, yPosition + 3.5);
 
       pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(10);
-      pdf.setTextColor(40, 40, 40);
-      yPosition = yPosition + 11;
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(30, 30, 40);
+      yPosition = yPosition + 8;
 
       // Rendre le texte normalement via _pdfCtx (qui gère les sauts de page)
       _pdfCtx.y = yPosition;
       renderMarkdownToPDF(pdf, mdValue, innerX, _pdfCtx, innerW);
-      yPosition = _pdfCtx.y + 4;
+      yPosition = _pdfCtx.y + 3;
     }
     yPosition += 4;
   }
