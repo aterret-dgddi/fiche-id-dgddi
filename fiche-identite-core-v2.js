@@ -5513,34 +5513,22 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.text(emptyLabel, margin + 4, yPosition + 6.5);
       yPosition += 13;
 
-      // Si commentaire quand même, l'afficher dans son bloc encadré
+      // Si commentaire quand même, l'afficher sans rectangle global
       if (mdVal0 && mdVal0.trim()) {
-        _checkPageBreak(22);
-        const bW2 = pageWidth - 2 * margin;
+        _checkPageBreak(16);
         const innerX2 = margin + 7;
-        const innerW2 = bW2 - 10;
-        const _simCtx2 = { y: 10, availableMm() { return 9999; }, addPage() { this.y = 0; } };
-        renderMarkdownToPDF(pdf, mdVal0, innerX2, _simCtx2, innerW2);
-        const bH2 = _simCtx2.y + 4;
-        if (_pdfCtx.availableMm() < bH2 + 4) _pdfCtx.addPage();
-        const bY2 = yPosition;
-        pdf.setFillColor(248, 249, 251);
-        pdf.setDrawColor(220, 228, 240);
-        pdf.setLineWidth(0.3);
-        pdf.rect(margin, bY2, bW2, bH2, 'FD');
-        pdf.setFillColor(0, 83, 160);
-        pdf.rect(margin, bY2, 3, bH2, 'F');
+        const innerW2 = (pageWidth - 2 * margin) - 10;
         pdf.setFont('helvetica', 'italic');
         pdf.setFontSize(8);
         pdf.setTextColor(0, 83, 160);
-        pdf.text("Analyse de l'indicateur", innerX2, bY2 + 4.5);
+        pdf.text("Analyse de l'indicateur", innerX2, yPosition + 4.5);
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
         pdf.setTextColor(40, 40, 40);
-        yPosition = bY2 + 11;
+        yPosition = yPosition + 11;
         _pdfCtx.y = yPosition;
         renderMarkdownToPDF(pdf, mdVal0, innerX2, _pdfCtx, innerW2);
-        yPosition = Math.max(_pdfCtx.y, bY2 + bH2) + 4;
+        yPosition = _pdfCtx.y + 4;
       }
       yPosition += 2;
       continue; // sauter la capture html2canvas de cette section
@@ -5646,49 +5634,28 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       const innerX = blockX + 7; // texte décalé après la bordure gauche
       const innerW = blockW - 10;
 
-      // ── Pré-calcul de la hauteur du bloc commentaire ──────────────────
-      // On simule le rendu pour connaître la hauteur avant de dessiner le rectangle
-      const _simCtx = {
-        y: 0,
-        _pages: 0,
-        availableMm() { return 9999; },
-        addPage() { this._pages++; this.y = 0; }
-      };
-      // Label "Analyse de l'indicateur" : 5mm + gap 5mm avant le texte
-      _simCtx.y = 10;
-      renderMarkdownToPDF(pdf, mdValue, innerX, _simCtx, innerW);
-      const textHeightMm = _simCtx.y + 4;
-      const blockH = textHeightMm + 2; // padding vertical interne
+      // ── Rendu du commentaire avec encadrement page-par-page ──
+      // Principe : on dessine fond + bordure gauche au fil du rendu,
+      // sans jamais naviguer en arrière (pas de setPage).
+      // Le fond est dessiné APRÈS le texte sur chaque tranche de page.
 
-      // Vérifier si le bloc tient sur la page, sinon saut
-      if (_pdfCtx.availableMm() < blockH + 4) _pdfCtx.addPage();
+      _checkPageBreak(16);
 
-      const boxY = yPosition;
-
-      // Fond gris très clair
-      pdf.setFillColor(248, 249, 251);
-      pdf.setDrawColor(220, 228, 240);
-      pdf.setLineWidth(0.3);
-      pdf.rect(blockX, boxY, blockW, blockH, 'FD');
-
-      // Bordure gauche bleue (3px simulé en rectangle plein)
-      pdf.setFillColor(0, 83, 160);
-      pdf.rect(blockX, boxY, 3, blockH, 'F');
-
-      // Libellé "Analyse de l'indicateur" (apostrophe ASCII pour éviter corruption latin-1)
+      // Label
       pdf.setFont('helvetica', 'italic');
       pdf.setFontSize(8);
       pdf.setTextColor(0, 83, 160);
-      pdf.text("Analyse de l'indicateur", innerX, boxY + 4.5);
+      pdf.text("Analyse de l'indicateur", innerX, yPosition + 4.5);
 
-      // Texte du commentaire — commencer après le label (gap suffisant)
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
       pdf.setTextColor(40, 40, 40);
-      yPosition = boxY + 11;
+      yPosition = yPosition + 11;
+
+      // Rendre le texte normalement via _pdfCtx (qui gère les sauts de page)
       _pdfCtx.y = yPosition;
       renderMarkdownToPDF(pdf, mdValue, innerX, _pdfCtx, innerW);
-      yPosition = Math.max(_pdfCtx.y, boxY + blockH) + 4;
+      yPosition = _pdfCtx.y + 4;
     }
     yPosition += 4;
   }
