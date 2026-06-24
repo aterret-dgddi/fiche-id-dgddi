@@ -5058,10 +5058,12 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Gauche : sigle structure
     pdf.text(struct.sigle || struct.nom, margin, footerY + 5);
 
-    // Centre : Page X / N (totalPages connu après génération → placeholder mis à jour via totalPagesPlaceholder)
-    const pageLabel = `Page ${pageNum}${_totalPages ? ' / ' + _totalPages : ''}`;
+    // Centre : Page X / N — on écrit d'abord sans total, on repassera après
+    const pageLabel = `Page ${pageNum}`;
     const pageLabelW = pdf.getTextWidth(pageLabel);
     pdf.text(pageLabel, (pageWidth - pageLabelW) / 2, footerY + 5);
+    // Mémoriser la position pour réécrire avec le total en fin de génération
+    _footerPageNums.push({ pageNum, footerY, cx: pageWidth / 2 });
 
     // Droite : date export
     const dateText = `Exporté le ${dateExport}`;
@@ -5082,6 +5084,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   }
   
   let _totalPages = 0; // sera mis à jour après génération complète
+  const _footerPageNums = []; // stockage des (pageNum, footerY) pour réécriture finale
 
   if (!isFirstPage) addHeaderFooter(currentPage);
 
@@ -5102,29 +5105,31 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.addImage(logoData, 'PNG', logoX, logoY, logoSize, logoSize);
     }
 
-    // Nom complet de la structure
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(22);
-    pdf.setTextColor(0, 47, 108);
-    const nomText = struct.sigle || struct.nom;
-    const nomW = pdf.getTextWidth(nomText);
-    pdf.text(nomText, cx - nomW / 2, logoY + logoSize + 18);
+    // Nom complet de la structure avec sigle entre parenthèses
+    const hasDistinctName = struct.nom && struct.nom !== struct.sigle;
+    const nomPrincipal = hasDistinctName ? struct.nom : (struct.sigle || struct.nom);
+    const nomSigle = hasDistinctName ? `(${struct.sigle})` : '';
 
-    if (struct.nom && struct.nom !== struct.sigle) {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(hasDistinctName ? 16 : 22);
+    pdf.setTextColor(0, 47, 108);
+    const nomW = pdf.getTextWidth(nomPrincipal);
+    const nomYBase = logoY + logoSize + 18;
+    pdf.text(nomPrincipal, cx - nomW / 2, nomYBase);
+
+    if (nomSigle) {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(13);
       pdf.setTextColor(74, 90, 106);
-      const nomLong = struct.nom;
-      const nlW = pdf.getTextWidth(nomLong);
-      if (nlW < pageWidth - 2 * margin) {
-        pdf.text(nomLong, cx - nlW / 2, logoY + logoSize + 28);
-      }
+      const sigleW = pdf.getTextWidth(nomSigle);
+      pdf.text(nomSigle, cx - sigleW / 2, nomYBase + 9);
     }
 
-    // Ligne décorative
+    // Ligne décorative — décalée selon présence du sigle
+    const lineY = nomYBase + (nomSigle ? 16 : 8);
     pdf.setDrawColor(0, 47, 108);
     pdf.setLineWidth(0.8);
-    pdf.line(margin + 30, logoY + logoSize + 34, pageWidth - margin - 30, logoY + logoSize + 34);
+    pdf.line(margin + 30, lineY, pageWidth - margin - 30, lineY);
 
     // Sous-infos : type, région
     pdf.setFont('helvetica', 'normal');
@@ -5136,22 +5141,33 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     ].filter(Boolean).join('  ·  ');
     if (infos) {
       const infosW = pdf.getTextWidth(infos);
-      pdf.text(infos, cx - infosW / 2, logoY + logoSize + 44);
+      pdf.text(infos, cx - infosW / 2, lineY + 10);
     }
 
     // Fiche Identité + Année
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
     pdf.setTextColor(0, 47, 108);
-    const ficheLabel = `Fiche Identité — ${annee}`;
+    const ficheLabel = `Fiche Identite — ${annee}`;
     const ficheLabelW = pdf.getTextWidth(ficheLabel);
-    pdf.text(ficheLabel, cx - ficheLabelW / 2, logoY + logoSize + 60);
+    pdf.text(ficheLabel, cx - ficheLabelW / 2, lineY + 24);
+
+    // Titres des deux zones
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(120, 120, 120);
+    const zone1 = 'Indicateurs budgetaires 2026';
+    const zone2 = 'Indicateurs de gestion';
+    const z1W = pdf.getTextWidth(zone1);
+    const z2W = pdf.getTextWidth(zone2);
+    pdf.text(zone1, cx - z1W / 2, lineY + 35);
+    pdf.text(zone2, cx - z2W / 2, lineY + 41);
 
     // Date d'export en bas de page
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(9);
     pdf.setTextColor(150, 150, 150);
-    const dateLabel = `Exporté le ${dateExport}`;
+    const dateLabel = `Exporte le ${dateExport}`;
     const dateLabelW = pdf.getTextWidth(dateLabel);
     pdf.text(dateLabel, cx - dateLabelW / 2, pageHeight - 20);
 
@@ -5470,7 +5486,8 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       // Bandeau compact "pas de données" au lieu de la section complète
       const mdVal0 = _mdeSectionValues.get(section) || '';
       const secHeader = section.querySelector('.section-header, h2, h3');
-      const secTitle = secHeader ? (secHeader.innerText || '').split('\n')[0].trim() : '';
+      const secTitleRaw = secHeader ? (secHeader.innerText || '').split('\n')[0].trim() : '';
+      const secTitle = cleanForPDF(secTitleRaw);
 
       _checkPageBreak(18);
       const bW = pageWidth - 2 * margin;
@@ -5491,7 +5508,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         const bW2 = pageWidth - 2 * margin;
         const innerX2 = margin + 7;
         const innerW2 = bW2 - 10;
-        const _simCtx2 = { y: 5, availableMm() { return 9999; }, addPage() { this.y = 0; } };
+        const _simCtx2 = { y: 10, availableMm() { return 9999; }, addPage() { this.y = 0; } };
         renderMarkdownToPDF(pdf, mdVal0, innerX2, _simCtx2, innerW2);
         const bH2 = _simCtx2.y + 4;
         if (_pdfCtx.availableMm() < bH2 + 4) _pdfCtx.addPage();
@@ -5509,7 +5526,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
         pdf.setTextColor(40, 40, 40);
-        yPosition = bY2 + 6;
+        yPosition = bY2 + 11;
         _pdfCtx.y = yPosition;
         renderMarkdownToPDF(pdf, mdVal0, innerX2, _pdfCtx, innerW2);
         yPosition = Math.max(_pdfCtx.y, bY2 + bH2) + 4;
@@ -5626,8 +5643,8 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         availableMm() { return 9999; },
         addPage() { this._pages++; this.y = 0; }
       };
-      // Libellé "Analyse de l'indicateur" : 5mm
-      _simCtx.y = 5;
+      // Label "Analyse de l'indicateur" : 5mm + gap 5mm avant le texte
+      _simCtx.y = 10;
       renderMarkdownToPDF(pdf, mdValue, innerX, _simCtx, innerW);
       const textHeightMm = _simCtx.y + 4;
       const blockH = textHeightMm + 2; // padding vertical interne
@@ -5647,17 +5664,17 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setFillColor(0, 83, 160);
       pdf.rect(blockX, boxY, 3, blockH, 'F');
 
-      // Libellé "Analyse de l'indicateur"
+      // Libellé "Analyse de l'indicateur" (apostrophe ASCII pour éviter corruption latin-1)
       pdf.setFont('helvetica', 'italic');
       pdf.setFontSize(8);
       pdf.setTextColor(0, 83, 160);
       pdf.text("Analyse de l'indicateur", innerX, boxY + 4.5);
 
-      // Texte du commentaire
+      // Texte du commentaire — commencer après le label (gap suffisant)
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
       pdf.setTextColor(40, 40, 40);
-      yPosition = boxY + 6;
+      yPosition = boxY + 11;
       _pdfCtx.y = yPosition;
       renderMarkdownToPDF(pdf, mdValue, innerX, _pdfCtx, innerW);
       yPosition = Math.max(_pdfCtx.y, boxY + blockH) + 4;
@@ -5670,6 +5687,25 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   
   addHeaderFooter(currentPage);
   _totalPages = currentPage;
+
+  // ── Deuxième passe : réécrire la pagination centrale avec le total ──
+  // Aller sur chaque page et surcharger le label "Page X" par "Page X / N"
+  for (const fp of _footerPageNums) {
+    pdf.setPage(fp.pageNum);
+    // Effacer l'ancien label avec un rectangle blanc
+    const oldLabel = `Page ${fp.pageNum}`;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    const oldW = pdf.getTextWidth(oldLabel);
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(fp.cx - oldW / 2 - 1, fp.footerY + 1, oldW + 10, 6, 'F');
+    // Écrire le nouveau label
+    const newLabel = `Page ${fp.pageNum} / ${_totalPages}`;
+    pdf.setTextColor(120, 120, 120);
+    const newW = pdf.getTextWidth(newLabel);
+    pdf.text(newLabel, fp.cx - newW / 2, fp.footerY + 5);
+  }
+
   return currentPage;
 }
 
