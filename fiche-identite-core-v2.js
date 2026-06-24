@@ -6245,3 +6245,426 @@ function exportToXLSX() {
   // ── Télécharger ───────────────────────────────────────────────
   XLSX.writeFile(wb, `${struct.sigle}-${annee}-${getPDFTimestamp()}.xlsx`);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT XLSX — MODAL + MULTI-STRUCTURES
+// ═══════════════════════════════════════════════════════════════
+
+function showXLSXModal() {
+  const existing = document.getElementById('xlsx-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'xlsx-modal';
+  modal.style.cssText = `
+    position:fixed;top:0;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,0.5);z-index:10000;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Marianne',sans-serif;
+  `;
+
+  const struct = FICHE_STATE.structure;
+  const structName = struct ? (struct.sigle || struct.nom) : '—';
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;width:500px;max-width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#1B5E20,#2E7D32);padding:24px;color:white;">
+        <h2 style="margin:0;font-size:20px;font-weight:700;">📊 Exporter en XLSX</h2>
+        <p style="margin:8px 0 0 0;font-size:13px;opacity:0.9;">Données chiffrées pour exploitation IA</p>
+      </div>
+      <div style="padding:24px;">
+        <div style="margin-bottom:20px;">
+          <label style="display:block;font-weight:600;color:#1E2D3D;margin-bottom:12px;font-size:14px;">📄 Mode d'export</label>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <label style="display:flex;align-items:center;padding:12px;border:2px solid #E6ECF8;border-radius:8px;cursor:pointer;" class="xlsx-option" data-mode="single">
+              <input type="radio" name="xlsx-mode" value="single" checked style="margin-right:12px;width:18px;height:18px;">
+              <div>
+                <div style="font-weight:600;color:#1B5E20;font-size:14px;">Structure actuelle</div>
+                <div style="font-size:12px;color:#6c757d;margin-top:2px;">Exporter uniquement <strong>${structName}</strong></div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:center;padding:12px;border:2px solid #E6ECF8;border-radius:8px;cursor:pointer;" class="xlsx-option" data-mode="zip">
+              <input type="radio" name="xlsx-mode" value="zip" style="margin-right:12px;width:18px;height:18px;">
+              <div>
+                <div style="font-weight:600;color:#1B5E20;font-size:14px;">Archive ZIP — un XLSX par structure</div>
+                <div style="font-size:12px;color:#6c757d;margin-top:2px;">Génère un fichier XLSX par structure dans une archive ZIP</div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:center;padding:12px;border:2px solid #E6ECF8;border-radius:8px;cursor:pointer;" class="xlsx-option" data-mode="global">
+              <input type="radio" name="xlsx-mode" value="global" style="margin-right:12px;width:18px;height:18px;">
+              <div>
+                <div style="font-weight:600;color:#1B5E20;font-size:14px;">XLSX global — toutes structures</div>
+                <div style="font-size:12px;color:#6c757d;margin-top:2px;">Un fichier unique, un onglet par structure (données RH, budget, etc.)</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div id="xlsx-filter-section" style="margin-bottom:20px;display:none;">
+          <label style="display:block;font-weight:600;color:#1E2D3D;margin-bottom:12px;font-size:14px;">🔍 Filtrer les structures</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${['DG','DI','DI Outremer','SCN','DR'].map(type => `
+              <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
+                <input type="checkbox" class="xlsx-filter-type" value="${type}" ${type==='DI'||type==='SCN'?'checked':''} style="margin-right:8px;">
+                <span style="background:#2E7D32;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">${type}</span>
+                ${type}
+              </label>`).join('')}
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+          <button id="xlsx-cancel" style="padding:10px 20px;border:1px solid #ddd;border-radius:8px;background:white;cursor:pointer;font-size:14px;">Annuler</button>
+          <button id="xlsx-confirm" style="padding:10px 24px;border:none;border-radius:8px;background:#2E7D32;color:white;font-weight:600;cursor:pointer;font-size:14px;">Exporter</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Surligner l'option sélectionnée
+  modal.querySelectorAll('.xlsx-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      modal.querySelectorAll('.xlsx-option').forEach(o => o.style.borderColor = '#E6ECF8');
+      opt.style.borderColor = '#2E7D32';
+      const mode = opt.dataset.mode;
+      const fs = document.getElementById('xlsx-filter-section');
+      if (fs) fs.style.display = (mode === 'zip' || mode === 'global') ? 'block' : 'none';
+    });
+  });
+  // Surligner la première option par défaut
+  modal.querySelector('.xlsx-option[data-mode="single"]').style.borderColor = '#2E7D32';
+
+  document.getElementById('xlsx-cancel').onclick = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  document.getElementById('xlsx-confirm').onclick = async () => {
+    const mode = modal.querySelector('input[name="xlsx-mode"]:checked').value;
+    const selectedTypes = Array.from(modal.querySelectorAll('.xlsx-filter-type:checked')).map(c => c.value);
+    const filters = { types: selectedTypes };
+    modal.remove();
+    await executeXLSXExport(mode, filters);
+  };
+}
+
+async function executeXLSXExport(mode, filters) {
+  if (mode === 'single') {
+    exportToXLSX(); // fonction existante — structure courante
+    return;
+  }
+
+  if (typeof XLSX === 'undefined') {
+    alert('Librairie SheetJS non chargee. Rechargez la page.');
+    return;
+  }
+  if (typeof JSZip === 'undefined' && mode === 'zip') {
+    alert('JSZip non disponible.');
+    return;
+  }
+
+  let structures = getStructuresArray();
+  if (filters && filters.types && filters.types.length > 0) {
+    structures = filterStructuresByTypes(structures, filters.types);
+  }
+  if (structures.length === 0) { alert('Aucune structure correspondant aux filtres.'); return; }
+
+  const annee = FICHE_STATE.annee;
+  const loadingDiv = showLoadingMessage(`Génération XLSX pour ${structures.length} structures...`);
+
+  try {
+    if (mode === 'zip') {
+      // ── Un XLSX par structure → ZIP ─────────────────────────
+      const zip = new JSZip();
+      for (let i = 0; i < structures.length; i++) {
+        const s = structures[i];
+        if (loadingDiv) loadingDiv.querySelector('div:last-child').textContent =
+          `XLSX ${i+1}/${structures.length} : ${s.sigle}`;
+
+        await selectStructure(s.id);
+        await new Promise(r => setTimeout(r, 500));
+
+        // Générer le workbook pour cette structure via exportToXLSXWorkbook()
+        const wb = exportToXLSXWorkbook(s, annee);
+        const xlsxData = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        zip.file(`${s.sigle}-${annee}-${getPDFTimestamp()}.xlsx`, xlsxData);
+      }
+      if (loadingDiv) loadingDiv.querySelector('div:last-child').textContent = 'Compression...';
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fiches-identite-xlsx-${annee}-${getPDFTimestamp()}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      hideLoadingMessage(loadingDiv);
+      alert(`Archive ZIP générée : ${structures.length} fichiers XLSX.`);
+
+    } else if (mode === 'global') {
+      // ── Un seul XLSX, un onglet "résumé" + un onglet RH_KPI, etc. ──
+      // Structure : onglet "Structures" avec toutes les KPIs en lignes
+      const wb = XLSX.utils.book_new();
+
+      // Onglet récapitulatif — une ligne par structure, colonnes = KPIs principaux
+      const summaryHeaders = [
+        'Sigle','Nom','Type','Region',
+        'ETPT Total','ETPT AGCO','ETPT SU','Age Moyen','MS/Agent (EUR)',
+        'Budget AE Taux (%)','Budget CP Taux (%)',
+        'IT Postes','IT Budget (EUR)','IT Ratio/ETPT',
+        'FM Total (EUR)','FM/Agent (EUR)',
+        'Fonct CP 2025 (EUR)','Fonct % Maitrisable','Fonct/Agent (EUR)',
+        'Veh Total','Veh Budget (EUR)',
+        'Immo SUB (m2)','Immo Cout surf. (EUR/m2)',
+      ];
+      const summaryRows = [summaryHeaders];
+
+      for (let i = 0; i < structures.length; i++) {
+        const s = structures[i];
+        if (loadingDiv) loadingDiv.querySelector('div:last-child').textContent =
+          `Collecte ${i+1}/${structures.length} : ${s.sigle}`;
+
+        await selectStructure(s.id);
+        await new Promise(r => setTimeout(r, 400));
+
+        const sid = s.id;
+        const rhD = typeof getRHData==='function' ? getRHData(sid, annee) : null;
+        const fmD = typeof getFraisMissionData==='function' ? getFraisMissionData(sid, annee) : null;
+        const fonctD = typeof getFonctionnementData==='function' ? getFonctionnementData(sid) : null;
+
+        const tv = id => { const el=document.getElementById(id); if(!el) return ''; const v=(el.innerText||'').trim().replace(/\u00a0/g,' '); return (v==='—'||v==='-')?'':v; };
+
+        summaryRows.push([
+          s.sigle||'', s.nom||'', s.Type||'', s.Region||'',
+          rhD ? (rhD.effectif_total||'') : '',
+          rhD ? (rhD.effectif_agco||'') : '',
+          rhD ? (rhD.effectif_su||'') : '',
+          rhD ? (rhD.age_moyen_agco||'') : '',
+          rhD ? (Math.round(rhD.ms_par_agent)||'') : '',
+          tv('budget-pill-taux-ae'), tv('budget-pill-taux-cp'),
+          tv('it-total'), tv('it-budget-annuel'), tv('it-ratio'),
+          fmD ? (Math.round(fmD.montant_total)||'') : '',
+          fmD ? (Math.round(fmD.frais_par_agent)||'') : '',
+          fonctD ? (Math.round(fonctD.cp_2025)||'') : '',
+          fonctD ? (fonctD.pct_m_2025?.toFixed(1)||'') : '',
+          fonctD ? (Math.round(fonctD.fonct_agent_2025)||'') : '',
+          tv('veh-total-value'), tv('veh-budget-value'),
+          tv('immo-sub-value'), tv('immo-cout-value'),
+        ]);
+      }
+      const ws = XLSX.utils.aoa_to_sheet(summaryRows);
+      const colW = summaryHeaders.map((_,ci) => ({
+        wch: Math.min(30, Math.max(12, ...summaryRows.map(r=>String(r[ci]||'').length)))
+      }));
+      ws['!cols'] = colW;
+      XLSX.utils.book_append_sheet(wb, ws, 'Synthese_'+annee);
+
+      // Onglet Commentaires globaux
+      const cmtHeaders = ['Sigle','Nom','Section','Texte (Markdown)'];
+      const cmtRows = [cmtHeaders];
+      for (let i = 0; i < structures.length; i++) {
+        const s = structures[i];
+        await selectStructure(s.id);
+        await new Promise(r => setTimeout(r, 300));
+        const sections = [
+          ["Vue d'ensemble", 'synthese-mde-textarea'],
+          ['RH',             'rh-commentaire'],
+          ['Budget',         'budget-commentaire'],
+          ['Informatique',   'it-commentaire'],
+          ['FM',             'fm-commentaire'],
+          ['Fonctionnement', 'fonct-commentaire'],
+          ['Vehicules',      'veh-commentaire'],
+          ['Immobilier',     'immo-commentaire'],
+        ];
+        sections.forEach(([sec, id]) => {
+          const val = (_mdeInstances && _mdeInstances[id]) ? _mdeInstances[id].value()
+            : (document.getElementById(id) ? document.getElementById(id).value||'' : '');
+          if (val) cmtRows.push([s.sigle, s.nom, sec, val]);
+        });
+      }
+      const wsCmt = XLSX.utils.aoa_to_sheet(cmtRows);
+      wsCmt['!cols'] = [{wch:10},{wch:30},{wch:18},{wch:80}];
+      XLSX.utils.book_append_sheet(wb, wsCmt, 'Commentaires');
+
+      XLSX.writeFile(wb, `synthese-structures-${annee}-${getPDFTimestamp()}.xlsx`);
+      hideLoadingMessage(loadingDiv);
+      alert(`XLSX global généré : ${structures.length} structures.`);
+    }
+
+  } catch (err) {
+    hideLoadingMessage(loadingDiv);
+    alert('Erreur export XLSX : ' + (err && err.message ? err.message : String(err)));
+    console.error(err);
+  }
+}
+
+/**
+ * Génère un workbook XLSX pour une structure (réutilise la logique de exportToXLSX)
+ * sans déclencher le téléchargement — retourne le workbook.
+ */
+function exportToXLSXWorkbook(struct, annee) {
+  const wb = XLSX.utils.book_new();
+  const sid = struct.id;
+
+  function t(id) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    const v = (el.innerText||el.textContent||'').trim().replace(/\u00a0/g,' ').replace(/\u202f/g,' ');
+    return (v==='—'||v==='-') ? '' : v;
+  }
+  function tableRowsFromDOM(tbodyId, headers) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return headers ? [headers] : [];
+    const rows = headers ? [headers] : [];
+    tbody.querySelectorAll('tr').forEach(tr => {
+      const cells = Array.from(tr.querySelectorAll('td,th')).map(td =>
+        (td.innerText||'').trim().replace(/\u00a0/g,' ').replace(/\u202f/g,' ')
+      );
+      const cleaned = cells.map(c => (c==='—'||c==='') ? '' : c);
+      if (cleaned.some(c=>c!=='')) rows.push(cleaned);
+    });
+    return rows;
+  }
+  function mdeVal(id) {
+    if (_mdeInstances && _mdeInstances[id]) return _mdeInstances[id].value();
+    const el = document.getElementById(id);
+    return el ? (el.value||'') : '';
+  }
+  function addSheet(name, rows) {
+    if (!rows||rows.length===0) return;
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const colW = rows[0] ? rows[0].map((_,ci) => ({
+      wch: Math.min(80, Math.max(14, ...rows.map(r=>String(r[ci]||'').length)))
+    })) : [];
+    ws['!cols'] = colW;
+    XLSX.utils.book_append_sheet(wb, ws, name.substring(0,31));
+  }
+  function fmtEur(v) { return (v==null||v===0)?'':Math.round(v)+''; }
+  function fmtPct(v) { return (v==null||v===0)?'':v.toFixed(1)+'%'; }
+  function fmt(v) { return (v==null||v===0)?'':v; }
+
+  const perimetre = typeof getPerimetreFraisMission==='function' ? getPerimetreFraisMission(sid) : 'National';
+  const libPer = typeof getLibellePerimetreFraisMission==='function' ? getLibellePerimetreFraisMission(perimetre) : perimetre;
+
+  addSheet('Info', [
+    ['Champ','Valeur'],
+    ['Sigle', struct.sigle||''],
+    ['Nom', struct.nom||''],
+    ['Type', struct.Type||struct.type_label||''],
+    ['Region', struct.Region||struct.region||''],
+    ['Annee de reference', annee],
+    ['Perimetre', libPer],
+    ['Date export', new Date().toLocaleDateString('fr-FR')],
+  ]);
+
+  const rhAnnees = [annee-3,annee-2,annee-1,annee].filter(a=>a>2020);
+  const rhRows = [
+    ['Indicateur','Valeur '+annee,'vs '+(annee-1),'Comparaison perimetre','Comparaison national'],
+    ['ETPT Total',  t('rh-effectif-total'), t('rh-effectif-evolution'), t('rh-effectif-compare'), t('rh-effectif-rang')],
+    ['ETPT AGCO',   t('rh-agco-total'),     t('rh-agco-evolution'),     t('rh-agco-compare'),     ''],
+    ['ETPT SU',     t('rh-su-total'),        t('rh-su-evolution'),        t('rh-su-compare'),        ''],
+    ['Age moyen',   t('rh-age-moyen'),        '',                          t('rh-age-compare-groupe'),t('rh-age-compare-national')],
+    ['MS / Agent',  t('rh-ms-par-agent'),     '',                          t('rh-ms-compare-groupe'), t('rh-ms-compare-national')],
+  ];
+  rhRows.push([]); rhRows.push(['Historique RH']);
+  rhRows.push(['Annee','ETPT Total','ETPT AGCO','ETPT SU','ETPT Autres','Masse Salariale (EUR)','MS/Agent (EUR)','Age moyen AGCO','Age moyen SU']);
+  rhAnnees.forEach(a => {
+    const d = typeof getRHData==='function' ? getRHData(sid,a) : null;
+    rhRows.push(d ? [a,fmt(d.effectif_total),fmt(d.effectif_agco),fmt(d.effectif_su),fmt(d.effectif_autres),fmtEur(d.masse_salariale),fmtEur(d.ms_par_agent),fmt(d.age_moyen_agco),fmt(d.age_moyen_su)] : [a,'','','','','','','','']);
+  });
+  const rhDetail = tableRowsFromDOM('rh-detail-tbody',['Structure','ETPT Total','AGCO','SU','Autres','MS (EUR)','MS/Agent (EUR)','Age Moyen']);
+  if (rhDetail.length>1) { rhRows.push([]); rhDetail.forEach(r=>rhRows.push(r)); }
+  addSheet('RH', rhRows);
+
+  const budgetRows = [
+    ['Indicateur','Valeur','Moyenne nationale'],
+    ['Taux conso AE globale', t('budget-pill-taux-ae'), t('budget-pill-ae-national')],
+    ['Taux conso CP globale', t('budget-pill-taux-cp'), t('budget-pill-cp-national')],
+  ];
+  const budgetEl = document.querySelector('.section:has(#budget-pill-taux-ae) .data-table');
+  if (budgetEl) {
+    budgetRows.push([]); budgetRows.push(['Categorie','Dotation AE','Conso AE','Taux AE (%)','Dotation CP','Conso CP','Taux CP (%)','Moy. perimetre CP']);
+    budgetEl.querySelectorAll('tbody tr').forEach(tr => {
+      const c = Array.from(tr.querySelectorAll('td')).map(td=>(td.innerText||'').trim());
+      if (c.some(x=>x&&x!=='—')) budgetRows.push(c.map(x=>x==='—'?'':x));
+    });
+  }
+  addSheet('Budget', budgetRows);
+
+  const itRows = [
+    ['Indicateur','Valeur '+annee,'Comparaison'],
+    ['Postes total',       t('it-total'),               t('it-pct-portables')],
+    ['Ratio poste/ETPT',   t('it-ratio'),               t('it-ratio-comp')],
+    ['Budget IT',          t('it-budget-annuel'),        t('it-budget-annuel-evol')],
+    ['Budget IT moy 4a',   t('it-budget-moyen'),         ''],
+    ['Budget IT/ETPT',     t('it-budget-agent-annuel'), t('it-budget-agent-annuel-comp')],
+    ['Budget IT/ETPT 4a',  t('it-budget-agent-moyen'),  ''],
+  ];
+  const itD = tableRowsFromDOM('table-it-body',['Annee','Portables','Fixes','Total','Ratio/ETPT','Budget IT (EUR)','Budget/ETPT (EUR)']);
+  if (itD.length>1) { itRows.push([]); itD.forEach(r=>itRows.push(r)); }
+  addSheet('Informatique', itRows);
+
+  const fmRows = [
+    ['Indicateur','Valeur '+annee,'Comparaison'],
+    ['Total FM (EUR)',     t('fm-total-value'),     t('fm-total-comp')],
+    ['Formation (EUR)',    t('fm-formation-value'), t('fm-formation-pct')],
+    ['Autres (EUR)',       t('fm-autres-value'),    t('fm-autres-pct')],
+    ['FM/Agent (EUR)',    t('fm-agent-value'),     t('fm-agent-comp')],
+  ];
+  const fmAnnees = [annee-3,annee-2,annee-1,annee].filter(a=>a>2020);
+  const fmMulti = typeof getFraisMissionMultiAnnees==='function' ? getFraisMissionMultiAnnees(sid,fmAnnees) : [];
+  if (fmMulti.some(d=>d.montant_total)) {
+    fmRows.push([]); fmRows.push(['Annee','Total (EUR)','Transport (EUR)','Hebergement (EUR)','Repas (EUR)','FM Transport','FM Heberg','FM Repas','Autres Transport','Autres Heberg','Autres Repas','% Form','% Autres','FM/Agent (EUR)']);
+    fmMulti.forEach(d => {
+      if (!d.montant_total&&!d.total_transport) return;
+      fmRows.push([d.annee,fmtEur(d.montant_total),fmtEur(d.total_transport),fmtEur(d.total_hebergement),fmtEur(d.total_repas),fmtEur(d.formation_transport),fmtEur(d.formation_hebergement),fmtEur(d.formation_repas),fmtEur(d.autres_transport),fmtEur(d.autres_hebergement),fmtEur(d.autres_repas),fmtPct(d.pct_formation),fmtPct(d.pct_autres),fmtEur(d.frais_par_agent)]);
+    });
+  }
+  addSheet('Frais_Mission', fmRows);
+
+  const fd = typeof getFonctionnementData==='function' ? getFonctionnementData(sid) : null;
+  const fonctRows = [
+    ['Indicateur','Valeur','Comparaison'],
+    ['% maitrisable 2025',     fd?fmtPct(fd.pct_m_2025):'',         t('fonct-pill-agent-2025-detail')],
+    ['Fonct/Agent 2025 (EUR)', fd?fmtEur(fd.fonct_agent_2025):'',    t('fonct-pill-agent-2025-detail')],
+    ['Fonct/Agent moy 4a',     fd?fmtEur(fd.fonct_agent_4ans):'',    t('fonct-pill-agent-4ans-detail')],
+    ['Evol % maitrisable',     fd?fd.evol_pct_maitrisable?.toFixed(1)||'':'',''],
+  ];
+  if (fd) {
+    fonctRows.push([]); fonctRows.push(['Annee','CP total (EUR)','CP maitrisable (EUR)','% maitrisable','Fonct/Agent (EUR)']);
+    [[2022,fd.cp_2022,fd.cp_2022_m,fd.pct_m_2022,fd.fonct_agent_2022],[2023,fd.cp_2023,fd.cp_2023_m,fd.pct_m_2023,fd.fonct_agent_2023],[2024,fd.cp_2024,fd.cp_2024_m,fd.pct_m_2024,fd.fonct_agent_2024],[2025,fd.cp_2025,fd.cp_2025_m,fd.pct_m_2025,fd.fonct_agent_2025]].forEach(([a,cp,cpm,pct,ag])=>fonctRows.push([a,fmtEur(cp),fmtEur(cpm),pct?pct.toFixed(1)+'%':'',fmtEur(ag)]));
+  }
+  addSheet('Fonctionnement', fonctRows);
+
+  const vehRows = [
+    ['Indicateur','Valeur','Comparaison'],
+    ['Total',           t('veh-total-value'),    t('veh-total-comp')],
+    ['Budget (EUR)',    t('veh-budget-value'),   t('veh-budget-comp')],
+    ['Veh/ETPT',       t('veh-ratio-value'),    t('veh-ratio-comp')],
+    ['Cout fonct/veh', t('veh-cout-value'),     t('veh-cout-comp')],
+    ['Ratio veh/SU',   t('veh-ratio-su-value'), t('veh-ratio-su-comp')],
+  ];
+  const vehD = tableRowsFromDOM('table-veh-body',['Annee','Total','Vetustes','% Vetuste','Fonct (EUR)','Invest (EUR)','Budget Total (EUR)','Ratio/ETPT']);
+  if (vehD.length>1) { vehRows.push([]); vehD.forEach(r=>vehRows.push(r)); }
+  addSheet('Parc_Automobile', vehRows);
+
+  const immoRows = [
+    ['Indicateur','Valeur','Comparaison'],
+    ['SUB totale (m2)',         t('immo-sub-value'),   t('immo-sites-detail')],
+    ['Ratio occ (m2/res)',      t('immo-ratio-value'), t('immo-ratio-comp')],
+    ['Cout surf (EUR/m2)',      t('immo-cout-value'),  t('immo-cout-comp')],
+    ['Evol cout surf',          '',                    t('immo-cout-evol')],
+    ['Cout surf moy 4a (EUR/m2)',t('immo-cout-moyen'), ''],
+  ];
+  const ip = tableRowsFromDOM('table-immo-public-body',['Libelle','Ville','Type','SUB (m2)','Residents','Ratio occ','Energie (EUR)','Cout surf (EUR/m2)']);
+  if (ip.length>1) { immoRows.push([]); immoRows.push(['Domaine public']); ip.forEach(r=>immoRows.push(r)); }
+  const iv = tableRowsFromDOM('table-immo-prive-body',['Libelle','Ville','Type','SUB (m2)','Residents','Ratio occ','Energie (EUR)','Cout surf (EUR/m2)','Fin de bail','Loyer annuel (EUR)','Loyer/m2 (EUR)']);
+  if (iv.length>1) { immoRows.push([]); immoRows.push(['Baux prives']); iv.forEach(r=>immoRows.push(r)); }
+  addSheet('Immobilier', immoRows);
+
+  const syntheseVal = (_mdeInstances&&_mdeInstances['synthese-mde-textarea']) ? _mdeInstances['synthese-mde-textarea'].value()
+    : (typeof getCommentaire==='function' ? (getCommentaire(sid,annee,'Synthese')||'') : '');
+  const cmtRows = [['Section','Texte (Markdown)']];
+  [["Vue d'ensemble",syntheseVal],['Budget',mdeVal('budget-commentaire')],['Communication',mdeVal('com-commentaire')],['RH',mdeVal('rh-commentaire')],['Informatique',mdeVal('it-commentaire')],['Frais de Mission',mdeVal('fm-commentaire')],['Fonctionnement',mdeVal('fonct-commentaire')],['Parc Automobile',mdeVal('veh-commentaire')],['Immobilier',mdeVal('immo-commentaire')]].forEach(([s,v])=>cmtRows.push([s,v||'']));
+  addSheet('Commentaires', cmtRows);
+
+  return wb;
+}
