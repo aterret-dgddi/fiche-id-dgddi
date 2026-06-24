@@ -5127,23 +5127,31 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     const nomPrincipal = hasDistinctName ? struct.nom : (struct.sigle || struct.nom);
     const nomSigle = hasDistinctName ? `(${struct.sigle})` : '';
 
+    // Nom principal avec word-wrap pour les noms longs
+    const nomFontSize = hasDistinctName ? 15 : 22;
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(hasDistinctName ? 16 : 22);
+    pdf.setFontSize(nomFontSize);
     pdf.setTextColor(0, 47, 108);
-    const nomW = pdf.getTextWidth(nomPrincipal);
-    const nomYBase = logoY + logoSize + 18;
-    pdf.text(nomPrincipal, cx - nomW / 2, nomYBase);
+    const nomMaxW = pageWidth - 2 * margin - 10;
+    const nomLines = pdf.splitTextToSize(nomPrincipal, nomMaxW);
+    const nomLineH = nomFontSize * 0.352 + 2; // mm par ligne approx
+    let nomYBase = logoY + logoSize + 16;
+    nomLines.forEach((line, i) => {
+      const lw = pdf.getTextWidth(line);
+      pdf.text(line, cx - lw / 2, nomYBase + i * nomLineH);
+    });
+    const nomBlockH = nomLines.length * nomLineH;
 
     if (nomSigle) {
       pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(13);
+      pdf.setFontSize(11);
       pdf.setTextColor(74, 90, 106);
       const sigleW = pdf.getTextWidth(nomSigle);
-      pdf.text(nomSigle, cx - sigleW / 2, nomYBase + 9);
+      pdf.text(nomSigle, cx - sigleW / 2, nomYBase + nomBlockH + 2);
     }
 
-    // Ligne décorative — décalée selon présence du sigle
-    const lineY = nomYBase + (nomSigle ? 16 : 8);
+    // Ligne décorative — décalée selon présence du sigle et hauteur du nom
+    const lineY = nomYBase + nomBlockH + (nomSigle ? 10 : 6);
     pdf.setDrawColor(0, 47, 108);
     pdf.setLineWidth(0.8);
     pdf.line(margin + 30, lineY, pageWidth - margin - 30, lineY);
@@ -5484,14 +5492,16 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       const zcx = pageWidth / 2;
       const zcy = pageHeight / 2;
 
-      // Numéro de zone en très grand, gris très pâle (watermark)
+      // ── Watermark EN PREMIER (rendu en arrière-plan) ──
       const zoneNum = isGestion ? '02' : '01';
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(120);
-      pdf.setTextColor(235, 238, 245);
+      pdf.setFontSize(110);
+      pdf.setTextColor(238, 241, 248);
       const znW = pdf.getTextWidth(zoneNum);
-      pdf.text(zoneNum, zcx - znW / 2, zcy + 30);
+      // Centré verticalement sur la page
+      pdf.text(zoneNum, zcx - znW / 2, zcy + 45);
 
+      // ── Filets et textes PAR-DESSUS le watermark ──
       // Filet fin au-dessus du titre
       pdf.setDrawColor(0, 47, 108);
       pdf.setLineWidth(0.4);
@@ -5920,4 +5930,227 @@ function exportToHTML() {
   a.download = `${struct.sigle}-${FICHE_STATE.annee}-${getPDFTimestamp()}.html`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT XLSX — Données chiffrées lisibles pour exploitation IA
+// ═══════════════════════════════════════════════════════════════
+
+function exportToXLSX() {
+  if (typeof XLSX === 'undefined') {
+    alert('Librairie SheetJS non chargee. Rechargez la page.');
+    return;
+  }
+  const struct = FICHE_STATE.structure;
+  const annee  = FICHE_STATE.annee;
+  if (!struct) { alert('Aucune structure selectionnee.'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // ── Utilitaires ──────────────────────────────────────────────
+  function t(id) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    const v = (el.innerText || el.textContent || '').trim();
+    return (v === '—' || v === '-') ? '' : v;
+  }
+
+  function kpisFromIds(pairs) {
+    // pairs = [{label, id}] ou [{label, id, detailId}]
+    const rows = [['Indicateur', 'Valeur brute', 'Details / Comparaisons']];
+    pairs.forEach(p => {
+      const val = t(p.id);
+      const det = p.detailId ? t(p.detailId) : '';
+      rows.push([p.label, val, det]);
+    });
+    return rows;
+  }
+
+  function tableRows(tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return [];
+    const rows = [];
+    tbody.querySelectorAll('tr').forEach(tr => {
+      const cells = Array.from(tr.querySelectorAll('td,th')).map(td => {
+        const v = (td.innerText || '').trim();
+        return (v === '—' || v === '') ? '' : v;
+      });
+      if (cells.some(c => c !== '')) rows.push(cells);
+    });
+    return rows;
+  }
+
+  function mdeVal(id) {
+    if (_mdeInstances && _mdeInstances[id]) return _mdeInstances[id].value();
+    const el = document.getElementById(id);
+    return el ? (el.value || '') : '';
+  }
+
+  function addSheet(name, rows) {
+    if (!rows || rows.length === 0) return;
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const colW = rows[0].map((_, ci) => ({
+      wch: Math.min(80, Math.max(14, ...rows.map(r => String(r[ci] || '').length)))
+    }));
+    ws['!cols'] = colW;
+    XLSX.utils.book_append_sheet(wb, ws, name.substring(0, 31));
+  }
+
+  // ── Feuille Info ─────────────────────────────────────────────
+  addSheet('Info', [
+    ['Champ', 'Valeur'],
+    ['Sigle', struct.sigle || ''],
+    ['Nom', struct.nom || ''],
+    ['Type', struct.Type || struct.type_label || ''],
+    ['Region', struct.Region || struct.region || ''],
+    ['Annee', annee],
+    ['Date export', new Date().toLocaleDateString('fr-FR')],
+  ]);
+
+  // ── RH ───────────────────────────────────────────────────────
+  const rhRows = kpisFromIds([
+    { label: 'ETPT Total',    id: 'rh-effectif-total',  detailId: 'rh-effectif-rang' },
+    { label: 'ETPT AGCO',    id: 'rh-agco-total' },
+    { label: 'ETPT SU',      id: 'rh-su-total' },
+    { label: 'Age moyen',    id: 'rh-age-moyen' },
+    { label: 'MS / Agent',   id: 'rh-ms-par-agent' },
+  ]);
+  const rhDetailRows = tableRows('rh-detail-tbody');
+  if (rhDetailRows.length) {
+    rhRows.push([]);
+    rhRows.push(['Structure', 'ETPT Total', 'AGCO', 'SU', 'Autres', 'Masse Salariale', 'MS/Agent', 'Age Moyen']);
+    rhDetailRows.forEach(r => rhRows.push(r));
+  }
+  addSheet('RH', rhRows);
+
+  // ── Budget ───────────────────────────────────────────────────
+  const budgetRows = kpisFromIds([
+    { label: 'Taux conso AE',  id: 'budget-pill-taux-ae' },
+    { label: 'Taux conso CP',  id: 'budget-pill-taux-cp' },
+  ]);
+  const budgetTableEl = document.querySelector('.section:has(#budget-pill-taux-ae) .data-table');
+  if (budgetTableEl) {
+    const bRows = [];
+    budgetTableEl.querySelectorAll('tr').forEach(tr => {
+      const cells = Array.from(tr.querySelectorAll('td,th')).map(td => (td.innerText || '').trim());
+      if (cells.some(c => c && c !== '—')) bRows.push(cells);
+    });
+    if (bRows.length) { budgetRows.push([]); bRows.forEach(r => budgetRows.push(r)); }
+  }
+  addSheet('Budget', budgetRows);
+
+  // ── Communication ────────────────────────────────────────────
+  const comRows = kpisFromIds([
+    { label: 'Consommation vs cible 2026', id: 'com-sat-pct', detailId: 'com-sat-reste' },
+    { label: 'vs National',                id: 'com-sat-vs-nat' },
+    { label: 'vs Perimetre',               id: 'com-sat-vs-per' },
+  ]);
+  const comDetail = tableRows('table-com-body');
+  if (comDetail.length) {
+    comRows.push([]);
+    comRows.push(['Structure', 'CP 2022', 'CP 2023', 'CP 2024', 'CP 2025', 'Restes 2025', 'AE 2026', 'CP 2026', 'Cible 2026', 'Dispo AE', 'Dispo CP']);
+    comDetail.forEach(r => comRows.push(r));
+  }
+  addSheet('Communication', comRows);
+
+  // ── Informatique ─────────────────────────────────────────────
+  const itRows = kpisFromIds([
+    { label: 'Postes de travail total', id: 'it-total',               detailId: 'it-pct-portables' },
+    { label: 'Ratio poste / ETPT',      id: 'it-ratio',               detailId: 'it-ratio-comp' },
+    { label: 'Budget IT annuel',         id: 'it-budget-annuel',       detailId: 'it-budget-annuel-evol' },
+    { label: 'Budget IT moyen 4 ans',   id: 'it-budget-moyen' },
+    { label: 'Budget IT / ETPT',        id: 'it-budget-agent-annuel', detailId: 'it-budget-agent-annuel-comp' },
+    { label: 'Budget IT / ETPT moy 4a', id: 'it-budget-agent-moyen' },
+  ]);
+  const itDetail = tableRows('table-it-body');
+  if (itDetail.length) {
+    itRows.push([]);
+    itRows.push(['Annee', 'Portables', 'Fixes', 'Total postes', 'Ratio / ETPT', 'Budget IT', 'Budget / ETPT']);
+    itDetail.forEach(r => itRows.push(r));
+  }
+  addSheet('Informatique', itRows);
+
+  // ── Frais de Mission ─────────────────────────────────────────
+  const fmRows = kpisFromIds([
+    { label: 'Total frais mission',  id: 'fm-total-value' },
+    { label: 'Formation',            id: 'fm-formation-value', detailId: 'fm-formation-pct' },
+    { label: 'Autres missions',      id: 'fm-autres-value',    detailId: 'fm-autres-pct' },
+    { label: 'Cout moyen / ETPT',   id: 'fm-agent-value' },
+  ]);
+  const fmDetail = tableRows('table-fm-body');
+  if (fmDetail.length) {
+    fmRows.push([]);
+    fmRows.push(['Annee / Type', 'Transport', 'Hebergement', 'Repas', 'Total']);
+    fmDetail.forEach(r => fmRows.push(r));
+  }
+  addSheet('Frais_Mission', fmRows);
+
+  // ── Fonctionnement ───────────────────────────────────────────
+  const fonctRows = kpisFromIds([
+    { label: 'Part depenses maitrisables', id: 'fonct-pill-pct-m',       detailId: 'fonct-pill-pct-m-detail' },
+    { label: 'Depenses / ETPT (2025)',     id: 'fonct-pill-agent-2025',   detailId: 'fonct-pill-agent-2025-detail' },
+    { label: 'Depenses / ETPT (moy 4a)',  id: 'fonct-pill-agent-4ans',   detailId: 'fonct-pill-agent-4ans-detail' },
+  ]);
+  const fonctSection = document.querySelector('.section-title');
+  // Scraper le tableau fonctionnement via la section
+  const fonctTableEl = Array.from(document.querySelectorAll('.section')).find(s =>
+    s.querySelector('.section-title') && s.querySelector('.section-title').innerText.includes('Fonctionnement')
+  );
+  if (fonctTableEl) {
+    const fRows = [];
+    fonctTableEl.querySelectorAll('.data-table tr').forEach(tr => {
+      const cells = Array.from(tr.querySelectorAll('td,th')).map(td => (td.innerText || '').trim());
+      if (cells.some(c => c && c !== '—')) fRows.push(cells);
+    });
+    if (fRows.length) { fonctRows.push([]); fRows.forEach(r => fonctRows.push(r)); }
+  }
+  addSheet('Fonctionnement', fonctRows);
+
+  // ── Parc Automobile ──────────────────────────────────────────
+  const vehRows = kpisFromIds([
+    { label: 'Total vehicules',    id: 'veh-total-value' },
+    { label: 'Budget total',       id: 'veh-budget-value' },
+    { label: 'Vehicule / ETPT',    id: 'veh-ratio-value' },
+    { label: 'Cout fonct. / veh.', id: 'veh-cout-value' },
+  ]);
+  const vehDetail = tableRows('table-veh-body');
+  if (vehDetail.length) {
+    vehRows.push([]);
+    vehRows.push(['Annee', 'Total', 'Vetustes', '% Vetuste', 'Fonct.', 'Invest.', 'Total Budget', 'Ratio/ETPT']);
+    vehDetail.forEach(r => vehRows.push(r));
+  }
+  addSheet('Parc_Automobile', vehRows);
+
+  // ── Immobilier ───────────────────────────────────────────────
+  const immoRows = kpisFromIds([
+    { label: 'Surface SUB totale',  id: 'immo-sub-value',   detailId: 'immo-sites-detail' },
+    { label: 'Ratio occupation',    id: 'immo-ratio-value', detailId: 'immo-ratio-residents' },
+    { label: 'Cout surfacique 2025',id: 'immo-cout-value' },
+    { label: 'Cout moyen 4 ans',   id: 'immo-cout-moyen' },
+  ]);
+  const immoPublic  = tableRows('table-immo-public-body');
+  const immoPrivate = tableRows('table-immo-prive-body');
+  const immoHdr = ['Site', 'Surface SUB (m2)', 'Type occupation', 'Cout surfacique 2025', 'Energie 2022', 'Energie 2023', 'Energie 2024', 'Energie 2025'];
+  if (immoPublic.length)  { immoRows.push([]); immoRows.push(['-- Domaine public --']); immoRows.push(immoHdr); immoPublic.forEach(r => immoRows.push(r)); }
+  if (immoPrivate.length) { immoRows.push([]); immoRows.push(['-- Domaine prive --']);  immoRows.push(immoHdr); immoPrivate.forEach(r => immoRows.push(r)); }
+  addSheet('Immobilier', immoRows);
+
+  // ── Commentaires ─────────────────────────────────────────────
+  const cmtRows = [['Section', 'Texte (Markdown)']];
+  [
+    ['Vue d\'ensemble',    'synthese-commentaire'],
+    ['Budget',             'budget-commentaire'],
+    ['Communication',      'com-commentaire'],
+    ['RH',                 'rh-commentaire'],
+    ['Informatique',       'it-commentaire'],
+    ['Frais de Mission',   'fm-commentaire'],
+    ['Fonctionnement',     'fonct-commentaire'],
+    ['Parc Automobile',    'veh-commentaire'],
+    ['Immobilier',         'immo-commentaire'],
+  ].forEach(([sec, id]) => cmtRows.push([sec, mdeVal(id)]));
+  addSheet('Commentaires', cmtRows);
+
+  // ── Télécharger ───────────────────────────────────────────────
+  XLSX.writeFile(wb, `${struct.sigle}-${annee}-${getPDFTimestamp()}.xlsx`);
 }
