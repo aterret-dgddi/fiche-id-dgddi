@@ -4255,19 +4255,9 @@ async function exportSingleStructurePDF(struct, annee) {
   await new Promise(resolve => setTimeout(resolve, 100));
   
   try {
-    // Passe 1 silencieuse : compter les pages
-    if (loadingDiv) loadingDiv.querySelector('div:last-child').textContent = 'Calcul de la mise en page...';
-    const pdf1 = new jsPDF('p', 'mm', 'a4');
-    const totalPages = await addStructureToPDF(pdf1, struct, annee, true);
-
-    // Passe 2 réelle : avec le total injecté via variable globale temporaire
-    if (loadingDiv) loadingDiv.querySelector('div:last-child').textContent = 'Génération du PDF final...';
-    const pdf2 = new jsPDF('p', 'mm', 'a4');
-    window._pdfTotalPagesOverride = totalPages;
-    await addStructureToPDF(pdf2, struct, annee, true);
-    window._pdfTotalPagesOverride = null;
-
-    pdf2.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    await addStructureToPDF(pdf, struct, annee, true);
+    pdf.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
     hideLoadingMessage(loadingDiv);
   } catch (error) {
     hideLoadingMessage(loadingDiv);
@@ -5095,7 +5085,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     return false;
   }
   
-  let _totalPages = (window._pdfTotalPagesOverride > 0) ? window._pdfTotalPagesOverride : 0;
+  let _totalPages = 0;
   const _footerPageNums = [];
 
   if (!isFirstPage) addHeaderFooter(currentPage);
