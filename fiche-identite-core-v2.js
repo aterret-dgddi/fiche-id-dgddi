@@ -4731,35 +4731,36 @@ function createImmobilierCoutChart(structureId) {
 
 function function_renderMarkdownToPDF_placeholder() {} // sentinelle
 
+function cleanForPDF(str) {
+  if (!str) return '';
+  str = str
+    .replace(/→/g, '->').replace(/←/g, '<-')
+    .replace(/–/g, '-').replace(/—/g, '--')
+    .replace(/…/g, '...').replace(/€/g, 'EUR')
+    .replace(/°/g, 'deg')
+    .replace(/‘/g, "'").replace(/’/g, "'")
+    .replace(/“/g, '"').replace(/”/g, '"')
+    .replace(/«/g, '"').replace(/»/g, '"')
+    .replace(/•/g, '*');
+  str = str.replace(/&[^;\s]{1,6}/g, function(m) {
+    const valid = ['&amp', '&lt', '&gt', '&nbsp', '&quot', '&apos'];
+    if (valid.some(function(v) { return m.startsWith(v); })) return m;
+    return '';
+  });
+  let out = '';
+  for (let i = 0; i < str.length; i++) {
+    const cp = str.codePointAt(i);
+    if (cp > 0xFFFF) { i++; continue; }
+    if (cp > 0x024F) continue;
+    out += str[i];
+  }
+  return out.replace(/  +/g, ' ').replace(/ ([.,;:!?)»])/g, '$1').trim();
+  }
+
 // ═══════════════════════════════════════════════════════════════
 function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
   if (!markdownText || !markdownText.trim()) return;
 
-  function cleanForPDF(str) {
-    if (!str) return '';
-    str = str
-      .replace(/→/g, '->').replace(/←/g, '<-')
-      .replace(/–/g, '-').replace(/—/g, '--')
-      .replace(/…/g, '...').replace(/€/g, 'EUR')
-      .replace(/°/g, 'deg')
-      .replace(/‘/g, "'").replace(/’/g, "'")
-      .replace(/“/g, '"').replace(/”/g, '"')
-      .replace(/«/g, '"').replace(/»/g, '"')
-      .replace(/•/g, '*');
-    str = str.replace(/&[^;\s]{1,6}/g, function(m) {
-      const valid = ['&amp', '&lt', '&gt', '&nbsp', '&quot', '&apos'];
-      if (valid.some(function(v) { return m.startsWith(v); })) return m;
-      return '';
-    });
-    let out = '';
-    for (let i = 0; i < str.length; i++) {
-      const cp = str.codePointAt(i);
-      if (cp > 0xFFFF) { i++; continue; }
-      if (cp > 0x024F) continue;
-      out += str[i];
-    }
-    return out.replace(/  +/g, ' ').replace(/ ([.,;:!?)»])/g, '$1').trim();
-  }
 
   const FONT_SIZE_NORMAL = 10;
   const FONT_SIZE_H1     = 12;
