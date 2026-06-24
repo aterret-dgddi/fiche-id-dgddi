@@ -4255,13 +4255,24 @@ async function exportSingleStructurePDF(struct, annee) {
   await new Promise(resolve => setTimeout(resolve, 100));
   
   try {
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    await addStructureToPDF(pdf, struct, annee, true);
-    pdf.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
+    // Passe 1 silencieuse : compter les pages
+    if (loadingDiv) loadingDiv.querySelector('div:last-child').textContent = 'Calcul de la mise en page...';
+    const pdf1 = new jsPDF('p', 'mm', 'a4');
+    const totalPages = await addStructureToPDF(pdf1, struct, annee, true);
+
+    // Passe 2 réelle : avec le total injecté via variable globale temporaire
+    if (loadingDiv) loadingDiv.querySelector('div:last-child').textContent = 'Génération du PDF final...';
+    const pdf2 = new jsPDF('p', 'mm', 'a4');
+    window._pdfTotalPagesOverride = totalPages;
+    await addStructureToPDF(pdf2, struct, annee, true);
+    window._pdfTotalPagesOverride = null;
+
+    pdf2.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
     hideLoadingMessage(loadingDiv);
   } catch (error) {
     hideLoadingMessage(loadingDiv);
-    alert('Erreur lors de la génération du PDF.');
+    alert('Erreur PDF: ' + (error && error.message ? error.message : String(error)));
+    console.error('PDF export error:', error);
   }
 }
 
@@ -5058,12 +5069,13 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Gauche : sigle structure
     pdf.text(struct.sigle || struct.nom, margin, footerY + 5);
 
-    // Centre : Page X / N — on écrit d'abord sans total, on repassera après
-    const pageLabel = `Page ${pageNum}`;
+    // Centre : Page X / N
+    // _totalPages sera 0 pendant la génération (1ère passe) → écrit "Page X"
+    // Après génération, on rappelle addHeaderFooter via une 2e passe légère si possible
+    const pageLabel = `Page ${pageNum}${_totalPages > 0 ? ' / ' + _totalPages : ''}`;
     const pageLabelW = pdf.getTextWidth(pageLabel);
     pdf.text(pageLabel, (pageWidth - pageLabelW) / 2, footerY + 5);
-    // Mémoriser la position pour réécrire avec le total en fin de génération
-    _footerPageNums.push({ pageNum, footerY, cx: pageWidth / 2 });
+    _footerPageNums.push({ pageNum, footerY });
 
     // Droite : date export
     const dateText = `Exporté le ${dateExport}`;
@@ -5083,8 +5095,8 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     return false;
   }
   
-  let _totalPages = 0; // sera mis à jour après génération complète
-  const _footerPageNums = []; // stockage des (pageNum, footerY) pour réécriture finale
+  let _totalPages = (window._pdfTotalPagesOverride > 0) ? window._pdfTotalPagesOverride : 0;
+  const _footerPageNums = [];
 
   if (!isFirstPage) addHeaderFooter(currentPage);
 
@@ -5494,7 +5506,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setFillColor(245, 246, 248);
       pdf.setDrawColor(210, 218, 230);
       pdf.setLineWidth(0.3);
-      pdf.roundedRect(margin, yPosition, bW, 10, 1, 1, 'FD');
+      pdf.rect(margin, yPosition, bW, 10, 'FD');
       pdf.setFont('helvetica', 'italic');
       pdf.setFontSize(8.5);
       pdf.setTextColor(140, 150, 165);
@@ -5516,7 +5528,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         pdf.setFillColor(248, 249, 251);
         pdf.setDrawColor(220, 228, 240);
         pdf.setLineWidth(0.3);
-        pdf.roundedRect(margin, bY2, bW2, bH2, 1, 1, 'FD');
+        pdf.rect(margin, bY2, bW2, bH2, 'FD');
         pdf.setFillColor(0, 83, 160);
         pdf.rect(margin, bY2, 3, bH2, 'F');
         pdf.setFont('helvetica', 'italic');
@@ -5658,7 +5670,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setFillColor(248, 249, 251);
       pdf.setDrawColor(220, 228, 240);
       pdf.setLineWidth(0.3);
-      pdf.roundedRect(blockX, boxY, blockW, blockH, 1, 1, 'FD');
+      pdf.rect(blockX, boxY, blockW, blockH, 'FD');
 
       // Bordure gauche bleue (3px simulé en rectangle plein)
       pdf.setFillColor(0, 83, 160);
@@ -5687,25 +5699,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   
   addHeaderFooter(currentPage);
   _totalPages = currentPage;
-
-  // ── Deuxième passe : réécrire la pagination centrale avec le total ──
-  // Aller sur chaque page et surcharger le label "Page X" par "Page X / N"
-  for (const fp of _footerPageNums) {
-    pdf.setPage(fp.pageNum);
-    // Effacer l'ancien label avec un rectangle blanc
-    const oldLabel = `Page ${fp.pageNum}`;
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    const oldW = pdf.getTextWidth(oldLabel);
-    pdf.setFillColor(255, 255, 255);
-    pdf.rect(fp.cx - oldW / 2 - 1, fp.footerY + 1, oldW + 10, 6, 'F');
-    // Écrire le nouveau label
-    const newLabel = `Page ${fp.pageNum} / ${_totalPages}`;
-    pdf.setTextColor(120, 120, 120);
-    const newW = pdf.getTextWidth(newLabel);
-    pdf.text(newLabel, fp.cx - newW / 2, fp.footerY + 5);
-  }
-
   return currentPage;
 }
 
