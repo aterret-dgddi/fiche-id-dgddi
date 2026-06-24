@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tableau de Bord Budgétaire — Araignées CP</title>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Grist Plugin API -->
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+
+<style>
+  :root {
+    --bleu:   #1351A8;
+    --vert:   #008941;
+    --rouge:  #C0392B;
+    --orange: #D07B00;
+    --gris1:  #1A1A1A;
+    --gris2:  #444;
+    --gris3:  #888;
+    --gris4:  #F5F6F8;
+    --bord:   #DDE1E9;
+    --rep:    #1351A8;
+    --rep2:   #3A75C4;
+    --font:   'Marianne', system-ui, sans-serif;
+
+    /* couleurs catégories radar */
+    --c-veh:  #E67E22;
+    --c-fonct:#1351A8;
+    --c-t6:   #8E44AD;
+    --c-immo: #27AE60;
+
+    --badge-dg:   #1A1A1A;
+    --badge-di:   #1351A8;
+    --badge-dr:   #27AE60;
+    --badge-scn:  #8E44AD;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--gris4);
+    color: var(--gris1);
+    font-size: 12px;
+  }
+
+  /* ── HEADER ── */
+  .page-header {
+    background: var(--bleu);
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  .page-header h1 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .01em;
+  }
+  .page-header .subtitle {
+    font-size: 11px;
+    opacity: .8;
+    margin-top: 2px;
+  }
+  .header-controls {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .header-controls label { font-size: 11px; opacity: .85; }
+  .header-controls select {
+    font-family: var(--font);
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(255,255,255,.18);
+    color: #fff;
+    cursor: pointer;
+    outline: none;
+  }
+  .header-controls select option { color: var(--gris1); background: #fff; }
+
+  /* ── LÉGENDE CATÉGORIES ── */
+  .legend-bar {
+    background: #fff;
+    border-bottom: 1px solid var(--bord);
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--gris2);
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .legend-sep { color: var(--bord); }
+
+  /* ── SECTIONS ── */
+  .section-block {
+    padding: 16px 20px 6px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--gris3);
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--bord);
+    padding-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .badge-section {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: #fff;
+  }
+
+  /* ── GRILLE DE CARTES ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  /* ── CARTE ARAIGNÉE ── */
+  .radar-card {
+    background: #fff;
+    border: 1px solid var(--bord);
+    border-radius: 10px;
+    padding: 12px 12px 8px;
+    position: relative;
+    transition: box-shadow .15s;
+    overflow: hidden;
+  }
+  .radar-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  }
+  .radar-card .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .card-sigle {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gris1);
+  }
+  .card-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+    color: #fff;
+    letter-spacing: .04em;
+  }
+  .badge-DG  { background: var(--badge-dg); }
+  .badge-DI  { background: var(--badge-di); }
+  .badge-DR  { background: var(--badge-dr); }
+  .badge-SCN { background: var(--badge-scn); }
+
+  .card-canvas-wrap {
+    position: relative;
+    height: 130px;
+  }
+  .card-kpi-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    border-top: 1px solid var(--bord);
+    padding-top: 6px;
+  }
+  .card-kpi {
+    text-align: center;
+    flex: 1;
+  }
+  .card-kpi .kpi-val {
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .card-kpi .kpi-lbl {
+    font-size: 9px;
+    color: var(--gris3);
+    line-height: 1.2;
+    margin-top: 1px;
+  }
+  .card-kpi .kpi-val.ok   { color: var(--vert); }
+  .card-kpi .kpi-val.warn { color: var(--orange); }
+  .card-kpi .kpi-val.bad  { color: var(--rouge); }
+  .card-kpi .kpi-val.na   { color: var(--gris3); }
+
+  .card-divider {
+    width: 1px; height: 28px;
+    background: var(--bord);
+    flex-shrink: 0;
+  }
+
+  /* ── Carte NO DATA ── */
+  .radar-card.no-data {
+    opacity: .5;
+  }
+  .no-data-msg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 120px;
+    font-size: 11px;
+    color: var(--gris3);
+    font-style: italic;
+  }
+
+  /* ── LOADING / ERROR ── */
+  #loading, #error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    font-size: 13px;
+    color: var(--gris3);
+  }
+  #error { color: var(--rouge); }
+
+  /* ── BARRE DE RÉSUMÉ NATIONAL ── */
+  .national-bar {
+    background: var(--bleu);
+    color: #fff;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    font-size: 11px;
+    border-bottom: 2px solid rgba(255,255,255,.15);
+  }
+  .national-bar .nat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .national-bar .nat-val {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .national-bar .nat-lbl { opacity: .75; }
+  .national-bar .nat-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.55);
+  }
+
+  /* ── FILTRES ── */
+  .filter-bar {
+    background: #fff;
+    border-bottom: 1px solid var(--bord);
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .filter-btn {
+    font-family: var(--font);
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--bord);
+    background: #fff;
+    cursor: pointer;
+    color: var(--gris2);
+    transition: all .12s;
+  }
+  .filter-btn:hover { border-color: var(--bleu); color: var(--bleu); }
+  .filter-btn.active {
+    background: var(--bleu);
+    border-color: var(--bleu);
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <h1>🕷️ Araignées budgétaires — Taux de consommation CP 2026</h1>
+    <div class="subtitle">Budget HT2 — Véhicules · Fonctionnement · T6 Buralistes · Immobilier</div>
+  </div>
+  <div class="header-controls">
+    <label for="sort-select">Trier par</label>
+    <select id="sort-select">
+      <option value="sigle">Sigle</option>
+      <option value="taux_desc">Taux CP ↓</option>
+      <option value="taux_asc">Taux CP ↑</option>
+    </select>
+  </div>
+</div>
+
+<!-- Barre national -->
+<div class="national-bar" id="national-bar" style="display:none;">
+  <span style="font-weight:700;font-size:12px;opacity:.9;">NATIONAL 2026</span>
+  <div class="nat-item">
+    <div class="nat-dot"></div>
+    <span class="nat-lbl">Taux CP global :</span>
+    <span class="nat-val" id="nat-cp">—</span>
+  </div>
+  <div class="nat-item">
+    <div class="nat-dot" style="background:var(--c-veh);"></div>
+    <span class="nat-lbl">Véhicules :</span>
+    <span class="nat-val" id="nat-veh">—</span>
+  </div>
+  <div class="nat-item">
+    <div class="nat-dot" style="background:var(--c-fonct);"></div>
+    <span class="nat-lbl">Fonctionnement :</span>
+    <span class="nat-val" id="nat-fonct">—</span>
+  </div>
+  <div class="nat-item">
+    <div class="nat-dot" style="background:var(--c-t6);"></div>
+    <span class="nat-lbl">T6 :</span>
+    <span class="nat-val" id="nat-t6">—</span>
+  </div>
+  <div class="nat-item">
+    <div class="nat-dot" style="background:var(--c-immo);"></div>
+    <span class="nat-lbl">Immobilier :</span>
+    <span class="nat-val" id="nat-immo">—</span>
+  </div>
+</div>
+
+<!-- Légende catégories -->
+<div class="legend-bar">
+  <span style="font-size:11px;color:var(--gris3);font-weight:600;">Axes du radar :</span>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--c-veh)"></div>Véhicules</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--c-fonct)"></div>Fonctionnement</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--c-t6)"></div>T6 Buralistes</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--c-immo)"></div>Immobilier</div>
+  <span class="legend-sep">|</span>
+  <span style="font-size:11px;color:var(--gris3);">Seuils taux CP :</span>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--rouge)"></div>≥ 80 %</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>50–80 %</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--vert)"></div>&lt; 50 %</div>
+</div>
+
+<!-- Filtres type de structure -->
+<div class="filter-bar">
+  <span style="font-size:11px;color:var(--gris3);">Afficher :</span>
+  <button class="filter-btn active" data-filter="all">Tout</button>
+  <button class="filter-btn" data-filter="DG">DG</button>
+  <button class="filter-btn" data-filter="DI">DI</button>
+  <button class="filter-btn" data-filter="DR">DR</button>
+  <button class="filter-btn" data-filter="SCN">SCN</button>
+</div>
+
+<div id="loading">⏳ Chargement des données budgétaires…</div>
+<div id="error" style="display:none;"></div>
+<div id="content" style="display:none;"></div>
+
+<script>
+// ── Constantes ────────────────────────────────────────────────────────────────
+const ANNEE = 2026;
+const CATS = ['Véhicules','Fonctionnement','T6 Buralistes','Immobilier'];
+const CAT_COLORS = ['#E67E22','#1351A8','#8E44AD','#27AE60'];
+const CAT_FILL   = ['rgba(230,126,34,.18)','rgba(19,81,168,.18)','rgba(142,68,173,.18)','rgba(39,174,96,.18)'];
+
+const TYPES_AFFICHES = ['DG','DI_Hexagone','DI_Outremer','DR_Antilles','DR_Outremer','SCN'];
+
+// ── État global ───────────────────────────────────────────────────────────────
+let allCards = [];  // [{sigle, type, typeAff, taux_cp_total, taux_cp_*}]
+let filterActive = 'all';
+let sortMode = 'sigle';
+let moyNational = null;
+let chartInstances = {};
+
+// ── Utilitaires ───────────────────────────────────────────────────────────────
+const pct = v => (v != null && !isNaN(v)) ? (v * 100).toFixed(1) + ' %' : '—';
+const pctNum = v => (v != null && !isNaN(v)) ? +(v * 100).toFixed(1) : null;
+
+function typeLabel(ta) {
+  if (ta === 'DG') return 'DG';
+  if (ta === 'DI_Hexagone' || ta === 'DI_Outremer') return 'DI';
+  if (ta === 'DR_Antilles' || ta === 'DR_Outremer') return 'DR';
+  if (ta === 'SCN') return 'SCN';
+  return '';
+}
+
+function colorClass(v) {
+  if (v == null) return 'na';
+  if (v >= 80) return 'bad';
+  if (v >= 50) return 'warn';
+  return 'ok';
+}
+
+function sortOrder(ta) {
+  const m = { DG: 0, DI_Hexagone: 1, DI_Outremer: 1, DR_Antilles: 2, DR_Outremer: 2, SCN: 3 };
+  return m[ta] ?? 9;
+}
+
+// ── Extraction données Budget ─────────────────────────────────────────────────
+function extractBudgetData(budgetTable, structureId, structuresTable) {
+  if (!budgetTable) return null;
+
+  const idx = budgetTable.id.findIndex((_, i) =>
+    budgetTable.Structure[i] === structureId && budgetTable.Annee[i] === ANNEE
+  );
+
+  if (idx !== -1) {
+    const n = col => Number(budgetTable[col]?.[idx]) || 0;
+    const taux = (c, d) => d > 0 ? c / d : null;
+
+    const dot_cp_v   = n('dot_CP_vehicules');
+    const dot_cp_f   = n('dot_CP_fonctionnement');
+    const dot_cp_t6  = n('Dot_CP_T6');
+    const dot_cp_i   = n('dot_CP_Immo');
+    const conso_cp_v  = n('Conso_CP_vehicules');
+    const conso_cp_f  = n('Conso_CP_fonctionnement');
+    const conso_cp_t6 = n('Conso_CP_T6');
+    const conso_cp_i  = n('Conso_CP_Immo');
+
+    // Préférer les taux précalculés si disponibles (Grist)
+    const tv = Number(budgetTable['Taux_CP_vehicules']?.[idx]) || taux(conso_cp_v, dot_cp_v);
+    const tf = Number(budgetTable['Taux_CP_fonctionnement']?.[idx]) || taux(conso_cp_f, dot_cp_f);
+    const tt = Number(budgetTable['Taux_CP_T6']?.[idx]) || taux(conso_cp_t6, dot_cp_t6);
+    const ti = Number(budgetTable['Taux_CP_Immo']?.[idx]) || taux(conso_cp_i, dot_cp_i);
+
+    const dot_total   = dot_cp_v + dot_cp_f + dot_cp_t6 + dot_cp_i;
+    const conso_total = conso_cp_v + conso_cp_f + conso_cp_t6 + conso_cp_i;
+    const tcp = dot_total > 0 ? conso_total / dot_total : null;
+
+    return { taux_cp_vehicules: tv, taux_cp_fonctionnement: tf, taux_cp_t6: tt, taux_cp_immo: ti, taux_cp_total: tcp };
+  }
+
+  // Fallback agrégation DR rattachées (DI sans ligne propre)
+  if (!structuresTable) return null;
+  const sIdx = structuresTable.id.indexOf(structureId);
+  if (sIdx === -1 || structuresTable.Type?.[sIdx] !== 'DI') return null;
+
+  const drIds = [];
+  for (let i = 0; i < structuresTable.id.length; i++) {
+    if (structuresTable.Parent?.[i] === structureId && structuresTable.Type?.[i] === 'DR') {
+      drIds.push(structuresTable.id[i]);
+    }
+  }
+  if (!drIds.length) return null;
+
+  const sumCols = (colName) => drIds.reduce((acc, drId) => {
+    const j = budgetTable.id.findIndex((_, i) =>
+      budgetTable.Structure[i] === drId && budgetTable.Annee[i] === ANNEE
+    );
+    return acc + (j !== -1 ? Number(budgetTable[colName]?.[j]) || 0 : 0);
+  }, 0);
+
+  const dot_cp_v   = sumCols('dot_CP_vehicules');
+  const dot_cp_f   = sumCols('dot_CP_fonctionnement');
+  const dot_cp_t6  = sumCols('Dot_CP_T6');
+  const dot_cp_i   = sumCols('dot_CP_Immo');
+  const conso_cp_v  = sumCols('Conso_CP_vehicules');
+  const conso_cp_f  = sumCols('Conso_CP_fonctionnement');
+  const conso_cp_t6 = sumCols('Conso_CP_T6');
+  const conso_cp_i  = sumCols('Conso_CP_Immo');
+
+  const taux = (c, d) => d > 0 ? c / d : null;
+  const dot_total   = dot_cp_v + dot_cp_f + dot_cp_t6 + dot_cp_i;
+  const conso_total = conso_cp_v + conso_cp_f + conso_cp_t6 + conso_cp_i;
+
+  return {
+    taux_cp_vehicules:      taux(conso_cp_v,  dot_cp_v),
+    taux_cp_fonctionnement: taux(conso_cp_f,  dot_cp_f),
+    taux_cp_t6:             taux(conso_cp_t6, dot_cp_t6),
+    taux_cp_immo:           taux(conso_cp_i,  dot_cp_i),
+    taux_cp_total:          taux(conso_total, dot_total),
+  };
+}
+
+// ── Extraction moyennes nationales (table Consolidation) ─────────────────────
+function extractNationalMoy(consolidationTable) {
+  if (!consolidationTable) return null;
+  const idx = consolidationTable.id?.findIndex((_, i) =>
+    consolidationTable.Perimetre?.[i] === 'National' && consolidationTable.Annee?.[i] === ANNEE
+  );
+  if (idx == null || idx === -1) return null;
+  const n = col => Number(consolidationTable[col]?.[idx]) || null;
+  return {
+    taux_cp_total:          n('taux_conso_moyen_cp') != null ? n('taux_conso_moyen_cp') / 100 : null,
+    taux_cp_vehicules:      n('Moy_Taux_CP_vehicules'),
+    taux_cp_fonctionnement: n('Moy_Taux_CP_fonctionnement'),
+    taux_cp_t6:             n('Moy_Taux_CP_T6'),
+    taux_cp_immo:           n('Moy_Taux_CP_Immo'),
+  };
+}
+
+// ── Rendu barre nationale ─────────────────────────────────────────────────────
+function renderNationalBar(moy) {
+  if (!moy) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = pct(v); };
+  set('nat-cp',   moy.taux_cp_total);
+  set('nat-veh',  moy.taux_cp_vehicules);
+  set('nat-fonct',moy.taux_cp_fonctionnement);
+  set('nat-t6',   moy.taux_cp_t6);
+  set('nat-immo', moy.taux_cp_immo);
+  document.getElementById('national-bar').style.display = 'flex';
+}
+
+// ── Création d'un radar Chart.js ──────────────────────────────────────────────
+function createRadar(canvasId, data, natMoy) {
+  const existing = chartInstances[canvasId];
+  if (existing) { existing.destroy(); delete chartInstances[canvasId]; }
+
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const struct_vals = [
+    pctNum(data.taux_cp_vehicules),
+    pctNum(data.taux_cp_fonctionnement),
+    pctNum(data.taux_cp_t6),
+    pctNum(data.taux_cp_immo),
+  ];
+
+  const datasets = [];
+
+  // Ligne nationale (si disponible)
+  if (natMoy) {
+    datasets.push({
+      label: 'National',
+      data: [
+        pctNum(natMoy.taux_cp_vehicules),
+        pctNum(natMoy.taux_cp_fonctionnement),
+        pctNum(natMoy.taux_cp_t6),
+        pctNum(natMoy.taux_cp_immo),
+      ],
+      borderColor: 'rgba(160,160,160,0.7)',
+      backgroundColor: 'rgba(160,160,160,0.08)',
+      borderWidth: 1.5,
+      borderDash: [4, 3],
+      pointRadius: 2,
+      pointBackgroundColor: 'rgba(160,160,160,0.7)',
+    });
+  }
+
+  // Polygone structure — couleur par point
+  datasets.push({
+    label: 'Structure',
+    data: struct_vals,
+    borderColor: 'rgba(19,81,168,0.85)',
+    backgroundColor: 'rgba(19,81,168,0.15)',
+    borderWidth: 2,
+    pointBackgroundColor: CAT_COLORS,
+    pointBorderColor: '#fff',
+    pointBorderWidth: 1.5,
+    pointRadius: 4,
+    pointHoverRadius: 5,
+  });
+
+  const chart = new Chart(canvas, {
+    type: 'radar',
+    data: { labels: CATS, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 300 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed.r;
+              return v != null ? `${ctx.dataset.label} : ${v.toFixed(1)} %` : '—';
+            }
+          },
+          bodyFont: { size: 10 },
+          padding: 6,
+        }
+      },
+      scales: {
+        r: {
+          beginAtZero: true,
+          min: 0,
+          suggestedMax: 100,
+          ticks: {
+            stepSize: 25,
+            callback: v => v + '%',
+            font: { size: 8 },
+            backdropColor: 'transparent',
+            color: '#aaa',
+          },
+          pointLabels: {
+            font: { size: 8 },
+            color: CAT_COLORS,
+          },
+          grid: { color: 'rgba(0,0,0,0.06)' },
+          angleLines: { color: 'rgba(0,0,0,0.08)' },
+        }
+      }
+    }
+  });
+
+  chartInstances[canvasId] = chart;
+}
+
+// ── Génération HTML d'une carte ────────────────────────────────────────────────
+function buildCard(card) {
+  const typeL = typeLabel(card.typeAff);
+  const cid = `radar-${card.id}`;
+  const tcp = pctNum(card.taux_cp_total);
+  const cls = colorClass(tcp);
+
+  return `
+    <div class="radar-card${card.hasData ? '' : ' no-data'}" data-type="${typeL}" data-id="${card.id}">
+      <div class="card-header">
+        <span class="card-sigle">${card.sigle}</span>
+        <span class="card-badge badge-${typeL}">${typeL}</span>
+      </div>
+      ${card.hasData ? `
+        <div class="card-canvas-wrap">
+          <canvas id="${cid}"></canvas>
+        </div>
+        <div class="card-kpi-row">
+          <div class="card-kpi">
+            <div class="kpi-val ${cls}">${pct(card.taux_cp_total)}</div>
+            <div class="kpi-lbl">CP global</div>
+          </div>
+          <div class="card-divider"></div>
+          <div class="card-kpi">
+            <div class="kpi-val ${colorClass(pctNum(card.taux_cp_vehicules))}">${pct(card.taux_cp_vehicules)}</div>
+            <div class="kpi-lbl">Véh.</div>
+          </div>
+          <div class="card-divider"></div>
+          <div class="card-kpi">
+            <div class="kpi-val ${colorClass(pctNum(card.taux_cp_fonctionnement))}">${pct(card.taux_cp_fonctionnement)}</div>
+            <div class="kpi-lbl">Fonct.</div>
+          </div>
+          <div class="card-divider"></div>
+          <div class="card-kpi">
+            <div class="kpi-val ${colorClass(pctNum(card.taux_cp_immo))}">${pct(card.taux_cp_immo)}</div>
+            <div class="kpi-lbl">Immo.</div>
+          </div>
+        </div>
+      ` : `<div class="no-data-msg">Aucune donnée budgétaire 2026</div>`}
+    </div>
+  `;
+}
+
+// ── Rendu complet ─────────────────────────────────────────────────────────────
+function render() {
+  // Filtrer
+  let cards = allCards.filter(c => filterActive === 'all' || typeLabel(c.typeAff) === filterActive);
+
+  // Trier
+  if (sortMode === 'sigle') {
+    cards.sort((a, b) => {
+      const s = sortOrder(a.typeAff) - sortOrder(b.typeAff);
+      return s !== 0 ? s : a.sigle.localeCompare(b.sigle);
+    });
+  } else if (sortMode === 'taux_desc') {
+    cards.sort((a, b) => (b.taux_cp_total ?? -1) - (a.taux_cp_total ?? -1));
+  } else if (sortMode === 'taux_asc') {
+    cards.sort((a, b) => (a.taux_cp_total ?? 99) - (b.taux_cp_total ?? 99));
+  }
+
+  // Grouper par type (seulement si tri par sigle)
+  const content = document.getElementById('content');
+  if (sortMode !== 'sigle') {
+    content.innerHTML = `<div class="section-block"><div class="grid">${cards.map(buildCard).join('')}</div></div>`;
+  } else {
+    const groups = [
+      { label: 'Direction Générale', color: 'var(--badge-dg)', types: ['DG'] },
+      { label: 'Directions Interrégionales', color: 'var(--badge-di)', types: ['DI_Hexagone','DI_Outremer'] },
+      { label: 'Directions Régionales (Antilles/Outremer)', color: 'var(--badge-dr)', types: ['DR_Antilles','DR_Outremer'] },
+      { label: 'Services à Compétence Nationale', color: 'var(--badge-scn)', types: ['SCN'] },
+    ];
+    let html = '';
+    for (const g of groups) {
+      const gc = cards.filter(c => g.types.includes(c.typeAff));
+      if (!gc.length) continue;
+      html += `
+        <div class="section-block">
+          <div class="section-title">
+            <span class="badge-section" style="background:${g.color};">${typeLabel(g.types[0])}</span>
+            ${g.label}
+            <span style="font-size:10px;color:var(--gris3);font-weight:400;">(${gc.length} structure${gc.length > 1 ? 's' : ''})</span>
+          </div>
+          <div class="grid">${gc.map(buildCard).join('')}</div>
+        </div>
+      `;
+    }
+    content.innerHTML = html;
+  }
+
+  // Instancier les radars après injection DOM
+  requestAnimationFrame(() => {
+    cards.filter(c => c.hasData).forEach(c => {
+      createRadar(`radar-${c.id}`, c, moyNational);
+    });
+  });
+}
+
+// ── Initialisation Grist ──────────────────────────────────────────────────────
+async function init() {
+  try {
+    grist.ready({ requiredAccess: 'read table' });
+
+    const [budgetTable, structuresTable, consolidationTable] = await Promise.all([
+      grist.docApi.fetchTable('Budget').catch(() => null),
+      grist.docApi.fetchTable('Structures').catch(() => null),
+      grist.docApi.fetchTable('Consolidation').catch(() => null),
+    ]);
+
+    if (!structuresTable) throw new Error('Table Structures non accessible.');
+    if (!budgetTable)     throw new Error('Table Budget non accessible.');
+
+    // Moyennes nationales
+    moyNational = extractNationalMoy(consolidationTable);
+    renderNationalBar(moyNational);
+
+    // Construire la liste des cartes
+    allCards = [];
+    for (let i = 0; i < structuresTable.id.length; i++) {
+      const ta = structuresTable.Type_Affichage?.[i];
+      if (!TYPES_AFFICHES.includes(ta)) continue;
+
+      const sid    = structuresTable.id[i];
+      const sigle  = structuresTable.Sigle?.[i] || '?';
+      const data   = extractBudgetData(budgetTable, sid, structuresTable);
+
+      allCards.push({
+        id:       sid,
+        sigle,
+        typeAff:  ta,
+        hasData:  !!data,
+        taux_cp_total:          data?.taux_cp_total          ?? null,
+        taux_cp_vehicules:      data?.taux_cp_vehicules      ?? null,
+        taux_cp_fonctionnement: data?.taux_cp_fonctionnement ?? null,
+        taux_cp_t6:             data?.taux_cp_t6             ?? null,
+        taux_cp_immo:           data?.taux_cp_immo           ?? null,
+      });
+    }
+
+    if (!allCards.length) throw new Error('Aucune structure trouvée.');
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    render();
+
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'flex';
+    document.getElementById('error').textContent = '❌ ' + e.message;
+  }
+}
+
+// ── Contrôles UI ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterActive = btn.dataset.filter;
+    render();
+  });
+});
+
+document.getElementById('sort-select').addEventListener('change', e => {
+  sortMode = e.target.value;
+  render();
+});
+
+// ── Démarrage ─────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
