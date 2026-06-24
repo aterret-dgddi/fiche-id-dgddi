@@ -4249,6 +4249,14 @@ async function executeExport(mode, filters) {
   }
 }
 
+
+function getPDFTimestamp() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const d = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;
+  const h = `${pad(now.getHours())}h${pad(now.getMinutes())}`;
+  return `${d}-${h}`;
+}
 async function exportSingleStructurePDF(struct, annee) {
   const { jsPDF } = window.jspdf;
   const loadingDiv = showLoadingMessage(`Génération du PDF pour ${struct.sigle}...`);
@@ -4257,7 +4265,7 @@ async function exportSingleStructurePDF(struct, annee) {
   try {
     const pdf = new jsPDF('p', 'mm', 'a4');
     await addStructureToPDF(pdf, struct, annee, true);
-    pdf.save(`fiche-identite-${struct.sigle}-${annee}.pdf`);
+    pdf.save(`${struct.sigle}-${annee}-${getPDFTimestamp()}.pdf`);
     hideLoadingMessage(loadingDiv);
   } catch (error) {
     hideLoadingMessage(loadingDiv);
@@ -4296,7 +4304,7 @@ async function exportAllStructuresInOnePDF(filters) {
       isFirstPage = false;
     }
     
-    pdf.save(`fiche-identite-toutes-structures-${annee}.pdf`);
+    pdf.save(`toutes-structures-${annee}-${getPDFTimestamp()}.pdf`);
     hideLoadingMessage(loadingDiv);
     alert(`PDF généré avec succès avec ${structures.length} structures !`);
   } catch (error) {
@@ -4338,7 +4346,7 @@ async function exportAllStructuresAsZIP(filters) {
       await addStructureToPDF(pdf, struct, annee, true);
       
       const pdfBlob = pdf.output('blob');
-      zip.file(`fiche-identite-${struct.sigle}-${annee}.pdf`, pdfBlob);
+      zip.file(`${struct.sigle}-${annee}-${getPDFTimestamp()}.pdf`, pdfBlob);
     }
     
     loadingDiv.querySelector('div:last-child').textContent = 'Compression de l\'archive...';
