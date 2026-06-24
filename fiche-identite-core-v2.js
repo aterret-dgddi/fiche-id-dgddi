@@ -6290,25 +6290,37 @@ function showXLSXModal() {
                 <div style="font-size:12px;color:#6c757d;margin-top:2px;">Génère un fichier XLSX par structure dans une archive ZIP</div>
               </div>
             </label>
-            <label style="display:flex;align-items:center;padding:12px;border:2px solid #E6ECF8;border-radius:8px;cursor:pointer;" class="xlsx-option" data-mode="global">
-              <input type="radio" name="xlsx-mode" value="global" style="margin-right:12px;width:18px;height:18px;">
-              <div>
-                <div style="font-weight:600;color:#1B5E20;font-size:14px;">XLSX global — toutes structures</div>
-                <div style="font-size:12px;color:#6c757d;margin-top:2px;">Un fichier unique, un onglet par structure (données RH, budget, etc.)</div>
-              </div>
-            </label>
+
           </div>
         </div>
 
         <div id="xlsx-filter-section" style="margin-bottom:20px;display:none;">
           <label style="display:block;font-weight:600;color:#1E2D3D;margin-bottom:12px;font-size:14px;">🔍 Filtrer les structures</label>
           <div style="display:flex;flex-wrap:wrap;gap:8px;">
-            ${['DG','DI','DI Outremer','SCN','DR'].map(type => `
-              <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
-                <input type="checkbox" class="xlsx-filter-type" value="${type}" ${type==='DI'||type==='SCN'?'checked':''} style="margin-right:8px;">
-                <span style="background:#2E7D32;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">${type}</span>
-                ${type}
-              </label>`).join('')}
+            <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" class="xlsx-filter-type" value="DG" style="margin-right:8px;">
+              <span style="background:#6c757d;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">DG</span>Direction Générale
+            </label>
+            <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" class="xlsx-filter-type" value="DI" checked style="margin-right:8px;">
+              <span style="background:#0053a0;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">DI</span>Directions interrégionales métropole
+            </label>
+            <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" class="xlsx-filter-type" value="DI Outremer" checked style="margin-right:8px;">
+              <span style="background:#17a2b8;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">DI OM</span>Directions interrégionales outremer
+            </label>
+            <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" class="xlsx-filter-type" value="DR Metropole" style="margin-right:8px;">
+              <span style="background:#6f42c1;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">DR</span>Directions régionales métropole
+            </label>
+            <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" class="xlsx-filter-type" value="DR Outremer" checked style="margin-right:8px;">
+              <span style="background:#fd7e14;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">DR OM</span>Directions régionales outremer
+            </label>
+            <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" class="xlsx-filter-type" value="SCN" checked style="margin-right:8px;">
+              <span style="background:#28a745;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">SCN</span>Services à compétence nationale
+            </label>
           </div>
         </div>
 
@@ -6329,7 +6341,7 @@ function showXLSXModal() {
       opt.style.borderColor = '#2E7D32';
       const mode = opt.dataset.mode;
       const fs = document.getElementById('xlsx-filter-section');
-      if (fs) fs.style.display = (mode === 'zip' || mode === 'global') ? 'block' : 'none';
+      if (fs) fs.style.display = (mode === 'zip') ? 'block' : 'none';
     });
   });
   // Surligner la première option par défaut
