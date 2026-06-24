@@ -5772,9 +5772,16 @@ function exportToHTML() {
     const mdValue = mdeId && _mdeInstances[mdeId] ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
     const div = document.createElement('div');
     div.className = 'md-render';
-    div.style.cssText = 'font-family:Marianne,sans-serif;font-size:13px;color:var(--gris1);padding:8px;border:1px solid var(--bord);border-radius:4px;background:#fff;min-height:40px;';
+    div.style.cssText = 'font-family:Marianne,sans-serif;font-size:12px;line-height:1.55;color:var(--gris1);padding:10px 12px 10px 14px;border-left:3px solid var(--rep2);border-top:none;border-right:none;border-bottom:none;background:#f8f9fb;min-height:32px;margin-top:4px;';
     div.innerHTML = mdValue && mdValue.trim() ? mdToHtml(mdValue) : '<em style="color:var(--gris3);">Aucun commentaire.</em>';
+    // Label institutionnel au-dessus du commentaire
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'md-render-label';
+    labelDiv.style.cssText = 'font-family:Marianne,sans-serif;font-size:10px;font-style:italic;color:#506090;margin-top:8px;margin-bottom:2px;';
+    labelDiv.textContent = "Analyse de l'indicateur";
+    container.parentNode.insertBefore(labelDiv, container);
     container.parentNode.insertBefore(div, container);
+    _mdeHtmlExportDivs.push({ div: labelDiv, container: null });
     container.style.display = 'none';
     _mdeHtmlExportDivs.push({ div, container });
   });
@@ -5802,7 +5809,7 @@ function exportToHTML() {
   // Restaurer les éditeurs EasyMDE (supprimer les divs de rendu statique)
   _mdeHtmlExportDivs.forEach(({ div, container }) => {
     div.remove();
-    container.style.display = '';
+    if (container) container.style.display = '';
   });
   
   const printStyles = `
@@ -5818,10 +5825,8 @@ function exportToHTML() {
         break-inside: avoid !important;
       }
       p, .kpi-card-details { orphans: 3; widows: 3; }
-      /* Masquer les boutons d'édition à l'impression */
       .comment-edit-btn, .comment-save-btn, .comment-cancel-btn,
       .pills-editor, #selbar, #quick-nav { display: none !important; }
-      /* Les textareas commentaire : afficher comme du texte statique */
       textarea {
         border: none !important;
         resize: none !important;
@@ -5829,32 +5834,90 @@ function exportToHTML() {
         padding: 0 !important;
         pointer-events: none;
       }
+      .md-render { font-size: 11px !important; }
+      .md-render-label { font-size: 9px !important; }
     }
-    @page { margin: 20mm; size: A4 portrait; }
-    /* Dans l'export HTML statique : masquer les boutons interactifs */
+    @page { margin: 18mm 15mm; size: A4 portrait; }
     .comment-edit-btn, .comment-save-btn, .comment-cancel-btn,
     .pills-editor, #selbar, #quick-nav { display: none !important; }
+    /* Style global md-render dans l'export statique */
+    .md-render p { margin: 2px 0; }
+    .md-render ul { margin: 2px 0; padding-left: 14px; }
+    .md-render li { margin: 1px 0; }
+    .md-render strong { color: var(--rep, #002F6C); }
+    .md-render-label { display: block; }
   `;
   
+  // Capturer les graphiques Chart.js en images base64 avant export
+  const _chartImages = {};
+  ficheBody.querySelectorAll('canvas').forEach(canvas => {
+    if (canvas.id) {
+      try { _chartImages[canvas.id] = canvas.toDataURL('image/png'); } catch(e) {}
+    }
+  });
+
+  // Remplacer les canvas par des images dans le HTML exporté
+  // (ficheBodyHTML est déjà capturé, on travaille sur une copie DOM temporaire)
+  const _exportDoc = document.createElement('div');
+  _exportDoc.innerHTML = ficheBodyHTML;
+  _exportDoc.querySelectorAll('canvas').forEach(canvas => {
+    if (canvas.id && _chartImages[canvas.id]) {
+      const img = document.createElement('img');
+      img.src = _chartImages[canvas.id];
+      img.style.cssText = canvas.style.cssText || '';
+      img.style.maxWidth = '100%';
+      img.style.display = 'block';
+      img.alt = canvas.id;
+      canvas.parentNode.replaceChild(img, canvas);
+    }
+  });
+  const ficheBodyHTMLWithCharts = _exportDoc.innerHTML;
+
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Fiche Identité ${struct.sigle} - ${FICHE_STATE.annee}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fiche Identite \${struct.sigle} \${FICHE_STATE.annee}</title>
+  <style>
+    /* Responsive base */
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; padding: 0; background: #f5f6f8; }
+    .export-wrapper {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+      background: white;
+    }
+    @media (max-width: 768px) {
+      .export-wrapper { padding: 10px; }
+      .metrics-grid, .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+      .chart-grid { grid-template-columns: 1fr !important; }
+      .data-table { font-size: 11px; }
+      .data-table th, .data-table td { padding: 4px 6px !important; }
+      .kpi-card { padding: 8px !important; }
+      .fiche-header { flex-direction: column; }
+    }
+    @media (max-width: 480px) {
+      .metrics-grid, .kpi-grid { grid-template-columns: 1fr !important; }
+      .data-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    }
+    img { max-width: 100%; height: auto; }
+  </style>
   <style>${styleContent}${printStyles}</style>
 </head>
 <body>
-  <div style="max-width:1200px;margin:0 auto;padding:24px;">
-    ${ficheBodyHTML}
+  <div class="export-wrapper">
+    ${ficheBodyHTMLWithCharts}
   </div>
 </body>
 </html>`;
   
-  const blob = new Blob([html], { type: 'text/html' });
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `fiche-identite-${struct.sigle}-${FICHE_STATE.annee}.html`;
+  a.download = `${struct.sigle}-${FICHE_STATE.annee}-${getPDFTimestamp()}.html`;
   a.click();
   URL.revokeObjectURL(url);
 }
