@@ -5945,27 +5945,29 @@ function exportToXLSX() {
   const struct = FICHE_STATE.structure;
   const annee  = FICHE_STATE.annee;
   if (!struct) { alert('Aucune structure selectionnee.'); return; }
+  const sid = struct.id;
 
   const wb = XLSX.utils.book_new();
 
-  // ── Utilitaires DOM ──────────────────────────────────────────
+  // ── Utilitaires ──────────────────────────────────────────────
   function t(id) {
     const el = document.getElementById(id);
     if (!el) return '';
-    const v = (el.innerText || el.textContent || '').trim().replace(/\u00a0/g, ' ').replace(/\u202f/g, ' ');
-    return (v === '—' || v === '-') ? '' : v;
+    const v = (el.innerText || el.textContent || '').trim()
+      .replace(/\u00a0/g,' ').replace(/\u202f/g,' ');
+    return (v==='—'||v==='-') ? '' : v;
   }
 
-  function tableRows(tbodyId, headers) {
+  function tableRowsFromDOM(tbodyId, headers) {
     const tbody = document.getElementById(tbodyId);
     if (!tbody) return headers ? [headers] : [];
     const rows = headers ? [headers] : [];
     tbody.querySelectorAll('tr').forEach(tr => {
       const cells = Array.from(tr.querySelectorAll('td,th')).map(td =>
-        (td.innerText || '').trim().replace(/\u00a0/g, ' ').replace(/\u202f/g, ' ')
+        (td.innerText||'').trim().replace(/\u00a0/g,' ').replace(/\u202f/g,' ')
       );
-      const cleaned = cells.map(c => (c === '—' || c === '') ? '' : c);
-      if (cleaned.some(c => c !== '')) rows.push(cleaned);
+      const cleaned = cells.map(c => (c==='—'||c==='') ? '' : c);
+      if (cleaned.some(c=>c!=='')) rows.push(cleaned);
     });
     return rows;
   }
@@ -5973,222 +5975,271 @@ function exportToXLSX() {
   function mdeVal(id) {
     if (_mdeInstances && _mdeInstances[id]) return _mdeInstances[id].value();
     const el = document.getElementById(id);
-    return el ? (el.value || '') : '';
+    return el ? (el.value||'') : '';
   }
 
   function addSheet(name, rows) {
-    if (!rows || rows.length === 0) return;
+    if (!rows||rows.length===0) return;
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    const colW = rows[0] ? rows[0].map((_, ci) => ({
-      wch: Math.min(80, Math.max(14, ...rows.map(r => String(r[ci] || '').length)))
+    const colW = rows[0] ? rows[0].map((_,ci) => ({
+      wch: Math.min(80, Math.max(14, ...rows.map(r=>String(r[ci]||'').length)))
     })) : [];
     ws['!cols'] = colW;
-    XLSX.utils.book_append_sheet(wb, ws, name.substring(0, 31));
+    XLSX.utils.book_append_sheet(wb, ws, name.substring(0,31));
   }
 
-  const data = FICHE_STATE._data || {};
+  function fmt(v) { return (v==null||v===0) ? '' : v; }
+  function fmtEur(v) { return (v==null||v===0) ? '' : Math.round(v)+''; }
+  function fmtPct(v) { return (v==null||v===0) ? '' : v.toFixed(1)+'%'; }
+
+  // Périmètre de la structure
+  const perimetre = getPerimetreFraisMission ? getPerimetreFraisMission(sid) : 'National';
+  const libPer = getLibellePerimetreFraisMission ? getLibellePerimetreFraisMission(perimetre) : perimetre;
 
   // ── 1. Info ──────────────────────────────────────────────────
   addSheet('Info', [
-    ['Champ', 'Valeur'],
-    ['Sigle', struct.sigle || ''],
-    ['Nom', struct.nom || ''],
-    ['Type', struct.Type || struct.type_label || ''],
-    ['Region', struct.Region || struct.region || ''],
+    ['Champ','Valeur'],
+    ['Sigle', struct.sigle||''],
+    ['Nom', struct.nom||''],
+    ['Type', struct.Type||struct.type_label||''],
+    ['Region', struct.Region||struct.region||''],
     ['Annee de reference', annee],
+    ['Perimetre de comparaison', libPer],
     ['Date export', new Date().toLocaleDateString('fr-FR')],
   ]);
 
-  // ── 2. RH — KPIs + historique 2022-2025 + comparaisons ──────
+  // ── 2. RH ────────────────────────────────────────────────────
+  const rhAnnees = [annee-3, annee-2, annee-1, annee].filter(a=>a>2020);
   const rhRows = [
-    ['Indicateur', 'Valeur ' + annee, 'vs ' + (annee-1), 'Comparaison perimetre', 'Comparaison national'],
-    ['ETPT Total',  t('rh-effectif-total'),  t('rh-effectif-evolution'),  t('rh-effectif-compare'),  t('rh-effectif-rang')],
-    ['ETPT AGCO',   t('rh-agco-total'),      t('rh-agco-evolution'),       t('rh-agco-compare'),      ''],
-    ['ETPT SU',     t('rh-su-total'),         t('rh-su-evolution'),          t('rh-su-compare'),        ''],
-    ['Age moyen',   t('rh-age-moyen'),         '',                             t('rh-age-compare-groupe'), t('rh-age-compare-national')],
-    ['MS / Agent',  t('rh-ms-par-agent'),      '',                             t('rh-ms-compare-groupe'),  t('rh-ms-compare-national')],
+    ['Indicateur','Valeur '+annee,'vs '+(annee-1),'Comparaison perimetre','Comparaison national'],
+    ['ETPT Total',   t('rh-effectif-total'), t('rh-effectif-evolution'), t('rh-effectif-compare'), t('rh-effectif-rang')],
+    ['ETPT AGCO',    t('rh-agco-total'),     t('rh-agco-evolution'),     t('rh-agco-compare'),     ''],
+    ['ETPT SU',      t('rh-su-total'),        t('rh-su-evolution'),        t('rh-su-compare'),        ''],
+    ['Age moyen',    t('rh-age-moyen'),        '',                          t('rh-age-compare-groupe'),t('rh-age-compare-national')],
+    ['MS / Agent',   t('rh-ms-par-agent'),     '',                          t('rh-ms-compare-groupe'), t('rh-ms-compare-national')],
   ];
-
-  // Historique RH 2022 → annee via getRHData
-  const rhHistAnnees = [annee-3, annee-2, annee-1, annee].filter(a => a > 2020);
+  // Historique via getRHData (données brutes, pas le DOM)
   rhRows.push([]);
   rhRows.push(['Historique RH par annee']);
-  rhRows.push(['Annee', 'ETPT Total', 'ETPT AGCO', 'ETPT SU', 'Masse Salariale (€)', 'MS / Agent (€)', 'Age Moyen']);
-  rhHistAnnees.forEach(a => {
-    if (typeof getRHData === 'function') {
-      const d = getRHData(struct.id, a);
-      if (d) {
-        rhRows.push([
-          a,
-          d.etpt_total != null ? d.etpt_total : '',
-          d.etpt_agco  != null ? d.etpt_agco  : '',
-          d.etpt_su    != null ? d.etpt_su    : '',
-          d.masse_salariale != null ? d.masse_salariale : '',
-          d.ms_par_agent    != null ? Math.round(d.ms_par_agent)  : '',
-          d.age_moyen       != null ? d.age_moyen        : '',
-        ]);
-      }
+  rhRows.push(['Annee','ETPT Total','ETPT AGCO','ETPT SU','ETPT Autres','Masse Salariale (EUR)','MS / Agent (EUR)','Age moyen AGCO','Age moyen SU']);
+  rhAnnees.forEach(a => {
+    const d = typeof getRHData==='function' ? getRHData(sid, a) : null;
+    if (d) {
+      rhRows.push([
+        a,
+        fmt(d.effectif_total),
+        fmt(d.effectif_agco),
+        fmt(d.effectif_su),
+        fmt(d.effectif_autres),
+        fmtEur(d.masse_salariale),
+        fmtEur(d.ms_par_agent),
+        fmt(d.age_moyen_agco)||'',
+        fmt(d.age_moyen_su)||'',
+      ]);
+    } else {
+      rhRows.push([a,'','','','','','','','']);
     }
   });
-
-  // Tableau détail par structure
-  const rhDetail = tableRows('rh-detail-tbody',
-    ['Structure', 'ETPT Total', 'AGCO', 'SU', 'Autres', 'Masse Salariale (€)', 'MS/Agent (€)', 'Age Moyen']);
-  if (rhDetail.length > 1) { rhRows.push([]); rhDetail.forEach(r => rhRows.push(r)); }
+  // Détail par structure (tableau DOM)
+  const rhDetail = tableRowsFromDOM('rh-detail-tbody',
+    ['Structure','ETPT Total','AGCO','SU','Autres','Masse Salariale (EUR)','MS/Agent (EUR)','Age Moyen']);
+  if (rhDetail.length>1) { rhRows.push([]); rhDetail.forEach(r=>rhRows.push(r)); }
   addSheet('RH', rhRows);
 
   // ── 3. Budget ─────────────────────────────────────────────────
   const budgetRows = [
-    ['Indicateur', 'Valeur', 'Moyenne nationale'],
+    ['Indicateur','Valeur','Moyenne nationale'],
     ['Taux conso AE globale', t('budget-pill-taux-ae'), t('budget-pill-ae-national')],
     ['Taux conso CP globale', t('budget-pill-taux-cp'), t('budget-pill-cp-national')],
   ];
-  // Tableau execution par catégorie
   const budgetTableEl = document.querySelector('.section:has(#budget-pill-taux-ae) .data-table');
   if (budgetTableEl) {
     budgetRows.push([]);
-    budgetRows.push(['Execution budgetaire par categorie ' + annee]);
-    budgetRows.push(['Categorie', 'Dotation AE', 'Conso AE', 'Taux AE (%)', 'Dotation CP', 'Conso CP', 'Taux CP (%)', 'Moy. perimetre CP']);
+    budgetRows.push(['Execution budgetaire par categorie '+annee]);
+    budgetRows.push(['Categorie','Dotation AE','Conso AE','Taux AE (%)','Dotation CP','Conso CP','Taux CP (%)','Moy. perimetre CP']);
     budgetTableEl.querySelectorAll('tbody tr').forEach(tr => {
-      const cells = Array.from(tr.querySelectorAll('td')).map(td => (td.innerText || '').trim());
-      if (cells.some(c => c && c !== '—')) budgetRows.push(cells.map(c => c === '—' ? '' : c));
+      const cells = Array.from(tr.querySelectorAll('td')).map(td=>(td.innerText||'').trim());
+      if (cells.some(c=>c&&c!=='—')) budgetRows.push(cells.map(c=>c==='—'?'':c));
     });
   }
   addSheet('Budget', budgetRows);
 
   // ── 4. Communication ─────────────────────────────────────────
   const comRows = [
-    ['Indicateur', 'Valeur', 'Comparaison'],
+    ['Indicateur','Valeur','Comparaison'],
     ['Conso vs cible 2026 (%)', t('com-sat-pct'), t('com-sat-label')],
-    ['Reste disponible CP',      t('com-sat-reste'), ''],
-    ['vs National',              t('com-sat-vs-nat'), ''],
-    ['vs Perimetre',             t('com-sat-vs-per'), ''],
+    ['Reste disponible CP',     t('com-sat-reste'),''],
+    ['vs National',             t('com-sat-vs-nat'),''],
+    ['vs Perimetre',            t('com-sat-vs-per'),''],
   ];
-  const comDetail = tableRows('table-com-body',
-    ['Structure', 'CP 2022', 'CP 2023', 'CP 2024', 'CP 2025', 'Restes issus 2025', 'AE 2026', 'CP 2026', 'Cible 2026 (80% CP 2024)', 'Disponible AE', 'Disponible CP']);
-  if (comDetail.length > 1) { comRows.push([]); comDetail.forEach(r => comRows.push(r)); }
+  const comDetail = tableRowsFromDOM('table-com-body',
+    ['Structure','CP 2022','CP 2023','CP 2024','CP 2025','Restes issus 2025','AE 2026','CP 2026','Cible 2026 (80% CP 2024)','Disponible AE','Disponible CP']);
+  if (comDetail.length>1) { comRows.push([]); comDetail.forEach(r=>comRows.push(r)); }
   addSheet('Communication', comRows);
 
   // ── 5. Informatique ──────────────────────────────────────────
   const itRows = [
-    ['Indicateur', 'Valeur ' + annee, 'Comparaison perimetre / national'],
+    ['Indicateur','Valeur '+annee,'Comparaison perimetre / national'],
     ['Postes de travail total', t('it-total'),               t('it-pct-portables')],
     ['Ratio poste / ETPT',      t('it-ratio'),               t('it-ratio-comp')],
-    ['Budget IT annuel (K€)',    t('it-budget-annuel'),       t('it-budget-annuel-evol')],
-    ['Budget IT moyen 4 ans (K€)',t('it-budget-moyen'),       ''],
-    ['Budget IT / ETPT (€)',    t('it-budget-agent-annuel'), t('it-budget-agent-annuel-comp')],
-    ['Budget IT / ETPT moy 4a (€)',t('it-budget-agent-moyen'),''],
+    ['Budget IT annuel',         t('it-budget-annuel'),       t('it-budget-annuel-evol')],
+    ['Budget IT moyen 4 ans',   t('it-budget-moyen'),         ''],
+    ['Budget IT / ETPT',        t('it-budget-agent-annuel'), t('it-budget-agent-annuel-comp')],
+    ['Budget IT / ETPT moy 4a', t('it-budget-agent-moyen'),  ''],
   ];
-  const itDetail = tableRows('table-it-body',
-    ['Annee', 'Portables', 'Fixes', 'Total postes', 'Ratio / ETPT', 'Budget IT (K€)', 'Budget / ETPT (€)']);
-  if (itDetail.length > 1) { itRows.push([]); itRows.push(['Evolution 4 ans']); itDetail.forEach(r => itRows.push(r)); }
+  const itDetail = tableRowsFromDOM('table-it-body',
+    ['Annee','Portables','Fixes','Total postes','Ratio / ETPT','Budget IT (EUR)','Budget / ETPT (EUR)']);
+  if (itDetail.length>1) { itRows.push([]); itRows.push(['Evolution 4 ans']); itDetail.forEach(r=>itRows.push(r)); }
   addSheet('Informatique', itRows);
 
   // ── 6. Frais de Mission ──────────────────────────────────────
+  // KPIs depuis le DOM
   const fmRows = [
-    ['Indicateur', 'Valeur', 'Comparaison perimetre / national'],
-    ['Total frais mission',   t('fm-total-value'),      t('fm-total-comp')],
-    ['Dont Formation',        t('fm-formation-value'),  t('fm-formation-pct')],
-    ['Dont Autres missions',  t('fm-autres-value'),     t('fm-autres-pct')],
-    ['Cout moyen / ETPT',    t('fm-agent-value'),      t('fm-agent-comp')],
+    ['Indicateur','Valeur '+annee,'Comparaison perimetre / national'],
+    ['Total frais mission (EUR)',  t('fm-total-value'),     t('fm-total-comp')],
+    ['Dont Formation (EUR)',       t('fm-formation-value'), t('fm-formation-pct')],
+    ['Dont Autres missions (EUR)', t('fm-autres-value'),    t('fm-autres-pct')],
+    ['Cout moyen / ETPT (EUR)',   t('fm-agent-value'),     t('fm-agent-comp')],
   ];
-  // Tableau détaillé avec colonne Annee et Type séparés
-  fmRows.push([]);
-  fmRows.push(['Detail frais de mission par annee et type']);
-  fmRows.push(['Annee', 'Type', 'Transport (€)', 'Hebergement (€)', 'Repas (€)', 'Total (€)']);
-  const fmTbody = document.getElementById('table-fm-body');
-  if (fmTbody) {
-    let currentAnnee = '';
-    fmTbody.querySelectorAll('tr').forEach(tr => {
-      const cells = Array.from(tr.querySelectorAll('td')).map(td => (td.innerText || '').trim().replace(/\u00a0/g, ' '));
-      if (!cells.some(c => c && c !== '—' && c !== '')) return;
-      // La première cellule contient "AAAA" ou "Type"
-      const first = cells[0] || '';
-      if (/^\d{4}$/.test(first)) {
-        currentAnnee = first;
-        fmRows.push([first, '', cells[1]||'', cells[2]||'', cells[3]||'', cells[4]||'']);
-      } else {
-        fmRows.push([currentAnnee, first, cells[1]||'', cells[2]||'', cells[3]||'', cells[4]||'']);
-      }
+  // Données brutes multi-années via getFraisMissionMultiAnnees
+  const fmAnnees = [annee-3, annee-2, annee-1, annee].filter(a=>a>2020);
+  const fmMulti = typeof getFraisMissionMultiAnnees==='function'
+    ? getFraisMissionMultiAnnees(sid, fmAnnees) : [];
+
+  if (fmMulti.some(d=>d.montant_total)) {
+    fmRows.push([]);
+    fmRows.push(['Detail frais de mission par annee']);
+    fmRows.push([
+      'Annee','Type','Transport (EUR)','Hebergement (EUR)','Repas (EUR)','Total (EUR)',
+      'dont Formation : Transport','dont Formation : Heberg.','dont Formation : Repas',
+      'dont Autres : Transport','dont Autres : Heberg.','dont Autres : Repas',
+      '% Formation','% Autres','Frais/Agent (EUR)'
+    ]);
+    fmMulti.forEach(d => {
+      if (!d.montant_total && !d.total_transport) return;
+      fmRows.push([
+        d.annee, 'Total',
+        fmtEur(d.total_transport), fmtEur(d.total_hebergement), fmtEur(d.total_repas), fmtEur(d.montant_total),
+        fmtEur(d.formation_transport), fmtEur(d.formation_hebergement), fmtEur(d.formation_repas),
+        fmtEur(d.autres_transport), fmtEur(d.autres_hebergement), fmtEur(d.autres_repas),
+        fmtPct(d.pct_formation), fmtPct(d.pct_autres), fmtEur(d.frais_par_agent),
+      ]);
     });
+
+    // Moyennes périmètre et national
+    fmRows.push([]);
+    fmRows.push(['Moyennes de comparaison (annee '+annee+')']);
+    fmRows.push(['Perimetre','Moy frais/structure (EUR)','Moy frais/agent (EUR)','Moy formation/agent (EUR)','Moy autres/agent (EUR)']);
+    const fmMoyPer = typeof getFraisMissionMoyennes==='function' ? getFraisMissionMoyennes(perimetre, annee) : null;
+    const fmMoyNat = typeof getFraisMissionMoyennes==='function' ? getFraisMissionMoyennes('National', annee) : null;
+    if (fmMoyPer) fmRows.push([libPer, fmtEur(fmMoyPer.moy_frais_par_structure), fmtEur(fmMoyPer.moy_frais_par_agent), fmtEur(fmMoyPer.moy_formation_par_agent), fmtEur(fmMoyPer.moy_autres_par_agent)]);
+    if (fmMoyNat) fmRows.push(['National', fmtEur(fmMoyNat.moy_frais_par_structure), fmtEur(fmMoyNat.moy_frais_par_agent), fmtEur(fmMoyNat.moy_formation_par_agent), fmtEur(fmMoyNat.moy_autres_par_agent)]);
+  } else {
+    // Fallback DOM
+    const fmDetail = tableRowsFromDOM('table-fm-body', null);
+    if (fmDetail.length) {
+      fmRows.push([]);
+      fmRows.push(['Annee','Type','Transport (EUR)','Hebergement (EUR)','Repas (EUR)','Total (EUR)']);
+      let curAn = '';
+      fmDetail.forEach(cells => {
+        const first = cells[0]||'';
+        if (/^\d{4}$/.test(first)) { curAn=first; fmRows.push([first,'',cells[1]||'',cells[2]||'',cells[3]||'',cells[4]||'']); }
+        else { fmRows.push([curAn, first, cells[1]||'',cells[2]||'',cells[3]||'',cells[4]||'']); }
+      });
+    }
   }
   addSheet('Frais_Mission', fmRows);
 
   // ── 7. Fonctionnement ────────────────────────────────────────
+  const fd = typeof getFonctionnementData==='function' ? getFonctionnementData(sid) : null;
   const fonctRows = [
-    ['Indicateur', 'Valeur', 'Comparaison perimetre / national'],
-    ['Evolution part maitrisable', t('fonct-pill-evol'), t('fonct-pill-evol-detail')],
-    ['Part depenses maitrisables (% CP)',  t('fonct-pill-pct-m'),       t('fonct-pill-pct-m-detail')],
-    ['Depenses maitrisables / ETPT ' + annee, t('fonct-pill-agent-2025'), t('fonct-pill-agent-2025-detail')],
-    ['Depenses maitrisables / ETPT moy 4a',   t('fonct-pill-agent-4ans'), t('fonct-pill-agent-4ans-detail')],
+    ['Indicateur','Valeur '+annee,'Comparaison perimetre / national'],
+    ['Part depenses maitrisables % CP (2025)', fd ? fmtPct(fd.pct_m_2025) : '', t('fonct-pill-agent-2025-detail')],
+    ['Depenses maitrisables / ETPT (2025)',    fd ? fmtEur(fd.fonct_agent_2025) : '', t('fonct-pill-agent-2025-detail')],
+    ['Depenses maitrisables / ETPT (moy 4a)', fd ? fmtEur(fd.fonct_agent_4ans) : '', t('fonct-pill-agent-4ans-detail')],
+    ['Evolution part maitrisable 4 ans (pts)', fd ? fd.evol_pct_maitrisable?.toFixed(1)||'' : '', ''],
   ];
-  // Tableau historique via la section fonctionnement
-  const fonctSection = Array.from(document.querySelectorAll('.section')).find(s => {
-    const title = s.querySelector('.section-title');
-    return title && title.innerText.includes('Fonctionnement');
-  });
-  if (fonctSection) {
-    const fRows = [];
-    fonctSection.querySelectorAll('.data-table tr').forEach(tr => {
-      const cells = Array.from(tr.querySelectorAll('td,th')).map(td => (td.innerText || '').trim());
-      if (cells.some(c => c && c !== '—')) fRows.push(cells.map(c => c === '—' ? '' : c));
+  if (fd) {
+    fonctRows.push([]);
+    fonctRows.push(['Historique fonctionnement courant']);
+    fonctRows.push(['Annee','CP total (EUR)','CP maitrisable (EUR)','% maitrisable','Fonct/Agent (EUR)']);
+    [[2022,fd.cp_2022,fd.cp_2022_m,fd.pct_m_2022,fd.fonct_agent_2022],
+     [2023,fd.cp_2023,fd.cp_2023_m,fd.pct_m_2023,fd.fonct_agent_2023],
+     [2024,fd.cp_2024,fd.cp_2024_m,fd.pct_m_2024,fd.fonct_agent_2024],
+     [2025,fd.cp_2025,fd.cp_2025_m,fd.pct_m_2025,fd.fonct_agent_2025],
+    ].forEach(([a,cp,cpm,pct,agent]) => {
+      fonctRows.push([a, fmtEur(cp), fmtEur(cpm), pct?pct.toFixed(1)+'%':'', fmtEur(agent)]);
     });
-    if (fRows.length) { fonctRows.push([]); fonctRows.push(['Historique fonctionnement']); fRows.forEach(r => fonctRows.push(r)); }
+    // Moyennes
+    const fonctPerim = typeof getFonctPerimetre==='function' ? getFonctPerimetre(sid) : perimetre;
+    const consoNat = typeof getConsolidationData==='function' ? getConsolidationData('National', annee) : null;
+    const consoPer = typeof getConsolidationData==='function' ? getConsolidationData(fonctPerim, annee) : null;
+    if (consoNat || consoPer) {
+      fonctRows.push([]);
+      fonctRows.push(['Moyennes de comparaison']);
+      fonctRows.push(['Perimetre','Moy. fonct/agent (EUR)','Moy. fonct/agent 4a (EUR)','Moy. % maitrisable']);
+      if (consoPer) fonctRows.push([libPer, fmtEur(consoPer.moy_fonct_par_agent), fmtEur(consoPer.moy_fonct_par_agent_4ans), fmtPct(consoPer.moy_pct_maitrisable)]);
+      if (consoNat) fonctRows.push(['National', fmtEur(consoNat.moy_fonct_par_agent), fmtEur(consoNat.moy_fonct_par_agent_4ans), fmtPct(consoNat.moy_pct_maitrisable)]);
+    }
   }
   addSheet('Fonctionnement', fonctRows);
 
   // ── 8. Parc Automobile ───────────────────────────────────────
   const vehRows = [
-    ['Indicateur', 'Valeur', 'Comparaison perimetre / national'],
-    ['Total vehicules',        t('veh-total-value'),     t('veh-total-comp')],
-    ['Budget total (€)',       t('veh-budget-value'),    t('veh-budget-comp')],
-    ['Vehicule / ETPT',        t('veh-ratio-value'),     t('veh-ratio-comp')],
-    ['Cout fonct. / vehicule', t('veh-cout-value'),      t('veh-cout-comp')],
-    ['Ratio vehicule / SU',    t('veh-ratio-su-value'),  t('veh-ratio-su-comp')],
+    ['Indicateur','Valeur','Comparaison perimetre / national'],
+    ['Total vehicules',        t('veh-total-value'),    t('veh-total-comp')],
+    ['Budget total (EUR)',      t('veh-budget-value'),   t('veh-budget-comp')],
+    ['Vehicule / ETPT',        t('veh-ratio-value'),    t('veh-ratio-comp')],
+    ['Cout fonct. / vehicule', t('veh-cout-value'),     t('veh-cout-comp')],
+    ['Ratio vehicule / SU',    t('veh-ratio-su-value'), t('veh-ratio-su-comp')],
   ];
-  const vehDetail = tableRows('table-veh-body',
-    ['Annee', 'Total', 'Vetustes', '% Vetuste', 'Fonct. (€)', 'Invest. (€)', 'Total Budget (€)', 'Ratio/ETPT']);
-  if (vehDetail.length > 1) { vehRows.push([]); vehRows.push(['Historique parc automobile']); vehDetail.forEach(r => vehRows.push(r)); }
+  const vehDetail = tableRowsFromDOM('table-veh-body',
+    ['Annee','Total','Vetustes','% Vetuste','Fonct. (EUR)','Invest. (EUR)','Total Budget (EUR)','Ratio/ETPT']);
+  if (vehDetail.length>1) { vehRows.push([]); vehRows.push(['Historique parc automobile']); vehDetail.forEach(r=>vehRows.push(r)); }
   addSheet('Parc_Automobile', vehRows);
 
   // ── 9. Immobilier ────────────────────────────────────────────
   const immoRows = [
-    ['Indicateur', 'Valeur', 'Comparaison perimetre / national'],
-    ['Surface SUB totale (m2)',   t('immo-sub-value'),   t('immo-sites-detail')],
-    ['Ratio occupation (m2/res)', t('immo-ratio-value'), t('immo-ratio-comp')],
-    ['Cout surfacique ' + annee + ' (€/m2)', t('immo-cout-value'), t('immo-cout-comp')],
-    ['Evolution cout surfacique', '',                    t('immo-cout-evol')],
-    ['Cout surfacique moyen 4 ans (€/m2)', t('immo-cout-moyen'), ''],
+    ['Indicateur','Valeur','Comparaison perimetre / national'],
+    ['Surface SUB totale (m2)',            t('immo-sub-value'),   t('immo-sites-detail')],
+    ['Ratio occupation (m2/res)',           t('immo-ratio-value'), t('immo-ratio-comp')],
+    ['Cout surfacique '+annee+' (EUR/m2)', t('immo-cout-value'),  t('immo-cout-comp')],
+    ['Evolution cout surfacique',          '',                     t('immo-cout-evol')],
+    ['Cout surfacique moyen 4a (EUR/m2)', t('immo-cout-moyen'),  ''],
   ];
-  // Domaine public
-  const immoPublicRows = tableRows('table-immo-public-body',
-    ['Libelle', 'Ville', 'Type', 'SUB (m2)', 'Residents', 'Ratio occ. (m2/res.)', 'Energie (€)', 'Cout surf. (€/m2)']);
-  if (immoPublicRows.length > 1) {
+  const immoPublic = tableRowsFromDOM('table-immo-public-body',
+    ['Libelle','Ville','Type','SUB (m2)','Residents','Ratio occ. (m2/res.)','Energie (EUR)','Cout surf. (EUR/m2)']);
+  if (immoPublic.length>1) {
     immoRows.push([]); immoRows.push(['Domaine public / mise a disposition']);
-    immoPublicRows.forEach(r => immoRows.push(r));
+    immoPublic.forEach(r=>immoRows.push(r));
   }
-  // Baux privés — avec en-têtes complets incluant Fin de bail / Loyer
-  const immoPriveRows = tableRows('table-immo-prive-body',
-    ['Libelle', 'Ville', 'Type', 'SUB (m2)', 'Residents', 'Ratio occ. (m2/res.)', 'Energie (€)', 'Cout surf. (€/m2)', 'Fin de bail', 'Loyer annuel (€)', 'Loyer/m2 (€)']);
-  if (immoPriveRows.length > 1) {
+  const immoPriv = tableRowsFromDOM('table-immo-prive-body',
+    ['Libelle','Ville','Type','SUB (m2)','Residents','Ratio occ. (m2/res.)','Energie (EUR)','Cout surf. (EUR/m2)','Fin de bail','Loyer annuel (EUR)','Loyer/m2 (EUR)']);
+  if (immoPriv.length>1) {
     immoRows.push([]); immoRows.push(['Baux prives']);
-    immoPriveRows.forEach(r => immoRows.push(r));
+    immoPriv.forEach(r=>immoRows.push(r));
   }
   addSheet('Immobilier', immoRows);
 
   // ── 10. Commentaires ─────────────────────────────────────────
-  const cmtRows = [['Section', 'Texte (Markdown)']];
+  // Vue d'ensemble : lire depuis _mdeInstances ou getCommentaire
+  const syntheseVal = (_mdeInstances && _mdeInstances['synthese-mde-textarea'])
+    ? _mdeInstances['synthese-mde-textarea'].value()
+    : (typeof getCommentaire==='function'
+       ? (getCommentaire(sid, annee, 'Synthese') || '') : '');
+
+  const cmtRows = [['Section','Texte (Markdown)']];
   [
-    ["Vue d'ensemble",  'synthese-commentaire'],
-    ['Budget',          'budget-commentaire'],
-    ['Communication',   'com-commentaire'],
-    ['RH',              'rh-commentaire'],
-    ['Informatique',    'it-commentaire'],
-    ['Frais de Mission','fm-commentaire'],
-    ['Fonctionnement',  'fonct-commentaire'],
-    ['Parc Automobile', 'veh-commentaire'],
-    ['Immobilier',      'immo-commentaire'],
-  ].forEach(([sec, id]) => cmtRows.push([sec, mdeVal(id)]));
+    ["Vue d'ensemble", syntheseVal],
+    ['Budget',          mdeVal('budget-commentaire')],
+    ['Communication',   mdeVal('com-commentaire')],
+    ['RH',              mdeVal('rh-commentaire')],
+    ['Informatique',    mdeVal('it-commentaire')],
+    ['Frais de Mission',mdeVal('fm-commentaire')],
+    ['Fonctionnement',  mdeVal('fonct-commentaire')],
+    ['Parc Automobile', mdeVal('veh-commentaire')],
+    ['Immobilier',      mdeVal('immo-commentaire')],
+  ].forEach(([sec, val]) => cmtRows.push([sec, val||'']));
   addSheet('Commentaires', cmtRows);
 
   // ── Télécharger ───────────────────────────────────────────────
