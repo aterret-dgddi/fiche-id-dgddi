@@ -462,14 +462,6 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     const conso_ae_total = conso_ae_v + conso_ae_f + conso_ae_t6 + conso_ae_i;
     const conso_cp_total = conso_cp_v + conso_cp_f + conso_cp_t6 + conso_cp_i;
 
-    // DEBUG — à supprimer après diagnostic
-    console.log('[Budget debug] structureId', structureId, {
-      dot_ae_total, dot_cp_total, conso_ae_total, conso_cp_total,
-      taux_ae: dot_ae_total > 0 ? (conso_ae_total/dot_ae_total*100).toFixed(1)+'%' : 'null (dot=0)',
-      taux_cp: dot_cp_total > 0 ? (conso_cp_total/dot_cp_total*100).toFixed(1)+'%' : 'null (dot=0)',
-      cols_lues: { dot_ae_v, dot_ae_f, dot_ae_t6, dot_ae_i, dot_cp_v, dot_cp_f, dot_cp_t6, dot_cp_i }
-    });
-
     return {
       taux_ae_vehicules:      taux(conso_ae_v,  dot_ae_v),
       taux_ae_fonctionnement: taux(conso_ae_f,  dot_ae_f),
@@ -666,30 +658,31 @@ function createRadar(canvasId, data, natMoy) {
   chartInstances[canvasId] = chart;
 }
 
-// ── Barre AE/CP ───────────────────────────────────────────────────────────────
+// ── Barre AE/CP — tae/tcp en décimal (0-1), natAE/natCP en décimal (0-1) ─────
 function buildAECPBar(tae, tcp, natAE, natCP) {
-  const aeW  = Math.min(100, Math.max(0, (tae ?? 0) * 100));
-  const cpW  = Math.min(100, Math.max(0, (tcp ?? 0) * 100));
-  const aeCls = colorClass(tae != null ? tae * 100 : null, natAE);
-  const cpCls = colorClass(tcp != null ? tcp * 100 : null, natCP);
-  const colorMap = { ok: '#008941', warn: '#D07B00', bad: '#C0392B', na: '#aaa' };
-  const aeColor = colorMap[aeCls];
-  const cpColor = colorMap[cpCls];
+  // Convertir en % pour affichage et colorClass
+  const aeP = tae != null ? tae * 100 : null;
+  const cpP = tcp != null ? tcp * 100 : null;
+  const aeW = Math.min(100, Math.max(0, aeP ?? 0));
+  const cpW = Math.min(100, Math.max(0, cpP ?? 0));
+  const aeColor = clrStyle(aeP, natAE);  // natAE en 0-1, aeP en %
+  const cpColor = clrStyle(cpP, natCP);
+  const fmtPct = v => v != null ? v.toFixed(1) + '%' : '—';
   return `
     <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--bord);">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-        <span style="font-size:9px;font-weight:600;color:#888;width:22px;flex-shrink:0;">AE</span>
-        <div style="flex:1;background:#f0f0f0;border-radius:4px;height:8px;overflow:hidden;">
-          <div style="width:${aeW}%;height:100%;background:${aeColor};border-radius:4px;transition:width .4s;"></div>
+        <span style="font-size:9px;font-weight:700;color:#888;width:22px;flex-shrink:0;">AE</span>
+        <div style="flex:1;background:#eee;border-radius:4px;height:9px;overflow:hidden;">
+          <div style="width:${aeW}%;height:100%;background:${aeColor};border-radius:4px;"></div>
         </div>
-        <span style="font-size:10px;font-weight:700;color:${aeColor};width:38px;text-align:right;">${tae != null ? (tae*100).toFixed(1)+'%' : '—'}</span>
+        <span style="font-size:11px;font-weight:700;color:${aeColor};width:42px;text-align:right;">${fmtPct(aeP)}</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
-        <span style="font-size:9px;font-weight:600;color:#888;width:22px;flex-shrink:0;">CP</span>
-        <div style="flex:1;background:#f0f0f0;border-radius:4px;height:8px;overflow:hidden;">
-          <div style="width:${cpW}%;height:100%;background:${cpColor};border-radius:4px;transition:width .4s;"></div>
+        <span style="font-size:9px;font-weight:700;color:#888;width:22px;flex-shrink:0;">CP</span>
+        <div style="flex:1;background:#eee;border-radius:4px;height:9px;overflow:hidden;">
+          <div style="width:${cpW}%;height:100%;background:${cpColor};border-radius:4px;"></div>
         </div>
-        <span style="font-size:10px;font-weight:700;color:${cpColor};width:38px;text-align:right;">${tcp != null ? (tcp*100).toFixed(1)+'%' : '—'}</span>
+        <span style="font-size:11px;font-weight:700;color:${cpColor};width:42px;text-align:right;">${fmtPct(cpP)}</span>
       </div>
     </div>`;
 }
@@ -838,9 +831,9 @@ async function init() {
       allowSelectBy: true,
     });
 
-    // Enregistrer le handler onRecords AVANT fetchTable — nécessaire pour que
-    // Grist reconnaisse ce widget comme source de sélection pour Structures
-    grist.onRecords('Structures', () => { /* géré via fetchTable ci-dessous */ });
+    // grist.onRecords lie ce widget à la table Structures :
+    // Grist l'expose alors comme source de sélection pour les autres widgets
+    grist.onRecords(function(records, mappings) { /* données gérées via fetchTable */ });
 
     const [budgetTable, structuresTable, consolidationTable] = await Promise.all([
       grist.docApi.fetchTable('Budget').catch(() => null),
