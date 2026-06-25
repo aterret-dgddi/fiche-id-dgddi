@@ -405,16 +405,29 @@
       border-bottom: 1px solid var(--bord);
       padding: 5px 18px;
       display: flex;
-      align-items: flex-start;
-      gap: 5px 6px;
-      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
       position: sticky;
       top: 41px;
       z-index: 190;
       box-shadow: 0 2px 4px rgba(0,20,70,.05);
+      scrollbar-width: thin;
+      scrollbar-color: var(--bord) transparent;
+      -webkit-overflow-scrolling: touch;
     }
+    #quick-nav::-webkit-scrollbar { height: 4px; }
+    #quick-nav::-webkit-scrollbar-thumb { background: var(--bord); border-radius: 2px; }
 
-    #qnav-items { display: contents; }
+    #qnav-items {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
 
     .qnav-label {
       font-size: 10px;
@@ -2114,7 +2127,10 @@
       
       if (FICHE_STATE.structure) {
         const btn = document.querySelector(`.qnav-btn[data-id="${FICHE_STATE.structure.id}"]`);
-        if (btn) btn.classList.add('active');
+        if (btn) {
+          btn.classList.add('active');
+          btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        }
       }
     }
 
