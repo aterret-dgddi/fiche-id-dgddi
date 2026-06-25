@@ -310,7 +310,22 @@
 <div class="page-header" style="position:static;">
   <div>
     <h1>🕷️ Araignées budgétaires — Taux de consommation CP 2026</h1>
-    <div class="subtitle">Budget HT2 — Véhicules · Fonctionnement · T6 Buralistes · Immobilier</div>
+    <div class="subtitle" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <span>Budget HT2 — Véhicules · Fonctionnement · T6 Buralistes · Immobilier</span>
+      <span style="opacity:.4;">|</span>
+      <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:10px;opacity:.75;">Axes :</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#E67E22;display:inline-block;"></span>Véhicules</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#1351A8;display:inline-block;border:1px solid rgba(255,255,255,.4);"></span>Fonctionnement</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#8E44AD;display:inline-block;"></span>T6 Buralistes</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#27AE60;display:inline-block;"></span>Immobilier</span>
+        <span style="opacity:.4;">|</span>
+        <span style="font-size:10px;opacity:.75;">Écart :</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#008941;display:inline-block;"></span>&lt;±10 pts</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#D07B00;display:inline-block;"></span>±10–20 pts</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#C0392B;display:inline-block;"></span>&gt;±20 pts</span>
+      </span>
+    </div>
   </div>
   <div class="header-controls">
     <label for="sort-select">Trier par</label>
@@ -357,19 +372,7 @@
   </div>
 </div>
 
-<!-- Légende catégories -->
-<div class="legend-bar">
-  <span style="font-size:11px;color:var(--gris3);font-weight:600;">Axes du radar :</span>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--c-veh)"></div>Véhicules</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--c-fonct)"></div>Fonctionnement</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--c-t6)"></div>T6 Buralistes</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--c-immo)"></div>Immobilier</div>
-  <span class="legend-sep">|</span>
-  <span style="font-size:11px;color:var(--gris3);">Écart vs moyenne nationale :</span>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--vert)"></div>&lt; ±10 pts</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>±10 à 20 pts</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--rouge)"></div>&gt; ±20 pts</div>
-</div>
+
 
 <!-- Filtres type de structure -->
 <div class="filter-bar">
@@ -534,10 +537,10 @@ function extractNationalMoy(consolidationTable) {
     consolidationTable.Perimetre?.[i] === 'National' && consolidationTable.Annee?.[i] === ANNEE
   );
   if (idx == null || idx === -1) return null;
-  const n = col => Number(consolidationTable[col]?.[idx]) || null;
+  const n = col => { const v = Number(consolidationTable[col]?.[idx]); return isNaN(v) || v === 0 ? null : v; };
   return {
-    taux_ae_total:          n('taux_conso_moyen_ae') != null ? n('taux_conso_moyen_ae') / 100 : null,
-    taux_cp_total:          n('taux_conso_moyen_cp') != null ? n('taux_conso_moyen_cp') / 100 : null,
+    taux_ae_total:          n('Taux_Conso_Moyen_AE') != null ? n('Taux_Conso_Moyen_AE') / 100 : null,
+    taux_cp_total:          n('Taux_Conso_Moyen_CP') != null ? n('Taux_Conso_Moyen_CP') / 100 : null,
     taux_ae_vehicules:      n('Moy_Taux_AE_vehicules'),
     taux_cp_vehicules:      n('Moy_Taux_CP_vehicules'),
     taux_ae_fonctionnement: n('Moy_Taux_AE_fonctionnement'),
@@ -546,6 +549,40 @@ function extractNationalMoy(consolidationTable) {
     taux_cp_t6:             n('Moy_Taux_CP_T6'),
     taux_ae_immo:           n('Moy_Taux_AE_Immo'),
     taux_cp_immo:           n('Moy_Taux_CP_Immo'),
+  };
+}
+
+// ── Calcul moyenne nationale depuis Budget (fallback si Consolidation vide) ───
+function computeNationalMoyFromBudget(budgetTable) {
+  if (!budgetTable) return null;
+  const taux = (c, d) => d > 0 ? c / d : null;
+  let daeV=0,daeF=0,daeT=0,daeI=0, dcpV=0,dcpF=0,dcpT=0,dcpI=0;
+  let caeV=0,caeF=0,caeT=0,caeI=0, ccpV=0,ccpF=0,ccpT=0,ccpI=0;
+  for (let i = 0; i < budgetTable.id.length; i++) {
+    if (budgetTable.Annee?.[i] !== ANNEE) continue;
+    const n = col => Number(budgetTable[col]?.[i]) || 0;
+    daeV+=n('dot_AE_vehicules'); daeF+=n('dot_AE_fonctionnement');
+    daeT+=n('Dot_AE_T6');        daeI+=n('dot_AE_Immo');
+    dcpV+=n('dot_CP_vehicules'); dcpF+=n('dot_CP_fonctionnement');
+    dcpT+=n('Dot_CP_T6');        dcpI+=n('dot_CP_Immo');
+    caeV+=n('Conso_AE_vehicules'); caeF+=n('Conso_AE_fonctionnement');
+    caeT+=n('Conso_AE_T6');        caeI+=n('Conso_AE_Immo');
+    ccpV+=n('Conso_CP_vehicules'); ccpF+=n('Conso_CP_fonctionnement');
+    ccpT+=n('Conso_CP_T6');        ccpI+=n('Conso_CP_Immo');
+  }
+  const daeTotal=daeV+daeF+daeT+daeI, dcpTotal=dcpV+dcpF+dcpT+dcpI;
+  const caeTotal=caeV+caeF+caeT+caeI, ccpTotal=ccpV+ccpF+ccpT+ccpI;
+  return {
+    taux_ae_total: taux(caeTotal,daeTotal),
+    taux_cp_total: taux(ccpTotal,dcpTotal),
+    taux_ae_vehicules:      taux(caeV,daeV),
+    taux_cp_vehicules:      taux(ccpV,dcpV),
+    taux_ae_fonctionnement: taux(caeF,daeF),
+    taux_cp_fonctionnement: taux(ccpF,dcpF),
+    taux_ae_t6:             taux(caeT,daeT),
+    taux_cp_t6:             taux(ccpT,dcpT),
+    taux_ae_immo:           taux(caeI,daeI),
+    taux_cp_immo:           taux(ccpI,dcpI),
   };
 }
 
@@ -829,8 +866,15 @@ async function init() {
     if (!structuresTable) throw new Error('Table Structures non accessible.');
     if (!budgetTable)     throw new Error('Table Budget non accessible.');
 
-    // Moyennes nationales
+    // Moyennes nationales : Consolidation en priorité, sinon calcul depuis Budget
     moyNational = extractNationalMoy(consolidationTable);
+    // Fallback : si les taux globaux sont absents de Consolidation, calculer depuis Budget
+    if (!moyNational || (moyNational.taux_ae_total == null && moyNational.taux_cp_total == null)) {
+      const fromBudget = computeNationalMoyFromBudget(budgetTable);
+      moyNational = moyNational
+        ? Object.fromEntries(Object.entries(moyNational).map(([k,v]) => [k, v ?? fromBudget?.[k] ?? null]))
+        : fromBudget;
+    }
     renderNationalBar(moyNational);
 
     // Construire la liste des cartes
