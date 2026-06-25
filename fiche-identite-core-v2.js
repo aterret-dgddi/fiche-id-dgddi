@@ -1261,11 +1261,10 @@ function initMDE(textareaId, initialValue, onSave) {
     'F11': function() {}
   });
 
-  // Bug EasyMDE : initialValue='' ne vide pas CodeMirror si un contenu existait.
-  // On force le setValue après montage pour garantir la valeur initiale.
-  if (!initialValue) {
-    mde.codemirror.setValue('');
-  }
+  // Force le setValue SYSTÉMATIQUEMENT après montage,
+  // qu'il y ait ou non une valeur — évite la pollution de CodeMirror entre fiches.
+  mde.codemirror.setValue(initialValue || '');
+  mde.codemirror.clearHistory();
 
   _mdeInstances[textareaId] = mde;
   return mde;
