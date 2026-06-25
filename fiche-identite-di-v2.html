@@ -406,15 +406,18 @@
       padding: 5px 18px;
       display: flex;
       align-items: center;
-      gap: 4px 6px;
-      flex-wrap: wrap;
-      min-height: 34px;
+      gap: 6px;
+      flex-wrap: nowrap;
       position: sticky;
       top: 41px;
       z-index: 190;
       box-shadow: 0 2px 4px rgba(0,20,70,.05);
-      overflow: visible;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
+    #quick-nav::-webkit-scrollbar { display: none; }
 
     #qnav-items {
       display: contents;
