@@ -423,6 +423,31 @@
       display: contents;
     }
 
+    /* Indicateur de scroll droit */
+    #quick-nav-wrap {
+      position: sticky;
+      top: 41px;
+      z-index: 190;
+    }
+    #qnav-fade-right {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 48px;
+      background: linear-gradient(to right, transparent, #fff 80%);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 6px;
+      font-size: 13px;
+      color: var(--gris3);
+      transition: opacity .2s;
+      z-index: 1;
+    }
+    #qnav-fade-right.hidden { opacity: 0; }
+
     .qnav-label {
       font-size: 10px;
       color: var(--gris3);
@@ -1048,9 +1073,12 @@
   </div>
 
   <!-- ═══════════ NAVIGATION RAPIDE ═══════════ -->
-  <div id="quick-nav">
-    <span class="qnav-label">Accès rapide :</span>
-    <div id="qnav-items"></div>
+  <div style="position:relative;">
+    <div id="quick-nav">
+      <span class="qnav-label">Accès rapide :</span>
+      <div id="qnav-items"></div>
+    </div>
+    <div id="qnav-fade-right">›</div>
   </div>
 
   <!-- ═══════════ FICHE ═══════════ -->
@@ -2126,6 +2154,13 @@
           btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
         }
       }
+      // Mettre à jour le fade après rendu
+      const fadeRight = document.getElementById('qnav-fade-right');
+      const quickNav = document.getElementById('quick-nav');
+      if (fadeRight && quickNav) {
+        const atEnd = quickNav.scrollLeft + quickNav.clientWidth >= quickNav.scrollWidth - 4;
+        fadeRight.classList.toggle('hidden', atEnd);
+      }
     }
 
     // Click outside pour fermer dropdown
@@ -2776,11 +2811,25 @@
       // Ajuster dynamiquement le top du quick-nav selon la hauteur réelle du selbar
       const selbar = document.getElementById('selbar');
       const quickNav = document.getElementById('quick-nav');
+      const fadeRight = document.getElementById('qnav-fade-right');
+
       const updateQuickNavTop = () => {
-        quickNav.style.top = selbar.offsetHeight + 'px';
+        const h = selbar.offsetHeight;
+        quickNav.style.top = h + 'px';
+        if (fadeRight) fadeRight.style.top = h + 'px';
       };
       updateQuickNavTop();
       new ResizeObserver(updateQuickNavTop).observe(selbar);
+
+      // Afficher/masquer le dégradé selon position scroll
+      const updateFade = () => {
+        if (!fadeRight) return;
+        const atEnd = quickNav.scrollLeft + quickNav.clientWidth >= quickNav.scrollWidth - 4;
+        fadeRight.classList.toggle('hidden', atEnd);
+      };
+      quickNav.addEventListener('scroll', updateFade);
+      // Attendre que les boutons soient rendus
+      setTimeout(updateFade, 500);
     });
   </script>
 </body>
