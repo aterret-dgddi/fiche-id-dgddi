@@ -208,7 +208,6 @@
       <select id="target-table">
         <option value="">-- Choisir une table --</option>
         <option value="Structures">Structures (73 lignes)</option>
-        <option value="Equivalence">Equivalence (331 lignes)</option>
         <option value="Referentiel_Prog">Referentiel_Prog (48 lignes)</option>
         <option value="INFBUD40_2">INFBUD40_2 (Consommations budgétaires)</option>
         <option value="Notif_BOP">Notif_BOP (Notifications budgétaires)</option>
@@ -218,7 +217,6 @@
         <option value="Informatique">Informatique (Matériel IT)</option>
         <option value="Communication">Communication (Dépenses de communication)</option>
         <option value="Fonctionnement">Fonctionnement (Dépenses de fonctionnement courant)</option>
-        <option value="Budget">Budget (Suivi budgétaire AE/CP)</option>
         <option value="Immobilier">Immobilier (Biens immobiliers et charges)</option>
       </select>
       <div id="table-info" class="table-info"></div>
@@ -279,11 +277,6 @@ const TABLE_CONFIG = {
     description: 'Structure organisationnelle (73 structures)',
     columns: ['HIE', 'Nom', 'Sigle', 'Type', 'Region', 'Responsable'],
     keyFields: ['HIE']
-  },
-  'Equivalence': {
-    description: 'Table de correspondance Centre_financier → HIE (331 lignes)',
-    columns: ['Source', 'Nom', 'HIE'],
-    keyFields: ['Source']
   },
   'Referentiel_Prog': {
     description: 'Référentiel des activités budgétaires (48 lignes)',
@@ -388,34 +381,6 @@ const TABLE_CONFIG = {
       'CP_2025_maitrisable': 'CP_2025_maitrisable'
     }
   },
-  'Budget': {
-    description: 'Suivi budgétaire AE/CP par poste (une ligne par structure × année)',
-    columns: [
-      'Structure', 'Annee', 'Date_Import',
-      'dot_AE_vehicules', 'dot_CP_vehicules', 'Conso_AE_vehicules', 'Conso_CP_vehicules',
-      'dot_AE_fonctionnement', 'dot_CP_fonctionnement', 'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
-      'Dot_AE_T6', 'Dot_CP_T6', 'Conso_AE_T6', 'Conso_CP_T6',
-      'dot_AE_Immo', 'dot_CP_Immo', 'Conso_AE_Immo', 'Conso_CP_Immo'
-    ],
-    keyFields: ['Structure', 'Annee'],
-    needsStructure: true,
-    mapping: {
-      'HIE': 'Structure',
-      // variantes de nommage tolerées
-      'dot_AE_Vehicules': 'dot_AE_vehicules',
-      'dot_CP_Vehicules': 'dot_CP_vehicules',
-      'Conso_AE_Vehicules': 'Conso_AE_vehicules',
-      'Conso_CP_Vehicules': 'Conso_CP_vehicules',
-      'dot_AE_Fonctionnement': 'dot_AE_fonctionnement',
-      'dot_CP_Fonctionnement': 'dot_CP_fonctionnement',
-      'Conso_AE_Fonctionnement': 'Conso_AE_fonctionnement',
-      'Conso_CP_Fonctionnement': 'Conso_CP_fonctionnement',
-      'dot_AE_immo': 'dot_AE_Immo',
-      'dot_CP_immo': 'dot_CP_Immo',
-      'Conso_AE_immo': 'Conso_AE_Immo',
-      'Conso_CP_immo': 'Conso_CP_Immo'
-    }
-  },
   'Immobilier': {
     description: 'Biens immobiliers par site (une ligne par site)',
     columns: [
@@ -472,7 +437,6 @@ const G = {
   sourceColumns: [],
   targetColumns: [],
   structures: [],
-  equivalence: [],
   existingData: [],
   mapping: {},
   previewRows: []
@@ -502,9 +466,8 @@ async function loadGristData() {
   try {
     setStatus('Chargement des données Grist...', 'info');
     
-    // Charger Structures et Equivalence pour la résolution HIE
+    // Charger Structures pour la résolution HIE
     const structuresData = await grist.docApi.fetchTable('Structures');
-    const equivalenceData = await grist.docApi.fetchTable('Equivalence');
     
     // Vérifier que les données sont valides
     if (!structuresData || !structuresData.id || structuresData.id.length === 0) {
@@ -515,21 +478,12 @@ async function loadGristData() {
       console.log(`✓ ${structuresData.id.length} structures chargées`);
     }
     
-    if (!equivalenceData || !equivalenceData.Source || equivalenceData.Source.length === 0) {
-      setStatus('Attention : table Equivalence vide', 'error');
-      G.equivalence = { Source: [], HIE: [] };
-    } else {
-      G.equivalence = equivalenceData;
-      console.log(`✓ ${equivalenceData.Source.length} équivalences chargées`);
-    }
-    
     setStatus('Prêt à importer', 'success');
   } catch (err) {
     console.error('Erreur chargement :', err);
     setStatus('Erreur chargement Grist : ' + err.message, 'error');
     // Initialiser avec des données vides pour éviter les crashes
     G.structures = { id: [], HIE: [], Nom: [], Sigle: [] };
-    G.equivalence = { Source: [], HIE: [] };
   }
 }
 
@@ -756,24 +710,13 @@ function generatePreview() {
   });
   
   // Résolution HIE si besoin
-  let equivMap = {};
   let hieToId = {};
   
   if (config.needsStructure) {
-    // Vérifier que les données sont chargées
-    if (!G.equivalence || !G.equivalence.Source) {
-      setStatus('Erreur : table Equivalence non chargée', 'error');
-      return;
-    }
     if (!G.structures || !G.structures.id) {
       setStatus('Erreur : table Structures non chargée', 'error');
       return;
     }
-    
-    G.equivalence.Source.forEach((src, idx) => {
-      const hie = G.equivalence.HIE[idx];
-      equivMap[normalizeText(src)] = hie;
-    });
     
     G.structures.id.forEach((id, idx) => {
       const hie = G.structures.HIE[idx];
@@ -799,38 +742,15 @@ function generatePreview() {
       let value = row[srcCol];
       
       if (targetCol === 'Structure' && config.needsStructure) {
-        // Résolution via Equivalence OU HIE direct
+        // Résolution HIE direct
         const sourceSI = String(value || '').trim();
-        
-        // Si c'est déjà un HIE (commence par HIE), chercher directement dans Structures
-        if (sourceSI.startsWith('HIE')) {
-          const structId = hieToId[sourceSI];
-          if (!structId) {
-            previewRow._error = `HIE "${sourceSI}" non trouvé dans Structures`;
-            previewRow._status = 'error';
-            return;
-          }
-          previewRow[targetCol] = structId;
-        } else {
-          // Sinon, chercher dans Equivalence
-          const normalizedSource = normalizeText(sourceSI);
-          const hie = equivMap[normalizedSource];
-          
-          if (!hie) {
-            previewRow._error = `Structure "${sourceSI}" non trouvée dans Equivalence`;
-            previewRow._status = 'error';
-            return;
-          }
-          
-          const structId = hieToId[hie];
-          if (!structId) {
-            previewRow._error = `HIE "${hie}" non trouvé dans Structures`;
-            previewRow._status = 'error';
-            return;
-          }
-          
-          previewRow[targetCol] = structId;
+        const structId = hieToId[sourceSI];
+        if (!structId) {
+          previewRow._error = `HIE "${sourceSI}" non trouvé dans Structures`;
+          previewRow._status = 'error';
+          return;
         }
+        previewRow[targetCol] = structId;
       } else {
         // Nettoyage valeur
         const isDateField = (config.dateFields || []).includes(targetCol);
@@ -972,18 +892,17 @@ document.getElementById('btn-write').onclick = async () => {
     
     const mappedCols = Object.values(G.mapping).filter(v => v !== '[Ignorer]');
 
-    // Pour la table Communication ou Budget : injecter la date d'import = aujourd'hui
+    // Pour la table Communication : injecter Date_Import_2026 = aujourd'hui
     // Grist stocke les dates en nombre de jours depuis le 1er janvier 2000 (epoch Grist)
-    const isComTable    = G.targetTable === 'Communication';
-    const isBudgetTable = G.targetTable === 'Budget';
+    const isComTable = G.targetTable === 'Communication';
     let dateImportGrist = null;
-    if (isComTable || isBudgetTable) {
+    if (isComTable) {
       const today = new Date();
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
       const yyyy = today.getFullYear();
-      dateImportGrist = `${yyyy}-${mm}-${dd}`;
-      addLog(`Date_Import = ${dateImportGrist}`);
+      dateImportGrist = `${dd}-${mm}-${yyyy}`;
+      addLog(`Date_Import_2026 = ${dateImportGrist}`);
     }
     
     if (toInsert.length > 0) {
@@ -994,10 +913,6 @@ document.getElementById('btn-write').onclick = async () => {
       if (isComTable) {
         colData['Date_Import_2026'] = Array(toInsert.length).fill(dateImportGrist);
         addLog(`Date_Import_2026 = ${dateImportGrist}`);
-      }
-      if (isBudgetTable) {
-        colData['Date_Import'] = Array(toInsert.length).fill(dateImportGrist);
-        addLog(`Date_Import = ${dateImportGrist}`);
       }
 
       await grist.docApi.applyUserActions([
@@ -1015,10 +930,6 @@ document.getElementById('btn-write').onclick = async () => {
       if (isComTable) {
         colData['Date_Import_2026'] = Array(toUpdate.length).fill(dateImportGrist);
         addLog(`Date_Import_2026 = ${dateImportGrist}`);
-      }
-      if (isBudgetTable) {
-        colData['Date_Import'] = Array(toUpdate.length).fill(dateImportGrist);
-        addLog(`Date_Import = ${dateImportGrist}`);
       }
 
       await grist.docApi.applyUserActions([
