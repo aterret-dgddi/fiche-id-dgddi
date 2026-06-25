@@ -161,6 +161,10 @@
   .radar-card:hover {
     box-shadow: 0 4px 20px rgba(0,0,0,0.10);
   }
+  .radar-card.selected {
+    border-color: var(--bleu);
+    box-shadow: 0 0 0 2px rgba(19,81,168,0.25), 0 4px 16px rgba(19,81,168,0.12);
+  }
   .radar-card .card-header {
     display: flex;
     align-items: center;
@@ -361,10 +365,10 @@
   <div class="legend-item"><div class="legend-dot" style="background:var(--c-t6)"></div>T6 Buralistes</div>
   <div class="legend-item"><div class="legend-dot" style="background:var(--c-immo)"></div>Immobilier</div>
   <span class="legend-sep">|</span>
-  <span style="font-size:11px;color:var(--gris3);">Taux CP vs moyenne nationale (±15 pts) :</span>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--vert)"></div>Dans la moyenne</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--rouge)"></div>Sature (+ 15 pts)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>Sous-consomme (− 15 pts)</div>
+  <span style="font-size:11px;color:var(--gris3);">Écart vs moyenne nationale :</span>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--vert)"></div>&lt; ±10 pts</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>±10 à 20 pts</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--rouge)"></div>&gt; ±20 pts</div>
 </div>
 
 <!-- Filtres type de structure -->
@@ -411,17 +415,18 @@ function typeLabel(ta) {
 
 function colorClass(v, ref) {
   if (v == null) return 'na';
-  // ref = taux national (0-1). ±15 pts = vert, au-dessus = rouge, en dessous = orange
+  // ref = taux national (0-1). Écart en pts absolus vs nationale :
+  // > ±20 pts = rouge, ±10-20 pts = orange, < ±10 pts = vert
   if (ref != null) {
-    const refPct = ref * 100;
-    if (v > refPct + 15) return 'bad';
-    if (v < refPct - 15) return 'warn';
+    const ecart = Math.abs(v - ref * 100);
+    if (ecart > 20) return 'bad';
+    if (ecart > 10) return 'warn';
     return 'ok';
   }
   // Fallback seuils fixes
-  if (v >= 85) return 'bad';
-  if (v >= 40) return 'ok';
-  return 'warn';
+  if (v >= 85 || v < 20) return 'bad';
+  if (v >= 70 || v < 35) return 'warn';
+  return 'ok';
 }
 
 function sortOrder(ta) {
@@ -689,19 +694,17 @@ function buildCard(card) {
   const natFonct    = moyNational?.taux_cp_fonctionnement ?? null;
   const natT6       = moyNational?.taux_cp_t6             ?? null;
   const natImmo     = moyNational?.taux_cp_immo           ?? null;
-  const ficheUrl    = `https://aterret-dgddi.github.io/fiche-id-dgddi/fiche-identite-di-v2.html?structureId=${card.id}`;
-
   return `
-    <div class="radar-card${card.hasData ? '' : ' no-data'}" data-type="${typeL}" data-id="${card.id}">
+    <div class="radar-card${card.hasData ? '' : ' no-data'}"
+         data-type="${typeL}" data-id="${card.id}"
+         onclick="selectStructure(${card.id})" style="cursor:pointer;"
+         title="Cliquer pour ouvrir la fiche identité">
       <div class="card-header">
-        <div>
-          <span class="card-sigle">${card.sigle}</span>
-        </div>
+        <span class="card-sigle">${card.sigle}</span>
         <div style="display:flex;align-items:center;gap:6px;">
-          <a href="${ficheUrl}" target="_blank" title="Ouvrir la fiche identité"
-             style="font-size:9px;color:var(--bleu);text-decoration:none;border:1px solid var(--bleu);border-radius:4px;padding:2px 6px;white-space:nowrap;opacity:.8;">
+          <span style="font-size:9px;color:var(--bleu);border:1px solid var(--bleu);border-radius:4px;padding:2px 6px;opacity:.8;white-space:nowrap;">
             ↗ Fiche
-          </a>
+          </span>
           <span class="card-badge badge-${typeL}">${typeL}</span>
         </div>
       </div>
@@ -728,12 +731,9 @@ function buildCard(card) {
             <div class="kpi-lbl" style="color:#27AE60;">Immo.</div>
           </div>
         </div>
-      ` : `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:140px;gap:10px;">
+      ` : `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:140px;gap:8px;">
         <span style="font-size:11px;color:var(--gris3);font-style:italic;">Aucune donnée budgétaire 2026</span>
-        <a href="${ficheUrl}" target="_blank"
-           style="font-size:10px;color:var(--bleu);text-decoration:none;border:1px solid var(--bleu);border-radius:4px;padding:3px 10px;">
-          ↗ Ouvrir la fiche
-        </a>
+        <span style="font-size:10px;color:var(--bleu);">Cliquer pour ouvrir la fiche ↗</span>
       </div>`}
     </div>
   `;
@@ -818,12 +818,13 @@ async function init() {
       const ta = structuresTable.Type_Affichage?.[i];
       if (!TYPES_AFFICHES.includes(ta)) continue;
 
-      const sid = structuresTable.id[i];
-      if (seenIds.has(sid)) continue;   // évite doublons si table mal filtrée
-      seenIds.add(sid);
+      const sid   = structuresTable.id[i];
+      const sigle = (structuresTable.Sigle?.[i] || '').trim();
+      if (!sigle) continue;              // ignore les lignes sans sigle
+      if (seenIds.has(sigle + '_' + ta)) continue;  // déduplique par (sigle, type)
+      seenIds.add(sigle + '_' + ta);
 
-      const sigle = structuresTable.Sigle?.[i] || '?';
-      const nom   = structuresTable.Nom?.[i]   || sigle;
+      const nom = structuresTable.Nom?.[i] || sigle;
       const data  = extractBudgetData(budgetTable, sid, structuresTable);
 
       allCards.push({
@@ -855,6 +856,24 @@ async function init() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('error').style.display = 'flex';
     document.getElementById('error').textContent = '❌ ' + e.message;
+  }
+}
+
+// ── Sélection Grist ──────────────────────────────────────────────────────────
+let activeCardId = null;
+
+function selectStructure(structureId) {
+  // Highlight visuel
+  document.querySelectorAll('.radar-card').forEach(el => el.classList.remove('selected'));
+  const target = document.querySelector(`.radar-card[data-id="${structureId}"]`);
+  if (target) target.classList.add('selected');
+  activeCardId = structureId;
+
+  // Notifier Grist → déclenche les widgets liés (fiche identité)
+  try {
+    grist.setSelectedRows([structureId]);
+  } catch (e) {
+    console.warn('grist.setSelectedRows non disponible :', e);
   }
 }
 
