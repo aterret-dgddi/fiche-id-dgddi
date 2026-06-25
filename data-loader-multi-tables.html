@@ -217,6 +217,7 @@
         <option value="Informatique">Informatique (Matériel IT)</option>
         <option value="Communication">Communication (Dépenses de communication)</option>
         <option value="Fonctionnement">Fonctionnement (Dépenses de fonctionnement courant)</option>
+        <option value="Budget">Budget (Suivi budgétaire AE/CP)</option>
         <option value="Immobilier">Immobilier (Biens immobiliers et charges)</option>
       </select>
       <div id="table-info" class="table-info"></div>
@@ -381,6 +382,34 @@ const TABLE_CONFIG = {
       'CP_2025_maitrisable': 'CP_2025_maitrisable'
     }
   },
+  'Budget': {
+    description: 'Suivi budgétaire AE/CP par poste (une ligne par structure × année)',
+    columns: [
+      'Structure', 'Annee', 'Date_Import',
+      'dot_AE_vehicules', 'dot_CP_vehicules', 'Conso_AE_vehicules', 'Conso_CP_vehicules',
+      'dot_AE_fonctionnement', 'dot_CP_fonctionnement', 'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
+      'Dot_AE_T6', 'Dot_CP_T6', 'Conso_AE_T6', 'Conso_CP_T6',
+      'dot_AE_Immo', 'dot_CP_Immo', 'Conso_AE_Immo', 'Conso_CP_Immo'
+    ],
+    keyFields: ['Structure', 'Annee'],
+    needsStructure: true,
+    mapping: {
+      'HIE': 'Structure',
+      // variantes de nommage tolerées
+      'dot_AE_Vehicules': 'dot_AE_vehicules',
+      'dot_CP_Vehicules': 'dot_CP_vehicules',
+      'Conso_AE_Vehicules': 'Conso_AE_vehicules',
+      'Conso_CP_Vehicules': 'Conso_CP_vehicules',
+      'dot_AE_Fonctionnement': 'dot_AE_fonctionnement',
+      'dot_CP_Fonctionnement': 'dot_CP_fonctionnement',
+      'Conso_AE_Fonctionnement': 'Conso_AE_fonctionnement',
+      'Conso_CP_Fonctionnement': 'Conso_CP_fonctionnement',
+      'dot_AE_immo': 'dot_AE_Immo',
+      'dot_CP_immo': 'dot_CP_Immo',
+      'Conso_AE_immo': 'Conso_AE_Immo',
+      'Conso_CP_immo': 'Conso_CP_Immo'
+    }
+  },
   'Immobilier': {
     description: 'Biens immobiliers par site (une ligne par site)',
     columns: [
@@ -482,7 +511,6 @@ async function loadGristData() {
   } catch (err) {
     console.error('Erreur chargement :', err);
     setStatus('Erreur chargement Grist : ' + err.message, 'error');
-    // Initialiser avec des données vides pour éviter les crashes
     G.structures = { id: [], HIE: [], Nom: [], Sigle: [] };
   }
 }
@@ -892,17 +920,18 @@ document.getElementById('btn-write').onclick = async () => {
     
     const mappedCols = Object.values(G.mapping).filter(v => v !== '[Ignorer]');
 
-    // Pour la table Communication : injecter Date_Import_2026 = aujourd'hui
+    // Pour la table Communication ou Budget : injecter la date d'import = aujourd'hui
     // Grist stocke les dates en nombre de jours depuis le 1er janvier 2000 (epoch Grist)
-    const isComTable = G.targetTable === 'Communication';
+    const isComTable    = G.targetTable === 'Communication';
+    const isBudgetTable = G.targetTable === 'Budget';
     let dateImportGrist = null;
-    if (isComTable) {
+    if (isComTable || isBudgetTable) {
       const today = new Date();
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
       const yyyy = today.getFullYear();
-      dateImportGrist = `${dd}-${mm}-${yyyy}`;
-      addLog(`Date_Import_2026 = ${dateImportGrist}`);
+      dateImportGrist = `${yyyy}-${mm}-${dd}`;
+      addLog(`Date_Import = ${dateImportGrist}`);
     }
     
     if (toInsert.length > 0) {
@@ -913,6 +942,10 @@ document.getElementById('btn-write').onclick = async () => {
       if (isComTable) {
         colData['Date_Import_2026'] = Array(toInsert.length).fill(dateImportGrist);
         addLog(`Date_Import_2026 = ${dateImportGrist}`);
+      }
+      if (isBudgetTable) {
+        colData['Date_Import'] = Array(toInsert.length).fill(dateImportGrist);
+        addLog(`Date_Import = ${dateImportGrist}`);
       }
 
       await grist.docApi.applyUserActions([
@@ -930,6 +963,10 @@ document.getElementById('btn-write').onclick = async () => {
       if (isComTable) {
         colData['Date_Import_2026'] = Array(toUpdate.length).fill(dateImportGrist);
         addLog(`Date_Import_2026 = ${dateImportGrist}`);
+      }
+      if (isBudgetTable) {
+        colData['Date_Import'] = Array(toUpdate.length).fill(dateImportGrist);
+        addLog(`Date_Import = ${dateImportGrist}`);
       }
 
       await grist.docApi.applyUserActions([
