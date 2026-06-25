@@ -6052,12 +6052,6 @@ function exportToXLSX() {
   const comD    = typeof getCommunicationData==='function' ? getCommunicationData(sid) : null;
   const dateBudget = budgetD && budgetD.date_import ? budgetD.date_import.toLocaleDateString('fr-FR') : t('budget-date-import');
   const dateCom    = comD && comD.date_import ? comD.date_import.toLocaleDateString('fr-FR') : t('com-date-import');
-  const dateRH     = t('rh-date-import') || '';
-  const dateIT     = t('it-date-import') || '';
-  const dateFM     = t('fm-date-import') || '';
-  const dateFonct  = t('fonct-date-import') || '';
-  const dateVeh    = t('veh-date-import') || '';
-  const dateImmo   = t('immo-date-import') || '';
 
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
@@ -6094,7 +6088,6 @@ function exportToXLSX() {
   // ── 5. Informatique ──────────────────────────────────────────
   const itRows = [
     ['Indicateur','Valeur '+annee,'Comparaison perimetre / national'],
-    ['Date des donnees', dateIT, ''],
     ['Postes de travail total', t('it-total'),               t('it-pct-portables')],
     ['Ratio poste / ETPT',      t('it-ratio'),               t('it-ratio-comp')],
     ['Budget IT annuel',         t('it-budget-annuel'),       t('it-budget-annuel-evol')],
@@ -6111,7 +6104,6 @@ function exportToXLSX() {
   // KPIs depuis le DOM
   const fmRows = [
     ['Indicateur','Valeur '+annee,'Comparaison perimetre / national'],
-    ['Date des donnees', dateFM, ''],
     ['Total frais mission (EUR)',  t('fm-total-value'),     t('fm-total-comp')],
     ['Dont Formation (EUR)',       t('fm-formation-value'), t('fm-formation-pct')],
     ['Dont Autres missions (EUR)', t('fm-autres-value'),    t('fm-autres-pct')],
@@ -6170,7 +6162,6 @@ function exportToXLSX() {
   const fd = typeof getFonctionnementData==='function' ? getFonctionnementData(sid) : null;
   const fonctRows = [
     ['Indicateur','Valeur '+annee,'Comparaison perimetre / national'],
-    ['Date des donnees', dateFonct, ''],
     ['Part depenses maitrisables % CP (2025)', fd ? fmtPct(fd.pct_m_2025) : '', t('fonct-pill-agent-2025-detail')],
     ['Depenses maitrisables / ETPT (2025)',    fd ? fmtEur(fd.fonct_agent_2025) : '', t('fonct-pill-agent-2025-detail')],
     ['Depenses maitrisables / ETPT (moy 4a)', fd ? fmtEur(fd.fonct_agent_4ans) : '', t('fonct-pill-agent-4ans-detail')],
@@ -6204,7 +6195,6 @@ function exportToXLSX() {
   // ── 8. Parc Automobile ───────────────────────────────────────
   const vehRows = [
     ['Indicateur','Valeur','Comparaison perimetre / national'],
-    ['Date des donnees', dateVeh, ''],
     ['Total vehicules',        t('veh-total-value'),    t('veh-total-comp')],
     ['Budget total (EUR)',      t('veh-budget-value'),   t('veh-budget-comp')],
     ['Vehicule / ETPT',        t('veh-ratio-value'),    t('veh-ratio-comp')],
@@ -6219,7 +6209,6 @@ function exportToXLSX() {
   // ── 9. Immobilier ────────────────────────────────────────────
   const immoRows = [
     ['Indicateur','Valeur','Comparaison perimetre / national'],
-    ['Date des donnees', dateImmo, ''],
     ['Surface SUB totale (m2)',            t('immo-sub-value'),   t('immo-sites-detail')],
     ['Ratio occupation (m2/res)',           t('immo-ratio-value'), t('immo-ratio-comp')],
     ['Cout surfacique '+annee+' (EUR/m2)', t('immo-cout-value'),  t('immo-cout-comp')],
@@ -6589,14 +6578,12 @@ function exportToXLSXWorkbook(struct, annee) {
   const rhAnnees = [annee-3,annee-2,annee-1,annee].filter(a=>a>2020);
   const rhRows = [
     ['Indicateur','Valeur '+annee,'vs '+(annee-1),'Comparaison perimetre','Comparaison national'],
-    ['Date des donnees', dateRH, '', '', ''],
     ['ETPT Total',  t('rh-effectif-total'), t('rh-effectif-evolution'), t('rh-effectif-compare'), t('rh-effectif-rang')],
     ['ETPT AGCO',   t('rh-agco-total'),     t('rh-agco-evolution'),     t('rh-agco-compare'),     ''],
     ['ETPT SU',     t('rh-su-total'),        t('rh-su-evolution'),        t('rh-su-compare'),        ''],
     ['Age moyen',   t('rh-age-moyen'),        '',                          t('rh-age-compare-groupe'),t('rh-age-compare-national')],
     ['MS / Agent',  t('rh-ms-par-agent'),     '',                          t('rh-ms-compare-groupe'), t('rh-ms-compare-national')],
   ];
-  rhRows.splice(1, 0, ['Date des donnees', t('rh-date-import')||'', '', '', '']);
   rhRows.push([]); rhRows.push(['Historique RH']);
   rhRows.push(['Annee','ETPT Total','ETPT AGCO','ETPT SU','ETPT Autres','Masse Salariale (EUR)','MS/Agent (EUR)','Age moyen AGCO','Age moyen SU']);
   rhAnnees.forEach(a => {
@@ -6644,7 +6631,6 @@ function exportToXLSXWorkbook(struct, annee) {
 
   const itRows = [
     ['Indicateur','Valeur '+annee,'Comparaison'],
-    ['Date des donnees', t('it-date-import')||'', ''],
     ['Postes total',       t('it-total'),               t('it-pct-portables')],
     ['Ratio poste/ETPT',   t('it-ratio'),               t('it-ratio-comp')],
     ['Budget IT',          t('it-budget-annuel'),        t('it-budget-annuel-evol')],
@@ -6658,7 +6644,6 @@ function exportToXLSXWorkbook(struct, annee) {
 
   const fmRows = [
     ['Indicateur','Valeur '+annee,'Comparaison'],
-    ['Date des donnees', t('fm-date-import')||'', ''],
     ['Total FM (EUR)',     t('fm-total-value'),     t('fm-total-comp')],
     ['Formation (EUR)',    t('fm-formation-value'), t('fm-formation-pct')],
     ['Autres (EUR)',       t('fm-autres-value'),    t('fm-autres-pct')],
@@ -6678,7 +6663,6 @@ function exportToXLSXWorkbook(struct, annee) {
   const fd = typeof getFonctionnementData==='function' ? getFonctionnementData(sid) : null;
   const fonctRows = [
     ['Indicateur','Valeur','Comparaison'],
-    ['Date des donnees', t('fonct-date-import')||'', ''],
     ['% maitrisable 2025',     fd?fmtPct(fd.pct_m_2025):'',         t('fonct-pill-agent-2025-detail')],
     ['Fonct/Agent 2025 (EUR)', fd?fmtEur(fd.fonct_agent_2025):'',    t('fonct-pill-agent-2025-detail')],
     ['Fonct/Agent moy 4a',     fd?fmtEur(fd.fonct_agent_4ans):'',    t('fonct-pill-agent-4ans-detail')],
@@ -6692,7 +6676,6 @@ function exportToXLSXWorkbook(struct, annee) {
 
   const vehRows = [
     ['Indicateur','Valeur','Comparaison'],
-    ['Date des donnees', t('veh-date-import')||'', ''],
     ['Total',           t('veh-total-value'),    t('veh-total-comp')],
     ['Budget (EUR)',    t('veh-budget-value'),   t('veh-budget-comp')],
     ['Veh/ETPT',       t('veh-ratio-value'),    t('veh-ratio-comp')],
@@ -6705,7 +6688,6 @@ function exportToXLSXWorkbook(struct, annee) {
 
   const immoRows = [
     ['Indicateur','Valeur','Comparaison'],
-    ['Date des donnees', t('immo-date-import')||'', ''],
     ['SUB totale (m2)',         t('immo-sub-value'),   t('immo-sites-detail')],
     ['Ratio occ (m2/res)',      t('immo-ratio-value'), t('immo-ratio-comp')],
     ['Cout surf (EUR/m2)',      t('immo-cout-value'),  t('immo-cout-comp')],

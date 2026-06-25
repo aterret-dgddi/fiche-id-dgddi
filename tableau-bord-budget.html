@@ -54,9 +54,6 @@
     display: flex;
     align-items: center;
     gap: 14px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
     box-shadow: 0 2px 8px rgba(0,0,0,0.18);
   }
   .page-header h1 {
@@ -161,10 +158,7 @@
   .radar-card:hover {
     box-shadow: 0 4px 20px rgba(0,0,0,0.10);
   }
-  .radar-card.selected {
-    border-color: var(--bleu);
-    box-shadow: 0 0 0 2px rgba(19,81,168,0.25), 0 4px 16px rgba(19,81,168,0.12);
-  }
+
   .radar-card .card-header {
     display: flex;
     align-items: center;
@@ -312,7 +306,8 @@
 </head>
 <body>
 
-<div class="page-header">
+<div id="sticky-top" style="position:sticky;top:0;z-index:100;">
+<div class="page-header" style="position:static;">
   <div>
     <h1>🕷️ Araignées budgétaires — Taux de consommation CP 2026</h1>
     <div class="subtitle">Budget HT2 — Véhicules · Fonctionnement · T6 Buralistes · Immobilier</div>
@@ -330,6 +325,11 @@
 <!-- Barre national -->
 <div class="national-bar" id="national-bar" style="display:none;">
   <span style="font-weight:700;font-size:12px;opacity:.9;">NATIONAL 2026</span>
+  <div class="nat-item">
+    <div class="nat-dot"></div>
+    <span class="nat-lbl">Taux AE global :</span>
+    <span class="nat-val" id="nat-ae">—</span>
+  </div>
   <div class="nat-item">
     <div class="nat-dot"></div>
     <span class="nat-lbl">Taux CP global :</span>
@@ -380,6 +380,7 @@
   <button class="filter-btn" data-filter="DR">DR</button>
   <button class="filter-btn" data-filter="SCN">SCN</button>
 </div>
+</div><!-- /sticky-top -->
 
 <div id="loading">⏳ Chargement des données budgétaires…</div>
 <div id="error" style="display:none;"></div>
@@ -552,6 +553,7 @@ function extractNationalMoy(consolidationTable) {
 function renderNationalBar(moy) {
   if (!moy) return;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = pct(v); };
+  set('nat-ae',   moy.taux_ae_total);
   set('nat-cp',   moy.taux_cp_total);
   set('nat-veh',  moy.taux_cp_vehicules);
   set('nat-fonct',moy.taux_cp_fonctionnement);
@@ -712,17 +714,10 @@ function buildCard(card) {
   const natAEImmo   = moyNational?.taux_ae_immo           ?? null;
   return `
     <div class="radar-card${card.hasData ? '' : ' no-data'}"
-         data-type="${typeL}" data-id="${card.id}"
-         onclick="selectStructure(${card.id})" style="cursor:pointer;"
-         title="Cliquer pour ouvrir la fiche identité">
+         data-type="${typeL}" data-id="${card.id}">
       <div class="card-header">
         <span class="card-sigle">${card.sigle}</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:9px;color:var(--bleu);border:1px solid var(--bleu);border-radius:4px;padding:2px 6px;opacity:.8;white-space:nowrap;">
-            ↗ Fiche
-          </span>
-          <span class="card-badge badge-${typeL}">${typeL}</span>
-        </div>
+        <span class="card-badge badge-${typeL}">${typeL}</span>
       </div>
       ${card.hasData ? `
         <div class="card-canvas-wrap">
@@ -759,10 +754,7 @@ function buildCard(card) {
             <div style="font-size:9px;color:#aaa;">AE</div>
           </div>
         </div>
-      ` : `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:140px;gap:8px;">
-        <span style="font-size:11px;color:var(--gris3);font-style:italic;">Aucune donnée budgétaire 2026</span>
-        <span style="font-size:10px;color:var(--bleu);">Cliquer pour ouvrir la fiche ↗</span>
-      </div>`}
+      ` : `<div class="no-data-msg">Aucune donnée budgétaire 2026</div>`}
     </div>
   `;
 }
@@ -826,17 +818,7 @@ async function init() {
   try {
     // allowSelectBy: true + grist.onRecords sur Structures = ce widget apparaît
     // dans "Sélectionner par" des autres widgets liés à Structures
-    grist.ready({
-      requiredAccess: 'read table',
-      allowSelectBy: true,
-    });
-
-    // Signature correcte pour cette version de l'API Grist (DINUM) :
-    // onRecords(callback) sans nom de table — la table source vient de la config UI
-    // Ce callback est appelé quand Grist envoie les données de la table liée
-    grist.onRecords(function(records) {
-      // données gérées via fetchTable, mais ce handler est requis pour allowSelectBy
-    });
+    grist.ready({ requiredAccess: 'read table' });
 
     const [budgetTable, structuresTable, consolidationTable] = await Promise.all([
       grist.docApi.fetchTable('Budget').catch(() => null),
@@ -936,24 +918,6 @@ async function init() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('error').style.display = 'flex';
     document.getElementById('error').textContent = '❌ ' + e.message;
-  }
-}
-
-// ── Sélection Grist ──────────────────────────────────────────────────────────
-let activeCardId = null;
-
-function selectStructure(structureId) {
-  // Highlight visuel
-  document.querySelectorAll('.radar-card').forEach(el => el.classList.remove('selected'));
-  const target = document.querySelector(`.radar-card[data-id="${structureId}"]`);
-  if (target) target.classList.add('selected');
-  activeCardId = structureId;
-
-  // Notifier Grist → déclenche les widgets liés (fiche identité)
-  try {
-    grist.setSelectedRows([structureId]);
-  } catch (e) {
-    console.warn('grist.setSelectedRows non disponible :', e);
   }
 }
 
