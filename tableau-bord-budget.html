@@ -829,16 +829,13 @@ async function init() {
     grist.ready({
       requiredAccess: 'read table',
       allowSelectBy: true,
-      // Déclarer les colonnes utilisées depuis Structures pour que Grist
-      // reconnaisse ce widget comme lié à la table Structures
-      columns: [{ name: 'StructureId', type: 'Int', optional: true }],
     });
 
-    // onRecords avec le nom de table : lie explicitement ce widget à Structures
-    // C'est ce qui fait apparaître ce widget dans "Sélectionner par" des autres widgets
-    grist.onRecords('Structures', function(records) {
-      // Les enregistrements sont gérés via fetchTable ci-dessous
-      // mais ce callback est nécessaire pour enregistrer le lien Grist
+    // Signature correcte pour cette version de l'API Grist (DINUM) :
+    // onRecords(callback) sans nom de table — la table source vient de la config UI
+    // Ce callback est appelé quand Grist envoie les données de la table liée
+    grist.onRecords(function(records) {
+      // données gérées via fetchTable, mais ce handler est requis pour allowSelectBy
     });
 
     const [budgetTable, structuresTable, consolidationTable] = await Promise.all([
