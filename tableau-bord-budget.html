@@ -829,11 +829,17 @@ async function init() {
     grist.ready({
       requiredAccess: 'read table',
       allowSelectBy: true,
+      // Déclarer les colonnes utilisées depuis Structures pour que Grist
+      // reconnaisse ce widget comme lié à la table Structures
+      columns: [{ name: 'StructureId', type: 'Int', optional: true }],
     });
 
-    // grist.onRecords lie ce widget à la table Structures :
-    // Grist l'expose alors comme source de sélection pour les autres widgets
-    grist.onRecords(function(records, mappings) { /* données gérées via fetchTable */ });
+    // onRecords avec le nom de table : lie explicitement ce widget à Structures
+    // C'est ce qui fait apparaître ce widget dans "Sélectionner par" des autres widgets
+    grist.onRecords('Structures', function(records) {
+      // Les enregistrements sont gérés via fetchTable ci-dessous
+      // mais ce callback est nécessaire pour enregistrer le lien Grist
+    });
 
     const [budgetTable, structuresTable, consolidationTable] = await Promise.all([
       grist.docApi.fetchTable('Budget').catch(() => null),
