@@ -462,6 +462,14 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     const conso_ae_total = conso_ae_v + conso_ae_f + conso_ae_t6 + conso_ae_i;
     const conso_cp_total = conso_cp_v + conso_cp_f + conso_cp_t6 + conso_cp_i;
 
+    // DEBUG — à supprimer après diagnostic
+    console.log('[Budget debug] structureId', structureId, {
+      dot_ae_total, dot_cp_total, conso_ae_total, conso_cp_total,
+      taux_ae: dot_ae_total > 0 ? (conso_ae_total/dot_ae_total*100).toFixed(1)+'%' : 'null (dot=0)',
+      taux_cp: dot_cp_total > 0 ? (conso_cp_total/dot_cp_total*100).toFixed(1)+'%' : 'null (dot=0)',
+      cols_lues: { dot_ae_v, dot_ae_f, dot_ae_t6, dot_ae_i, dot_cp_v, dot_cp_f, dot_cp_t6, dot_cp_i }
+    });
+
     return {
       taux_ae_vehicules:      taux(conso_ae_v,  dot_ae_v),
       taux_ae_fonctionnement: taux(conso_ae_f,  dot_ae_f),
@@ -823,7 +831,16 @@ function render() {
 // ── Initialisation Grist ──────────────────────────────────────────────────────
 async function init() {
   try {
-    grist.ready({ requiredAccess: 'read table' });
+    // allowSelectBy: true + grist.onRecords sur Structures = ce widget apparaît
+    // dans "Sélectionner par" des autres widgets liés à Structures
+    grist.ready({
+      requiredAccess: 'read table',
+      allowSelectBy: true,
+    });
+
+    // Enregistrer le handler onRecords AVANT fetchTable — nécessaire pour que
+    // Grist reconnaisse ce widget comme source de sélection pour Structures
+    grist.onRecords('Structures', () => { /* géré via fetchTable ci-dessous */ });
 
     const [budgetTable, structuresTable, consolidationTable] = await Promise.all([
       grist.docApi.fetchTable('Budget').catch(() => null),
