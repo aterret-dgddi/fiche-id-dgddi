@@ -1261,10 +1261,11 @@ function initMDE(textareaId, initialValue, onSave) {
     'F11': function() {}
   });
 
-  // Force le setValue SYSTÉMATIQUEMENT après montage,
-  // qu'il y ait ou non une valeur — évite la pollution de CodeMirror entre fiches.
-  mde.codemirror.setValue(initialValue || '');
-  mde.codemirror.clearHistory();
+  // Bug EasyMDE : initialValue='' ne vide pas CodeMirror si un contenu existait.
+  // On force le setValue après montage pour garantir la valeur initiale.
+  if (!initialValue) {
+    mde.codemirror.setValue('');
+  }
 
   _mdeInstances[textareaId] = mde;
   return mde;
@@ -6305,7 +6306,7 @@ function showXLSXModal() {
           <label style="display:block;font-weight:600;color:#1E2D3D;margin-bottom:12px;font-size:14px;">🔍 Filtrer les structures</label>
           <div style="display:flex;flex-wrap:wrap;gap:8px;">
             <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
-              <input type="checkbox" class="xlsx-filter-type" value="DG" style="margin-right:8px;">
+              <input type="checkbox" class="xlsx-filter-type" value="DG" checked style="margin-right:8px;">
               <span style="background:#6c757d;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">DG</span>Direction Générale
             </label>
             <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
