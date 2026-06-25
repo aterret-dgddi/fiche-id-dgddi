@@ -5481,12 +5481,24 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       const topThreshold = margin + headerHeight + 8;
       if (yPosition > topThreshold) _pdfCtx.addPage();
 
-      // Lire le titre de la zone depuis le DOM
-      const zoneRaw = cleanForPDF((child.innerText || '').split('\n')[0].trim());
-      // Normaliser le titre
-      const isGestion = zoneRaw.toLowerCase().includes('gestion');
-      const zoneTitle = isGestion ? 'Indicateurs de gestion' : 'Indicateurs budgetaires 2026';
+      // Détection par classe CSS (plus fiable que le texte innerText)
+      const isGestion = child.classList.contains('zone-gestion');
+      const zoneTitle = isGestion ? 'Indicateurs de gestion' : 'Indicateurs budgetaires';
       const zoneSub = isGestion ? '2022 - 2025' : 'Annee en cours';
+
+      // Collecter les titres des sections de cette zone
+      // (tous les .section jusqu'au prochain .zone-header ou fin de fiche-body)
+      const zoneSections = [];
+      let sibling = child.nextElementSibling;
+      while (sibling && !sibling.classList.contains('zone-header')) {
+        if (sibling.classList.contains('section') &&
+            sibling.style.display !== 'none' && sibling.offsetParent) {
+          const titleEl = sibling.querySelector('.section-title');
+          const titleText = cleanForPDF((titleEl ? titleEl.innerText : '').trim());
+          if (titleText) zoneSections.push(titleText);
+        }
+        sibling = sibling.nextElementSibling;
+      }
 
       // Sous-page de garde sobre style institutionnel
       const zcx = pageWidth / 2;
@@ -5525,6 +5537,36 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       pdf.setDrawColor(0, 47, 108);
       pdf.setLineWidth(0.4);
       pdf.line(margin + 25, zcy, pageWidth - margin - 25, zcy);
+
+      // ── Sommaire des indicateurs de la zone ──
+      if (zoneSections.length > 0) {
+        const summaryStartY = zcy + 10;
+        const lineH = 7;
+        const dotX = zcx - 35; // point de départ pour les puces (centré approximativement)
+
+        // Calculer la largeur max pour centrer le bloc
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        let maxW = 0;
+        zoneSections.forEach(sec => {
+          const w = pdf.getTextWidth('• ' + sec);
+          if (w > maxW) maxW = w;
+        });
+        const blockX = zcx - maxW / 2;
+
+        zoneSections.forEach((sec, idx) => {
+          const yy = summaryStartY + idx * lineH;
+          // Puce bleue
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(9);
+          pdf.setTextColor(0, 47, 108);
+          pdf.text('•', blockX, yy);
+          // Texte de l'indicateur
+          pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(60, 75, 95);
+          pdf.text(sec, blockX + 4, yy);
+        });
+      }
 
       // Nouvelle page pour le contenu
       _pdfCtx.addPage();
