@@ -442,7 +442,7 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     budgetTable.Structure[i] === structureId && budgetTable.Annee[i] === ANNEE
   );
 
-  const taux = (c, d) => (d > 0 && c > 0) ? c / d : null;
+  const taux = (c, d) => d > 0 ? c / d : null;
 
   if (idx !== -1) {
     const n = col => Number(budgetTable[col]?.[idx]) || 0;
@@ -535,10 +535,15 @@ function extractNationalMoy(consolidationTable) {
   if (idx == null || idx === -1) return null;
   const n = col => Number(consolidationTable[col]?.[idx]) || null;
   return {
+    taux_ae_total:          n('taux_conso_moyen_ae') != null ? n('taux_conso_moyen_ae') / 100 : null,
     taux_cp_total:          n('taux_conso_moyen_cp') != null ? n('taux_conso_moyen_cp') / 100 : null,
+    taux_ae_vehicules:      n('Moy_Taux_AE_vehicules'),
     taux_cp_vehicules:      n('Moy_Taux_CP_vehicules'),
+    taux_ae_fonctionnement: n('Moy_Taux_AE_fonctionnement'),
     taux_cp_fonctionnement: n('Moy_Taux_CP_fonctionnement'),
+    taux_ae_t6:             n('Moy_Taux_AE_T6'),
     taux_cp_t6:             n('Moy_Taux_CP_T6'),
+    taux_ae_immo:           n('Moy_Taux_AE_Immo'),
     taux_cp_immo:           n('Moy_Taux_CP_Immo'),
   };
 }
@@ -681,6 +686,12 @@ function buildAECPBar(tae, tcp, natAE, natCP) {
     </div>`;
 }
 
+// ── Helper couleur inline ────────────────────────────────────────────────────
+function clrStyle(v, ref) {
+  const m = { ok:'#008941', warn:'#D07B00', bad:'#C0392B', na:'#aaa' };
+  return m[colorClass(v, ref)] || '#aaa';
+}
+
 // ── Génération HTML d'une carte ────────────────────────────────────────────────
 function buildCard(card) {
   const typeL = typeLabel(card.typeAff);
@@ -691,9 +702,13 @@ function buildCard(card) {
   const natTotal    = moyNational?.taux_cp_total          ?? null;
   const natAETotal  = moyNational?.taux_ae_total          ?? null;
   const natVeh      = moyNational?.taux_cp_vehicules      ?? null;
+  const natAEVeh    = moyNational?.taux_ae_vehicules      ?? null;
   const natFonct    = moyNational?.taux_cp_fonctionnement ?? null;
+  const natAEFonct  = moyNational?.taux_ae_fonctionnement ?? null;
   const natT6       = moyNational?.taux_cp_t6             ?? null;
+  const natAET6     = moyNational?.taux_ae_t6             ?? null;
   const natImmo     = moyNational?.taux_cp_immo           ?? null;
+  const natAEImmo   = moyNational?.taux_ae_immo           ?? null;
   return `
     <div class="radar-card${card.hasData ? '' : ' no-data'}"
          data-type="${typeL}" data-id="${card.id}"
@@ -715,20 +730,32 @@ function buildCard(card) {
         ${buildAECPBar(card.taux_ae_total, card.taux_cp_total, natAETotal, natTotal)}
         <div class="card-kpi-row">
           <div class="card-kpi">
-            <div class="kpi-val ${colorClass(pctNum(card.taux_cp_vehicules), natVeh)}">${pct(card.taux_cp_vehicules)}</div>
-            <div class="kpi-lbl" style="color:#E67E22;">Véh.</div>
+            <div style="font-size:9px;font-weight:700;color:#E67E22;margin-bottom:3px;">Véh.</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_vehicules), natVeh)};">${pct(card.taux_cp_vehicules)}</div>
+            <div style="font-size:9px;color:#aaa;">CP</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_vehicules), natAEVeh)};margin-top:3px;">${pct(card.taux_ae_vehicules)}</div>
+            <div style="font-size:9px;color:#aaa;">AE</div>
           </div>
           <div class="card-kpi">
-            <div class="kpi-val ${colorClass(pctNum(card.taux_cp_fonctionnement), natFonct)}">${pct(card.taux_cp_fonctionnement)}</div>
-            <div class="kpi-lbl" style="color:#1351A8;">Fonct.</div>
+            <div style="font-size:9px;font-weight:700;color:#1351A8;margin-bottom:3px;">Fonct.</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_fonctionnement), natFonct)};">${pct(card.taux_cp_fonctionnement)}</div>
+            <div style="font-size:9px;color:#aaa;">CP</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_fonctionnement), natAEFonct)};margin-top:3px;">${pct(card.taux_ae_fonctionnement)}</div>
+            <div style="font-size:9px;color:#aaa;">AE</div>
           </div>
           <div class="card-kpi">
-            <div class="kpi-val ${colorClass(pctNum(card.taux_cp_t6), natT6)}">${pct(card.taux_cp_t6)}</div>
-            <div class="kpi-lbl" style="color:#8E44AD;">T6</div>
+            <div style="font-size:9px;font-weight:700;color:#8E44AD;margin-bottom:3px;">T6</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_t6), natT6)};">${pct(card.taux_cp_t6)}</div>
+            <div style="font-size:9px;color:#aaa;">CP</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_t6), natAET6)};margin-top:3px;">${pct(card.taux_ae_t6)}</div>
+            <div style="font-size:9px;color:#aaa;">AE</div>
           </div>
           <div class="card-kpi">
-            <div class="kpi-val ${colorClass(pctNum(card.taux_cp_immo), natImmo)}">${pct(card.taux_cp_immo)}</div>
-            <div class="kpi-lbl" style="color:#27AE60;">Immo.</div>
+            <div style="font-size:9px;font-weight:700;color:#27AE60;margin-bottom:3px;">Immo.</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_immo), natImmo)};">${pct(card.taux_cp_immo)}</div>
+            <div style="font-size:9px;color:#aaa;">CP</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_immo), natAEImmo)};margin-top:3px;">${pct(card.taux_ae_immo)}</div>
+            <div style="font-size:9px;color:#aaa;">AE</div>
           </div>
         </div>
       ` : `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:140px;gap:8px;">
@@ -811,28 +838,22 @@ async function init() {
     moyNational = extractNationalMoy(consolidationTable);
     renderNationalBar(moyNational);
 
-    // Construire la liste des cartes (déduplication par id Structures)
-    allCards = [];
-    const seenIds = new Set();
+    // Construire la liste des cartes
+    // Pour les DG : collecter tous les candidats, puis n'en garder qu'un seul
+    const dgCandidats = [];
+    const nonDgCards  = [];
+
     for (let i = 0; i < structuresTable.id.length; i++) {
-      const ta = structuresTable.Type_Affichage?.[i];
+      const ta    = structuresTable.Type_Affichage?.[i];
       if (!TYPES_AFFICHES.includes(ta)) continue;
-
-      const sid   = structuresTable.id[i];
       const sigle = (structuresTable.Sigle?.[i] || '').trim();
-      if (!sigle) continue;              // ignore les lignes sans sigle
-      if (seenIds.has(sigle + '_' + ta)) continue;  // déduplique par (sigle, type)
-      seenIds.add(sigle + '_' + ta);
+      if (!sigle) continue;
 
-      const nom = structuresTable.Nom?.[i] || sigle;
-      const data  = extractBudgetData(budgetTable, sid, structuresTable);
-
-      allCards.push({
-        id:       sid,
-        sigle,
-        nom,
-        typeAff:  ta,
-        hasData:  !!data,
+      const sid  = structuresTable.id[i];
+      const nom  = structuresTable.Nom?.[i] || sigle;
+      const data = extractBudgetData(budgetTable, sid, structuresTable);
+      const card = {
+        id: sid, sigle, nom, typeAff: ta, hasData: !!data,
         taux_ae_total:          data?.taux_ae_total          ?? null,
         taux_cp_total:          data?.taux_cp_total          ?? null,
         taux_ae_vehicules:      data?.taux_ae_vehicules      ?? null,
@@ -843,7 +864,53 @@ async function init() {
         taux_cp_fonctionnement: data?.taux_cp_fonctionnement ?? null,
         taux_cp_t6:             data?.taux_cp_t6             ?? null,
         taux_cp_immo:           data?.taux_cp_immo           ?? null,
-      });
+      };
+
+      if (ta === 'DG') dgCandidats.push(card);
+      else             nonDgCards.push(card);
+    }
+
+    // Pour DG : préférer la carte avec données, sinon la plus haute dans la hiérarchie
+    // (DGDDI est parent de DG → on prend DGDDI si elle a les données consolidées,
+    //  sinon on agrège les enfants DG sous DGDDI)
+    allCards = [...nonDgCards];
+    if (dgCandidats.length > 0) {
+      // Priorité 1 : candidat avec données budgétaires
+      let dgCard = dgCandidats.find(c => c.hasData && c.taux_cp_total !== null);
+      // Priorité 2 : candidat sans données mais sigle le plus court (DGDDI > DG)
+      if (!dgCard) dgCard = dgCandidats.sort((a,b) => b.sigle.length - a.sigle.length)[0];
+      // Si pas de données : tenter consolidation de tous les enfants DG
+      if (dgCard && !dgCard.hasData) {
+        const childIds = dgCandidats.filter(c => c.id !== dgCard.id).map(c => c.id);
+        if (childIds.length) {
+          const taux = (c, d) => d > 0 ? c / d : null;
+          const sumChild = (col) => childIds.reduce((acc, cid) => {
+            const j = budgetTable.id.findIndex((_, k) =>
+              budgetTable.Structure[k] === cid && budgetTable.Annee[k] === ANNEE);
+            return acc + (j !== -1 ? Number(budgetTable[col]?.[j]) || 0 : 0);
+          }, 0);
+          const daeV=sumChild('dot_AE_vehicules'), daeF=sumChild('dot_AE_fonctionnement'),
+                daeT=sumChild('Dot_AE_T6'), daeI=sumChild('dot_AE_Immo');
+          const dcpV=sumChild('dot_CP_vehicules'), dcpF=sumChild('dot_CP_fonctionnement'),
+                dcpT=sumChild('Dot_CP_T6'), dcpI=sumChild('dot_CP_Immo');
+          const caeV=sumChild('Conso_AE_vehicules'), caeF=sumChild('Conso_AE_fonctionnement'),
+                caeT=sumChild('Conso_AE_T6'), caeI=sumChild('Conso_AE_Immo');
+          const ccpV=sumChild('Conso_CP_vehicules'), ccpF=sumChild('Conso_CP_fonctionnement'),
+                ccpT=sumChild('Conso_CP_T6'), ccpI=sumChild('Conso_CP_Immo');
+          const daeTotal=daeV+daeF+daeT+daeI, dcpTotal=dcpV+dcpF+dcpT+dcpI;
+          const caeTotal=caeV+caeF+caeT+caeI, ccpTotal=ccpV+ccpF+ccpT+ccpI;
+          if (dcpTotal > 0 || daeTotal > 0) {
+            dgCard = { ...dgCard, hasData: true,
+              taux_ae_total: taux(caeTotal,daeTotal), taux_cp_total: taux(ccpTotal,dcpTotal),
+              taux_ae_vehicules: taux(caeV,daeV), taux_cp_vehicules: taux(ccpV,dcpV),
+              taux_ae_fonctionnement: taux(caeF,daeF), taux_cp_fonctionnement: taux(ccpF,dcpF),
+              taux_ae_t6: taux(caeT,daeT), taux_cp_t6: taux(ccpT,dcpT),
+              taux_ae_immo: taux(caeI,daeI), taux_cp_immo: taux(ccpI,dcpI),
+            };
+          }
+        }
+      }
+      allCards.push(dgCard);
     }
 
     if (!allCards.length) throw new Error('Aucune structure trouvée.');
