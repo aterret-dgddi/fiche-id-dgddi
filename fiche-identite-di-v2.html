@@ -406,27 +406,18 @@
       padding: 5px 18px;
       display: flex;
       align-items: center;
-      gap: 6px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      overflow-y: hidden;
+      gap: 4px 6px;
+      flex-wrap: wrap;
+      min-height: 34px;
       position: sticky;
       top: 41px;
       z-index: 190;
       box-shadow: 0 2px 4px rgba(0,20,70,.05);
-      scrollbar-width: thin;
-      scrollbar-color: var(--bord) transparent;
-      -webkit-overflow-scrolling: touch;
+      overflow: visible;
     }
-    #quick-nav::-webkit-scrollbar { height: 4px; }
-    #quick-nav::-webkit-scrollbar-thumb { background: var(--bord); border-radius: 2px; }
 
     #qnav-items {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex-wrap: nowrap;
-      flex-shrink: 0;
+      display: contents;
     }
 
     .qnav-label {
@@ -2777,7 +2768,17 @@
 
 
     // Initialisation
-    window.addEventListener('load', initGrist);
+    window.addEventListener('load', () => {
+      initGrist();
+      // Ajuster dynamiquement le top du quick-nav selon la hauteur réelle du selbar
+      const selbar = document.getElementById('selbar');
+      const quickNav = document.getElementById('quick-nav');
+      const updateQuickNavTop = () => {
+        quickNav.style.top = selbar.offsetHeight + 'px';
+      };
+      updateQuickNavTop();
+      new ResizeObserver(updateQuickNavTop).observe(selbar);
+    });
   </script>
 </body>
 </html>
