@@ -4749,7 +4749,7 @@ function cleanForPDF(str) {
   str = str
     .replace(/→/g, '->').replace(/←/g, '<-')
     .replace(/–/g, '-').replace(/—/g, '--')
-    .replace(/…/g, '...').replace(/€/g, 'EUR')
+    .replace(/…/g, '...')
     .replace(/°/g, 'deg')
     .replace(/‘/g, "'").replace(/’/g, "'")
     .replace(/“/g, '"').replace(/”/g, '"')
@@ -4764,7 +4764,7 @@ function cleanForPDF(str) {
   for (let i = 0; i < str.length; i++) {
     const cp = str.codePointAt(i);
     if (cp > 0xFFFF) { i++; continue; }
-    if (cp > 0x024F) continue;
+    if (cp > 0x024F && cp !== 0x20AC) continue; // 0x20AC = €, supporté par WinAnsi/Helvetica
     out += str[i];
   }
   return out.replace(/  +/g, ' ').replace(/ ([.,;:!?)»])/g, '$1').trim();
