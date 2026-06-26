@@ -419,6 +419,31 @@
     }
     #quick-nav::-webkit-scrollbar { display: none; }
 
+    .qnav-arrow {
+      flex-shrink: 0;
+      background: var(--rep);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.85;
+      transition: opacity .15s;
+      padding: 0;
+      position: sticky;
+      z-index: 2;
+    }
+    .qnav-arrow:hover { opacity: 1; }
+    .qnav-arrow.hidden { opacity: 0; pointer-events: none; }
+    #qnav-arrow-left { left: 0; }
+    #qnav-arrow-right { right: 0; }
+
     #qnav-items {
       display: contents;
     }
@@ -1051,8 +1076,10 @@
 
   <!-- ═══════════ NAVIGATION RAPIDE ═══════════ -->
   <div id="quick-nav">
+    <button class="qnav-arrow hidden" id="qnav-arrow-left" aria-label="Défiler à gauche">&#8249;</button>
     <span class="qnav-label">Accès rapide :</span>
     <div id="qnav-items"></div>
+    <button class="qnav-arrow" id="qnav-arrow-right" aria-label="Défiler à droite">&#8250;</button>
   </div>
 
   <!-- ═══════════ FICHE ═══════════ -->
@@ -2128,14 +2155,13 @@
           btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
         }
       }
-      // Mettre à jour l'ombre après rendu des boutons
+      // Mettre à jour les flèches après rendu des boutons
       setTimeout(() => {
         const qn = document.getElementById('quick-nav');
-        if (qn) {
+        const ar = document.getElementById('qnav-arrow-right');
+        if (qn && ar) {
           const atEnd = qn.scrollLeft + qn.clientWidth >= qn.scrollWidth - 4;
-          qn.style.boxShadow = atEnd
-            ? '0 2px 4px rgba(0,20,70,.05)'
-            : '0 2px 4px rgba(0,20,70,.05), inset -32px 0 16px -16px rgba(0,0,0,0.08)';
+          ar.classList.toggle('hidden', atEnd);
         }
       }, 100);
     }
@@ -2795,15 +2821,27 @@
       updateQuickNavTop();
       new ResizeObserver(updateQuickNavTop).observe(selbar);
 
-      // Ombre droite CSS pour indiquer qu'il y a du contenu à scroller
-      const updateScrollShadow = () => {
+      // Boutons flèche pour scroller la barre d'accès rapide
+      const arrowLeft = document.getElementById('qnav-arrow-left');
+      const arrowRight = document.getElementById('qnav-arrow-right');
+      const SCROLL_STEP = 200;
+
+      const updateArrows = () => {
+        const atStart = quickNav.scrollLeft <= 4;
         const atEnd = quickNav.scrollLeft + quickNav.clientWidth >= quickNav.scrollWidth - 4;
-        quickNav.style.boxShadow = atEnd
-          ? '0 2px 4px rgba(0,20,70,.05)'
-          : '0 2px 4px rgba(0,20,70,.05), inset -32px 0 16px -16px rgba(0,0,0,0.08)';
+        arrowLeft.classList.toggle('hidden', atStart);
+        arrowRight.classList.toggle('hidden', atEnd);
       };
-      quickNav.addEventListener('scroll', updateScrollShadow);
-      setTimeout(updateScrollShadow, 500);
+
+      arrowLeft.addEventListener('click', () => {
+        quickNav.scrollBy({ left: -SCROLL_STEP, behavior: 'smooth' });
+      });
+      arrowRight.addEventListener('click', () => {
+        quickNav.scrollBy({ left: SCROLL_STEP, behavior: 'smooth' });
+      });
+
+      quickNav.addEventListener('scroll', updateArrows);
+      setTimeout(updateArrows, 500);
     });
   </script>
 </body>
