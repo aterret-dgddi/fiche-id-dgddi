@@ -5277,6 +5277,27 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     return false;
   }
 
+  // ── Helper partagé : supprime les @font-face Marianne dans le clone html2canvas ──
+  // Évite les blocages réseau sur les woff2 jsdelivr inaccessibles depuis Grist
+  function _h2cOnClone(clonedDoc) {
+    try {
+      Array.from(clonedDoc.styleSheets).forEach(function(sheet) {
+        try {
+          var rules = Array.from(sheet.cssRules || []);
+          for (var i = rules.length - 1; i >= 0; i--) {
+            if (rules[i].type === CSSRule.FONT_FACE_RULE) {
+              sheet.deleteRule(i);
+            }
+          }
+        } catch(e) {}
+      });
+      // Forcer une police système sur le document cloné
+      var s = clonedDoc.createElement('style');
+      s.textContent = '* { font-family: Arial, Helvetica, sans-serif !important; }';
+      clonedDoc.head.appendChild(s);
+    } catch(e) {}
+  }
+
   // ── Fonction utilitaire : capture un élément en image et l'insère dans le PDF ──
   // Mesure la hauteur réelle après capture canvas, saute de page si nécessaire,
   // puis place l'image. Slicing uniquement pour les blocs > une page entière.
@@ -5286,7 +5307,8 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     const canvas = await html2canvas(element, {
       scale: 2, useCORS: true, logging: false,
       backgroundColor: '#ffffff',
-      width: element.scrollWidth, height: element.scrollHeight
+      width: element.scrollWidth, height: element.scrollHeight,
+      onclone: _h2cOnClone
     });
 
     const imgWidth   = pageWidth - (2 * margin);
@@ -5354,7 +5376,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         for (const group of groups) {
           const captured = [];
           for (const el of group) {
-            const c2 = await html2canvas(el, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff' });
+            const c2 = await html2canvas(el, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', onclone:_h2cOnClone });
             const h2 = c2.height * (imgWidth / c2.width);
             captured.push({ h: h2, data: c2.toDataURL('image/jpeg', 0.95) });
           }
@@ -5420,13 +5442,13 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Capturer le header fiche
     let hHeader = 0, dataHeader = null;
     if (ficheHeader && ficheHeader.offsetParent) {
-      const cHeader = await html2canvas(ficheHeader, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width:ficheHeader.scrollWidth, height:ficheHeader.scrollHeight });
+      const cHeader = await html2canvas(ficheHeader, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width:ficheHeader.scrollWidth, height:ficheHeader.scrollHeight, onclone:_h2cOnClone });
       hHeader = cHeader.height * (imgW / cHeader.width);
       dataHeader = cHeader.toDataURL('image/jpeg', 0.95);
     }
 
     // Capturer le bloc pills (sans la description)
-    const cPills = await html2canvas(mainCommentBox, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width:mainCommentBox.scrollWidth, height:mainCommentBox.scrollHeight });
+    const cPills = await html2canvas(mainCommentBox, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width:mainCommentBox.scrollWidth, height:mainCommentBox.scrollHeight, onclone:_h2cOnClone });
     const hPills = cPills.height * (imgW / cPills.width);
 
     // Lire le markdown du commentaire général
