@@ -1926,42 +1926,47 @@ function refreshVehicules(structureId, annee) {
     document.getElementById('veh-cout-comp').textContent = '';
   }
   
-  // 6. Ratio véhicule / SU
-  document.getElementById('veh-ratio-su-value').textContent = formatNumber(data.ratio_vehicule_su, 3);
-  
-  // Évolution ratio SU
-  if (dataN1 && dataN1.ratio_vehicule_su) {
-    const evolRatioSU = data.ratio_vehicule_su - dataN1.ratio_vehicule_su;
-    document.getElementById('veh-ratio-su-evol').innerHTML = `
-      <span style="color:${evolRatioSU >= 0 ? '#10b981' : '#ef4444'};">
-        ${evolRatioSU >= 0 ? '▲' : '▼'} ${Math.abs(evolRatioSU).toFixed(3)}
-      </span>
-      <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
-    `;
-  } else {
-    document.getElementById('veh-ratio-su-evol').textContent = '';
-  }
-  
-  // Comparaison ratio SU vs périmètre ET national
-  const compRatioSU = [];
-  if (consol && consol.moy_ratio_vehicule_su && consol.moy_ratio_vehicule_su > 0) {
-    const ecart = data.ratio_vehicule_su - consol.moy_ratio_vehicule_su;
-    const ecartPct = (ecart / consol.moy_ratio_vehicule_su) * 100;
-    compRatioSU.push(`${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}`);
-  }
-  if (consolNational && consolNational.moy_ratio_vehicule_su && consolNational.moy_ratio_vehicule_su > 0) {
-    const ecart = data.ratio_vehicule_su - consolNational.moy_ratio_vehicule_su;
-    const ecartPct = (ecart / consolNational.moy_ratio_vehicule_su) * 100;
-    compRatioSU.push(`${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs National`);
-  }
-  if (compRatioSU.length > 0) {
-    document.getElementById('veh-ratio-su-comp').innerHTML = `
-      <span style="color:var(--gris2);">
-        ${compRatioSU.join(' | ')}
-      </span>
-    `;
-  } else {
-    document.getElementById('veh-ratio-su-comp').textContent = '';
+  // 6. Ratio véhicule / SU — masqué si aucun agent SU (ratio nul)
+  const pillRatioSU = document.getElementById('veh-pill-ratio-su');
+  const hasSU = data.ratio_vehicule_su && data.ratio_vehicule_su !== 0;
+  if (pillRatioSU) pillRatioSU.style.display = hasSU ? '' : 'none';
+  if (hasSU) {
+    document.getElementById('veh-ratio-su-value').textContent = formatNumber(data.ratio_vehicule_su, 3);
+    
+    // Évolution ratio SU
+    if (dataN1 && dataN1.ratio_vehicule_su) {
+      const evolRatioSU = data.ratio_vehicule_su - dataN1.ratio_vehicule_su;
+      document.getElementById('veh-ratio-su-evol').innerHTML = `
+        <span style="color:${evolRatioSU >= 0 ? '#10b981' : '#ef4444'};">
+          ${evolRatioSU >= 0 ? '▲' : '▼'} ${Math.abs(evolRatioSU).toFixed(3)}
+        </span>
+        <span style="margin-left:6px;color:var(--gris2);font-size:10px;">vs ${annee - 1}</span>
+      `;
+    } else {
+      document.getElementById('veh-ratio-su-evol').textContent = '';
+    }
+    
+    // Comparaison ratio SU vs périmètre ET national
+    const compRatioSU = [];
+    if (consol && consol.moy_ratio_vehicule_su && consol.moy_ratio_vehicule_su > 0) {
+      const ecart = data.ratio_vehicule_su - consol.moy_ratio_vehicule_su;
+      const ecartPct = (ecart / consol.moy_ratio_vehicule_su) * 100;
+      compRatioSU.push(`${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs ${perimetre}`);
+    }
+    if (consolNational && consolNational.moy_ratio_vehicule_su && consolNational.moy_ratio_vehicule_su > 0) {
+      const ecart = data.ratio_vehicule_su - consolNational.moy_ratio_vehicule_su;
+      const ecartPct = (ecart / consolNational.moy_ratio_vehicule_su) * 100;
+      compRatioSU.push(`${ecartPct >= 0 ? '+' : ''}${ecartPct.toFixed(1)}% vs National`);
+    }
+    if (compRatioSU.length > 0) {
+      document.getElementById('veh-ratio-su-comp').innerHTML = `
+        <span style="color:var(--gris2);">
+          ${compRatioSU.join(' | ')}
+        </span>
+      `;
+    } else {
+      document.getElementById('veh-ratio-su-comp').textContent = '';
+    }
   }
   
   // ========== GRAPHIQUES ==========
