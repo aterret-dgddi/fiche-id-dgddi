@@ -6780,220 +6780,237 @@ function exportToXLSXWorkbook(struct, annee) {
 
 
 // ═══════════════════════════════════════════════════════════════
-// EXPORT APPLICATION MOBILE — PWA standalone consultable hors-ligne
+// EXPORT APPLICATION MOBILE — PWA standalone multi-structures
+// Données lues directement depuis FICHE_STATE (pas le DOM) :
+// fiable même pour des structures non affichées à l'écran.
 // ═══════════════════════════════════════════════════════════════
 
 function exportToMobileApp() {
-  const struct = FICHE_STATE.structure;
-  const annee  = FICHE_STATE.annee;
-  if (!struct) { alert('Aucune structure sélectionnée.'); return; }
+  const allStructs = getStructuresArray();
+  if (!allStructs.length) { alert('Aucune structure chargée.'); return; }
+  _runMobileExport(allStructs);
+}
 
-  // ── 1. Capturer les graphiques Chart.js en images base64 ──────
-  const ficheBody = document.getElementById('fiche-body');
-  const _chartImages = {};
-  ficheBody.querySelectorAll('canvas').forEach(canvas => {
-    if (canvas.id) {
-      try { _chartImages[canvas.id] = canvas.toDataURL('image/png'); } catch(e) {}
-    }
-  });
+function exportToMobileAppCurrent() {
+  if (!FICHE_STATE.structure) { alert('Aucune structure sélectionnée.'); return; }
+  _runMobileExport([{
+    id: FICHE_STATE.structure.id,
+    sigle: FICHE_STATE.structure.sigle,
+    nom: FICHE_STATE.structure.nom,
+    type: FICHE_STATE.structure.type
+  }]);
+}
 
-  // ── 2. Lire les commentaires EasyMDE ──────────────────────────
-  function getMdeValue(id) {
-    if (window._mdeInstances && _mdeInstances[id]) return _mdeInstances[id].value();
-    const el = document.getElementById(id);
-    return el ? el.value : '';
-  }
+function _mobSafe(v, fallback) {
+  return (v === null || v === undefined || v === '' || (typeof v === 'number' && isNaN(v))) ? (fallback !== undefined ? fallback : '—') : v;
+}
 
-  // ── 3. Collecter les données de chaque section ─────────────────
-  function elText(id) {
-    const el = document.getElementById(id);
-    return el ? (el.innerText || el.textContent || '').trim() : '—';
-  }
+function _mobMd(raw) {
+  const txt = (raw || '').trim();
+  return txt ? mdToHtml(txt) : '<em style="color:#8A9BAA;">Aucun commentaire.</em>';
+}
 
-  // Synthèse (vue d'ensemble)
-  const syntheseMd = getMdeValue('synthese-mde-textarea') || (typeof getCommentaire === 'function' ? (getCommentaire(struct.id, annee, 'Synthese') || '') : '');
+// Mini graphique en barres SVG à partir d'une série [{label, value}]
+function _mobBarChart(series, color, unit) {
+  if (!series || !series.length) return '';
+  const vals = series.map(s => s.value || 0);
+  const max = Math.max(...vals, 1);
+  const w = 100 / series.length;
+  const bars = series.map((s, i) => {
+    const h = max > 0 ? Math.max((s.value || 0) / max * 80, 2) : 2;
+    const x = i * w + w * 0.15;
+    const bw = w * 0.7;
+    return `<rect x="${x}%" y="${90 - h}" width="${bw}%" height="${h}" rx="2" fill="${color}"></rect>
+      <text x="${x + bw/2}%" y="98" font-size="7" text-anchor="middle" fill="#8A9BAA">${s.label}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:90px;">${bars}</svg>`;
+}
 
-  // Sections avec leurs données
-  const sections = [
-    {
-      id: 'rh',
-      icon: '👥',
-      title: 'Ressources Humaines',
-      color: '#1A6B3C',
-      chartId: 'rh-chart',
-      commentId: 'rh-commentaire',
-      kpis: [
-        { label: 'Effectif total', valueId: 'rh-effectif-total', compId: 'rh-effectif-compare' },
-        { label: 'AGCO', valueId: 'rh-agco-total', compId: 'rh-agco-compare' },
-        { label: 'Surveillance', valueId: 'rh-su-total', compId: null },
-        { label: 'Âge moyen', valueId: 'rh-age-moyen', compId: 'rh-age-compare-groupe' },
-        { label: 'MS / agent', valueId: 'rh-ms-par-agent', compId: null },
-      ],
-    },
-    {
-      id: 'informatique',
-      icon: '💻',
-      title: 'Informatique',
-      color: '#1351A8',
-      chartId: 'it-chart',
-      commentId: 'it-commentaire',
-      kpis: [
-        { label: 'Postes', valueId: 'it-total', compId: null },
-        { label: 'Budget IT CP', valueId: 'it-budget-annuel', compId: null },
-        { label: 'Ratio poste/agent', valueId: 'it-ratio', compId: 'it-ratio-comp' },
-        { label: 'Budget / agent', valueId: 'it-budget-agent-annuel', compId: null },
-      ],
-    },
-    {
-      id: 'frais_mission',
-      icon: '✈️',
-      title: 'Frais de Mission',
-      color: '#8A6800',
-      chartId: 'fm-chart',
-      commentId: 'fm-commentaire',
-      kpis: [
-        { label: 'Total dépenses', valueId: 'fm-total-value', compId: null },
-        { label: 'Formation', valueId: 'fm-formation-value', compId: 'fm-formation-pct' },
-        { label: 'Autres FM', valueId: 'fm-autres-value', compId: 'fm-autres-pct' },
-        { label: 'FM / agent', valueId: 'fm-agent-value', compId: null },
-      ],
-    },
-    {
-      id: 'fonctionnement',
-      icon: '🏢',
-      title: 'Fonctionnement courant',
-      color: '#C05A00',
-      chartId: 'fonct-chart',
-      commentId: 'fonct-commentaire',
-      kpis: [
-        { label: 'CP maîtrisable', valueId: 'fonct-pill-pct-m', compId: 'fonct-pill-pct-m-detail' },
-        { label: 'CP / agent', valueId: 'fonct-pill-agent-2025', compId: 'fonct-pill-agent-2025-detail' },
-        { label: 'Lissé 4 ans / agent', valueId: 'fonct-pill-agent-4ans', compId: 'fonct-pill-agent-4ans-detail' },
-      ],
-    },
-    {
-      id: 'vehicules',
-      icon: '🚗',
-      title: 'Parc Automobile',
-      color: '#4A5A6A',
-      chartId: 'veh-chart',
-      commentId: 'veh-commentaire',
-      kpis: [
-        { label: 'Véhicules total', valueId: 'veh-total-value', compId: null },
-        { label: 'Budget véhicules', valueId: 'veh-budget-value', compId: null },
-        { label: 'Ratio veh/100 agents', valueId: 'veh-ratio-value', compId: null },
-        { label: 'Ratio veh/SU', valueId: 'veh-ratio-su-value', compId: null },
-      ],
-    },
-    {
-      id: 'immobilier',
-      icon: '🏛️',
-      title: 'Immobilier',
-      color: '#5C4080',
-      chartId: 'immo-chart',
-      commentId: 'immo-commentaire',
-      kpis: [
-        { label: 'SUB totale', valueId: 'immo-sub-value', compId: 'immo-sites-detail' },
-        { label: 'Ratio m²/rés.', valueId: 'immo-ratio-value', compId: 'immo-ratio-comp' },
-        { label: 'Coût surf.', valueId: 'immo-cout-value', compId: 'immo-cout-comp' },
-        { label: 'Coût surf. lissé', valueId: 'immo-cout-moyen', compId: null },
-      ],
-    },
-    {
-      id: 'communication',
-      icon: '📣',
-      title: 'Communication',
-      color: '#B52020',
-      chartId: 'com-chart',
-      commentId: 'com-commentaire',
-      kpis: [
-        { label: 'CP 2026', valueId: 'com-pill-cp-val', compId: null },
-        { label: 'Cible', valueId: 'com-pill-cible-val', compId: null },
-        { label: 'Disponible', valueId: 'com-pill-cap-cp-val', compId: null },
-        { label: 'Taux conso', valueId: 'com-sat-pct', compId: 'com-sat-label' },
-      ],
-    },
+function _runMobileExport(structuresList) {
+  const annee = FICHE_STATE.annee;
+
+  // ── Définition des domaines / indicateurs ──────────────────────
+  const DOMAINES = [
+    { id: 'rh', icon: '👥', title: 'Ressources Humaines', color: '#1A6B3C', section: 'RH' },
+    { id: 'informatique', icon: '💻', title: 'Informatique', color: '#1351A8', section: 'Informatique' },
+    { id: 'frais_mission', icon: '✈️', title: 'Frais de Mission', color: '#8A6800', section: 'Frais_Mission' },
+    { id: 'fonctionnement', icon: '🏢', title: 'Fonctionnement courant', color: '#C05A00', section: 'Fonctionnement' },
+    { id: 'vehicules', icon: '🚗', title: 'Parc Automobile', color: '#4A5A6A', section: 'Vehicules' },
+    { id: 'immobilier', icon: '🏛️', title: 'Immobilier', color: '#5C4080', section: 'Immobilier' },
+    { id: 'communication', icon: '📣', title: 'Communication', color: '#B52020', section: 'Communication' },
   ];
 
-  // ── 4. Construire le HTML de chaque section ────────────────────
-  function buildKpiCards(kpis) {
-    return kpis.map(k => {
-      const val = elText(k.valueId);
-      const comp = k.compId ? elText(k.compId) : '';
-      return `<div class="kpi-mob">
-        <div class="kpi-mob-label">${k.label}</div>
-        <div class="kpi-mob-value">${val !== '' ? val : '—'}</div>
-        ${comp ? `<div class="kpi-mob-comp">${comp}</div>` : ''}
+  // ── Construction des données pour une structure ─────────────────
+  function buildStructurePayload(struct) {
+    const sid = struct.id;
+    const consol = getConsolidationStructureData(sid, annee) || {};
+    const synthese = (typeof getCommentaire === 'function') ? getCommentaire(sid, annee, 'Synthese') : '';
+
+    const rhHist = (typeof getRHHistorique === 'function') ? getRHHistorique(sid) : [];
+    const rhChart = rhHist.length
+      ? _mobBarChart(rhHist.map(h => ({ label: h.annee, value: h.total })), '#1A6B3C')
+      : '';
+
+    const fonct = (typeof getFonctionnementData === 'function') ? getFonctionnementData(sid) : null;
+    const fonctChart = fonct
+      ? _mobBarChart(
+          [2022, 2023, 2024, 2025].map(a => ({ label: String(a).slice(2), value: fonct['cp_' + a] || 0 })),
+          '#C05A00'
+        )
+      : '';
+
+    const com = (typeof getCommunicationData === 'function') ? getCommunicationData(sid) : null;
+    const comChart = com
+      ? _mobBarChart(
+          [2022, 2023, 2024, 2025].map(a => ({ label: String(a).slice(2), value: com['cp_' + a] || 0 })),
+          '#B52020'
+        )
+      : '';
+
+    const sections = {};
+
+    sections.rh = {
+      kpis: [
+        { label: 'Effectif total', value: formatNumber(consol.effectif_total) },
+        { label: 'AGCO', value: formatNumber(consol.effectif_agco) },
+        { label: 'Surveillance', value: formatNumber(consol.effectif_su) },
+        { label: 'Âge moyen', value: consol.age_moyen ? formatNumber(consol.age_moyen, 1) + ' ans' : '—' },
+        { label: 'MS / agent', value: consol.ms_par_agent ? formatCurrency(consol.ms_par_agent) : '—' },
+      ],
+      chart: rhChart,
+      comment: getCommentaire(sid, annee, 'RH'),
+    };
+
+    sections.informatique = {
+      kpis: [
+        { label: 'Postes total', value: formatNumber(consol.nb_postes_total) },
+        { label: 'Budget IT CP', value: consol.budget_it_cp ? formatCurrency(consol.budget_it_cp) : '—' },
+        { label: 'Taux équipement', value: consol.taux_equipement ? formatPercent(consol.taux_equipement) : '—' },
+        { label: 'Budget / agent', value: consol.budget_it_par_agent ? formatCurrency(consol.budget_it_par_agent) : '—' },
+      ],
+      chart: '',
+      comment: getCommentaire(sid, annee, 'Informatique'),
+    };
+
+    sections.frais_mission = {
+      kpis: [
+        { label: 'Total dépenses', value: consol.total_frais_mission ? formatCurrency(consol.total_frais_mission) : '—' },
+        { label: 'Formation', value: consol.frais_formation ? formatCurrency(consol.frais_formation) : '—' },
+        { label: 'Autres missions', value: consol.frais_autres_missions ? formatCurrency(consol.frais_autres_missions) : '—' },
+        { label: 'FM / agent', value: consol.frais_mission_par_agent ? formatCurrency(consol.frais_mission_par_agent) : '—' },
+      ],
+      chart: '',
+      comment: getCommentaire(sid, annee, 'Frais_Mission'),
+    };
+
+    sections.fonctionnement = {
+      kpis: fonct ? [
+        { label: 'CP ' + annee, value: fonct['cp_' + annee] ? formatCurrency(fonct['cp_' + annee]) : '—' },
+        { label: '% maîtrisable', value: fonct['pct_m_' + annee] ? formatPercent(fonct['pct_m_' + annee]) : '—' },
+        { label: 'CP / agent', value: fonct['fonct_agent_' + annee] ? formatCurrency(fonct['fonct_agent_' + annee]) : '—' },
+        { label: 'Lissé 4 ans / agent', value: fonct.fonct_agent_4ans ? formatCurrency(fonct.fonct_agent_4ans) : '—' },
+      ] : [],
+      chart: fonctChart,
+      comment: getCommentaire(sid, annee, 'Fonctionnement'),
+    };
+
+    sections.vehicules = {
+      kpis: [
+        { label: 'Véhicules total', value: formatNumber(consol.nb_vehicules) },
+        { label: 'Taux vétusté', value: consol.taux_vetuste ? formatPercent(consol.taux_vetuste) : '—' },
+        { label: 'Budget total', value: consol.budget_vehicules ? formatCurrency(consol.budget_vehicules) : '—' },
+        { label: 'Ratio véh./agent', value: consol.ratio_vehicule_agent ? formatNumber(consol.ratio_vehicule_agent, 2) : '—' },
+      ],
+      chart: '',
+      comment: getCommentaire(sid, annee, 'Vehicules'),
+    };
+
+    sections.immobilier = {
+      kpis: [
+        { label: 'Sites', value: formatNumber(consol.nb_sites) },
+        { label: 'SUB totale', value: consol.sub_total ? formatNumber(consol.sub_total) + ' m²' : '—' },
+        { label: 'Ratio occupation', value: consol.ratio_occupation ? formatNumber(consol.ratio_occupation, 1) + ' m²/rés.' : '—' },
+        { label: 'Coût surfacique', value: consol.cout_surfacique ? formatCurrency(consol.cout_surfacique) + '/m²' : '—' },
+      ],
+      chart: '',
+      comment: getCommentaire(sid, annee, 'Immobilier'),
+    };
+
+    sections.communication = {
+      kpis: com ? [
+        { label: 'CP ' + annee, value: com.cp_2026 ? formatCurrency(com.cp_2026) : '—' },
+        { label: 'Cible', value: com.cible_2026 ? formatCurrency(com.cible_2026) : '—' },
+        { label: 'Disponible', value: com.cap_cp_2026 ? formatCurrency(com.cap_cp_2026) : '—' },
+        { label: 'Taux conso', value: com.taux_pct !== undefined ? formatNumber(com.taux_pct, 1) + ' %' : '—' },
+      ] : [],
+      chart: comChart,
+      comment: getCommentaire(sid, annee, 'Communication'),
+    };
+
+    return { struct, synthese, sections };
+  }
+
+  // ── Construire le HTML pour une structure ───────────────────────
+  function buildStructureHTML(payload, idx) {
+    const { struct, synthese, sections } = payload;
+
+    const shortcuts = DOMAINES.map((d, i) =>
+      `<button class="mob-shortcut" style="border-color:${d.color};color:${d.color};" onclick="showDomain(${idx}, ${i})">${d.icon} ${d.title}</button>`
+    ).join('');
+
+    const overviewHtml = `
+      <div class="mob-overview-header">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg" alt="Douanes" class="mob-logo">
+        <div>
+          <div class="mob-sigle">${_mobSafe(struct.sigle, struct.nom)}</div>
+          <div class="mob-nom">${_mobSafe(struct.nom, '')}</div>
+          <div class="mob-type">${_mobSafe(struct.type, '')} · ${annee}</div>
+        </div>
+      </div>
+      <div class="mob-comment-block" style="margin-top:16px;">
+        <div class="mob-comment-label">Synthèse</div>
+        <div class="md-render mob-md">${_mobMd(synthese)}</div>
+      </div>
+      <div class="mob-section-shortcut-title">Indicateurs</div>
+      <div class="mob-shortcuts">${shortcuts}</div>`;
+
+    const domainPanels = DOMAINES.map((d, i) => {
+      const s = sections[d.id] || { kpis: [], chart: '', comment: '' };
+      const kpiHtml = (s.kpis || []).map(k =>
+        `<div class="kpi-mob">
+          <div class="kpi-mob-label">${k.label}</div>
+          <div class="kpi-mob-value">${k.value}</div>
+        </div>`
+      ).join('');
+      const chartHtml = s.chart ? `<div class="mob-chart-wrap">${s.chart}</div>` : '';
+      return `<div class="mob-domain-panel" data-domain="${i}">
+        <div class="mob-panel-title" style="border-color:${d.color};color:${d.color};">${d.icon} ${d.title}</div>
+        <div class="kpi-mob-grid">${kpiHtml || '<div style="grid-column:1/-1;color:#8A9BAA;font-size:13px;">Aucune donnée disponible.</div>'}</div>
+        ${chartHtml}
+        <div class="mob-comment-block">
+          <div class="mob-comment-label">Analyse de l'indicateur</div>
+          <div class="md-render mob-md">${_mobMd(s.comment)}</div>
+        </div>
       </div>`;
     }).join('');
-  }
 
-  function buildSectionContent(s) {
-    const chartImg = _chartImages[s.chartId]
-      ? `<div class="mob-chart-wrap"><img src="${_chartImages[s.chartId]}" alt="Graphique ${s.title}" loading="lazy"></div>`
-      : '';
-    const mdRaw = getMdeValue(s.commentId) || '';
-    const mdHtml = mdRaw.trim() ? mdToHtml(mdRaw) : '<em style="color:#8A9BAA;">Aucun commentaire.</em>';
-    return `
-      <div class="kpi-mob-grid">${buildKpiCards(s.kpis)}</div>
-      ${chartImg}
-      <div class="mob-comment-block">
-        <div class="mob-comment-label">Analyse de l'indicateur</div>
-        <div class="md-render mob-md">${mdHtml}</div>
-      </div>`;
-  }
-
-  // ── 5. Vue d'ensemble ──────────────────────────────────────────
-  const synHtml = syntheseMd.trim() ? mdToHtml(syntheseMd) : '<em style="color:#8A9BAA;">Aucun commentaire.</em>';
-  const rhData = sections.find(s => s.id === 'rh');
-  const overviewContent = `
-    <div class="mob-overview-header">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg" alt="Douanes" class="mob-logo">
-      <div>
-        <div class="mob-sigle">${struct.sigle || ''}</div>
-        <div class="mob-nom">${struct.nom || ''}</div>
-        <div class="mob-type">${struct.type || ''} · ${annee}</div>
-      </div>
-    </div>
-    ${elText('header-region') !== '—' ? `<div class="mob-meta-row"><span class="mob-meta-icon">📍</span><span>${elText('header-region')}</span></div>` : ''}
-    ${elText('header-responsable') !== '—' ? `<div class="mob-meta-row"><span class="mob-meta-icon">👤</span><span>${elText('header-responsable')}</span></div>` : ''}
-    <div class="mob-comment-block" style="margin-top:16px;">
-      <div class="mob-comment-label">Synthèse</div>
-      <div class="md-render mob-md">${synHtml}</div>
-    </div>
-    <div class="mob-section-shortcut-title">Indicateurs</div>
-    <div class="mob-shortcuts">
-      ${sections.map((s,i) => `<button class="mob-shortcut" style="border-color:${s.color};color:${s.color};" onclick="switchTab(${i+1})">${s.icon} ${s.title}</button>`).join('')}
+    return `<div class="mob-struct-page" id="struct-${idx}" data-sigle="${(struct.sigle||'').toLowerCase()}" data-nom="${(struct.nom||'').toLowerCase()}">
+      <div class="mob-overview-panel">${overviewHtml}</div>
+      ${domainPanels}
     </div>`;
+  }
 
-  // ── 6. Assembler les tabs ──────────────────────────────────────
-  const allTabs = [
-    { id: 'overview', icon: '🏠', label: 'Accueil', content: overviewContent },
-    ...sections.map(s => ({
-      id: s.id,
-      icon: s.icon,
-      label: s.title.length > 10 ? s.title.split(' ')[0] : s.title,
-      color: s.color,
-      content: buildSectionContent(s),
-      title: s.title,
-    })),
-  ];
+  // ── Générer pour chaque structure ───────────────────────────────
+  const payloads = structuresList.map(buildStructurePayload);
+  const structPages = payloads.map((p, i) => buildStructureHTML(p, i)).join('');
 
-  const tabButtons = allTabs.map((t, i) =>
-    `<button class="mob-tab${i===0?' active':''}" id="taббtn-${i}" onclick="switchTab(${i})" title="${t.label || t.title || ''}">
-      <span class="mob-tab-icon">${t.icon}</span>
-      <span class="mob-tab-label">${t.label}</span>
-    </button>`
+  const selectorOptions = structuresList.map((s, i) =>
+    `<option value="${i}">${_mobSafe(s.sigle, s.nom)} — ${_mobSafe(s.nom,'')}</option>`
   ).join('');
 
-  const tabPanels = allTabs.map((t, i) =>
-    `<div class="mob-panel${i===0?' active':''}" id="panel-${i}">
-      ${i > 0 ? `<div class="mob-panel-title" style="border-color:${t.color||'#002F6C'};color:${t.color||'#002F6C'};">${t.icon} ${t.title || t.label}</div>` : ''}
-      ${t.content}
-    </div>`
-  ).join('');
+  const isMulti = structuresList.length > 1;
 
-  // ── 7. Générer le fichier HTML complet ─────────────────────────
+  // ── Générer le fichier HTML complet ─────────────────────────────
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -7002,115 +7019,60 @@ function exportToMobileApp() {
   <meta name="theme-color" content="#002F6C">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="${struct.sigle} ${annee}">
-  <title>Fiche ${struct.sigle} ${annee}</title>
+  <meta name="apple-mobile-web-app-title" content="Fiches DGDDI ${annee}">
+  <title>Fiches Identité DGDDI ${annee}</title>
   <style>
     :root {
-      --rep: #002F6C;
-      --rep2: #1351A8;
-      --rep-pale: #E6ECF8;
-      --gris1: #1E2D3D;
-      --gris2: #4A5A6A;
-      --gris3: #8A9BAA;
-      --gris4: #EEF2F7;
-      --bord: #CDD6E4;
+      --rep: #002F6C; --rep2: #1351A8; --rep-pale: #E6ECF8;
+      --gris1: #1E2D3D; --gris2: #4A5A6A; --gris3: #8A9BAA; --gris4: #EEF2F7; --bord: #CDD6E4;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; overflow: hidden; background: #f0f2f7; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-      font-size: 14px;
-      color: var(--gris1);
-      display: flex;
-      flex-direction: column;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 14px; color: var(--gris1); display: flex; flex-direction: column; }
 
-    /* ── Top bar ── */
-    .mob-topbar {
-      background: var(--rep);
-      color: white;
-      padding: 10px 14px env(safe-area-inset-top, 0px) 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-      min-height: 52px;
-    }
-    .mob-topbar-logo { width: 28px; height: 28px; object-fit: contain; filter: brightness(0) invert(1); }
+    .mob-topbar { background: var(--rep); color: white; padding: 10px 14px env(safe-area-inset-top,0px) 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; min-height: 52px; }
+    .mob-topbar-logo { width: 26px; height: 26px; object-fit: contain; filter: brightness(0) invert(1); flex-shrink: 0; }
     .mob-topbar-text { flex: 1; overflow: hidden; }
-    .mob-topbar-sigle { font-weight: 700; font-size: 15px; line-height: 1.2; }
-    .mob-topbar-sub { font-size: 11px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mob-topbar-sigle { font-weight: 700; font-size: 14px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mob-topbar-sub { font-size: 10px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mob-back-btn { background: rgba(255,255,255,.15); border: none; color: white; border-radius: 8px; padding: 6px 10px; font-size: 16px; cursor: pointer; display: none; flex-shrink: 0; }
+    .mob-back-btn.show { display: block; }
 
-    /* ── Contenu scrollable ── */
-    .mob-content {
-      flex: 1;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-    }
+    ${isMulti ? `
+    .mob-selector-wrap { padding: 10px 14px; background: white; border-bottom: 1px solid var(--bord); flex-shrink: 0; }
+    .mob-search-input { width: 100%; padding: 9px 12px; border: 1px solid var(--bord); border-radius: 8px; font-size: 14px; background: var(--gris4); }
+    .mob-struct-list { max-height: 50vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .mob-struct-item { padding: 10px 12px; border-bottom: 1px solid var(--bord); cursor: pointer; font-size: 13px; }
+    .mob-struct-item:active { background: var(--rep-pale); }
+    .mob-struct-item-sigle { font-weight: 700; color: var(--rep); }
+    .mob-struct-item-nom { color: var(--gris2); font-size: 11px; margin-top: 1px; }
+    ` : ''}
 
-    /* ── Panels ── */
-    .mob-panel { display: none; padding: 16px 14px 90px 14px; animation: fadein .18s ease; }
-    .mob-panel.active { display: block; }
+    .mob-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+    .mob-struct-page { display: none; }
+    .mob-struct-page.active { display: block; }
+    .mob-overview-panel, .mob-domain-panel { display: none; padding: 16px 14px 30px 14px; animation: fadein .18s ease; }
+    .mob-overview-panel.active, .mob-domain-panel.active { display: block; }
     @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-    .mob-panel-title {
-      font-size: 16px;
-      font-weight: 700;
-      border-left: 4px solid var(--rep);
-      padding-left: 10px;
-      margin-bottom: 14px;
-    }
+    .mob-panel-title { font-size: 16px; font-weight: 700; border-left: 4px solid var(--rep); padding-left: 10px; margin-bottom: 14px; }
 
-    /* ── Vue d'ensemble ── */
-    .mob-overview-header {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      background: var(--rep);
-      color: white;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 14px;
-    }
-    .mob-logo { width: 48px; height: 48px; object-fit: contain; filter: brightness(0) invert(1); flex-shrink: 0; }
-    .mob-sigle { font-size: 22px; font-weight: 800; line-height: 1.1; }
-    .mob-nom { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+    .mob-overview-header { display: flex; align-items: center; gap: 14px; background: var(--rep); color: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+    .mob-logo { width: 44px; height: 44px; object-fit: contain; filter: brightness(0) invert(1); flex-shrink: 0; }
+    .mob-sigle { font-size: 20px; font-weight: 800; line-height: 1.1; }
+    .mob-nom { font-size: 12px; opacity: 0.85; margin-top: 2px; }
     .mob-type { font-size: 11px; opacity: 0.65; margin-top: 4px; }
-    .mob-meta-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gris2); padding: 5px 0; border-bottom: 1px solid var(--bord); }
-    .mob-meta-icon { font-size: 15px; width: 20px; text-align: center; }
     .mob-section-shortcut-title { font-weight: 700; font-size: 13px; color: var(--gris2); text-transform: uppercase; letter-spacing: .5px; margin: 18px 0 10px 0; }
     .mob-shortcuts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .mob-shortcut {
-      background: white;
-      border: 2px solid;
-      border-radius: 10px;
-      padding: 10px 8px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: left;
-      line-height: 1.3;
-    }
+    .mob-shortcut { background: white; border: 2px solid; border-radius: 10px; padding: 10px 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: left; line-height: 1.3; }
     .mob-shortcut:active { opacity: 0.7; transform: scale(0.97); }
 
-    /* ── KPI Cards ── */
     .kpi-mob-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-    .kpi-mob {
-      background: white;
-      border-radius: 10px;
-      padding: 12px;
-      border-left: 3px solid var(--rep);
-      box-shadow: 0 1px 4px rgba(0,47,108,.08);
-    }
+    .kpi-mob { background: white; border-radius: 10px; padding: 12px; border-left: 3px solid var(--rep); box-shadow: 0 1px 4px rgba(0,47,108,.08); }
     .kpi-mob-label { font-size: 10px; color: var(--gris3); text-transform: uppercase; letter-spacing: .4px; font-weight: 600; margin-bottom: 4px; }
-    .kpi-mob-value { font-size: 18px; font-weight: 700; color: var(--gris1); line-height: 1.2; }
-    .kpi-mob-comp { font-size: 10px; color: var(--gris3); margin-top: 3px; }
+    .kpi-mob-value { font-size: 17px; font-weight: 700; color: var(--gris1); line-height: 1.2; }
 
-    /* ── Chart ── */
     .mob-chart-wrap { background: white; border-radius: 12px; padding: 12px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,47,108,.08); }
-    .mob-chart-wrap img { width: 100%; height: auto; display: block; border-radius: 6px; }
 
-    /* ── Commentaires ── */
     .mob-comment-block { background: white; border-radius: 12px; padding: 14px; box-shadow: 0 1px 4px rgba(0,47,108,.08); }
     .mob-comment-label { font-size: 10px; font-style: italic; color: #506090; margin-bottom: 8px; }
     .mob-md { font-size: 13px; line-height: 1.6; color: var(--gris1); }
@@ -7120,83 +7082,96 @@ function exportToMobileApp() {
     .mob-md strong { color: var(--rep); }
     .mob-md em { color: var(--gris2); }
 
-    /* ── Bottom nav ── */
-    .mob-bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: white;
-      border-top: 1px solid var(--bord);
-      display: flex;
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-      z-index: 100;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
+    .mob-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--bord); display: flex; padding-bottom: env(safe-area-inset-bottom,0px); z-index: 100; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     .mob-bottom-nav::-webkit-scrollbar { display: none; }
-    .mob-tab {
-      flex: 0 0 auto;
-      min-width: 64px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 8px 6px 6px 6px;
-      border: none;
-      background: transparent;
-      color: var(--gris3);
-      cursor: pointer;
-      transition: color .15s;
-      font-family: inherit;
-    }
+    .mob-tab { flex: 0 0 auto; min-width: 60px; display: flex; flex-direction: column; align-items: center; padding: 8px 6px 6px 6px; border: none; background: transparent; color: var(--gris3); cursor: pointer; font-family: inherit; }
     .mob-tab.active { color: var(--rep); }
-    .mob-tab.active .mob-tab-icon { transform: translateY(-2px); }
-    .mob-tab-icon { font-size: 20px; line-height: 1; transition: transform .15s; }
+    .mob-tab-icon { font-size: 19px; line-height: 1; }
     .mob-tab-label { font-size: 9px; margin-top: 3px; font-weight: 500; white-space: nowrap; }
-
-    /* ── Indicateur actif coloré ── */
-    ${sections.map((s, i) => `.mob-tab[data-idx="${i+1}"].active { color: ${s.color}; }`).join('\n    ')}
-
-    /* ── Scrollbar styles ── */
-    .mob-content::-webkit-scrollbar { width: 3px; }
-    .mob-content::-webkit-scrollbar-thumb { background: var(--bord); border-radius: 3px; }
+    .mob-content { padding-bottom: ${isMulti ? '0' : '64px'}; }
   </style>
 </head>
 <body>
 
   <div class="mob-topbar">
+    ${isMulti ? '<button class="mob-back-btn" id="mob-back" onclick="goBackToList()">←</button>' : ''}
     <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg" alt="Douanes" class="mob-topbar-logo">
     <div class="mob-topbar-text">
-      <div class="mob-topbar-sigle">${struct.sigle} — ${annee}</div>
-      <div class="mob-topbar-sub">${struct.nom}</div>
+      <div class="mob-topbar-sigle" id="mob-topbar-sigle">${isMulti ? 'Fiches Identité DGDDI' : _mobSafe(structuresList[0].sigle)}</div>
+      <div class="mob-topbar-sub" id="mob-topbar-sub">${isMulti ? structuresList.length + ' structures · ' + annee : _mobSafe(structuresList[0].nom,'')}</div>
     </div>
   </div>
 
-  <div class="mob-content" id="mob-content">
-    ${tabPanels}
+  ${isMulti ? `
+  <div class="mob-selector-wrap" id="mob-selector-wrap">
+    <input type="text" class="mob-search-input" id="mob-search" placeholder="Rechercher une structure…" oninput="filterStructList(this.value)">
+    <div class="mob-struct-list" id="mob-struct-list">
+      ${structuresList.map((s,i) => `<div class="mob-struct-item" data-idx="${i}" onclick="openStructure(${i})">
+        <div class="mob-struct-item-sigle">${_mobSafe(s.sigle, s.nom)}</div>
+        <div class="mob-struct-item-nom">${_mobSafe(s.nom,'')} ${s.type ? '· ' + s.type : ''}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+  ` : ''}
+
+  <div class="mob-content" id="mob-content" style="display:${isMulti ? 'none' : 'block'};">
+    ${structPages}
   </div>
 
-  <nav class="mob-bottom-nav" id="mob-nav">
-    ${tabButtons}
+  <nav class="mob-bottom-nav" id="mob-nav" style="display:${isMulti ? 'none' : 'flex'};">
+    <button class="mob-tab active" data-domain="-1" onclick="showDomain(currentStructIdx, -1)"><span class="mob-tab-icon">🏠</span><span class="mob-tab-label">Accueil</span></button>
+    ${DOMAINES.map((d,i) => `<button class="mob-tab" data-domain="${i}" onclick="showDomain(currentStructIdx, ${i})"><span class="mob-tab-icon">${d.icon}</span><span class="mob-tab-label">${d.title.split(' ')[0]}</span></button>`).join('')}
   </nav>
 
   <script>
-    function switchTab(idx) {
-      document.querySelectorAll('.mob-panel').forEach((p,i) => p.classList.toggle('active', i===idx));
-      document.querySelectorAll('.mob-tab').forEach((b,i) => b.classList.toggle('active', i===idx));
-      // Scroll contenu en haut
+    var currentStructIdx = ${isMulti ? '-1' : '0'};
+
+    function openStructure(idx) {
+      currentStructIdx = idx;
+      document.getElementById('mob-selector-wrap').style.display = 'none';
+      document.getElementById('mob-content').style.display = 'block';
+      document.getElementById('mob-nav').style.display = 'flex';
+      document.getElementById('mob-back').classList.add('show');
+      document.querySelectorAll('.mob-struct-page').forEach(function(p,i){ p.classList.toggle('active', i===idx); });
+      showDomain(idx, -1);
+      var page = document.getElementById('struct-' + idx);
+      var sigle = page.getAttribute('data-sigle');
+      document.getElementById('mob-topbar-sigle').textContent = page.querySelector('.mob-sigle').textContent;
+      document.getElementById('mob-topbar-sub').textContent = page.querySelector('.mob-nom').textContent;
       document.getElementById('mob-content').scrollTop = 0;
-      // Scroll nav pour centrer le tab actif
-      const nav = document.getElementById('mob-nav');
-      const btn = nav.querySelectorAll('.mob-tab')[idx];
-      if (btn) {
-        const btnCenter = btn.offsetLeft + btn.offsetWidth / 2;
-        nav.scrollLeft = btnCenter - nav.clientWidth / 2;
-      }
     }
-    // Initialiser les data-idx pour la coloration
-    document.querySelectorAll('.mob-tab').forEach((b,i) => b.setAttribute('data-idx', i));
+
+    function goBackToList() {
+      document.getElementById('mob-selector-wrap').style.display = 'block';
+      document.getElementById('mob-content').style.display = 'none';
+      document.getElementById('mob-nav').style.display = 'none';
+      document.getElementById('mob-back').classList.remove('show');
+      document.getElementById('mob-topbar-sigle').textContent = 'Fiches Identité DGDDI';
+      document.getElementById('mob-topbar-sub').textContent = '${structuresList.length} structures · ${annee}';
+    }
+
+    function showDomain(structIdx, domainIdx) {
+      var page = document.getElementById('struct-' + structIdx);
+      if (!page) return;
+      var overview = page.querySelector('.mob-overview-panel');
+      overview.classList.toggle('active', domainIdx === -1);
+      page.querySelectorAll('.mob-domain-panel').forEach(function(p){
+        p.classList.toggle('active', parseInt(p.getAttribute('data-domain')) === domainIdx);
+      });
+      document.querySelectorAll('.mob-tab').forEach(function(b){
+        b.classList.toggle('active', parseInt(b.getAttribute('data-domain')) === domainIdx);
+      });
+      document.getElementById('mob-content').scrollTop = 0;
+    }
+
+    function filterStructList(query) {
+      var q = query.trim().toLowerCase();
+      document.querySelectorAll('.mob-struct-item').forEach(function(item, i){
+        var page = document.getElementById('struct-' + i);
+        var match = !q || page.getAttribute('data-sigle').indexOf(q) !== -1 || page.getAttribute('data-nom').indexOf(q) !== -1;
+        item.style.display = match ? 'block' : 'none';
+      });
+    }
   </script>
 
 </body>
@@ -7206,7 +7181,9 @@ function exportToMobileApp() {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url;
-  a.download = `${struct.sigle}-${annee}-mobile-${getPDFTimestamp()}.html`;
+  const fname = isMulti ? `DGDDI-toutes-structures-${annee}-mobile-${getPDFTimestamp()}.html`
+                        : `${structuresList[0].sigle}-${annee}-mobile-${getPDFTimestamp()}.html`;
+  a.download = fname;
   a.click();
   URL.revokeObjectURL(url);
 }
