@@ -4292,7 +4292,12 @@ async function exportAllStructuresInOnePDF(filters) {
   }
   
   const loadingDiv = showLoadingMessage(`Génération d'un PDF avec ${structures.length} structures...`);
-  
+
+  // Désactiver les animations Chart.js le temps du batch : elles n'ont aucune utilité
+  // sur une capture statique et forçaient une attente artificielle à chaque structure.
+  const _animBackup = (typeof Chart !== 'undefined') ? Chart.defaults.animation : undefined;
+  if (typeof Chart !== 'undefined') Chart.defaults.animation = false;
+
   try {
     const pdf = new jsPDF('p', 'mm', 'a4', { compress: true });
     let isFirstPage = true;
@@ -4302,7 +4307,7 @@ async function exportAllStructuresInOnePDF(filters) {
       loadingDiv.querySelector('div:last-child').textContent = `Structure ${i + 1}/${structures.length} : ${struct.sigle}`;
       
       await selectStructure(struct.id);
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 250));
       
       if (!isFirstPage) pdf.addPage();
       await addStructureToPDF(pdf, struct, annee, isFirstPage);
@@ -4315,6 +4320,8 @@ async function exportAllStructuresInOnePDF(filters) {
   } catch (error) {
     hideLoadingMessage(loadingDiv);
     alert('Erreur lors de la génération du PDF.');
+  } finally {
+    if (typeof Chart !== 'undefined') Chart.defaults.animation = _animBackup;
   }
 }
 
@@ -4336,7 +4343,10 @@ async function exportAllStructuresAsZIP(filters) {
   }
   
   const loadingDiv = showLoadingMessage(`Génération de ${structures.length} PDF...`);
-  
+
+  const _animBackup = (typeof Chart !== 'undefined') ? Chart.defaults.animation : undefined;
+  if (typeof Chart !== 'undefined') Chart.defaults.animation = false;
+
   try {
     const zip = new JSZip();
     
@@ -4345,7 +4355,7 @@ async function exportAllStructuresAsZIP(filters) {
       loadingDiv.querySelector('div:last-child').textContent = `PDF ${i + 1}/${structures.length} : ${struct.sigle}`;
       
       await selectStructure(struct.id);
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 250));
       
       const pdf = new jsPDF('p', 'mm', 'a4', { compress: true });
       await addStructureToPDF(pdf, struct, annee, true);
@@ -4369,6 +4379,8 @@ async function exportAllStructuresAsZIP(filters) {
   } catch (error) {
     hideLoadingMessage(loadingDiv);
     alert('Erreur lors de la génération de l\'archive ZIP.');
+  } finally {
+    if (typeof Chart !== 'undefined') Chart.defaults.animation = _animBackup;
   }
 }
 
@@ -5304,21 +5316,31 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   async function captureElementToImage(element) {
     if (!element || element.scrollHeight < 5) return;
 
-    const canvas = await html2canvas(element, {
-      scale: 1.5, useCORS: true, logging: false,
-      backgroundColor: '#ffffff',
-      width: element.scrollWidth, height: element.scrollHeight,
-      onclone: _h2cOnClone
-    });
-
     const imgWidth   = pageWidth - (2 * margin);
-    const pxToMm     = imgWidth / canvas.width;
-    const imgHeight  = canvas.height * pxToMm;
     const fullPageH  = pageHeight - footerHeight - margin - (margin + headerHeight + 5);
+    const isSection  = element.classList && element.classList.contains('section');
+
+    // Pré-estimation sans capture : évite une capture html2canvas complète et jetée
+    // sur les sections dont on sait qu'elles devront de toute façon être redécoupées
+    // enfant par enfant (gain de temps sur le batch 73 structures).
+    const estimatedH = element.scrollHeight * (imgWidth / (element.scrollWidth || 1));
+    const skipFullCapture = isSection && estimatedH > fullPageH * 1.15;
+
+    let canvas = null, pxToMm = 0, imgHeight = 0;
+    if (!skipFullCapture) {
+      canvas = await html2canvas(element, {
+        scale: 1.5, useCORS: true, logging: false,
+        backgroundColor: '#ffffff',
+        width: element.scrollWidth, height: element.scrollHeight,
+        onclone: _h2cOnClone
+      });
+      pxToMm    = imgWidth / canvas.width;
+      imgHeight = canvas.height * pxToMm;
+    }
 
     function doPageBreak() { _pdfCtx.addPage(); }
 
-    if (imgHeight <= fullPageH) {
+    if (canvas && imgHeight <= fullPageH) {
       // Hauteur réelle connue : saut propre si besoin, puis placement direct
       const availMm = pageHeight - footerHeight - margin - yPosition;
       if (availMm < imgHeight || availMm < 15) doPageBreak();
@@ -5329,7 +5351,6 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       // Si c'est un élément .section, on re-capture ses enfants directs un par un
       // (en groupant les 2 premiers : section-header + KPIs) plutôt que de slicer.
       // Sinon on slicera (tableaux très longs inévitables).
-      const isSection = element.classList && element.classList.contains('section');
       if (isSection) {
         // Trouver le commentDiv pour l'exclure
         const innerMde = element.querySelector('.EasyMDEContainer');
