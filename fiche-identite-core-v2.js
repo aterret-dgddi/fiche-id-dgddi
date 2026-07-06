@@ -4268,7 +4268,7 @@ async function exportSingleStructurePDF(struct, annee) {
   await new Promise(resolve => setTimeout(resolve, 100));
   
   try {
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdf = new jsPDF('p', 'mm', 'a4', { compress: true });
     await addStructureToPDF(pdf, struct, annee, true);
     pdf.save(`${struct.sigle}-${annee}-${getPDFTimestamp()}.pdf`);
     hideLoadingMessage(loadingDiv);
@@ -4294,7 +4294,7 @@ async function exportAllStructuresInOnePDF(filters) {
   const loadingDiv = showLoadingMessage(`Génération d'un PDF avec ${structures.length} structures...`);
   
   try {
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdf = new jsPDF('p', 'mm', 'a4', { compress: true });
     let isFirstPage = true;
     
     for (let i = 0; i < structures.length; i++) {
@@ -4347,7 +4347,7 @@ async function exportAllStructuresAsZIP(filters) {
       await selectStructure(struct.id);
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdf = new jsPDF('p', 'mm', 'a4', { compress: true });
       await addStructureToPDF(pdf, struct, annee, true);
       
       const pdfBlob = pdf.output('blob');
@@ -5305,7 +5305,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     if (!element || element.scrollHeight < 5) return;
 
     const canvas = await html2canvas(element, {
-      scale: 2, useCORS: true, logging: false,
+      scale: 1.5, useCORS: true, logging: false,
       backgroundColor: '#ffffff',
       width: element.scrollWidth, height: element.scrollHeight,
       onclone: _h2cOnClone
@@ -5322,7 +5322,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       // Hauteur réelle connue : saut propre si besoin, puis placement direct
       const availMm = pageHeight - footerHeight - margin - yPosition;
       if (availMm < imgHeight || availMm < 15) doPageBreak();
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPosition, imgWidth, imgHeight);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgWidth, imgHeight);
       yPosition += imgHeight + 3;
     } else {
       // Bloc plus grand qu'une page.
@@ -5376,9 +5376,9 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
         for (const group of groups) {
           const captured = [];
           for (const el of group) {
-            const c2 = await html2canvas(el, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', onclone:_h2cOnClone });
+            const c2 = await html2canvas(el, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', onclone:_h2cOnClone });
             const h2 = c2.height * (imgWidth / c2.width);
-            captured.push({ h: h2, data: c2.toDataURL('image/jpeg', 0.95) });
+            captured.push({ h: h2, data: c2.toDataURL('image/jpeg', 0.82) });
           }
           const totalGroupH = captured.reduce((s, item) => s + item.h + 1, 0);
           const avail = pageHeight - footerHeight - margin - yPosition;
@@ -5406,7 +5406,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
           const sl = document.createElement('canvas');
           sl.width = canvasW; sl.height = slicePx;
           sl.getContext('2d').drawImage(canvas, 0, srcY, canvasW, slicePx, 0, 0, canvasW, slicePx);
-          pdf.addImage(sl.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPosition, imgWidth, sliceH);
+          pdf.addImage(sl.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgWidth, sliceH);
           yPosition += sliceH;
           srcY += slicePx;
           if (srcY < canvasH) doPageBreak();
@@ -5442,13 +5442,13 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Capturer le header fiche
     let hHeader = 0, dataHeader = null;
     if (ficheHeader && ficheHeader.offsetParent) {
-      const cHeader = await html2canvas(ficheHeader, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width:ficheHeader.scrollWidth, height:ficheHeader.scrollHeight, onclone:_h2cOnClone });
+      const cHeader = await html2canvas(ficheHeader, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', width:ficheHeader.scrollWidth, height:ficheHeader.scrollHeight, onclone:_h2cOnClone });
       hHeader = cHeader.height * (imgW / cHeader.width);
-      dataHeader = cHeader.toDataURL('image/jpeg', 0.95);
+      dataHeader = cHeader.toDataURL('image/jpeg', 0.82);
     }
 
     // Capturer le bloc pills (sans la description)
-    const cPills = await html2canvas(mainCommentBox, { scale:2, useCORS:true, logging:false, backgroundColor:'#ffffff', width:mainCommentBox.scrollWidth, height:mainCommentBox.scrollHeight, onclone:_h2cOnClone });
+    const cPills = await html2canvas(mainCommentBox, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', width:mainCommentBox.scrollWidth, height:mainCommentBox.scrollHeight, onclone:_h2cOnClone });
     const hPills = cPills.height * (imgW / cPills.width);
 
     // Lire le markdown du commentaire général
@@ -5467,7 +5467,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Placer bloc pills : saut seulement si < 30mm disponibles
     const avail0 = pageHeight - footerHeight - margin - yPosition;
     if (avail0 < 30) _pdfCtx.addPage();
-    pdf.addImage(cPills.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPosition, imgW, hPills);
+    pdf.addImage(cPills.toDataURL('image/jpeg', 0.82), 'JPEG', margin, yPosition, imgW, hPills);
     yPosition += hPills + 2;
 
     // Rendu natif du texte du commentaire général
