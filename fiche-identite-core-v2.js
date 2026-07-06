@@ -6864,8 +6864,58 @@ function _runMobileExport(structuresList) {
   // ── Construction des données pour une structure ─────────────────
   function buildStructurePayload(struct) {
     const sid = struct.id;
-    const consol = getConsolidationStructureData(sid, annee) || {};
     const synthese = (typeof getCommentaire === 'function') ? getCommentaire(sid, annee, 'Synthese') : '';
+
+    // ── Données par domaine : mêmes getters hybrides (raw table + fallback
+    //    Consolidation_Structure) que la page fiche-identité principale.
+    //    (Auparavant l'export ne lisait que Consolidation_Structure, qui ne
+    //    couvre pas toutes les structures → KPI vides pour DR/SCN/DG.)
+    const rhData = (typeof getRHData === 'function') ? (getRHData(sid, annee) || {}) : {};
+    const itData = (typeof getInformatiqueData === 'function') ? (getInformatiqueData(sid, annee) || {}) : {};
+    const fmData = (typeof getFraisMissionData === 'function') ? (getFraisMissionData(sid, annee) || {}) : {};
+    const vehData = (typeof getVehiculesData === 'function') ? (getVehiculesData(sid, annee) || {}) : {};
+
+    // Âge moyen / MS-par-agent : présents directement si Consolidation_Structure
+    // a servi de source dans getRHData ; sinon on les recalcule depuis le détail
+    // AGCO/SU/Autres renvoyé par le fallback table brute.
+    const rhEffectifTotal = rhData.effectif_total || 0;
+    const rhAgeMoyen = (rhData.age_moyen != null) ? rhData.age_moyen : (() => {
+      const sum = (rhData.age_moyen_agco || 0) * (rhData.effectif_agco || 0)
+                + (rhData.age_moyen_su || 0) * (rhData.effectif_su || 0)
+                + (rhData.age_moyen_autres || 0) * (rhData.effectif_autres || 0);
+      return (rhEffectifTotal > 0 && sum > 0) ? sum / rhEffectifTotal : null;
+    })();
+    const rhMsParAgent = (rhData.ms_par_agent != null) ? rhData.ms_par_agent
+      : (rhEffectifTotal > 0 && rhData.masse_salariale ? rhData.masse_salariale / rhEffectifTotal : null);
+
+    // Immobilier : pas de getter combiné dédié → on reproduit la logique de
+    // refreshImmobilier() (Consolidation_Structure + fallback DI 972 agrégeant
+    // les DR rattachées).
+    let immoData = (typeof getConsolidationStructureData === 'function') ? getConsolidationStructureData(sid, annee) : null;
+    if (!immoData || (immoData.sub_total === 0 && immoData.residents_total === 0)) {
+      const drIds = (typeof getDRRattachees === 'function') ? getDRRattachees(sid) : [];
+      if (drIds.length > 0) {
+        let sub = 0, res = 0, energie = 0, nbSites = 0;
+        drIds.forEach(drId => {
+          const d = getConsolidationStructureData(drId, annee);
+          if (!d) return;
+          sub += d.sub_total || 0;
+          res += d.residents_total || 0;
+          energie += d.charges_energie || 0;
+          nbSites += d.nb_sites || 0;
+        });
+        if (sub > 0 || res > 0) {
+          immoData = {
+            sub_total: sub,
+            residents_total: res,
+            nb_sites: nbSites,
+            ratio_occupation: res > 0 ? sub / res : null,
+            cout_surfacique: sub > 0 ? energie / sub : null,
+          };
+        }
+      }
+    }
+    immoData = immoData || {};
 
     const rhHist = (typeof getRHHistorique === 'function') ? getRHHistorique(sid) : [];
     const rhChart = rhHist.length
@@ -6892,11 +6942,11 @@ function _runMobileExport(structuresList) {
 
     sections.rh = {
       kpis: [
-        { label: 'Effectif total', value: formatNumber(consol.effectif_total) },
-        { label: 'AGCO', value: formatNumber(consol.effectif_agco) },
-        { label: 'Surveillance', value: formatNumber(consol.effectif_su) },
-        { label: 'Âge moyen', value: consol.age_moyen ? formatNumber(consol.age_moyen, 1) + ' ans' : '—' },
-        { label: 'MS / agent', value: consol.ms_par_agent ? formatCurrency(consol.ms_par_agent) : '—' },
+        { label: 'Effectif total', value: formatNumber(rhData.effectif_total) },
+        { label: 'AGCO', value: formatNumber(rhData.effectif_agco) },
+        { label: 'Surveillance', value: formatNumber(rhData.effectif_su) },
+        { label: 'Âge moyen', value: rhAgeMoyen ? formatNumber(rhAgeMoyen, 1) + ' ans' : '—' },
+        { label: 'MS / agent', value: rhMsParAgent ? formatCurrency(rhMsParAgent) : '—' },
       ],
       chart: rhChart,
       comment: getCommentaire(sid, annee, 'RH'),
@@ -6904,10 +6954,10 @@ function _runMobileExport(structuresList) {
 
     sections.informatique = {
       kpis: [
-        { label: 'Postes total', value: formatNumber(consol.nb_postes_total) },
-        { label: 'Budget IT CP', value: consol.budget_it_cp ? formatCurrency(consol.budget_it_cp) : '—' },
-        { label: 'Taux équipement', value: consol.taux_equipement ? formatPercent(consol.taux_equipement) : '—' },
-        { label: 'Budget / agent', value: consol.budget_it_par_agent ? formatCurrency(consol.budget_it_par_agent) : '—' },
+        { label: 'Postes total', value: formatNumber(itData.nb_postes_travail) },
+        { label: 'Budget IT CP', value: itData.budget_it_cp ? formatCurrency(itData.budget_it_cp) : '—' },
+        { label: 'Taux équipement', value: itData.ratio_poste_agent ? formatPercent(itData.ratio_poste_agent) : '—' },
+        { label: 'Budget / agent', value: itData.budget_it_par_agent ? formatCurrency(itData.budget_it_par_agent) : '—' },
       ],
       chart: '',
       comment: getCommentaire(sid, annee, 'Informatique'),
@@ -6915,10 +6965,10 @@ function _runMobileExport(structuresList) {
 
     sections.frais_mission = {
       kpis: [
-        { label: 'Total dépenses', value: consol.total_frais_mission ? formatCurrency(consol.total_frais_mission) : '—' },
-        { label: 'Formation', value: consol.frais_formation ? formatCurrency(consol.frais_formation) : '—' },
-        { label: 'Autres missions', value: consol.frais_autres_missions ? formatCurrency(consol.frais_autres_missions) : '—' },
-        { label: 'FM / agent', value: consol.frais_mission_par_agent ? formatCurrency(consol.frais_mission_par_agent) : '—' },
+        { label: 'Total dépenses', value: fmData.montant_total ? formatCurrency(fmData.montant_total) : '—' },
+        { label: 'Formation', value: fmData.total_formation ? formatCurrency(fmData.total_formation) : '—' },
+        { label: 'Autres missions', value: fmData.total_autres ? formatCurrency(fmData.total_autres) : '—' },
+        { label: 'FM / agent', value: fmData.frais_par_agent ? formatCurrency(fmData.frais_par_agent) : '—' },
       ],
       chart: '',
       comment: getCommentaire(sid, annee, 'Frais_Mission'),
@@ -6937,10 +6987,10 @@ function _runMobileExport(structuresList) {
 
     sections.vehicules = {
       kpis: [
-        { label: 'Véhicules total', value: formatNumber(consol.nb_vehicules) },
-        { label: 'Taux vétusté', value: consol.taux_vetuste ? formatPercent(consol.taux_vetuste) : '—' },
-        { label: 'Budget total', value: consol.budget_vehicules ? formatCurrency(consol.budget_vehicules) : '—' },
-        { label: 'Ratio véh./agent', value: consol.ratio_vehicule_agent ? formatNumber(consol.ratio_vehicule_agent, 2) : '—' },
+        { label: 'Véhicules total', value: formatNumber(vehData.nombre_total) },
+        { label: 'Taux vétusté', value: vehData.taux_vetuste ? formatPercent(vehData.taux_vetuste) : '—' },
+        { label: 'Budget total', value: vehData.budget_total ? formatCurrency(vehData.budget_total) : '—' },
+        { label: 'Ratio véh./agent', value: vehData.ratio_vehicule_agent ? formatNumber(vehData.ratio_vehicule_agent, 2) : '—' },
       ],
       chart: '',
       comment: getCommentaire(sid, annee, 'Vehicules'),
@@ -6948,10 +6998,10 @@ function _runMobileExport(structuresList) {
 
     sections.immobilier = {
       kpis: [
-        { label: 'Sites', value: formatNumber(consol.nb_sites) },
-        { label: 'SUB totale', value: consol.sub_total ? formatNumber(consol.sub_total) + ' m²' : '—' },
-        { label: 'Ratio occupation', value: consol.ratio_occupation ? formatNumber(consol.ratio_occupation, 1) + ' m²/rés.' : '—' },
-        { label: 'Coût surfacique', value: consol.cout_surfacique ? formatCurrency(consol.cout_surfacique) + '/m²' : '—' },
+        { label: 'Sites', value: formatNumber(immoData.nb_sites) },
+        { label: 'SUB totale', value: immoData.sub_total ? formatNumber(immoData.sub_total) + ' m²' : '—' },
+        { label: 'Ratio occupation', value: immoData.ratio_occupation ? formatNumber(immoData.ratio_occupation, 1) + ' m²/rés.' : '—' },
+        { label: 'Coût surfacique', value: immoData.cout_surfacique ? formatCurrency(immoData.cout_surfacique) + '/m²' : '—' },
       ],
       chart: '',
       comment: getCommentaire(sid, annee, 'Immobilier'),
