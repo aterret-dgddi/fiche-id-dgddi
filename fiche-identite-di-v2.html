@@ -41,11 +41,9 @@
   src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Bold.woff2') format('woff2');
   font-weight: 700; font-style: normal;
 }
-@font-face {
-  font-family: 'Marianne';
-  src: url('https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/fonts/Marianne-Heavy.woff2') format('woff2');
-  font-weight: 800; font-style: normal;
-}
+/* Pas de graisse 800 officielle pour Marianne : l'ancien @font-face 'Heavy' pointait vers
+   un fichier inexistant sur jsdelivr (404 systématique à chaque rendu/capture html2canvas).
+   Le navigateur retombe proprement sur le 700 Bold pour les usages font-weight:800. */
 
     :root {
       --rep: #002F6C;
