@@ -6851,7 +6851,8 @@ function _mobEvol(cur, prev, opts) {
 
 // Comparaison vs moyenne de périmètre/national (texte grisé par défaut)
 // colorMode: 'normal' (au-dessus=vert), 'invert' (au-dessus=rouge), omis => gris neutre
-function _mobComp(cur, ref, label, colorMode) {
+// refFormatted (optionnel) : valeur de référence déjà formatée, affichée en tooltip (title=) pour lever l'ambiguïté du %.
+function _mobComp(cur, ref, label, colorMode, refFormatted) {
   if (cur === null || cur === undefined || !ref || isNaN(cur) || isNaN(ref)) return '';
   const diff = cur - ref;
   const pct = (diff / Math.abs(ref)) * 100;
@@ -6859,27 +6860,40 @@ function _mobComp(cur, ref, label, colorMode) {
   let color = 'var(--gris3)';
   if (colorMode === 'normal') color = diff >= 0 ? '#10b981' : '#ef4444';
   if (colorMode === 'invert') color = diff <= 0 ? '#10b981' : '#ef4444';
-  return `<span style="color:${color};">${sign}${pct.toFixed(1)}% vs ${label}</span>`;
+  const titleAttr = refFormatted ? ` title="Moyenne ${label} : ${refFormatted}"` : '';
+  return `<span style="color:${color};border-bottom:1px dotted currentColor;"${titleAttr}>${sign}${pct.toFixed(1)}% vs moy. ${label}</span>`;
 }
 
 // Mini graphique en barres HTML/CSS à partir d'une série [{label, value}]
 // (remplace l'ancienne version SVG dont le texte devenait illisible à cause
 // du preserveAspectRatio="none" qui déformait les glyphes non uniformément)
-function _mobBarChart(series, color, unit) {
+// opts: { title, valueFormatter(v) }
+function _mobBarChart(series, color, opts) {
   if (!series || !series.length) return '';
+  opts = opts || {};
+  const fmt = opts.valueFormatter || (v => formatNumber(v));
   const vals = series.map(s => s.value || 0);
   const max = Math.max(...vals, 1);
+  const min = Math.min(...vals, 0);
+  // Barres tronquées (base = min de la série, pas 0) pour rendre les variations
+  // visibles quand les valeurs sont proches les unes des autres (ex: effectif
+  // stable d'une année sur l'autre) — sinon toutes les barres paraissent identiques.
+  const base = min > 0 ? min * 0.9 : 0;
+  const range = (max - base) || 1;
   const bars = series.map(s => {
     const v = s.value || 0;
-    const pct = max > 0 ? Math.max(v / max * 100, 3) : 3;
+    const pct = Math.max((v - base) / range * 100, 4);
     return `
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;">
-        <div style="font-size:11px;font-weight:600;color:var(--gris1);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${formatNumber(v)}${unit || ''}</div>
-        <div style="width:70%;height:${pct}%;background:${color};border-radius:4px 4px 0 0;min-height:3px;"></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:0;">
+        <div style="font-size:11px;font-weight:600;color:var(--gris1);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${fmt(v)}</div>
+        <div style="width:100%;height:64px;display:flex;align-items:flex-end;justify-content:center;">
+          <div style="width:60%;height:${pct}%;background:${color};border-radius:4px 4px 0 0;min-height:4px;"></div>
+        </div>
         <div style="font-size:10px;color:var(--gris3);margin-top:5px;">${s.label}</div>
       </div>`;
   }).join('');
-  return `<div style="display:flex;align-items:flex-end;height:100px;gap:8px;padding-top:4px;">${bars}</div>`;
+  const titleHtml = opts.title ? `<div style="font-size:12px;font-weight:600;color:var(--gris2);margin-bottom:10px;">${opts.title}</div>` : '';
+  return `${titleHtml}<div style="display:flex;align-items:flex-start;gap:8px;">${bars}</div>`;
 }
 
 function _runMobileExport(structuresList) {
@@ -6962,22 +6976,25 @@ function _runMobileExport(structuresList) {
 
     const rhHist = (typeof getRHHistorique === 'function') ? getRHHistorique(sid) : [];
     const rhChart = rhHist.length
-      ? _mobBarChart(rhHist.map(h => ({ label: h.annee, value: h.total })), '#1A6B3C')
+      ? _mobBarChart(rhHist.map(h => ({ label: h.annee, value: h.total })), '#1A6B3C',
+          { title: 'Effectif total — historique 4 ans' })
       : '';
 
     const fonct = (typeof getFonctionnementData === 'function') ? getFonctionnementData(sid) : null;
     const fonctChart = fonct
       ? _mobBarChart(
-          [2022, 2023, 2024, 2025].map(a => ({ label: String(a).slice(2), value: fonct['cp_' + a] || 0 })),
-          '#C05A00'
+          [2022, 2023, 2024, 2025].map(a => ({ label: String(a), value: fonct['cp_' + a] || 0 })),
+          '#C05A00',
+          { title: 'CP fonctionnement — historique 4 ans', valueFormatter: v => formatNumber(v / 1000, 0) + ' k€' }
         )
       : '';
 
     const com = (typeof getCommunicationData === 'function') ? getCommunicationData(sid) : null;
     const comChart = com
       ? _mobBarChart(
-          [2022, 2023, 2024, 2025].map(a => ({ label: String(a).slice(2), value: com['cp_' + a] || 0 })),
-          '#B52020'
+          [2022, 2023, 2024, 2025].map(a => ({ label: String(a), value: com['cp_' + a] || 0 })),
+          '#B52020',
+          { title: 'CP communication — historique 4 ans', valueFormatter: v => formatNumber(v / 1000, 0) + ' k€' }
         )
       : '';
 
@@ -6992,9 +7009,9 @@ function _runMobileExport(structuresList) {
         { label: 'Surveillance', value: formatNumber(rhData.effectif_su),
           evolution: rhDataN1 ? _mobEvol(rhData.effectif_su, rhDataN1.effectif_su, { yearLabel: annee - 1 }) : '' },
         { label: 'Âge moyen', value: rhAgeMoyen ? formatNumber(rhAgeMoyen, 1) + ' ans' : '—',
-          comparison: (rhAgeMoyen && consolPerim && consolPerim.age_moyen_global) ? _mobComp(rhAgeMoyen, consolPerim.age_moyen_global, perimetre, 'invert') : '' },
+          comparison: (rhAgeMoyen && consolPerim && consolPerim.age_moyen_global) ? _mobComp(rhAgeMoyen, consolPerim.age_moyen_global, perimetre, 'invert', formatNumber(consolPerim.age_moyen_global, 1) + ' ans') : '' },
         { label: 'MS / agent', value: rhMsParAgent ? formatCurrency(rhMsParAgent) : '—',
-          comparison: (rhMsParAgent && consolPerim && consolPerim.moyenne_ms_par_agent) ? _mobComp(rhMsParAgent, consolPerim.moyenne_ms_par_agent, perimetre) : '' },
+          comparison: (rhMsParAgent && consolPerim && consolPerim.moyenne_ms_par_agent) ? _mobComp(rhMsParAgent, consolPerim.moyenne_ms_par_agent, perimetre, undefined, formatCurrency(consolPerim.moyenne_ms_par_agent)) : '' },
       ],
       chart: rhChart,
       comment: getCommentaire(sid, annee, 'RH'),
@@ -7007,9 +7024,9 @@ function _runMobileExport(structuresList) {
         { label: 'Budget IT CP', value: itData.budget_it_cp ? formatCurrency(itData.budget_it_cp) : '—',
           evolution: (itDataN1 && itDataN1.budget_it_cp) ? _mobEvol(itData.budget_it_cp, itDataN1.budget_it_cp, { yearLabel: annee - 1, isCurrency: true, colorMode: 'invert' }) : '' },
         { label: 'Taux équipement', value: itData.ratio_poste_agent ? formatPercent(itData.ratio_poste_agent) : '—',
-          comparison: (itData.ratio_poste_agent && consolPerim && consolPerim.moy_ratio_poste_agent) ? _mobComp(itData.ratio_poste_agent, consolPerim.moy_ratio_poste_agent, perimetre) : '' },
+          comparison: (itData.ratio_poste_agent && consolPerim && consolPerim.moy_ratio_poste_agent) ? _mobComp(itData.ratio_poste_agent, consolPerim.moy_ratio_poste_agent, perimetre, undefined, formatPercent(consolPerim.moy_ratio_poste_agent)) : '' },
         { label: 'Budget / agent', value: itData.budget_it_par_agent ? formatCurrency(itData.budget_it_par_agent) : '—',
-          comparison: (itData.budget_it_par_agent && consolPerim && consolPerim.moy_budget_it_par_agent) ? _mobComp(itData.budget_it_par_agent, consolPerim.moy_budget_it_par_agent, perimetre, 'invert') : '' },
+          comparison: (itData.budget_it_par_agent && consolPerim && consolPerim.moy_budget_it_par_agent) ? _mobComp(itData.budget_it_par_agent, consolPerim.moy_budget_it_par_agent, perimetre, 'invert', formatCurrency(consolPerim.moy_budget_it_par_agent)) : '' },
       ],
       chart: '',
       comment: getCommentaire(sid, annee, 'Informatique'),
@@ -7024,7 +7041,7 @@ function _runMobileExport(structuresList) {
         { label: 'Autres missions', value: fmData.total_autres ? formatCurrency(fmData.total_autres) : '—',
           evolution: (fmDataN1 && fmDataN1.total_autres) ? _mobEvol(fmData.total_autres, fmDataN1.total_autres, { yearLabel: annee - 1, isCurrency: true, colorMode: 'none' }) : '' },
         { label: 'FM / agent', value: fmData.frais_par_agent ? formatCurrency(fmData.frais_par_agent) : '—',
-          comparison: (fmData.frais_par_agent && consolPerim && consolPerim.moy_frais_par_agent) ? _mobComp(fmData.frais_par_agent, consolPerim.moy_frais_par_agent, perimetre, 'invert') : '' },
+          comparison: (fmData.frais_par_agent && consolPerim && consolPerim.moy_frais_par_agent) ? _mobComp(fmData.frais_par_agent, consolPerim.moy_frais_par_agent, perimetre, 'invert', formatCurrency(consolPerim.moy_frais_par_agent)) : '' },
       ],
       chart: '',
       comment: getCommentaire(sid, annee, 'Frais_Mission'),
@@ -7035,11 +7052,11 @@ function _runMobileExport(structuresList) {
         { label: 'CP ' + annee, value: fonct['cp_' + annee] ? formatCurrency(fonct['cp_' + annee]) : '—',
           evolution: (fonct['cp_' + (annee - 1)]) ? _mobEvol(fonct['cp_' + annee], fonct['cp_' + (annee - 1)], { yearLabel: annee - 1, isCurrency: true, colorMode: 'invert' }) : '' },
         { label: '% maîtrisable', value: fonct['pct_m_' + annee] ? formatPercent(fonct['pct_m_' + annee]) : '—',
-          comparison: (fonct['pct_m_' + annee] && consolPerim && consolPerim.moy_pct_maitrisable) ? _mobComp(fonct['pct_m_' + annee], consolPerim.moy_pct_maitrisable, perimetre) : '' },
+          comparison: (fonct['pct_m_' + annee] && consolPerim && consolPerim.moy_pct_maitrisable) ? _mobComp(fonct['pct_m_' + annee], consolPerim.moy_pct_maitrisable, perimetre, undefined, formatPercent(consolPerim.moy_pct_maitrisable)) : '' },
         { label: 'CP / agent', value: fonct['fonct_agent_' + annee] ? formatCurrency(fonct['fonct_agent_' + annee]) : '—',
-          comparison: (fonct['fonct_agent_' + annee] && consolPerim && consolPerim.moy_fonct_par_agent) ? _mobComp(fonct['fonct_agent_' + annee], consolPerim.moy_fonct_par_agent, perimetre, 'invert') : '' },
+          comparison: (fonct['fonct_agent_' + annee] && consolPerim && consolPerim.moy_fonct_par_agent) ? _mobComp(fonct['fonct_agent_' + annee], consolPerim.moy_fonct_par_agent, perimetre, 'invert', formatCurrency(consolPerim.moy_fonct_par_agent)) : '' },
         { label: 'Lissé 4 ans / agent', value: fonct.fonct_agent_4ans ? formatCurrency(fonct.fonct_agent_4ans) : '—',
-          comparison: (fonct.fonct_agent_4ans && consolPerim && consolPerim.moy_fonct_par_agent_4ans) ? _mobComp(fonct.fonct_agent_4ans, consolPerim.moy_fonct_par_agent_4ans, perimetre, 'invert') : '' },
+          comparison: (fonct.fonct_agent_4ans && consolPerim && consolPerim.moy_fonct_par_agent_4ans) ? _mobComp(fonct.fonct_agent_4ans, consolPerim.moy_fonct_par_agent_4ans, perimetre, 'invert', formatCurrency(consolPerim.moy_fonct_par_agent_4ans)) : '' },
       ] : [],
       chart: fonctChart,
       comment: getCommentaire(sid, annee, 'Fonctionnement'),
@@ -7049,15 +7066,15 @@ function _runMobileExport(structuresList) {
       kpis: [
         { label: 'Véhicules total', value: formatNumber(vehData.nombre_total),
           evolution: vehDataN1 ? _mobEvol(vehData.nombre_total, vehDataN1.nombre_total, { yearLabel: annee - 1, colorMode: 'none' }) : '',
-          comparison: (vehData.nombre_total && consolPerim && consolPerim.moy_nb_vehicules) ? _mobComp(vehData.nombre_total, consolPerim.moy_nb_vehicules, perimetre) : '' },
+          comparison: (vehData.nombre_total && consolPerim && consolPerim.moy_nb_vehicules) ? _mobComp(vehData.nombre_total, consolPerim.moy_nb_vehicules, perimetre, undefined, formatNumber(consolPerim.moy_nb_vehicules, 1)) : '' },
         { label: 'Taux vétusté', value: vehData.taux_vetuste ? formatPercent(vehData.taux_vetuste) : '—',
           evolution: (vehDataN1 && vehDataN1.taux_vetuste) ? _mobEvol(vehData.taux_vetuste, vehDataN1.taux_vetuste, { yearLabel: annee - 1, decimals: 1, colorMode: 'invert' }) : '',
-          comparison: (vehData.taux_vetuste && consolPerim && consolPerim.moy_taux_vetuste) ? _mobComp(vehData.taux_vetuste, consolPerim.moy_taux_vetuste, perimetre, 'invert') : '' },
+          comparison: (vehData.taux_vetuste && consolPerim && consolPerim.moy_taux_vetuste) ? _mobComp(vehData.taux_vetuste, consolPerim.moy_taux_vetuste, perimetre, 'invert', formatPercent(consolPerim.moy_taux_vetuste)) : '' },
         { label: 'Budget total', value: vehData.budget_total ? formatCurrency(vehData.budget_total) : '—',
           evolution: (vehDataN1 && vehDataN1.budget_total) ? _mobEvol(vehData.budget_total, vehDataN1.budget_total, { yearLabel: annee - 1, isCurrency: true, colorMode: 'invert' }) : '',
-          comparison: (vehData.budget_total && consolPerim && consolPerim.moy_budget_vehicules) ? _mobComp(vehData.budget_total, consolPerim.moy_budget_vehicules, perimetre) : '' },
+          comparison: (vehData.budget_total && consolPerim && consolPerim.moy_budget_vehicules) ? _mobComp(vehData.budget_total, consolPerim.moy_budget_vehicules, perimetre, undefined, formatCurrency(consolPerim.moy_budget_vehicules)) : '' },
         { label: 'Ratio véh./agent', value: vehData.ratio_vehicule_agent ? formatNumber(vehData.ratio_vehicule_agent, 2) : '—',
-          comparison: (vehData.ratio_vehicule_agent && consolPerim && consolPerim.moy_ratio_vehicule_agent) ? _mobComp(vehData.ratio_vehicule_agent, consolPerim.moy_ratio_vehicule_agent, perimetre, 'none') : '' },
+          comparison: (vehData.ratio_vehicule_agent && consolPerim && consolPerim.moy_ratio_vehicule_agent) ? _mobComp(vehData.ratio_vehicule_agent, consolPerim.moy_ratio_vehicule_agent, perimetre, 'none', formatNumber(consolPerim.moy_ratio_vehicule_agent, 2)) : '' },
       ],
       chart: '',
       comment: getCommentaire(sid, annee, 'Vehicules'),
@@ -7068,9 +7085,9 @@ function _runMobileExport(structuresList) {
         { label: 'Sites', value: formatNumber(immoData.nb_sites) },
         { label: 'SUB totale', value: immoData.sub_total ? formatNumber(immoData.sub_total) + ' m²' : '—' },
         { label: 'Ratio occupation', value: immoData.ratio_occupation ? formatNumber(immoData.ratio_occupation, 1) + ' m²/rés.' : '—',
-          comparison: (immoData.ratio_occupation && consolPerim && consolPerim.moy_ratio_occupation) ? _mobComp(immoData.ratio_occupation, consolPerim.moy_ratio_occupation, perimetre, 'invert') : '' },
+          comparison: (immoData.ratio_occupation && consolPerim && consolPerim.moy_ratio_occupation) ? _mobComp(immoData.ratio_occupation, consolPerim.moy_ratio_occupation, perimetre, 'invert', formatNumber(consolPerim.moy_ratio_occupation, 1) + ' m²/rés.') : '' },
         { label: 'Coût surfacique', value: immoData.cout_surfacique ? formatCurrency(immoData.cout_surfacique) + '/m²' : '—',
-          comparison: (immoData.cout_surfacique && consolPerim && consolPerim.moy_cout_surfacique) ? _mobComp(immoData.cout_surfacique, consolPerim.moy_cout_surfacique, perimetre, 'invert') : '' },
+          comparison: (immoData.cout_surfacique && consolPerim && consolPerim.moy_cout_surfacique) ? _mobComp(immoData.cout_surfacique, consolPerim.moy_cout_surfacique, perimetre, 'invert', formatCurrency(consolPerim.moy_cout_surfacique) + '/m²') : '' },
       ],
       chart: '',
       comment: getCommentaire(sid, annee, 'Immobilier'),
@@ -7086,7 +7103,7 @@ function _runMobileExport(structuresList) {
         { label: 'Cible', value: com.cible_2026 ? formatCurrency(com.cible_2026) : '—' },
         { label: 'Disponible', value: com.cap_cp_2026 ? formatCurrency(com.cap_cp_2026) : '—' },
         { label: 'Taux conso', value: com.taux_pct !== undefined ? formatNumber(com.taux_pct, 1) + ' %' : '—',
-          comparison: (com.taux_pct !== undefined && tauxMoyenCom) ? _mobComp(com.taux_pct, tauxMoyenCom * 100, perimCom, 'none') : '' },
+          comparison: (com.taux_pct !== undefined && tauxMoyenCom) ? _mobComp(com.taux_pct, tauxMoyenCom * 100, perimCom, 'none', formatNumber(tauxMoyenCom * 100, 1) + ' %') : '' },
       ] : [],
       chart: comChart,
       comment: getCommentaire(sid, annee, 'Communication'),
