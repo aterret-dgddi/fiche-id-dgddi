@@ -9,6 +9,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- Grist Plugin API -->
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<!-- Export PDF -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <style>
   :root {
@@ -85,6 +88,20 @@
     outline: none;
   }
   .header-controls select option { color: var(--gris1); background: #fff; }
+  .header-controls button#export-pdf-btn {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,.35);
+    background: rgba(255,255,255,.14);
+    color: #fff;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .header-controls button#export-pdf-btn:hover { background: rgba(255,255,255,.26); }
+  .header-controls button#export-pdf-btn:disabled { opacity: .6; cursor: wait; }
 
   /* ── LÉGENDE CATÉGORIES ── */
   .legend-bar {
@@ -334,6 +351,7 @@
       <option value="taux_desc">Taux CP ↓</option>
       <option value="taux_asc">Taux CP ↑</option>
     </select>
+    <button id="export-pdf-btn" title="Exporter en PDF selon le tri et le filtre actuels">📄 Export PDF</button>
   </div>
 </div>
 
@@ -438,6 +456,22 @@ function sortOrder(ta) {
   return m[ta] ?? 9;
 }
 
+// ── Parsing / formatage de la date de dernier import (colonne Date_Import) ───
+function parseDateImport(budgetTable, idx) {
+  if (!budgetTable || idx == null || idx === -1) return null;
+  const raw = budgetTable['Date_Import']?.[idx];
+  if (!raw) return null;
+  if (typeof raw === 'string' && raw.match(/^\d{4}-\d{2}-\d{2}$/)) return new Date(raw);
+  if (typeof raw === 'number') return new Date(raw * 1000);
+  return null;
+}
+
+function formatDateFR(d) {
+  if (!d || isNaN(d.getTime())) return '—';
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
 // ── Extraction données Budget ─────────────────────────────────────────────────
 function extractBudgetData(budgetTable, structureId, structuresTable) {
   if (!budgetTable) return null;
@@ -478,6 +512,7 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
       taux_cp_immo:           taux(conso_cp_i,  dot_cp_i),
       taux_cp_total:          taux(conso_cp_total, dot_cp_total),
       dot_ae_total, dot_cp_total, conso_ae_total, conso_cp_total,
+      date_import:            parseDateImport(budgetTable, idx),
     };
   }
 
@@ -500,6 +535,16 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     );
     return acc + (j !== -1 ? Number(budgetTable[colName]?.[j]) || 0 : 0);
   }, 0);
+
+  // Date d'import la plus récente parmi les DR rattachées (agrégat = pas de ligne propre)
+  let date_import = null;
+  for (const drId of drIds) {
+    const j = budgetTable.id.findIndex((_, i) =>
+      budgetTable.Structure[i] === drId && budgetTable.Annee[i] === ANNEE
+    );
+    const d = parseDateImport(budgetTable, j);
+    if (d && (!date_import || d > date_import)) date_import = d;
+  }
 
   const dot_ae_v = sumCols('dot_AE_vehicules'), dot_ae_f = sumCols('dot_AE_fonctionnement');
   const dot_ae_t6 = sumCols('Dot_AE_T6'),      dot_ae_i = sumCols('dot_AE_Immo');
@@ -527,6 +572,7 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     taux_cp_immo:           taux(conso_cp_i,  dot_cp_i),
     taux_cp_total:          taux(conso_cp_total, dot_cp_total),
     dot_ae_total, dot_cp_total, conso_ae_total, conso_cp_total,
+    date_import,
   };
 }
 
@@ -791,13 +837,17 @@ function buildCard(card) {
             <div style="font-size:9px;color:#aaa;">AE</div>
           </div>
         </div>
+        <div style="margin-top:6px;font-size:9px;color:var(--gris3);text-align:right;">
+          Maj : ${formatDateFR(card.date_import)}
+        </div>
       ` : `<div class="no-data-msg">Aucune donnée budgétaire 2026</div>`}
     </div>
   `;
 }
 
-// ── Rendu complet ─────────────────────────────────────────────────────────────
-function render() {
+// ── Calcul des groupes (filtre + tri + regroupement) — partagé entre l'affichage
+//    et l'export PDF, afin que le PDF respecte exactement l'organisation à l'écran ──
+function computeGroups() {
   // Filtrer
   let cards = allCards.filter(c => filterActive === 'all' || typeLabel(c.typeAff) === filterActive);
 
@@ -814,28 +864,42 @@ function render() {
   }
 
   // Grouper par type (seulement si tri par sigle)
-  const content = document.getElementById('content');
   if (sortMode !== 'sigle') {
-    content.innerHTML = `<div class="section-block"><div class="grid">${cards.map(buildCard).join('')}</div></div>`;
+    return [{ title: null, badge: null, color: null, cards }];
+  }
+
+  const groupDefs = [
+    { label: 'Direction Générale', color: 'var(--badge-dg)', types: ['DG'] },
+    { label: 'Directions Interrégionales', color: 'var(--badge-di)', types: ['DI_Hexagone','DI_Outremer'] },
+    { label: 'Directions Régionales (Antilles/Outremer)', color: 'var(--badge-dr)', types: ['DR_Antilles','DR_Outremer'] },
+    { label: 'Services à Compétence Nationale', color: 'var(--badge-scn)', types: ['SCN'] },
+  ];
+  const groups = [];
+  for (const g of groupDefs) {
+    const gc = cards.filter(c => g.types.includes(c.typeAff));
+    if (gc.length) groups.push({ title: g.label, badge: typeLabel(g.types[0]), color: g.color, cards: gc });
+  }
+  return groups;
+}
+
+// ── Rendu complet ─────────────────────────────────────────────────────────────
+function render() {
+  const groups = computeGroups();
+  const content = document.getElementById('content');
+
+  if (groups.length === 1 && groups[0].title === null) {
+    content.innerHTML = `<div class="section-block"><div class="grid">${groups[0].cards.map(buildCard).join('')}</div></div>`;
   } else {
-    const groups = [
-      { label: 'Direction Générale', color: 'var(--badge-dg)', types: ['DG'] },
-      { label: 'Directions Interrégionales', color: 'var(--badge-di)', types: ['DI_Hexagone','DI_Outremer'] },
-      { label: 'Directions Régionales (Antilles/Outremer)', color: 'var(--badge-dr)', types: ['DR_Antilles','DR_Outremer'] },
-      { label: 'Services à Compétence Nationale', color: 'var(--badge-scn)', types: ['SCN'] },
-    ];
     let html = '';
     for (const g of groups) {
-      const gc = cards.filter(c => g.types.includes(c.typeAff));
-      if (!gc.length) continue;
       html += `
         <div class="section-block">
           <div class="section-title">
-            <span class="badge-section" style="background:${g.color};">${typeLabel(g.types[0])}</span>
-            ${g.label}
-            <span style="font-size:10px;color:var(--gris3);font-weight:400;">(${gc.length} structure${gc.length > 1 ? 's' : ''})</span>
+            <span class="badge-section" style="background:${g.color};">${g.badge}</span>
+            ${g.title}
+            <span style="font-size:10px;color:var(--gris3);font-weight:400;">(${g.cards.length} structure${g.cards.length > 1 ? 's' : ''})</span>
           </div>
-          <div class="grid">${gc.map(buildCard).join('')}</div>
+          <div class="grid">${g.cards.map(buildCard).join('')}</div>
         </div>
       `;
     }
@@ -844,10 +908,142 @@ function render() {
 
   // Instancier les radars après injection DOM
   requestAnimationFrame(() => {
-    cards.filter(c => c.hasData).forEach(c => {
+    groups.flatMap(g => g.cards).filter(c => c.hasData).forEach(c => {
       createRadar(`radar-${c.id}`, c, moyNational);
     });
   });
+}
+
+// ── Export PDF (respecte le filtre et le tri actuellement affichés) ─────────
+function _stripFontFaceOnClone(clonedDoc) {
+  try {
+    Array.from(clonedDoc.styleSheets).forEach(sheet => {
+      try {
+        const rules = Array.from(sheet.cssRules || []);
+        for (let i = rules.length - 1; i >= 0; i--) {
+          if (rules[i].type === CSSRule.FONT_FACE_RULE) sheet.deleteRule(i);
+        }
+      } catch (e) {}
+    });
+  } catch (e) {}
+}
+
+function pdfTimestamp() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}h${pad(now.getMinutes())}`;
+}
+
+async function exportPDF() {
+  if (typeof window.jspdf === 'undefined' || typeof html2canvas === 'undefined') {
+    alert('Bibliothèques PDF non chargées (jsPDF / html2canvas).');
+    return;
+  }
+  if (!allCards.length) {
+    alert('Aucune donnée à exporter.');
+    return;
+  }
+
+  const btn = document.getElementById('export-pdf-btn');
+  const originalLabel = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; }
+
+  // Désactiver les animations Chart.js le temps de la capture
+  const _animBackup = (typeof Chart !== 'undefined') ? Chart.defaults.animation : undefined;
+  if (typeof Chart !== 'undefined') Chart.defaults.animation = false;
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const groups = computeGroups();
+    const totalCards = groups.reduce((acc, g) => acc + g.cards.length, 0);
+
+    const pdf = new jsPDF('p', 'mm', 'a4', { compress: true });
+    const pageWidth  = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const gap = 4;
+    const cols = 2;
+    const colWidth = (pageWidth - 2 * margin - gap * (cols - 1)) / cols;
+
+    let y = margin;
+
+    // En-tête du document
+    pdf.setFontSize(14);
+    pdf.setTextColor(19, 81, 168);
+    pdf.text(`Araignées budgétaires — Taux de consommation CP ${ANNEE}`, margin, y + 4);
+    y += 8;
+
+    const filtreLbl = filterActive === 'all' ? 'Tout' : filterActive;
+    const triLbl = { sigle: 'Sigle', taux_desc: 'Taux CP ↓', taux_asc: 'Taux CP ↑' }[sortMode] || sortMode;
+    const now = new Date();
+    pdf.setFontSize(9);
+    pdf.setTextColor(120, 120, 120);
+    pdf.text(
+      `Filtre : ${filtreLbl}  ·  Tri : ${triLbl}  ·  Généré le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR').slice(0,5)}`,
+      margin, y + 3
+    );
+    y += 9;
+    pdf.setDrawColor(220, 220, 220);
+    pdf.line(margin, y, pageWidth - margin, y);
+    y += 6;
+
+    let doneCount = 0;
+
+    for (const g of groups) {
+      // Titre de section (si l'affichage est groupé)
+      if (g.title) {
+        if (y + 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
+        pdf.setFontSize(11);
+        pdf.setTextColor(30, 30, 30);
+        pdf.text(`${g.title} (${g.cards.length})`, margin, y + 4);
+        y += 8;
+      }
+
+      for (let i = 0; i < g.cards.length; i += cols) {
+        const rowCards = g.cards.slice(i, i + cols);
+        const rowImages = [];
+
+        for (const card of rowCards) {
+          doneCount++;
+          if (btn) btn.textContent = `⏳ ${doneCount}/${totalCards}...`;
+          const el = document.querySelector(`.radar-card[data-id="${card.id}"]`);
+          if (!el) continue;
+          const canvas = await html2canvas(el, {
+            scale: 1.5, useCORS: true, logging: false,
+            backgroundColor: '#ffffff',
+            onclone: _stripFontFaceOnClone,
+          });
+          const imgW = colWidth;
+          const imgH = canvas.height * (imgW / canvas.width);
+          rowImages.push({ canvas, imgW, imgH });
+        }
+
+        if (!rowImages.length) continue;
+        const rowHeight = Math.max(...rowImages.map(r => r.imgH));
+
+        if (y + rowHeight > pageHeight - margin) {
+          pdf.addPage();
+          y = margin;
+        }
+
+        rowImages.forEach((r, idx) => {
+          const x = margin + idx * (colWidth + gap);
+          pdf.addImage(r.canvas.toDataURL('image/jpeg', 0.82), 'JPEG', x, y, r.imgW, r.imgH, undefined, 'FAST');
+        });
+
+        y += rowHeight + gap;
+      }
+      y += 4; // espace après le groupe
+    }
+
+    pdf.save(`araignees-budgetaires-${ANNEE}-${pdfTimestamp()}.pdf`);
+  } catch (error) {
+    console.error('Erreur export PDF:', error);
+    alert('Erreur lors de la génération du PDF : ' + (error && error.message ? error.message : String(error)));
+  } finally {
+    if (typeof Chart !== 'undefined') Chart.defaults.animation = _animBackup;
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+  }
 }
 
 // ── Initialisation Grist ──────────────────────────────────────────────────────
@@ -903,6 +1099,7 @@ async function init() {
         taux_cp_fonctionnement: data?.taux_cp_fonctionnement ?? null,
         taux_cp_t6:             data?.taux_cp_t6             ?? null,
         taux_cp_immo:           data?.taux_cp_immo           ?? null,
+        date_import:            data?.date_import             ?? null,
       };
 
       if (ta === 'DG') dgCandidats.push(card);
@@ -938,6 +1135,14 @@ async function init() {
                 ccpT=sumChild('Conso_CP_T6'), ccpI=sumChild('Conso_CP_Immo');
           const daeTotal=daeV+daeF+daeT+daeI, dcpTotal=dcpV+dcpF+dcpT+dcpI;
           const caeTotal=caeV+caeF+caeT+caeI, ccpTotal=ccpV+ccpF+ccpT+ccpI;
+          // Date d'import la plus récente parmi les enfants DG agrégés
+          let dgDateImport = null;
+          for (const cid of childIds) {
+            const j = budgetTable.id.findIndex((_, k) =>
+              budgetTable.Structure[k] === cid && budgetTable.Annee[k] === ANNEE);
+            const d = parseDateImport(budgetTable, j);
+            if (d && (!dgDateImport || d > dgDateImport)) dgDateImport = d;
+          }
           if (dcpTotal > 0 || daeTotal > 0) {
             dgCard = { ...dgCard, hasData: true,
               taux_ae_total: taux(caeTotal,daeTotal), taux_cp_total: taux(ccpTotal,dcpTotal),
@@ -945,6 +1150,7 @@ async function init() {
               taux_ae_fonctionnement: taux(caeF,daeF), taux_cp_fonctionnement: taux(ccpF,dcpF),
               taux_ae_t6: taux(caeT,daeT), taux_cp_t6: taux(ccpT,dcpT),
               taux_ae_immo: taux(caeI,daeI), taux_cp_immo: taux(ccpI,dcpI),
+              date_import: dgDateImport,
             };
           }
         }
@@ -979,6 +1185,8 @@ document.getElementById('sort-select').addEventListener('change', e => {
   sortMode = e.target.value;
   render();
 });
+
+document.getElementById('export-pdf-btn').addEventListener('click', exportPDF);
 
 // ── Démarrage ─────────────────────────────────────────────────────────────────
 init();
