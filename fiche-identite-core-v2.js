@@ -3125,8 +3125,12 @@ function refreshBudget(structureId, annee) {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '—';
     });
-    ['chart-budget-radar-ae','chart-budget-taux-cp','chart-budget-evol'].forEach(id => {
+    ['chart-budget-radar-ae','chart-budget-radar-cp','chart-budget-evol'].forEach(id => {
       const c = Chart.getChart(id); if (c) c.destroy();
+    });
+    ['budget-radar-ae-kpis','budget-radar-cp-kpis'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '';
     });
     const tbody = document.getElementById('budget-types-tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée budgétaire disponible pour ' + annee + '</td></tr>';
@@ -3174,11 +3178,11 @@ function refreshBudget(structureId, annee) {
       fmtDiff(dataN.taux_cp_total, moyNational.taux_cp_total, 'National');
   }
 
-  // ── Radar répartition dotations AE ───────────────────────
-  createBudgetRadarAE(dataN, moyPerimetre, libPerimetre);
+  // ── Araignée budgétaire AE ────────────────────────────────
+  createBudgetRadarAE(dataN, moyNational);
 
-  // ── Barres taux CP par catégorie ─────────────────────────
-  createBudgetTauxCP(dataN, moyPerimetre, moyNational, libPerimetre);
+  // ── Araignée budgétaire CP ────────────────────────────────
+  createBudgetRadarCP(dataN, moyNational);
 
   // ── Évolution multi-années ────────────────────────────────
   createBudgetEvol(structureId);
@@ -3189,59 +3193,125 @@ function refreshBudget(structureId, annee) {
   initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
 }
 
-function createBudgetRadarAE(data, moy, libPerimetre) {
-  const canvas = document.getElementById('chart-budget-radar-ae');
+// ── Coloration selon écart à la moyenne nationale (points de %) ──────────────
+// v : taux en % (0-100) ; ref : taux national en décimal (0-1)
+function budgetColorClass(v, ref) {
+  if (v == null || isNaN(v)) return 'na';
+  if (ref != null) {
+    const ecart = Math.abs(v - ref * 100);
+    if (ecart > 20) return 'bad';
+    if (ecart > 10) return 'warn';
+    return 'ok';
+  }
+  if (v >= 85 || v < 20) return 'bad';
+  if (v >= 70 || v < 35) return 'warn';
+  return 'ok';
+}
+
+function budgetClrStyle(v, ref) {
+  const m = { ok: '#008941', warn: '#D07B00', bad: '#C0392B', na: '#aaa' };
+  return m[budgetColorClass(v, ref)] || '#aaa';
+}
+
+const BUDGET_CAT_LABELS = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
+const BUDGET_CAT_COLORS = ['#E67E22', '#1351A8', '#8E44AD', '#27AE60'];
+const BUDGET_CAT_KEYS   = ['vehicules', 'fonctionnement', 't6', 'immo'];
+
+/**
+ * Construit le bloc HTML "taux + montant" par catégorie sous une araignée,
+ * coloré selon l'écart en points avec la moyenne nationale.
+ * type : 'ae' | 'cp'
+ */
+function buildBudgetRadarKPIs(type, data, moyNat) {
+  const pctNum = v => (v != null && !isNaN(v)) ? v * 100 : null;
+  const fmtPct = v => v != null && !isNaN(v) ? v.toFixed(1) + ' %' : '—';
+
+  const rows = BUDGET_CAT_KEYS.map((key, i) => {
+    const taux = pctNum(data[`taux_${type}_${key}`]);
+    const conso = data[`conso_${type}_${key}`];
+    const dot = data[`dot_${type}_${key}`];
+    const natRef = moyNat ? moyNat[`taux_${type}_${key}`] : null;
+    const color = budgetClrStyle(taux, natRef);
+    return `
+      <div style="text-align:center;">
+        <div style="font-size:9px;font-weight:700;color:${BUDGET_CAT_COLORS[i]};margin-bottom:3px;">${BUDGET_CAT_LABELS[i]}</div>
+        <div style="font-size:13px;font-weight:700;color:${color};">${fmtPct(taux)}</div>
+        <div style="font-size:9px;color:#888;margin-top:2px;">${formatCurrency(conso, 0)} / ${formatCurrency(dot, 0)}</div>
+      </div>`;
+  }).join('');
+
+  const tauxTotal = pctNum(data[`taux_${type}_total`]);
+  const natTotal = moyNat ? moyNat[`taux_${type}_total`] : null;
+  const colorTotal = budgetClrStyle(tauxTotal, natTotal);
+  const diffTotal = natTotal != null ? (tauxTotal - natTotal * 100) : null;
+  const diffLabel = diffTotal != null ? `${diffTotal >= 0 ? '+' : ''}${diffTotal.toFixed(1)} pts vs national` : '';
+
+  return `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--gris4,#e0e0e0);">
+      ${rows}
+    </div>
+    <div style="text-align:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--gris4,#e0e0e0);">
+      <span style="font-size:11px;color:#888;font-weight:600;">Total ${type.toUpperCase()} : </span>
+      <span style="font-size:14px;font-weight:700;color:${colorTotal};">${fmtPct(tauxTotal)}</span>
+      <span style="font-size:11px;color:#888;"> — ${formatCurrency(data[`conso_${type}_total`], 0)} / ${formatCurrency(data[`dot_${type}_total`], 0)}</span>
+      ${diffLabel ? `<div style="font-size:10px;color:${colorTotal};font-weight:600;margin-top:2px;">${diffLabel}</div>` : ''}
+    </div>`;
+}
+
+/**
+ * Construit une araignée budgétaire (AE ou CP) : polygone structure (points
+ * colorés par catégorie) + ligne pointillée moyenne nationale.
+ */
+function createBudgetRadar(canvasId, type, data, moyNat) {
+  const canvas = document.getElementById(canvasId);
   if (!canvas) return;
-  const existing = Chart.getChart('chart-budget-radar-ae');
+  const existing = Chart.getChart(canvasId);
   if (existing) existing.destroy();
 
-  const labels = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
-
-  const tauxStruct = [
-    data.taux_cp_vehicules != null ? data.taux_cp_vehicules * 100 : null,
-    data.taux_cp_fonctionnement != null ? data.taux_cp_fonctionnement * 100 : null,
-    data.taux_cp_t6 != null ? data.taux_cp_t6 * 100 : null,
-    data.taux_cp_immo != null ? data.taux_cp_immo * 100 : null,
-  ];
-
-  const tauxMoy = moy ? [
-    moy.taux_cp_vehicules != null ? moy.taux_cp_vehicules * 100 : null,
-    moy.taux_cp_fonctionnement != null ? moy.taux_cp_fonctionnement * 100 : null,
-    moy.taux_cp_t6 != null ? moy.taux_cp_t6 * 100 : null,
-    moy.taux_cp_immo != null ? moy.taux_cp_immo * 100 : null,
-  ] : null;
+  const tauxStruct = BUDGET_CAT_KEYS.map(key => {
+    const v = data[`taux_${type}_${key}`];
+    return v != null ? v * 100 : null;
+  });
 
   const datasets = [];
-  if (tauxMoy) {
+
+  if (moyNat) {
+    const tauxMoy = BUDGET_CAT_KEYS.map(key => {
+      const v = moyNat[`taux_${type}_${key}`];
+      return v != null ? v * 100 : null;
+    });
     datasets.push({
-      label: `Moy. ${libPerimetre}`,
+      label: 'Moy. nationale',
       data: tauxMoy,
-      backgroundColor: 'rgba(160,160,160,0.20)',
-      borderColor: 'rgba(120,120,120,0.65)',
-      borderWidth: 2,
-      borderDash: [5, 3],
-      pointBackgroundColor: 'rgba(120,120,120,0.65)',
-      pointRadius: 3,
-      pointHoverRadius: 5,
+      backgroundColor: 'rgba(160,160,160,0.10)',
+      borderColor: 'rgba(120,120,120,0.7)',
+      borderWidth: 1.5,
+      borderDash: [4, 3],
+      pointRadius: 2,
+      pointBackgroundColor: 'rgba(120,120,120,0.7)',
     });
   }
+
   datasets.push({
     label: 'Cette structure',
     data: tauxStruct,
-    backgroundColor: 'rgba(19,81,168,0.18)',
+    backgroundColor: 'rgba(19,81,168,0.12)',
     borderColor: 'rgba(19,81,168,0.9)',
     borderWidth: 2.5,
-    pointBackgroundColor: 'rgba(19,81,168,0.9)',
-    pointRadius: 4,
-    pointHoverRadius: 6,
+    pointBackgroundColor: BUDGET_CAT_COLORS,
+    pointBorderColor: '#fff',
+    pointBorderWidth: 2,
+    pointRadius: 5,
+    pointHoverRadius: 7,
   });
 
   new Chart(canvas, {
     type: 'radar',
-    data: { labels, datasets },
+    data: { labels: BUDGET_CAT_LABELS, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: { duration: 300 },
       plugins: {
         legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } },
         tooltip: {
@@ -3250,7 +3320,9 @@ function createBudgetRadarAE(data, moy, libPerimetre) {
               const v = ctx.parsed.r;
               return v != null ? `${ctx.dataset.label} : ${v.toFixed(1)} %` : `${ctx.dataset.label} : —`;
             }
-          }
+          },
+          bodyFont: { size: 10 },
+          padding: 6,
         }
       },
       scales: {
@@ -3260,12 +3332,16 @@ function createBudgetRadarAE(data, moy, libPerimetre) {
           suggestedMax: 100,
           ticks: {
             stepSize: 25,
-            callback: v => v + ' %',
-            font: { size: 9 },
-            backdropColor: 'transparent',
+            display: false,
           },
-          pointLabels: { font: { size: 11 } },
-          grid: { color: 'rgba(0,0,0,0.08)' },
+          pointLabels: {
+            font: { size: 11, weight: '600' },
+            color: BUDGET_CAT_COLORS,
+            padding: 10,
+          },
+          grid: {
+            color: (ctx) => ctx.index === 0 ? 'transparent' : 'rgba(0,0,0,0.08)',
+          },
           angleLines: { color: 'rgba(0,0,0,0.10)' },
         }
       }
@@ -3273,68 +3349,16 @@ function createBudgetRadarAE(data, moy, libPerimetre) {
   });
 }
 
-function createBudgetTauxCP(data, moy, moyNat, libPerimetre) {
-  const canvas = document.getElementById('chart-budget-taux-cp');
-  if (!canvas) return;
-  const existing = Chart.getChart('chart-budget-taux-cp');
-  if (existing) existing.destroy();
+function createBudgetRadarAE(data, moyNat) {
+  createBudgetRadar('chart-budget-radar-ae', 'ae', data, moyNat);
+  const el = document.getElementById('budget-radar-ae-kpis');
+  if (el) el.innerHTML = buildBudgetRadarKPIs('ae', data, moyNat);
+}
 
-  const labels = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
-  const structTaux = [
-    data.taux_cp_vehicules * 100,
-    data.taux_cp_fonctionnement * 100,
-    data.taux_cp_t6 * 100,
-    data.taux_cp_immo * 100,
-  ];
-  const moyTaux = moy ? [
-    moy.taux_cp_vehicules * 100,
-    moy.taux_cp_fonctionnement * 100,
-    moy.taux_cp_t6 * 100,
-    moy.taux_cp_immo * 100,
-  ] : null;
-
-  const datasets = [{
-    label: 'Cette structure',
-    data: structTaux,
-    backgroundColor: 'rgba(19,81,168,0.7)',
-    borderColor: 'rgba(19,81,168,1)',
-    borderWidth: 1,
-  }];
-
-  if (moyTaux) {
-    datasets.push({
-      label: `Moy. ${libPerimetre}`,
-      data: moyTaux,
-      backgroundColor: 'rgba(180,180,180,0.5)',
-      borderColor: 'rgba(120,120,120,0.8)',
-      borderWidth: 1,
-    });
-  }
-
-  new Chart(canvas, {
-    type: 'bar',
-    data: { labels, datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true, position: 'bottom' },
-        tooltip: {
-          callbacks: {
-            label: ctx => `${ctx.dataset.label} : ${ctx.parsed.y.toFixed(1)} %`
-          }
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          ticks: { callback: v => v + ' %', font: { size: 10 } }
-        },
-        x: { ticks: { font: { size: 10 } } }
-      }
-    }
-  });
+function createBudgetRadarCP(data, moyNat) {
+  createBudgetRadar('chart-budget-radar-cp', 'cp', data, moyNat);
+  const el = document.getElementById('budget-radar-cp-kpis');
+  if (el) el.innerHTML = buildBudgetRadarKPIs('cp', data, moyNat);
 }
 
 function createBudgetEvol(structureId) {
