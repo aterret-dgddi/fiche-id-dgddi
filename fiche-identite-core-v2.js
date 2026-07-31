@@ -3125,7 +3125,7 @@ function refreshBudget(structureId, annee) {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '—';
     });
-    ['chart-budget-radar-ae','chart-budget-radar-cp','chart-budget-evol'].forEach(id => {
+    ['chart-budget-radar-ae','chart-budget-radar-cp'].forEach(id => {
       const c = Chart.getChart(id); if (c) c.destroy();
     });
     ['budget-radar-ae-kpis','budget-radar-cp-kpis'].forEach(id => {
@@ -3183,9 +3183,6 @@ function refreshBudget(structureId, annee) {
 
   // ── Araignée budgétaire CP ────────────────────────────────
   createBudgetRadarCP(dataN, moyNational);
-
-  // ── Évolution multi-années ────────────────────────────────
-  createBudgetEvol(structureId);
 
   // ── Tableau par catégorie ─────────────────────────────────
   createBudgetTable(dataN, moyPerimetre, libPerimetre, annee);
@@ -3359,61 +3356,6 @@ function createBudgetRadarCP(data, moyNat) {
   createBudgetRadar('chart-budget-radar-cp', 'cp', data, moyNat);
   const el = document.getElementById('budget-radar-cp-kpis');
   if (el) el.innerHTML = buildBudgetRadarKPIs('cp', data, moyNat);
-}
-
-function createBudgetEvol(structureId) {
-  const canvas = document.getElementById('chart-budget-evol');
-  if (!canvas) return;
-  const existing = Chart.getChart('chart-budget-evol');
-  if (existing) existing.destroy();
-
-  const historique = getBudgetHistorique(structureId);
-  const annees = Object.keys(historique).map(Number).sort();
-  if (annees.length === 0) return;
-
-  new Chart(canvas, {
-    type: 'bar',
-    data: {
-      labels: annees,
-      datasets: [
-        {
-          label: 'Dotation CP',
-          data: annees.map(a => historique[a].dot_cp_total),
-          backgroundColor: 'rgba(180,180,180,0.6)',
-          borderColor: 'rgba(120,120,120,0.8)',
-          borderWidth: 1,
-          order: 2,
-        },
-        {
-          label: 'Consommation CP',
-          data: annees.map(a => historique[a].conso_cp_total),
-          backgroundColor: 'rgba(19,81,168,0.7)',
-          borderColor: 'rgba(19,81,168,1)',
-          borderWidth: 1,
-          order: 1,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true, position: 'bottom' },
-        tooltip: {
-          callbacks: {
-            label: ctx => `${ctx.dataset.label} : ${formatCurrency(ctx.parsed.y, 0)}`
-          }
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { callback: v => formatCurrency(v, 0), font: { size: 10 } }
-        },
-        x: { ticks: { font: { size: 11 } } }
-      }
-    }
-  });
 }
 
 function createBudgetTable(data, moy, libPerimetre, annee) {
