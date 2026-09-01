@@ -775,17 +775,22 @@ function buildCategoryTable(data, moy) {
 function buildCategoryStructureTable(catKey, structBudgets) {
   const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, ShadingType, AlignmentType } = docx;
 
-  const headerLabels = ['Structure', 'Dotation AE', 'Consommé AE', 'Reste à engager (AE)', 'Dotation CP', 'Consommé CP', 'Reste à payer (CP)'];
+  const headerLabels = ['Structure', 'Dotation AE', 'Consommé AE', 'Reste à engager (AE)', 'Taux AE', 'Dotation CP', 'Consommé CP', 'Reste à payer (CP)', 'Taux CP'];
   const headerCells = headerLabels.map(label => new TableCell({
     shading: { type: ShadingType.CLEAR, fill: '000091', color: 'auto' },
-    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: label, bold: true, color: 'FFFFFF', size: 15 })] })],
+    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: label, bold: true, color: 'FFFFFF', size: 14 })] })],
   }));
   const rows = [new TableRow({ children: headerCells, tableHeader: true })];
 
   const cell = (text, opts) => new TableCell({
     shading: opts && opts.shade ? { type: ShadingType.CLEAR, fill: 'F4F4F4', color: 'auto' } : undefined,
-    children: [new Paragraph({ alignment: opts && opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT, children: [new TextRun({ text, bold: opts && opts.bold, size: 15 })] })],
+    children: [new Paragraph({ alignment: opts && opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT, children: [new TextRun({ text, bold: opts && opts.bold, color: opts && opts.color, size: 14 })] })],
   });
+
+  const fmtTauxColor = tauxPct => {
+    if (tauxPct == null || isNaN(tauxPct)) return '888888';
+    return tauxPct >= 80 ? 'C0392B' : tauxPct >= 50 ? 'D07B00' : '008941';
+  };
 
   let totDotAE = 0, totConsoAE = 0, totDotCP = 0, totConsoCP = 0, anyRow = false;
 
@@ -798,28 +803,36 @@ function buildCategoryStructureTable(catKey, structBudgets) {
     if (!dotAE && !consoAE && !dotCP && !consoCP) return; // structure sans donnée sur cette catégorie
     anyRow = true;
     totDotAE += dotAE; totConsoAE += consoAE; totDotCP += dotCP; totConsoCP += consoCP;
+    const tauxAEPct = data[`taux_ae_${catKey}`] != null ? data[`taux_ae_${catKey}`] * 100 : (dotAE ? (consoAE / dotAE) * 100 : null);
+    const tauxCPPct = data[`taux_cp_${catKey}`] != null ? data[`taux_cp_${catKey}`] * 100 : (dotCP ? (consoCP / dotCP) * 100 : null);
     rows.push(new TableRow({ children: [
       cell(struct.sigle),
       cell(formatCurrency(dotAE), { right: true }),
       cell(formatCurrency(consoAE), { right: true }),
       cell(formatCurrency(dotAE - consoAE), { right: true }),
+      cell(formatPercent(tauxAEPct), { right: true, color: fmtTauxColor(tauxAEPct) }),
       cell(formatCurrency(dotCP), { right: true }),
       cell(formatCurrency(consoCP), { right: true }),
       cell(formatCurrency(dotCP - consoCP), { right: true }),
+      cell(formatPercent(tauxCPPct), { right: true, color: fmtTauxColor(tauxCPPct) }),
     ] }));
   });
 
   if (!anyRow) {
-    rows.push(new TableRow({ children: [new TableCell({ columnSpan: 7, children: [new Paragraph({ children: [new TextRun({ text: 'Aucune donnée disponible pour cette catégorie.', italics: true, color: '888888', size: 15 })] })] })] }));
+    rows.push(new TableRow({ children: [new TableCell({ columnSpan: 9, children: [new Paragraph({ children: [new TextRun({ text: 'Aucune donnée disponible pour cette catégorie.', italics: true, color: '888888', size: 14 })] })] })] }));
   } else {
+    const totTauxAEPct = totDotAE ? (totConsoAE / totDotAE) * 100 : null;
+    const totTauxCPPct = totDotCP ? (totConsoCP / totDotCP) * 100 : null;
     rows.push(new TableRow({ children: [
       cell('Total (structures listées)', { shade: true, bold: true }),
       cell(formatCurrency(totDotAE), { right: true, shade: true, bold: true }),
       cell(formatCurrency(totConsoAE), { right: true, shade: true, bold: true }),
       cell(formatCurrency(totDotAE - totConsoAE), { right: true, shade: true, bold: true }),
+      cell(formatPercent(totTauxAEPct), { right: true, shade: true, bold: true, color: fmtTauxColor(totTauxAEPct) }),
       cell(formatCurrency(totDotCP), { right: true, shade: true, bold: true }),
       cell(formatCurrency(totConsoCP), { right: true, shade: true, bold: true }),
       cell(formatCurrency(totDotCP - totConsoCP), { right: true, shade: true, bold: true }),
+      cell(formatPercent(totTauxCPPct), { right: true, shade: true, bold: true, color: fmtTauxColor(totTauxCPPct) }),
     ] }));
   }
 
