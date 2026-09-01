@@ -441,6 +441,8 @@
     .qnav-arrow.hidden { opacity: 0; pointer-events: none; }
     #qnav-arrow-left { left: 0; }
     #qnav-arrow-right { right: 0; }
+    #secnav-arrow-left { left: 0; }
+    #secnav-arrow-right { right: 0; }
 
     #qnav-items {
       display: contents;
@@ -485,6 +487,68 @@
 
     .qnav-btn:hover {
       filter: brightness(1.1);
+    }
+
+    /* ══════════════════════════════════ */
+    /* SOMMAIRE (RACCOURCIS VERS RUBRIQUES) */
+    /* ══════════════════════════════════ */
+    #section-nav {
+      background: #F7F9FC;
+      border-bottom: 1px solid var(--bord);
+      padding: 5px 18px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      position: sticky;
+      z-index: 180;
+      box-shadow: 0 2px 4px rgba(0,20,70,.05);
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    #section-nav::-webkit-scrollbar { display: none; }
+
+    #secnav-items {
+      display: contents;
+    }
+
+    .secnav-btn {
+      border: 1.5px solid transparent;
+      background: #fff;
+      padding: 3px 10px 3px 8px;
+      border-radius: 12px;
+      font-size: 10.5px;
+      cursor: pointer;
+      margin: 1px 2px;
+      color: var(--gris1);
+      font-weight: 600;
+      white-space: nowrap;
+      line-height: 1.4;
+      transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .secnav-btn .secnav-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .secnav-btn:hover { border-color: var(--bord); background: var(--gris4); }
+    .secnav-btn.active {
+      background: var(--rep);
+      color: #fff;
+      border-color: var(--rep);
+    }
+    .secnav-btn.active .secnav-dot { background: #fff !important; }
+
+    .secnav-flash {
+      animation: secnav-flash-anim 1.4s ease-out;
+    }
+    @keyframes secnav-flash-anim {
+      0%   { box-shadow: 0 0 0 3px rgba(0,47,108,.35); }
+      100% { box-shadow: 0 0 0 3px rgba(0,47,108,0); }
     }
 
     /* ══════════════════════════════════ */
@@ -786,7 +850,7 @@
     }
 
     @media print {
-      #toolbar, #selbar, #quick-nav, .tbtn { display: none !important; }
+      #toolbar, #selbar, #quick-nav, #section-nav, .tbtn { display: none !important; }
       .section { 
         page-break-inside: avoid;
         break-inside: avoid;
@@ -1080,6 +1144,23 @@
     <button class="qnav-arrow" id="qnav-arrow-right" aria-label="Défiler à droite">&#8250;</button>
   </div>
 
+  <!-- ═══════════ SOMMAIRE / RACCOURCIS RUBRIQUES ═══════════ -->
+  <div id="section-nav">
+    <button class="qnav-arrow hidden" id="secnav-arrow-left" aria-label="Défiler à gauche">&#8249;</button>
+    <div id="secnav-items">
+      <button class="secnav-btn" data-target="main-comment-box"><span class="secnav-dot" style="background:#6c757d;"></span>Vue d'ensemble</button>
+      <button class="secnav-btn" data-target="section-budget"><span class="secnav-dot" style="background:#0053A0;"></span>Budget</button>
+      <button class="secnav-btn" data-target="section-communication"><span class="secnav-dot" style="background:#8A6800;"></span>Communication</button>
+      <button class="secnav-btn" data-target="section-rh"><span class="secnav-dot" style="background:#1A6B3C;"></span>RH</button>
+      <button class="secnav-btn" data-target="section-informatique"><span class="secnav-dot" style="background:#5B21B6;"></span>Informatique</button>
+      <button class="secnav-btn" data-target="section-frais-mission"><span class="secnav-dot" style="background:#C05A00;"></span>Frais de Mission</button>
+      <button class="secnav-btn" data-target="section-fonctionnement"><span class="secnav-dot" style="background:#4A5A6A;"></span>Fonctionnement</button>
+      <button class="secnav-btn" data-target="section-parc-auto"><span class="secnav-dot" style="background:#B52020;"></span>Parc Automobile</button>
+      <button class="secnav-btn" data-target="section-immobilier"><span class="secnav-dot" style="background:#1351A8;"></span>Immobilier</button>
+    </div>
+    <button class="qnav-arrow" id="secnav-arrow-right" aria-label="Défiler à droite">&#8250;</button>
+  </div>
+
   <!-- ═══════════ FICHE ═══════════ -->
   <div id="loading">
     <div class="spin"></div>
@@ -1145,7 +1226,7 @@
       <div class="zone-header-title">Indicateurs budgétaires 2026</div>
     </div>
 
-    <div class="section">
+    <div class="section" id="section-budget">
     <div class="section-header">
     <div class="section-icon">📈</div>
     <div class="section-title">Budget & Consommation</div>
@@ -1226,7 +1307,7 @@
 
     </div><!-- fin section Budget & Consommation -->
 
-    <div class="section">
+    <div class="section" id="section-communication">
     <div class="section-header">
     <div class="section-icon">📣</div>
     <div class="section-title">Dépenses de communication</div>
@@ -1341,7 +1422,7 @@
       <div class="zone-header-title">Indicateurs de gestion</div>
     </div>
 
-    <div class="section">
+    <div class="section" id="section-rh">
     <div class="section-header">
     <div class="section-icon">🛃</div>
     <div class="section-title">Ressources Humaines</div>
@@ -1452,7 +1533,7 @@
     </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="section-informatique">
     <div class="section-header">
     <div class="section-icon">💻</div>
     <div class="section-title">Informatique</div>
@@ -1566,7 +1647,7 @@
     </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="section-frais-mission">
     <div class="section-header">
     <div class="section-icon">✈️</div>
     <div class="section-title">Frais de Mission</div>
@@ -1656,7 +1737,7 @@
     </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="section-fonctionnement">
     <div class="section-header">
     <div class="section-icon">🏛️</div>
     <div class="section-title">Fonctionnement courant</div>
@@ -1722,7 +1803,7 @@
     </div>
     </div><!-- fin section Fonctionnement courant -->
 
-    <div class="section">
+    <div class="section" id="section-parc-auto">
     <div class="section-header">
     <div class="section-icon">🚗</div>
     <div class="section-title">Parc Automobile</div>
@@ -2806,14 +2887,17 @@
       // Ajuster dynamiquement le top du quick-nav selon la hauteur réelle du selbar
       const selbar = document.getElementById('selbar');
       const quickNav = document.getElementById('quick-nav');
+      const sectionNav = document.getElementById('section-nav');
 
       const updateQuickNavTop = () => {
         quickNav.style.top = selbar.offsetHeight + 'px';
+        sectionNav.style.top = (selbar.offsetHeight + quickNav.offsetHeight) + 'px';
       };
       updateQuickNavTop();
       new ResizeObserver(updateQuickNavTop).observe(selbar);
+      new ResizeObserver(updateQuickNavTop).observe(quickNav);
 
-      // Boutons flèche pour scroller la barre d'accès rapide
+      // Boutons flèche pour scroller la barre d'accès rapide (structures)
       const arrowLeft = document.getElementById('qnav-arrow-left');
       const arrowRight = document.getElementById('qnav-arrow-right');
       const SCROLL_STEP = 200;
@@ -2834,6 +2918,67 @@
 
       quickNav.addEventListener('scroll', updateArrows);
       setTimeout(updateArrows, 500);
+
+      // ── SOMMAIRE : raccourcis vers les rubriques ──────────────────
+      const secArrowLeft = document.getElementById('secnav-arrow-left');
+      const secArrowRight = document.getElementById('secnav-arrow-right');
+
+      const updateSecArrows = () => {
+        const atStart = sectionNav.scrollLeft <= 4;
+        const atEnd = sectionNav.scrollLeft + sectionNav.clientWidth >= sectionNav.scrollWidth - 4;
+        secArrowLeft.classList.toggle('hidden', atStart);
+        secArrowRight.classList.toggle('hidden', atEnd);
+      };
+      secArrowLeft.addEventListener('click', () => {
+        sectionNav.scrollBy({ left: -SCROLL_STEP, behavior: 'smooth' });
+      });
+      secArrowRight.addEventListener('click', () => {
+        sectionNav.scrollBy({ left: SCROLL_STEP, behavior: 'smooth' });
+      });
+      sectionNav.addEventListener('scroll', updateSecArrows);
+      setTimeout(updateSecArrows, 500);
+
+      const secButtons = Array.from(document.querySelectorAll('.secnav-btn'));
+
+      function scrollToSection(targetId) {
+        const el = document.getElementById(targetId);
+        if (!el) return;
+        const offset = selbar.offsetHeight + quickNav.offsetHeight + sectionNav.offsetHeight + 10;
+        const top = el.getBoundingClientRect().top + window.pageYOffset - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+        el.classList.remove('secnav-flash');
+        // Force reflow pour rejouer l'animation même si on reclique sur la même rubrique
+        void el.offsetWidth;
+        el.classList.add('secnav-flash');
+        setTimeout(() => el.classList.remove('secnav-flash'), 1500);
+      }
+
+      secButtons.forEach(btn => {
+        btn.addEventListener('click', () => scrollToSection(btn.dataset.target));
+      });
+
+      // Mise en surbrillance de la rubrique visible pendant le défilement
+      const secTargets = secButtons
+        .map(btn => ({ btn, el: document.getElementById(btn.dataset.target) }))
+        .filter(t => t.el);
+
+      let secScrollSpyTimer = null;
+      const updateActiveSection = () => {
+        const probeY = selbar.offsetHeight + quickNav.offsetHeight + sectionNav.offsetHeight + 24;
+        let current = secTargets[0];
+        for (const t of secTargets) {
+          if (t.el.getBoundingClientRect().top <= probeY) current = t;
+        }
+        secTargets.forEach(t => t.btn.classList.toggle('active', t === current));
+      };
+      window.addEventListener('scroll', () => {
+        if (secScrollSpyTimer) return;
+        secScrollSpyTimer = requestAnimationFrame(() => {
+          updateActiveSection();
+          secScrollSpyTimer = null;
+        });
+      });
+      setTimeout(updateActiveSection, 800);
     });
   </script>
 </body>
