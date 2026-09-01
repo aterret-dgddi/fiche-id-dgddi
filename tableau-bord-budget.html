@@ -157,7 +157,7 @@
   /* ── GRILLE DE CARTES ── */
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
     gap: 16px;
     margin-bottom: 16px;
   }
@@ -203,6 +203,23 @@
   .card-canvas-wrap {
     position: relative;
     height: 180px;
+  }
+  .card-radars-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .card-radar-col { min-width: 0; }
+  .card-radar-label {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gris3);
+    letter-spacing: .04em;
+    margin-bottom: 2px;
+  }
+  .card-canvas-wrap-sm {
+    height: 160px;
   }
   .card-kpi-row {
     display: flex;
@@ -326,7 +343,7 @@
 <div id="sticky-top" style="position:sticky;top:0;z-index:100;">
 <div class="page-header" style="position:static;">
   <div>
-    <h1>🕷️ Araignées budgétaires — Taux de consommation CP 2026</h1>
+    <h1>🕷️ Araignées budgétaires — Taux de consommation AE / CP 2026</h1>
     <div class="subtitle" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
       <span>Budget HT2 — Véhicules · Fonctionnement · T6 Buralistes · Immobilier</span>
       <span style="opacity:.4;">|</span>
@@ -523,7 +540,11 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
       taux_cp_immo:           taux(conso_cp_i,  dot_cp_i),
       taux_cp_total:          taux(conso_cp_total, dot_cp_total),
       dot_ae_total, dot_cp_total, conso_ae_total, conso_cp_total,
-      // Montants € par catégorie (CP) — pour affichage et tri pondéré par le poids budgétaire
+      // Montants € par catégorie (AE + CP) — pour affichage et tri pondéré par le poids budgétaire
+      dot_ae_vehicules: dot_ae_v,           conso_ae_vehicules: conso_ae_v,
+      dot_ae_fonctionnement: dot_ae_f,      conso_ae_fonctionnement: conso_ae_f,
+      dot_ae_t6: dot_ae_t6,                 conso_ae_t6: conso_ae_t6,
+      dot_ae_immo: dot_ae_i,                conso_ae_immo: conso_ae_i,
       dot_cp_vehicules: dot_cp_v,           conso_cp_vehicules: conso_cp_v,
       dot_cp_fonctionnement: dot_cp_f,      conso_cp_fonctionnement: conso_cp_f,
       dot_cp_t6: dot_cp_t6,                 conso_cp_t6: conso_cp_t6,
@@ -588,6 +609,10 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     taux_cp_immo:           taux(conso_cp_i,  dot_cp_i),
     taux_cp_total:          taux(conso_cp_total, dot_cp_total),
     dot_ae_total, dot_cp_total, conso_ae_total, conso_cp_total,
+    dot_ae_vehicules: dot_ae_v,           conso_ae_vehicules: conso_ae_v,
+    dot_ae_fonctionnement: dot_ae_f,      conso_ae_fonctionnement: conso_ae_f,
+    dot_ae_t6: dot_ae_t6,                 conso_ae_t6: conso_ae_t6,
+    dot_ae_immo: dot_ae_i,                conso_ae_immo: conso_ae_i,
     dot_cp_vehicules: dot_cp_v,           conso_cp_vehicules: conso_cp_v,
     dot_cp_fonctionnement: dot_cp_f,      conso_cp_fonctionnement: conso_cp_f,
     dot_cp_t6: dot_cp_t6,                 conso_cp_t6: conso_cp_t6,
@@ -665,8 +690,8 @@ function renderNationalBar(moy) {
   document.getElementById('national-bar').style.display = 'flex';
 }
 
-// ── Création d'un radar Chart.js ──────────────────────────────────────────────
-function createRadar(canvasId, data, natMoy) {
+// ── Création d'un radar Chart.js — type : 'ae' | 'cp' ────────────────────────
+function createRadar(canvasId, type, data, natMoy) {
   const existing = chartInstances[canvasId];
   if (existing) { existing.destroy(); delete chartInstances[canvasId]; }
 
@@ -674,10 +699,10 @@ function createRadar(canvasId, data, natMoy) {
   if (!canvas) return;
 
   const struct_vals = [
-    pctNum(data.taux_cp_vehicules),
-    pctNum(data.taux_cp_fonctionnement),
-    pctNum(data.taux_cp_t6),
-    pctNum(data.taux_cp_immo),
+    pctNum(data[`taux_${type}_vehicules`]),
+    pctNum(data[`taux_${type}_fonctionnement`]),
+    pctNum(data[`taux_${type}_t6`]),
+    pctNum(data[`taux_${type}_immo`]),
   ];
 
   const datasets = [];
@@ -687,10 +712,10 @@ function createRadar(canvasId, data, natMoy) {
     datasets.push({
       label: 'National',
       data: [
-        pctNum(natMoy.taux_cp_vehicules),
-        pctNum(natMoy.taux_cp_fonctionnement),
-        pctNum(natMoy.taux_cp_t6),
-        pctNum(natMoy.taux_cp_immo),
+        pctNum(natMoy[`taux_${type}_vehicules`]),
+        pctNum(natMoy[`taux_${type}_fonctionnement`]),
+        pctNum(natMoy[`taux_${type}_t6`]),
+        pctNum(natMoy[`taux_${type}_immo`]),
       ],
       borderColor: 'rgba(160,160,160,0.7)',
       backgroundColor: 'rgba(160,160,160,0.08)',
@@ -745,9 +770,9 @@ function createRadar(canvasId, data, natMoy) {
             display: false,   // ← supprime les labels 25/50/75/100
           },
           pointLabels: {
-            font: { size: 11, weight: '600' },
+            font: { size: 10, weight: '600' },
             color: CAT_COLORS,
-            padding: 12,
+            padding: 8,
           },
           grid: {
             color: (ctx) => ctx.index === 0
@@ -800,21 +825,44 @@ function clrStyle(v, ref) {
 
 // ── Ligne récapitulative des montants (poids budgétaire + reste à consommer) ──
 function buildMontantsLine(card) {
-  const hasMontants = card.dot_cp_total != null || card.conso_cp_total != null;
-  const resteCp = hasMontants ? (card.dot_cp_total ?? 0) - (card.conso_cp_total ?? 0) : null;
+  const hasCp = card.dot_cp_total != null || card.conso_cp_total != null;
+  const hasAe = card.dot_ae_total != null || card.conso_ae_total != null;
+  const resteCp = hasCp ? (card.dot_cp_total ?? 0) - (card.conso_cp_total ?? 0) : null;
+  const resteAe = hasAe ? (card.dot_ae_total ?? 0) - (card.conso_ae_total ?? 0) : null;
+  const resteColor = v => v != null && v > 0 ? 'var(--rouge)' : 'var(--vert)';
   return `
     <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bord);font-size:10px;color:var(--gris2);">
-      <div style="display:flex;justify-content:space-between;gap:4px;">
-        <span style="color:#aaa;">Dotation CP</span>
-        <span style="font-weight:700;">${fmtEuro(card.dot_cp_total)}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;gap:4px;margin-top:2px;">
-        <span style="color:#aaa;">Consommé CP</span>
-        <span style="font-weight:700;">${fmtEuro(card.conso_cp_total)}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;gap:4px;margin-top:2px;">
-        <span style="color:#aaa;">Reste à consommer</span>
-        <span style="font-weight:700;color:${resteCp != null && resteCp > 0 ? 'var(--rouge)' : 'var(--vert)'};">${fmtEuro(resteCp)}</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;">
+        <div>
+          <div style="font-size:9px;font-weight:700;color:#888;letter-spacing:.04em;margin-bottom:3px;">AE</div>
+          <div style="display:flex;justify-content:space-between;gap:4px;">
+            <span style="color:#aaa;">Dotation</span>
+            <span style="font-weight:700;">${fmtEuro(card.dot_ae_total)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:4px;margin-top:2px;">
+            <span style="color:#aaa;">Consommé</span>
+            <span style="font-weight:700;">${fmtEuro(card.conso_ae_total)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:4px;margin-top:2px;">
+            <span style="color:#aaa;">Reste</span>
+            <span style="font-weight:700;color:${resteColor(resteAe)};">${fmtEuro(resteAe)}</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;color:#888;letter-spacing:.04em;margin-bottom:3px;">CP</div>
+          <div style="display:flex;justify-content:space-between;gap:4px;">
+            <span style="color:#aaa;">Dotation</span>
+            <span style="font-weight:700;">${fmtEuro(card.dot_cp_total)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:4px;margin-top:2px;">
+            <span style="color:#aaa;">Consommé</span>
+            <span style="font-weight:700;">${fmtEuro(card.conso_cp_total)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:4px;margin-top:2px;">
+            <span style="color:#aaa;">Reste</span>
+            <span style="font-weight:700;color:${resteColor(resteCp)};">${fmtEuro(resteCp)}</span>
+          </div>
+        </div>
       </div>
     </div>`;
 }
@@ -822,7 +870,8 @@ function buildMontantsLine(card) {
 // ── Génération HTML d'une carte ────────────────────────────────────────────────
 function buildCard(card) {
   const typeL = typeLabel(card.typeAff);
-  const cid = `radar-${card.id}`;
+  const cidAE = `radar-ae-${card.id}`;
+  const cidCP = `radar-cp-${card.id}`;
   const tcp = pctNum(card.taux_cp_total);
   const tae = pctNum(card.taux_ae_total);
   // Références nationales par catégorie (taux en 0-1)
@@ -844,8 +893,19 @@ function buildCard(card) {
         <span class="card-badge badge-${typeL}">${typeL}</span>
       </div>
       ${card.hasData ? `
-        <div class="card-canvas-wrap">
-          <canvas id="${cid}"></canvas>
+        <div class="card-radars-grid">
+          <div class="card-radar-col">
+            <div class="card-radar-label">AE</div>
+            <div class="card-canvas-wrap card-canvas-wrap-sm">
+              <canvas id="${cidAE}"></canvas>
+            </div>
+          </div>
+          <div class="card-radar-col">
+            <div class="card-radar-label">CP</div>
+            <div class="card-canvas-wrap card-canvas-wrap-sm">
+              <canvas id="${cidCP}"></canvas>
+            </div>
+          </div>
         </div>
         ${buildAECPBar(card.taux_ae_total, card.taux_cp_total, natAETotal, natTotal)}
         <div class="card-kpi-row">
@@ -856,6 +916,7 @@ function buildCard(card) {
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_vehicules)}/${fmtEuroK(card.dot_cp_vehicules)}</div>
             <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_vehicules), natAEVeh)};margin-top:3px;">${pct(card.taux_ae_vehicules)}</div>
             <div style="font-size:9px;color:#aaa;">AE</div>
+            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_ae_vehicules)}/${fmtEuroK(card.dot_ae_vehicules)}</div>
           </div>
           <div class="card-kpi">
             <div style="font-size:9px;font-weight:700;color:#1351A8;margin-bottom:3px;">Fonct.</div>
@@ -864,6 +925,7 @@ function buildCard(card) {
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_fonctionnement)}/${fmtEuroK(card.dot_cp_fonctionnement)}</div>
             <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_fonctionnement), natAEFonct)};margin-top:3px;">${pct(card.taux_ae_fonctionnement)}</div>
             <div style="font-size:9px;color:#aaa;">AE</div>
+            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_ae_fonctionnement)}/${fmtEuroK(card.dot_ae_fonctionnement)}</div>
           </div>
           <div class="card-kpi">
             <div style="font-size:9px;font-weight:700;color:#8E44AD;margin-bottom:3px;">T6</div>
@@ -872,6 +934,7 @@ function buildCard(card) {
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_t6)}/${fmtEuroK(card.dot_cp_t6)}</div>
             <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_t6), natAET6)};margin-top:3px;">${pct(card.taux_ae_t6)}</div>
             <div style="font-size:9px;color:#aaa;">AE</div>
+            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_ae_t6)}/${fmtEuroK(card.dot_ae_t6)}</div>
           </div>
           <div class="card-kpi">
             <div style="font-size:9px;font-weight:700;color:#27AE60;margin-bottom:3px;">Immo.</div>
@@ -880,6 +943,7 @@ function buildCard(card) {
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_immo)}/${fmtEuroK(card.dot_cp_immo)}</div>
             <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_immo), natAEImmo)};margin-top:3px;">${pct(card.taux_ae_immo)}</div>
             <div style="font-size:9px;color:#aaa;">AE</div>
+            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_ae_immo)}/${fmtEuroK(card.dot_ae_immo)}</div>
           </div>
         </div>
         ${buildMontantsLine(card)}
@@ -960,7 +1024,8 @@ function render() {
   // Instancier les radars après injection DOM
   requestAnimationFrame(() => {
     groups.flatMap(g => g.cards).filter(c => c.hasData).forEach(c => {
-      createRadar(`radar-${c.id}`, c, moyNational);
+      createRadar(`radar-ae-${c.id}`, 'ae', c, moyNational);
+      createRadar(`radar-cp-${c.id}`, 'cp', c, moyNational);
     });
   });
 }
@@ -1021,7 +1086,7 @@ async function exportPDF() {
     // En-tête du document
     pdf.setFontSize(14);
     pdf.setTextColor(19, 81, 168);
-    pdf.text(`Araignées budgétaires — Taux de consommation CP ${ANNEE}`, margin, y + 4);
+    pdf.text(`Araignées budgétaires — Taux de consommation AE / CP ${ANNEE}`, margin, y + 4);
     y += 8;
 
     const filtreLbl = filterActive === 'all' ? 'Tout' : filterActive;
@@ -1151,11 +1216,19 @@ async function init() {
         taux_cp_t6:             data?.taux_cp_t6             ?? null,
         taux_cp_immo:           data?.taux_cp_immo           ?? null,
         date_import:            data?.date_import             ?? null,
-        // Montants € (totaux + détail par catégorie CP) — affichage cartes + tri poids/reste
+        // Montants € (totaux + détail par catégorie AE/CP) — affichage cartes + tri poids/reste
         dot_ae_total:            data?.dot_ae_total            ?? null,
         dot_cp_total:            data?.dot_cp_total            ?? null,
         conso_ae_total:          data?.conso_ae_total          ?? null,
         conso_cp_total:          data?.conso_cp_total          ?? null,
+        dot_ae_vehicules:        data?.dot_ae_vehicules        ?? null,
+        conso_ae_vehicules:      data?.conso_ae_vehicules      ?? null,
+        dot_ae_fonctionnement:   data?.dot_ae_fonctionnement   ?? null,
+        conso_ae_fonctionnement: data?.conso_ae_fonctionnement ?? null,
+        dot_ae_t6:               data?.dot_ae_t6               ?? null,
+        conso_ae_t6:             data?.conso_ae_t6             ?? null,
+        dot_ae_immo:             data?.dot_ae_immo             ?? null,
+        conso_ae_immo:           data?.conso_ae_immo           ?? null,
         dot_cp_vehicules:        data?.dot_cp_vehicules        ?? null,
         conso_cp_vehicules:      data?.conso_cp_vehicules      ?? null,
         dot_cp_fonctionnement:   data?.dot_cp_fonctionnement   ?? null,
@@ -1217,6 +1290,10 @@ async function init() {
               date_import: dgDateImport,
               dot_ae_total: daeTotal, dot_cp_total: dcpTotal,
               conso_ae_total: caeTotal, conso_cp_total: ccpTotal,
+              dot_ae_vehicules: daeV, conso_ae_vehicules: caeV,
+              dot_ae_fonctionnement: daeF, conso_ae_fonctionnement: caeF,
+              dot_ae_t6: daeT, conso_ae_t6: caeT,
+              dot_ae_immo: daeI, conso_ae_immo: caeI,
               dot_cp_vehicules: dcpV, conso_cp_vehicules: ccpV,
               dot_cp_fonctionnement: dcpF, conso_cp_fonctionnement: ccpF,
               dot_cp_t6: dcpT, conso_cp_t6: ccpT,
