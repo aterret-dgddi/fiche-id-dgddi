@@ -800,6 +800,32 @@ function getBudgetMoyennes(perimetre, annee) {
 }
 
 /**
+ * Taux moyens PONDÉRÉS par le poids budgétaire (Σ consommé / Σ dotation du périmètre),
+ * calculés à partir des colonnes Total_Dot_* / Total_Conso_* de Consolidation.
+ * À utiliser pour la comparaison affichée sur les araignées budgétaires — contrairement à
+ * getBudgetMoyennes() qui renvoie Moy_Taux_* (moyenne simple des taux par structure, non
+ * pondérée), laquelle surestime la consommation réelle en donnant autant de poids à une
+ * petite structure qu'à une grosse (ex. AE Immobilier artificiellement élevé).
+ */
+function getWeightedBudgetMoyennes(perimetre, annee) {
+  const conso = getConsolidationData(perimetre, annee);
+  if (!conso) return null;
+  const ratio = (c, d) => d ? c / d : null;
+  return {
+    taux_ae_vehicules:      ratio(conso.total_conso_ae_vehicules, conso.total_dot_ae_vehicules),
+    taux_cp_vehicules:      ratio(conso.total_conso_cp_vehicules, conso.total_dot_cp_vehicules),
+    taux_ae_fonctionnement: ratio(conso.total_conso_ae_fonctionnement, conso.total_dot_ae_fonctionnement),
+    taux_cp_fonctionnement: ratio(conso.total_conso_cp_fonctionnement, conso.total_dot_cp_fonctionnement),
+    taux_ae_t6:             ratio(conso.total_conso_ae_t6, conso.total_dot_ae_t6),
+    taux_cp_t6:             ratio(conso.total_conso_cp_t6, conso.total_dot_cp_t6),
+    taux_ae_immo:           ratio(conso.total_conso_ae_immo, conso.total_dot_ae_immo),
+    taux_cp_immo:           ratio(conso.total_conso_cp_immo, conso.total_dot_cp_immo),
+    taux_ae_total:          ratio(conso.total_conso_ae, conso.total_notif_ae),
+    taux_cp_total:          ratio(conso.total_conso_cp, conso.total_notif_cp),
+  };
+}
+
+/**
  * Retourne le périmètre de comparaison Budget pour une structure.
  */
 function getPerimetreBudget(structureId) {
@@ -884,6 +910,23 @@ function getConsolidationData(perimetre, annee) {
     total_conso_cp:               n('Total_Conso_CP'),
     taux_conso_moyen_ae:          n('Taux_Conso_Moyen_AE'),
     taux_conso_moyen_cp:          n('Taux_Conso_Moyen_CP'),
+    // Totaux € consolidés par catégorie (Σ pondérée, pour un taux national fiable)
+    total_dot_ae_vehicules:        n('Total_Dot_AE_vehicules'),
+    total_conso_ae_vehicules:      n('Total_Conso_AE_vehicules'),
+    total_dot_cp_vehicules:        n('Total_Dot_CP_vehicules'),
+    total_conso_cp_vehicules:      n('Total_Conso_CP_vehicules'),
+    total_dot_ae_fonctionnement:   n('Total_Dot_AE_fonctionnement'),
+    total_conso_ae_fonctionnement: n('Total_Conso_AE_fonctionnement'),
+    total_dot_cp_fonctionnement:   n('Total_Dot_CP_fonctionnement'),
+    total_conso_cp_fonctionnement: n('Total_Conso_CP_fonctionnement'),
+    total_dot_ae_t6:               n('Total_Dot_AE_T6'),
+    total_conso_ae_t6:             n('Total_Conso_AE_T6'),
+    total_dot_cp_t6:               n('Total_Dot_CP_T6'),
+    total_conso_cp_t6:             n('Total_Conso_CP_T6'),
+    total_dot_ae_immo:             n('Total_Dot_AE_Immo'),
+    total_conso_ae_immo:           n('Total_Conso_AE_Immo'),
+    total_dot_cp_immo:             n('Total_Dot_CP_Immo'),
+    total_conso_cp_immo:           n('Total_Conso_CP_Immo'),
 
     // === FRAIS DE MISSION ===
     total_frais_mission:          n('Total_Frais_Mission'),
@@ -3113,8 +3156,8 @@ function refreshBudget(structureId, annee) {
   const dataN = getBudgetData(structureId, annee);
   const perimetre = getPerimetreBudget(structureId);
   const libPerimetre = { 'Metropole': 'DI Métropole', 'SCN': 'SCN', 'Outremer': 'Outremer', 'National': 'National' }[perimetre] || perimetre;
-  const moyPerimetre = getBudgetMoyennes(perimetre, annee);
-  const moyNational  = getBudgetMoyennes('National', annee);
+  const moyPerimetre = getWeightedBudgetMoyennes(perimetre, annee);
+  const moyNational  = getWeightedBudgetMoyennes('National', annee);
 
   // ── Vider si pas de données ───────────────────────────────
   if (!dataN) {

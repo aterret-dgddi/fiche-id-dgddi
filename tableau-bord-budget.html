@@ -1178,14 +1178,18 @@ async function init() {
     if (!structuresTable) throw new Error('Table Structures non accessible.');
     if (!budgetTable)     throw new Error('Table Budget non accessible.');
 
-    // Moyennes nationales : Consolidation en priorité, sinon calcul depuis Budget
-    moyNational = extractNationalMoy(consolidationTable);
-    // Fallback : si les taux globaux sont absents de Consolidation, calculer depuis Budget
-    if (!moyNational || (moyNational.taux_ae_total == null && moyNational.taux_cp_total == null)) {
-      const fromBudget = computeNationalMoyFromBudget(budgetTable);
-      moyNational = moyNational
-        ? Object.fromEntries(Object.entries(moyNational).map(([k,v]) => [k, v ?? fromBudget?.[k] ?? null]))
-        : fromBudget;
+    // Moyennes nationales par catégorie : TOUJOURS calculées en pondéré (Σconso/Σdot)
+    // depuis la table Budget brute — les colonnes Moy_Taux_* de Consolidation sont une
+    // moyenne simple des taux par structure (non pondérée), qui surestime la consommation
+    // réelle car elle donne autant de poids à une petite structure qu'à une grosse.
+    // Les totaux AE/CP globaux (Taux_Conso_Moyen_AE/CP) restent pris depuis Consolidation
+    // quand disponibles : ils sont déjà calculés en pondéré côté Grist (Total_Conso/Total_Notif).
+    moyNational = computeNationalMoyFromBudget(budgetTable);
+    const moyNationalConso = extractNationalMoy(consolidationTable);
+    if (moyNationalConso) {
+      moyNational = moyNational || {};
+      if (moyNationalConso.taux_ae_total != null) moyNational.taux_ae_total = moyNationalConso.taux_ae_total;
+      if (moyNationalConso.taux_cp_total != null) moyNational.taux_cp_total = moyNationalConso.taux_cp_total;
     }
     renderNationalBar(moyNational);
 
