@@ -152,11 +152,20 @@
         <label><input type="checkbox" value="DG" checked> <span>DG — Direction Générale</span></label>
         <label><input type="checkbox" value="DI" checked> <span>DI — Métropole</span></label>
         <label><input type="checkbox" value="DI Outremer" checked> <span>DI — Outremer</span></label>
-        <label><input type="checkbox" value="DR Metropole" checked> <span>DR — Métropole</span></label>
         <label><input type="checkbox" value="DR Outremer" checked> <span>DR — Outremer</span></label>
         <label><input type="checkbox" value="SCN" checked> <span>SCN</span></label>
       </div>
       <div id="struct-count">⏳ Chargement des structures…</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>🇫🇷 Synthèse nationale</span>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 8px;border-radius:6px;background:var(--gris4);cursor:pointer;">
+        <input type="checkbox" id="chk-national-synthese" checked style="width:16px;height:16px;cursor:pointer;">
+        <span>Inclure la synthèse nationale (consommation AE/CP globale, araignées, tableau par catégorie)</span>
+      </label>
     </div>
 
     <button id="btn-generate" disabled>⏳ Chargement des données…</button>
@@ -263,7 +272,6 @@ function filterStructuresByTypes(structures, selectedTypes) {
       if (filterType === 'DG' && (struct.type === 'Siège' || struct.type === 'DG')) return true;
       if (filterType === 'DI' && struct.type === 'DI' && !struct.estOutremer) return true;
       if (filterType === 'DI Outremer' && struct.type === 'DI' && struct.estOutremer) return true;
-      if (filterType === 'DR Metropole' && struct.type === 'DR' && !struct.estOutremer) return true;
       if (filterType === 'DR Outremer' && struct.type === 'DR' && struct.estOutremer) return true;
       if (filterType === 'SCN' && struct.type === 'SCN') return true;
     }
@@ -323,6 +331,31 @@ function getConsolidationData(perimetre, annee) {
     moy_taux_cp_t6: n('Moy_Taux_CP_T6'),
     moy_taux_ae_immo: n('Moy_Taux_AE_Immo'),
     moy_taux_cp_immo: n('Moy_Taux_CP_Immo'),
+    // Totaux € consolidés par catégorie (colonnes Grist ajoutées dans Consolidation)
+    total_dot_ae_vehicules: n('Total_Dot_AE_vehicules'),
+    total_conso_ae_vehicules: n('Total_Conso_AE_vehicules'),
+    total_reste_ae_vehicules: n('Total_Reste_AE_vehicules'),
+    total_dot_cp_vehicules: n('Total_Dot_CP_vehicules'),
+    total_conso_cp_vehicules: n('Total_Conso_CP_vehicules'),
+    total_reste_cp_vehicules: n('Total_Reste_CP_vehicules'),
+    total_dot_ae_fonctionnement: n('Total_Dot_AE_fonctionnement'),
+    total_conso_ae_fonctionnement: n('Total_Conso_AE_fonctionnement'),
+    total_reste_ae_fonctionnement: n('Total_Reste_AE_fonctionnement'),
+    total_dot_cp_fonctionnement: n('Total_Dot_CP_fonctionnement'),
+    total_conso_cp_fonctionnement: n('Total_Conso_CP_fonctionnement'),
+    total_reste_cp_fonctionnement: n('Total_Reste_CP_fonctionnement'),
+    total_dot_ae_t6: n('Total_Dot_AE_T6'),
+    total_conso_ae_t6: n('Total_Conso_AE_T6'),
+    total_reste_ae_t6: n('Total_Reste_AE_T6'),
+    total_dot_cp_t6: n('Total_Dot_CP_T6'),
+    total_conso_cp_t6: n('Total_Conso_CP_T6'),
+    total_reste_cp_t6: n('Total_Reste_CP_T6'),
+    total_dot_ae_immo: n('Total_Dot_AE_Immo'),
+    total_conso_ae_immo: n('Total_Conso_AE_Immo'),
+    total_reste_ae_immo: n('Total_Reste_AE_Immo'),
+    total_dot_cp_immo: n('Total_Dot_CP_Immo'),
+    total_conso_cp_immo: n('Total_Conso_CP_Immo'),
+    total_reste_cp_immo: n('Total_Reste_CP_Immo'),
   };
 }
 
@@ -793,12 +826,13 @@ function buildCategoryStructureTable(catKey, structBudgets) {
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
 }
 
-function buildNationalCategoryTable(moyNat) {
+function buildNationalCategoryTable(conso) {
   const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, ShadingType, AlignmentType } = docx;
 
-  const headerCells = ['Catégorie', 'Taux AE national', 'Taux CP national'].map(label => new TableCell({
+  const headerLabels = ['Catégorie', 'Dotation AE', 'Consommé AE', 'Reste AE', 'Dotation CP', 'Consommé CP', 'Reste CP', 'Taux CP'];
+  const headerCells = headerLabels.map(label => new TableCell({
     shading: { type: ShadingType.CLEAR, fill: '000091', color: 'auto' },
-    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: label, bold: true, color: 'FFFFFF', size: 18 })] })],
+    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: label, bold: true, color: 'FFFFFF', size: 16 })] })],
   }));
 
   const categories = [
@@ -806,25 +840,41 @@ function buildNationalCategoryTable(moyNat) {
     { label: 'Fonctionnement', key: 'fonctionnement' },
     { label: 'T6 Buralistes', key: 't6' },
     { label: 'Immobilier', key: 'immo' },
-  ].map(c => ({ label: c.label, ae: moyNat?.[`taux_ae_${c.key}`], cp: moyNat?.[`taux_cp_${c.key}`] }));
-  categories.push({ label: 'Total', ae: moyNat?.taux_ae_total, cp: moyNat?.taux_cp_total, isTotal: true });
+  ].map(c => ({
+    label: c.label,
+    dotAe: conso?.[`total_dot_ae_${c.key}`], consoAe: conso?.[`total_conso_ae_${c.key}`], resteAe: conso?.[`total_reste_ae_${c.key}`],
+    dotCp: conso?.[`total_dot_cp_${c.key}`], consoCp: conso?.[`total_conso_cp_${c.key}`], resteCp: conso?.[`total_reste_cp_${c.key}`],
+  }));
 
-  const fmtTauxColor = v => {
-    if (v == null || isNaN(v)) return '888888';
-    const pct = v * 100;
-    return pct >= 80 ? 'C0392B' : pct >= 50 ? 'D07B00' : '008941';
+  const totDotAe = categories.reduce((s, c) => s + (c.dotAe || 0), 0);
+  const totConsoAe = categories.reduce((s, c) => s + (c.consoAe || 0), 0);
+  const totResteAe = categories.reduce((s, c) => s + (c.resteAe || 0), 0);
+  const totDotCp = categories.reduce((s, c) => s + (c.dotCp || 0), 0);
+  const totConsoCp = categories.reduce((s, c) => s + (c.consoCp || 0), 0);
+  const totResteCp = categories.reduce((s, c) => s + (c.resteCp || 0), 0);
+  categories.push({ label: 'Total', dotAe: totDotAe, consoAe: totConsoAe, resteAe: totResteAe, dotCp: totDotCp, consoCp: totConsoCp, resteCp: totResteCp, isTotal: true });
+
+  const fmtTauxColor = tauxPct => {
+    if (tauxPct == null || isNaN(tauxPct)) return '888888';
+    return tauxPct >= 80 ? 'C0392B' : tauxPct >= 50 ? 'D07B00' : '008941';
   };
 
   const rows = [new TableRow({ children: headerCells, tableHeader: true })];
   categories.forEach(c => {
     const cellText = (text, opts) => new TableCell({
       shading: c.isTotal ? { type: ShadingType.CLEAR, fill: 'F4F4F4', color: 'auto' } : undefined,
-      children: [new Paragraph({ alignment: opts && opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT, children: [new TextRun({ text, bold: !!c.isTotal, color: opts && opts.color, size: 18 })] })],
+      children: [new Paragraph({ alignment: opts && opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT, children: [new TextRun({ text, bold: !!c.isTotal, color: opts && opts.color, size: 16 })] })],
     });
+    const tauxCpPct = c.dotCp ? (c.consoCp / c.dotCp) * 100 : null;
     rows.push(new TableRow({ children: [
       cellText(c.label),
-      cellText(formatPercent(c.ae != null ? c.ae * 100 : null), { right: true, color: fmtTauxColor(c.ae) }),
-      cellText(formatPercent(c.cp != null ? c.cp * 100 : null), { right: true, color: fmtTauxColor(c.cp) }),
+      cellText(formatCurrency(c.dotAe), { right: true }),
+      cellText(formatCurrency(c.consoAe), { right: true }),
+      cellText(formatCurrency(c.resteAe), { right: true }),
+      cellText(formatCurrency(c.dotCp), { right: true }),
+      cellText(formatCurrency(c.consoCp), { right: true }),
+      cellText(formatCurrency(c.resteCp), { right: true }),
+      cellText(formatPercent(tauxCpPct), { right: true, color: fmtTauxColor(tauxCpPct) }),
     ] }));
   });
 
@@ -853,11 +903,24 @@ async function buildNationalSyntheseSection(structBudgets) {
       children: [new TextRun({ text: `Consommation CP nationale : ${formatPercent(moyNat.taux_cp_total * 100)} (${formatCurrency(conso.total_conso_cp)} consommés / ${formatCurrency(conso.total_notif_cp)} de dotation globale)`, bold: true }) ],
     }));
 
-    // ── Araignées nationales AE / CP (situation consolidée) ──
+    // ── Araignées nationales AE / CP (taux pondérés par le poids budgétaire, Σconso/Σdotation) ──
+    // On n'utilise PAS moyNat (Moy_Taux_*) ici : c'est une moyenne simple des taux par structure,
+    // qui surpondère les petites structures. On reconstruit le vrai taux national par catégorie
+    // à partir des montants consolidés (conso.total_*), cohérent avec le tableau ci-dessous.
+    const natWeighted = {
+      taux_ae_vehicules:      conso.total_dot_ae_vehicules      ? conso.total_conso_ae_vehicules      / conso.total_dot_ae_vehicules      : null,
+      taux_cp_vehicules:      conso.total_dot_cp_vehicules      ? conso.total_conso_cp_vehicules      / conso.total_dot_cp_vehicules      : null,
+      taux_ae_fonctionnement: conso.total_dot_ae_fonctionnement ? conso.total_conso_ae_fonctionnement / conso.total_dot_ae_fonctionnement : null,
+      taux_cp_fonctionnement: conso.total_dot_cp_fonctionnement ? conso.total_conso_cp_fonctionnement / conso.total_dot_cp_fonctionnement : null,
+      taux_ae_t6:              conso.total_dot_ae_t6             ? conso.total_conso_ae_t6             / conso.total_dot_ae_t6             : null,
+      taux_cp_t6:              conso.total_dot_cp_t6             ? conso.total_conso_cp_t6             / conso.total_dot_cp_t6             : null,
+      taux_ae_immo:            conso.total_dot_ae_immo           ? conso.total_conso_ae_immo           / conso.total_dot_ae_immo           : null,
+      taux_cp_immo:            conso.total_dot_cp_immo           ? conso.total_conso_cp_immo           / conso.total_dot_cp_immo           : null,
+    };
     try {
       const [radarAE, radarCP] = await Promise.all([
-        renderBudgetRadarPNG('ae', moyNat, null, false),
-        renderBudgetRadarPNG('cp', moyNat, null, false),
+        renderBudgetRadarPNG('ae', natWeighted, null, false),
+        renderBudgetRadarPNG('cp', natWeighted, null, false),
       ]);
       const imgW = 260, imgH = imgW * (radarAE.height / radarAE.width);
       elements.push(new Paragraph({
@@ -872,16 +935,20 @@ async function buildNationalSyntheseSection(structBudgets) {
           new ImageRun({ type: 'png', data: radarCP.bytes, transformation: { width: imgW, height: imgH } }),
         ],
       }));
+      elements.push(new Paragraph({
+        spacing: { before: 60, after: 200 },
+        children: [new TextRun({ text: 'Taux pondérés par le poids budgétaire de chaque structure (Σ consommé / Σ dotation), et non une moyenne simple des taux par structure.', italics: true, color: '888888', size: 16 })],
+      }));
     } catch (e) {
       elements.push(new Paragraph({ children: [new TextRun({ text: '(Graphiques non générés : ' + (e && e.message ? e.message : e) + ')', italics: true, color: '888888', size: 18 })] }));
     }
 
-    // ── Situation consolidée par catégorie (taux nationaux) ──
-    elements.push(new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: 'Taux de consommation nationaux par catégorie — ' + ANNEE, bold: true })] }));
-    elements.push(buildNationalCategoryTable(moyNat));
+    // ── Situation consolidée par catégorie (montants € nationaux) ──
+    elements.push(new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: 'Situation consolidée par catégorie — ' + ANNEE, bold: true })] }));
+    elements.push(buildNationalCategoryTable(conso));
     elements.push(new Paragraph({
       spacing: { before: 80, after: 200 },
-      children: [new TextRun({ text: 'Taux moyens consolidés au niveau national (table Consolidation Grist).', italics: true, color: '888888', size: 16 })],
+      children: [new TextRun({ text: 'Montants consolidés au niveau national (table Consolidation Grist, filtrage par périmètre neutralisant les doubles comptages).', italics: true, color: '888888', size: 16 })],
     }));
   }
 
@@ -898,7 +965,7 @@ async function buildNationalSyntheseSection(structBudgets) {
     elements.push(new Paragraph({ text: '' }));
   });
   elements.push(new Paragraph({
-    children: [new TextRun({ text: 'Le « Total (structures listées) » est la somme des lignes ci-dessus (selon votre filtre) et non le total national officiel — voir la table Consolidation pour ce dernier, qui neutralise les doubles comptages (ex. DI 972 / DR rattachées).', italics: true, color: '888888', size: 16 })],
+    children: [new TextRun({ text: 'Le « Total (structures listées) » de ces tableaux est la somme des lignes affichées selon votre filtre — pour le total national officiel, se référer au tableau « Situation consolidée par catégorie » ci-dessus, issu de la table Consolidation.', italics: true, color: '888888', size: 16 })],
   }));
 
   return elements;
@@ -1060,9 +1127,12 @@ async function generateDocument() {
       children: [new TextRun({ text: 'Clic droit sur le sommaire ci-dessus puis « Mettre à jour les champs » pour l\'actualiser.', italics: true, color: '888888', size: 18 })]
     }));
 
-    setProgress(0, 'Synthèse nationale…');
-    allElements.push(new Paragraph({ children: [new (docx.PageBreak)()] }));
-    allElements.push(...(await buildNationalSyntheseSection(structBudgets)));
+    const includeNationalSynthese = document.getElementById('chk-national-synthese').checked;
+    if (includeNationalSynthese) {
+      setProgress(0, 'Synthèse nationale…');
+      allElements.push(new Paragraph({ children: [new (docx.PageBreak)()] }));
+      allElements.push(...(await buildNationalSyntheseSection(structBudgets)));
+    }
 
     let currentGroup = null;
     for (let i = 0; i < selected.length; i++) {
