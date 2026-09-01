@@ -800,7 +800,8 @@ function clrStyle(v, ref) {
 
 // ── Ligne récapitulative des montants (poids budgétaire + reste à consommer) ──
 function buildMontantsLine(card) {
-  const resteCp = (card.dot_cp_total ?? 0) - (card.conso_cp_total ?? 0);
+  const hasMontants = card.dot_cp_total != null || card.conso_cp_total != null;
+  const resteCp = hasMontants ? (card.dot_cp_total ?? 0) - (card.conso_cp_total ?? 0) : null;
   return `
     <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bord);font-size:10px;color:var(--gris2);">
       <div style="display:flex;justify-content:space-between;gap:4px;">
@@ -813,7 +814,7 @@ function buildMontantsLine(card) {
       </div>
       <div style="display:flex;justify-content:space-between;gap:4px;margin-top:2px;">
         <span style="color:#aaa;">Reste à consommer</span>
-        <span style="font-weight:700;color:${resteCp > 0 ? 'var(--rouge)' : 'var(--vert)'};">${fmtEuro(resteCp)}</span>
+        <span style="font-weight:700;color:${resteCp != null && resteCp > 0 ? 'var(--rouge)' : 'var(--vert)'};">${fmtEuro(resteCp)}</span>
       </div>
     </div>`;
 }
@@ -1150,6 +1151,19 @@ async function init() {
         taux_cp_t6:             data?.taux_cp_t6             ?? null,
         taux_cp_immo:           data?.taux_cp_immo           ?? null,
         date_import:            data?.date_import             ?? null,
+        // Montants € (totaux + détail par catégorie CP) — affichage cartes + tri poids/reste
+        dot_ae_total:            data?.dot_ae_total            ?? null,
+        dot_cp_total:            data?.dot_cp_total            ?? null,
+        conso_ae_total:          data?.conso_ae_total          ?? null,
+        conso_cp_total:          data?.conso_cp_total          ?? null,
+        dot_cp_vehicules:        data?.dot_cp_vehicules        ?? null,
+        conso_cp_vehicules:      data?.conso_cp_vehicules      ?? null,
+        dot_cp_fonctionnement:   data?.dot_cp_fonctionnement   ?? null,
+        conso_cp_fonctionnement: data?.conso_cp_fonctionnement ?? null,
+        dot_cp_t6:               data?.dot_cp_t6               ?? null,
+        conso_cp_t6:             data?.conso_cp_t6             ?? null,
+        dot_cp_immo:             data?.dot_cp_immo             ?? null,
+        conso_cp_immo:           data?.conso_cp_immo           ?? null,
       };
 
       if (ta === 'DG') dgCandidats.push(card);
@@ -1201,6 +1215,12 @@ async function init() {
               taux_ae_t6: taux(caeT,daeT), taux_cp_t6: taux(ccpT,dcpT),
               taux_ae_immo: taux(caeI,daeI), taux_cp_immo: taux(ccpI,dcpI),
               date_import: dgDateImport,
+              dot_ae_total: daeTotal, dot_cp_total: dcpTotal,
+              conso_ae_total: caeTotal, conso_cp_total: ccpTotal,
+              dot_cp_vehicules: dcpV, conso_cp_vehicules: ccpV,
+              dot_cp_fonctionnement: dcpF, conso_cp_fonctionnement: ccpF,
+              dot_cp_t6: dcpT, conso_cp_t6: ccpT,
+              dot_cp_immo: dcpI, conso_cp_immo: ccpI,
             };
           }
         }
