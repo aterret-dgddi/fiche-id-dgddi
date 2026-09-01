@@ -3265,7 +3265,17 @@ function createBudgetRadar(canvasId, type, data, moyNat) {
   const existing = Chart.getChart(canvasId);
   if (existing) existing.destroy();
 
-  const tauxStruct = BUDGET_CAT_KEYS.map(key => {
+  // Les dossiers T6 (indemnisation des buralistes) sont non discrétionnaires
+  // et sans marge de manœuvre pour les DI (UOT créée au niveau DG depuis 2026) :
+  // on retire cet axe de l'araignée pour les structures DI. Le détail chiffré
+  // reste affiché dans les KPIs/tableau ci-dessous (suivi de charge de travail).
+  const isDI = FICHE_STATE.structure && FICHE_STATE.structure.type === 'DI';
+  const catIdx    = BUDGET_CAT_KEYS.map((k, i) => i).filter(i => !(isDI && BUDGET_CAT_KEYS[i] === 't6'));
+  const catKeys   = catIdx.map(i => BUDGET_CAT_KEYS[i]);
+  const catLabels = catIdx.map(i => BUDGET_CAT_LABELS[i]);
+  const catColors = catIdx.map(i => BUDGET_CAT_COLORS[i]);
+
+  const tauxStruct = catKeys.map(key => {
     const v = data[`taux_${type}_${key}`];
     return v != null ? v * 100 : null;
   });
@@ -3273,7 +3283,7 @@ function createBudgetRadar(canvasId, type, data, moyNat) {
   const datasets = [];
 
   if (moyNat) {
-    const tauxMoy = BUDGET_CAT_KEYS.map(key => {
+    const tauxMoy = catKeys.map(key => {
       const v = moyNat[`taux_${type}_${key}`];
       return v != null ? v * 100 : null;
     });
@@ -3295,7 +3305,7 @@ function createBudgetRadar(canvasId, type, data, moyNat) {
     backgroundColor: 'rgba(19,81,168,0.12)',
     borderColor: 'rgba(19,81,168,0.9)',
     borderWidth: 2.5,
-    pointBackgroundColor: BUDGET_CAT_COLORS,
+    pointBackgroundColor: catColors,
     pointBorderColor: '#fff',
     pointBorderWidth: 2,
     pointRadius: 5,
@@ -3304,7 +3314,7 @@ function createBudgetRadar(canvasId, type, data, moyNat) {
 
   new Chart(canvas, {
     type: 'radar',
-    data: { labels: BUDGET_CAT_LABELS, datasets },
+    data: { labels: catLabels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -3326,14 +3336,14 @@ function createBudgetRadar(canvasId, type, data, moyNat) {
         r: {
           beginAtZero: true,
           min: 0,
-          suggestedMax: 100,
+          max: 100,
           ticks: {
             stepSize: 25,
             display: false,
           },
           pointLabels: {
             font: { size: 11, weight: '600' },
-            color: BUDGET_CAT_COLORS,
+            color: catColors,
             padding: 10,
           },
           grid: {
@@ -5274,6 +5284,11 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
       var s = clonedDoc.createElement('style');
       s.textContent = '* { font-family: Arial, Helvetica, sans-serif !important; }';
       clonedDoc.head.appendChild(s);
+      // Révéler la légende des couleurs des "sujets" (masquée à l'écran, où elle
+      // est accessible via l'icône ⓘ au survol — html2canvas ne déclenche jamais
+      // les popovers :hover, donc on l'affiche explicitement dans le clone capturé).
+      var legend = clonedDoc.getElementById('pills-legend-print');
+      if (legend) legend.style.display = 'flex';
     } catch(e) {}
   }
 
