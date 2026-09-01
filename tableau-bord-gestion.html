@@ -1961,7 +1961,7 @@
         <div class="kpi-strip">
 
           <div class="kpi-evol-card" style="border-left-color:var(--rep2);">
-            <div class="kpi-evol-label">Budget IT (CP)</div>
+            <div class="kpi-evol-label">Dépense bureautique (CP)</div>
             <div class="kpi-evol-value" style="font-size:20px;">${fmtKEur(sN.budget)}</div>
             <div class="kpi-evol-sub">${evol(sN.budget, sN1?.budget, annN1)}${evolDepuis(sN.budget, sDep?.budget, annDep)}</div>
             <div class="spark-wrap"><canvas id="spark-it-budget"></canvas></div>
@@ -1981,7 +1981,7 @@
           </div>
 
           <div class="kpi-evol-card" style="border-left-color:var(--orange);">
-            <div class="kpi-evol-label">Coût IT / Agent</div>
+            <div class="kpi-evol-label">Coût bureautique / Agent</div>
             <div class="kpi-evol-value" style="font-size:20px;">${fmtEur(sN.it_par_agent)}</div>
             <div class="kpi-evol-sub">${evol(sN.it_par_agent, sN1?.it_par_agent, annN1)}${evolDepuis(sN.it_par_agent, sDep?.it_par_agent, annDep)}${moyennes ? formatEcartMoyenne(sN.it_par_agent, moyennes.it_par_agent) : ''}</div>
             <div class="spark-wrap"><canvas id="spark-it-agent"></canvas></div>

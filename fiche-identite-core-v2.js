@@ -6147,13 +6147,13 @@ function exportToXLSX() {
     ['Indicateur','Valeur '+annee,'Comparaison perimetre / national'],
     ['Postes de travail total', t('it-total'),               t('it-pct-portables')],
     ['Ratio poste / ETPT',      t('it-ratio'),               t('it-ratio-comp')],
-    ['Budget IT annuel',         t('it-budget-annuel'),       t('it-budget-annuel-evol')],
-    ['Budget IT moyen 4 ans',   t('it-budget-moyen'),         ''],
-    ['Budget IT / ETPT',        t('it-budget-agent-annuel'), t('it-budget-agent-annuel-comp')],
-    ['Budget IT / ETPT moy 4a', t('it-budget-agent-moyen'),  ''],
+    ['Dépense bureautique annuelle',         t('it-budget-annuel'),       t('it-budget-annuel-evol')],
+    ['Dépense bureautique moyenne 4 ans',   t('it-budget-moyen'),         ''],
+    ['Dépense bureautique / ETPT',        t('it-budget-agent-annuel'), t('it-budget-agent-annuel-comp')],
+    ['Dépense bureautique / ETPT moy 4a', t('it-budget-agent-moyen'),  ''],
   ];
   const itDetail = tableRowsFromDOM('table-it-body',
-    ['Annee','Portables','Fixes','Total postes','Ratio / ETPT','Budget IT (EUR)','Budget / ETPT (EUR)']);
+    ['Annee','Portables','Fixes','Total postes','Ratio / ETPT','Dépense bureautique (EUR)','Budget / ETPT (EUR)']);
   if (itDetail.length>1) { itRows.push([]); itRows.push(['Evolution 4 ans']); itDetail.forEach(r=>itRows.push(r)); }
   addSheet('Informatique', itRows);
 
@@ -6687,12 +6687,12 @@ function exportToXLSXWorkbook(struct, annee) {
     ['Indicateur','Valeur '+annee,'Comparaison'],
     ['Postes total',       t('it-total'),               t('it-pct-portables')],
     ['Ratio poste/ETPT',   t('it-ratio'),               t('it-ratio-comp')],
-    ['Budget IT',          t('it-budget-annuel'),        t('it-budget-annuel-evol')],
-    ['Budget IT moy 4a',   t('it-budget-moyen'),         ''],
-    ['Budget IT/ETPT',     t('it-budget-agent-annuel'), t('it-budget-agent-annuel-comp')],
-    ['Budget IT/ETPT 4a',  t('it-budget-agent-moyen'),  ''],
+    ['Dépense bureautique',          t('it-budget-annuel'),        t('it-budget-annuel-evol')],
+    ['Dépense bureautique moy 4a',   t('it-budget-moyen'),         ''],
+    ['Dépense bureautique/ETPT',     t('it-budget-agent-annuel'), t('it-budget-agent-annuel-comp')],
+    ['Dépense bureautique/ETPT 4a',  t('it-budget-agent-moyen'),  ''],
   ];
-  const itD = tableRowsFromDOM('table-it-body',['Annee','Portables','Fixes','Total','Ratio/ETPT','Budget IT (EUR)','Budget/ETPT (EUR)']);
+  const itD = tableRowsFromDOM('table-it-body',['Annee','Portables','Fixes','Total','Ratio/ETPT','Dépense bureautique (EUR)','Budget/ETPT (EUR)']);
   if (itD.length>1) { itRows.push([]); itD.forEach(r=>itRows.push(r)); }
   addSheet('Informatique', itRows);
 
