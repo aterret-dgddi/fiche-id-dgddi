@@ -219,7 +219,7 @@ function filterStructuresByTypes(structures, selectedTypes) {
   
   return structures.filter(struct => {
     for (const filterType of selectedTypes) {
-      if (filterType === 'DG' && struct.type === 'DG') return true;
+      if (filterType === 'DG' && (struct.type === 'Siège' || struct.type === 'DG')) return true;
       if (filterType === 'DI' && struct.type === 'DI' && !struct.estOutremer) return true;
       if (filterType === 'DI Outremer' && struct.type === 'DI' && struct.estOutremer) return true;
       if (filterType === 'DR Metropole' && struct.type === 'DR' && !struct.estOutremer) return true;
