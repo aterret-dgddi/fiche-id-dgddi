@@ -376,6 +376,31 @@ function getBudgetMoyennes(perimetre, annee) {
   };
 }
 
+/**
+ * Taux moyens PONDÉRÉS par le poids budgétaire (Σ consommé / Σ dotation du périmètre),
+ * à partir des colonnes Total_Dot_* / Total_Conso_* de Consolidation.
+ * À utiliser pour toute comparaison affichée sur une araignée ou un écart de taux —
+ * contrairement à getBudgetMoyennes() qui renvoie une simple moyenne des taux par
+ * structure (Moy_Taux_* Grist), non pondérée et donc trompeuse.
+ */
+function getWeightedBudgetMoyennes(perimetre, annee) {
+  const conso = getConsolidationData(perimetre, annee);
+  if (!conso) return null;
+  const ratio = (c, d) => d ? c / d : null;
+  return {
+    taux_ae_vehicules:      ratio(conso.total_conso_ae_vehicules, conso.total_dot_ae_vehicules),
+    taux_cp_vehicules:      ratio(conso.total_conso_cp_vehicules, conso.total_dot_cp_vehicules),
+    taux_ae_fonctionnement: ratio(conso.total_conso_ae_fonctionnement, conso.total_dot_ae_fonctionnement),
+    taux_cp_fonctionnement: ratio(conso.total_conso_cp_fonctionnement, conso.total_dot_cp_fonctionnement),
+    taux_ae_t6:             ratio(conso.total_conso_ae_t6, conso.total_dot_ae_t6),
+    taux_cp_t6:             ratio(conso.total_conso_cp_t6, conso.total_dot_cp_t6),
+    taux_ae_immo:           ratio(conso.total_conso_ae_immo, conso.total_dot_ae_immo),
+    taux_cp_immo:           ratio(conso.total_conso_cp_immo, conso.total_dot_cp_immo),
+    taux_ae_total:          ratio(conso.total_conso_ae, conso.total_notif_ae),
+    taux_cp_total:          ratio(conso.total_conso_cp, conso.total_notif_cp),
+  };
+}
+
 function getPerimetreBudget(struct) {
   const type = struct.type;
   const estOutremer = struct.estOutremer;
@@ -918,18 +943,9 @@ async function buildNationalSyntheseSection(structBudgets) {
 
     // ── Araignées nationales AE / CP (taux pondérés par le poids budgétaire, Σconso/Σdotation) ──
     // On n'utilise PAS moyNat (Moy_Taux_*) ici : c'est une moyenne simple des taux par structure,
-    // qui surpondère les petites structures. On reconstruit le vrai taux national par catégorie
-    // à partir des montants consolidés (conso.total_*), cohérent avec le tableau ci-dessous.
-    const natWeighted = {
-      taux_ae_vehicules:      conso.total_dot_ae_vehicules      ? conso.total_conso_ae_vehicules      / conso.total_dot_ae_vehicules      : null,
-      taux_cp_vehicules:      conso.total_dot_cp_vehicules      ? conso.total_conso_cp_vehicules      / conso.total_dot_cp_vehicules      : null,
-      taux_ae_fonctionnement: conso.total_dot_ae_fonctionnement ? conso.total_conso_ae_fonctionnement / conso.total_dot_ae_fonctionnement : null,
-      taux_cp_fonctionnement: conso.total_dot_cp_fonctionnement ? conso.total_conso_cp_fonctionnement / conso.total_dot_cp_fonctionnement : null,
-      taux_ae_t6:              conso.total_dot_ae_t6             ? conso.total_conso_ae_t6             / conso.total_dot_ae_t6             : null,
-      taux_cp_t6:              conso.total_dot_cp_t6             ? conso.total_conso_cp_t6             / conso.total_dot_cp_t6             : null,
-      taux_ae_immo:            conso.total_dot_ae_immo           ? conso.total_conso_ae_immo           / conso.total_dot_ae_immo           : null,
-      taux_cp_immo:            conso.total_dot_cp_immo           ? conso.total_conso_cp_immo           / conso.total_dot_cp_immo           : null,
-    };
+    // qui surpondère les petites structures. getWeightedBudgetMoyennes reconstruit le vrai taux
+    // national par catégorie à partir des montants consolidés, cohérent avec le tableau ci-dessous.
+    const natWeighted = getWeightedBudgetMoyennes('National', ANNEE);
     try {
       const [radarAE, radarCP] = await Promise.all([
         renderBudgetRadarPNG('ae', natWeighted, null, false),
@@ -1032,8 +1048,8 @@ async function buildStructureSection(struct, isFirst, precomputedData) {
 
   const perimetre = getPerimetreBudget(struct);
   const libPerimetre = { Metropole: 'DI Métropole', SCN: 'SCN', Outremer: 'Outremer', National: 'National' }[perimetre] || perimetre;
-  const moyPerimetre = getBudgetMoyennes(perimetre, ANNEE);
-  const moyNational  = getBudgetMoyennes('National', ANNEE);
+  const moyPerimetre = getWeightedBudgetMoyennes(perimetre, ANNEE);
+  const moyNational  = getWeightedBudgetMoyennes('National', ANNEE);
 
   const fmtDiff = (val, moy, label) => {
     if (!moy) return null;
