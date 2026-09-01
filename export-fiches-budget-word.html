@@ -182,7 +182,7 @@ const BUDGET_CAT_KEYS   = ['vehicules', 'fonctionnement', 't6', 'immo'];
 
 const STATE = {
   gristReady: false,
-  data: { structures: null, budget: null, consolidation: null, commentaires: null }
+  data: { structures: null, budget: null, consolidation: null, commentaires: null, rh: null }
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -203,16 +203,18 @@ function initGrist() {
 async function loadAllData() {
   if (!STATE.gristReady) return;
   try {
-    const [structures, budget, consolidation, commentaires] = await Promise.all([
+    const [structures, budget, consolidation, commentaires, rh] = await Promise.all([
       grist.docApi.fetchTable('Structures'),
       grist.docApi.fetchTable('Budget'),
       grist.docApi.fetchTable('Consolidation').catch(() => null),
       grist.docApi.fetchTable('Commentaires').catch(() => null),
+      grist.docApi.fetchTable('RH').catch(() => null),
     ]);
     STATE.data.structures = structures;
     STATE.data.budget = budget;
     STATE.data.consolidation = consolidation;
     STATE.data.commentaires = commentaires;
+    STATE.data.rh = rh;
 
     updateCount();
     const btn = document.getElementById('btn-generate');
@@ -425,6 +427,18 @@ function getBudgetData(structureId, annee) {
     get taux_ae_total() { return this.dot_ae_total > 0 ? this.conso_ae_total / this.dot_ae_total : 0; },
     get taux_cp_total() { return this.dot_cp_total > 0 ? this.conso_cp_total / this.dot_cp_total : 0; },
   };
+}
+
+/**
+ * Année utilisée pour l'encadré « Vue d'ensemble et points d'attention » (Synthese) :
+ * comme dans fiche-identite-di-v2.html, ce n'est PAS l'année budgétaire figée (2026)
+ * mais la dernière année disponible dans la table RH.
+ */
+function getDerniereAnnee() {
+  const rh = STATE.data.rh;
+  if (!rh || !rh.Annee) return new Date().getFullYear();
+  const annees = [...new Set(rh.Annee.filter(a => a > 0))];
+  return annees.length ? Math.max(...annees) : new Date().getFullYear();
 }
 
 function getCommentaire(structureId, annee, section) {
@@ -727,7 +741,7 @@ async function buildStructureSection(struct, isFirst) {
   }));
 
   // ── Points d'attention et enjeux (Synthese) ──
-  const synthese = getSynthese(struct.id, ANNEE);
+  const synthese = getSynthese(struct.id, getDerniereAnnee());
   elements.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: '💡 Vue d\'ensemble et points d\'attention' })] }));
   if (synthese.pills.length) {
     synthese.pills.forEach(p => {
