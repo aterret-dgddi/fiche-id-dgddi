@@ -4063,8 +4063,11 @@ function showExportModal() {
     background: rgba(0, 0, 0, 0.5);
     z-index: 10000;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
+    overflow-y: auto;
+    padding: 24px 12px;
+    box-sizing: border-box;
     font-family: 'Marianne', sans-serif;
   `;
   
@@ -4075,17 +4078,20 @@ function showExportModal() {
     padding: 0;
     width: 500px;
     max-width: 90%;
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     overflow: hidden;
   `;
   
   modalContent.innerHTML = `
-    <div style="background: linear-gradient(135deg, #002F6C, #1351A8); padding: 24px; color: white;">
+    <div style="background: linear-gradient(135deg, #002F6C, #1351A8); padding: 24px; color: white; flex-shrink: 0;">
       <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Exporter en PDF</h2>
       <p style="margin: 8px 0 0 0; font-size: 13px; opacity: 0.9;">Configurez les paramètres d'export</p>
     </div>
     
-    <div style="padding: 24px;">
+    <div style="padding: 24px; overflow-y: auto;">
       <div style="margin-bottom: 24px;">
         <label style="display: block; font-weight: 600; color: #1E2D3D; margin-bottom: 12px; font-size: 14px;">📄 Mode d'export</label>
         <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -4132,11 +4138,6 @@ function showExportModal() {
             <input type="checkbox" class="filter-type" value="DI Outremer" style="margin-right: 8px;">
             <span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DI OM</span>
             Directions Interrégionales Outremer
-          </label>
-          <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
-            <input type="checkbox" class="filter-type" value="DR Metropole" style="margin-right: 8px;">
-            <span style="background: #9b59b6; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DR</span>
-            Directions Régionales (Métropole)
           </label>
           <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
             <input type="checkbox" checked class="filter-type" value="DR Outremer" style="margin-right: 8px;">
@@ -6323,7 +6324,8 @@ function showXLSXModal() {
   modal.style.cssText = `
     position:fixed;top:0;left:0;right:0;bottom:0;
     background:rgba(0,0,0,0.5);z-index:10000;
-    display:flex;align-items:center;justify-content:center;
+    display:flex;align-items:flex-start;justify-content:center;
+    overflow-y:auto;padding:24px 12px;box-sizing:border-box;
     font-family:'Marianne',sans-serif;
   `;
 
@@ -6331,12 +6333,12 @@ function showXLSXModal() {
   const structName = struct ? (struct.sigle || struct.nom) : '—';
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;width:500px;max-width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);overflow:hidden;">
-      <div style="background:linear-gradient(135deg,#1B5E20,#2E7D32);padding:24px;color:white;">
+    <div style="background:white;border-radius:12px;width:500px;max-width:90%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.3);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#1B5E20,#2E7D32);padding:24px;color:white;flex-shrink:0;">
         <h2 style="margin:0;font-size:20px;font-weight:700;">📊 Exporter en XLSX</h2>
         <p style="margin:8px 0 0 0;font-size:13px;opacity:0.9;">Données chiffrées pour exploitation IA</p>
       </div>
-      <div style="padding:24px;">
+      <div style="padding:24px;overflow-y:auto;">
         <div style="margin-bottom:20px;">
           <label style="display:block;font-weight:600;color:#1E2D3D;margin-bottom:12px;font-size:14px;">📄 Mode d'export</label>
           <div style="display:flex;flex-direction:column;gap:8px;">
@@ -6372,10 +6374,6 @@ function showXLSXModal() {
             <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
               <input type="checkbox" class="xlsx-filter-type" value="DI Outremer" checked style="margin-right:8px;">
               <span style="background:#17a2b8;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">DI OM</span>Directions interrégionales outremer
-            </label>
-            <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
-              <input type="checkbox" class="xlsx-filter-type" value="DR Metropole" style="margin-right:8px;">
-              <span style="background:#6f42c1;color:white;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;margin-right:6px;">DR</span>Directions régionales métropole
             </label>
             <label style="display:flex;align-items:center;padding:8px 12px;background:#f8f9fa;border-radius:6px;cursor:pointer;font-size:13px;">
               <input type="checkbox" class="xlsx-filter-type" value="DR Outremer" checked style="margin-right:8px;">
@@ -6765,557 +6763,3 @@ function exportToXLSXWorkbook(struct, annee) {
   return wb;
 }
 
-
-// ═══════════════════════════════════════════════════════════════
-// EXPORT APPLICATION MOBILE — PWA standalone multi-structures
-// Données lues directement depuis FICHE_STATE (pas le DOM) :
-// fiable même pour des structures non affichées à l'écran.
-// ═══════════════════════════════════════════════════════════════
-
-function exportToMobileApp() {
-  const allStructs = getStructuresArray();
-  if (!allStructs.length) { alert('Aucune structure chargée.'); return; }
-  _runMobileExport(allStructs);
-}
-
-function exportToMobileAppCurrent() {
-  if (!FICHE_STATE.structure) { alert('Aucune structure sélectionnée.'); return; }
-  _runMobileExport([{
-    id: FICHE_STATE.structure.id,
-    sigle: FICHE_STATE.structure.sigle,
-    nom: FICHE_STATE.structure.nom,
-    type: FICHE_STATE.structure.type
-  }]);
-}
-
-function _mobSafe(v, fallback) {
-  return (v === null || v === undefined || v === '' || (typeof v === 'number' && isNaN(v))) ? (fallback !== undefined ? fallback : '—') : v;
-}
-
-function _mobMd(raw) {
-  const txt = (raw || '').trim();
-  return txt ? mdToHtml(txt) : '<em style="color:#8A9BAA;">Aucun commentaire.</em>';
-}
-
-// Badge d'évolution N vs N-1 (flèche colorée + libellé grisé)
-// opts.colorMode: 'normal' (hausse=vert, défaut), 'invert' (hausse=rouge), 'none' (gris neutre)
-function _mobEvol(cur, prev, opts) {
-  opts = opts || {};
-  if (cur === null || cur === undefined || prev === null || prev === undefined || isNaN(cur) || isNaN(prev)) return '';
-  const diff = cur - prev;
-  const pct = (prev !== 0) ? (diff / Math.abs(prev)) * 100 : null;
-  const colorMode = opts.colorMode || 'normal';
-  const good = colorMode === 'invert' ? diff <= 0 : diff >= 0;
-  const color = colorMode === 'none' ? 'var(--gris3)' : (good ? '#10b981' : '#ef4444');
-  const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '=');
-  const dec = opts.decimals != null ? opts.decimals : 0;
-  const valTxt = opts.isCurrency ? formatCurrency(Math.abs(diff), 0) : (formatNumber(Math.abs(diff), dec) + (opts.unit || ''));
-  const pctTxt = (pct !== null && isFinite(pct)) ? ` (${Math.abs(pct).toFixed(1)}%)` : '';
-  const yearLabel = (opts.yearLabel !== undefined && opts.yearLabel !== null) ? opts.yearLabel : 'N-1';
-  return `<span style="color:${color};font-weight:600;">${arrow} ${valTxt}${pctTxt}</span> <span style="color:var(--gris3);">vs ${yearLabel}</span>`;
-}
-
-// Comparaison vs moyenne de périmètre/national (texte grisé par défaut)
-// colorMode: 'normal' (au-dessus=vert), 'invert' (au-dessus=rouge), omis => gris neutre
-// refFormatted (optionnel) : valeur de référence déjà formatée, affichée en tooltip (title=) pour lever l'ambiguïté du %.
-function _mobComp(cur, ref, label, colorMode, refFormatted) {
-  if (cur === null || cur === undefined || !ref || isNaN(cur) || isNaN(ref)) return '';
-  const diff = cur - ref;
-  const pct = (diff / Math.abs(ref)) * 100;
-  const sign = pct >= 0 ? '+' : '';
-  let color = 'var(--gris3)';
-  if (colorMode === 'normal') color = diff >= 0 ? '#10b981' : '#ef4444';
-  if (colorMode === 'invert') color = diff <= 0 ? '#10b981' : '#ef4444';
-  const titleAttr = refFormatted ? ` title="Moyenne ${label} : ${refFormatted}"` : '';
-  return `<span style="color:${color};border-bottom:1px dotted currentColor;"${titleAttr}>${sign}${pct.toFixed(1)}% vs moy. ${label}</span>`;
-}
-
-// Mini graphique en barres HTML/CSS à partir d'une série [{label, value}]
-// (remplace l'ancienne version SVG dont le texte devenait illisible à cause
-// du preserveAspectRatio="none" qui déformait les glyphes non uniformément)
-// opts: { title, valueFormatter(v) }
-function _mobBarChart(series, color, opts) {
-  if (!series || !series.length) return '';
-  opts = opts || {};
-  const fmt = opts.valueFormatter || (v => formatNumber(v));
-  const vals = series.map(s => s.value || 0);
-  const max = Math.max(...vals, 1);
-  const min = Math.min(...vals, 0);
-  // Barres tronquées (base = min de la série, pas 0) pour rendre les variations
-  // visibles quand les valeurs sont proches les unes des autres (ex: effectif
-  // stable d'une année sur l'autre) — sinon toutes les barres paraissent identiques.
-  const base = min > 0 ? min * 0.9 : 0;
-  const range = (max - base) || 1;
-  const bars = series.map(s => {
-    const v = s.value || 0;
-    const pct = Math.max((v - base) / range * 100, 4);
-    return `
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:0;">
-        <div style="font-size:11px;font-weight:600;color:var(--gris1);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${fmt(v)}</div>
-        <div style="width:100%;height:64px;display:flex;align-items:flex-end;justify-content:center;">
-          <div style="width:60%;height:${pct}%;background:${color};border-radius:4px 4px 0 0;min-height:4px;"></div>
-        </div>
-        <div style="font-size:10px;color:var(--gris3);margin-top:5px;">${s.label}</div>
-      </div>`;
-  }).join('');
-  const titleHtml = opts.title ? `<div style="font-size:12px;font-weight:600;color:var(--gris2);margin-bottom:10px;">${opts.title}</div>` : '';
-  return `${titleHtml}<div style="display:flex;align-items:flex-start;gap:8px;">${bars}</div>`;
-}
-
-function _runMobileExport(structuresList) {
-  const annee = FICHE_STATE.annee;
-
-  // ── Définition des domaines / indicateurs ──────────────────────
-  const DOMAINES = [
-    { id: 'rh', icon: '👥', title: 'Ressources Humaines', color: '#1A6B3C', section: 'RH' },
-    { id: 'informatique', icon: '💻', title: 'Informatique', color: '#1351A8', section: 'Informatique' },
-    { id: 'frais_mission', icon: '✈️', title: 'Frais de Mission', color: '#8A6800', section: 'Frais_Mission' },
-    { id: 'fonctionnement', icon: '🏢', title: 'Fonctionnement courant', color: '#C05A00', section: 'Fonctionnement' },
-    { id: 'vehicules', icon: '🚗', title: 'Parc Automobile', color: '#4A5A6A', section: 'Vehicules' },
-    { id: 'immobilier', icon: '🏛️', title: 'Immobilier', color: '#5C4080', section: 'Immobilier' },
-    { id: 'communication', icon: '📣', title: 'Communication', color: '#B52020', section: 'Communication' },
-  ];
-
-  // ── Construction des données pour une structure ─────────────────
-  function buildStructurePayload(struct) {
-    const sid = struct.id;
-    const synthese = (typeof getCommentaire === 'function') ? getCommentaire(sid, annee, 'Synthese') : '';
-
-    // ── Données par domaine : mêmes getters hybrides (raw table + fallback
-    //    Consolidation_Structure) que la page fiche-identité principale.
-    //    (Auparavant l'export ne lisait que Consolidation_Structure, qui ne
-    //    couvre pas toutes les structures → KPI vides pour DR/SCN/DG.)
-    const rhData = (typeof getRHData === 'function') ? (getRHData(sid, annee) || {}) : {};
-    const itData = (typeof getInformatiqueData === 'function') ? (getInformatiqueData(sid, annee) || {}) : {};
-    const fmData = (typeof getFraisMissionData === 'function') ? (getFraisMissionData(sid, annee) || {}) : {};
-    const vehData = (typeof getVehiculesData === 'function') ? (getVehiculesData(sid, annee) || {}) : {};
-
-    // Âge moyen / MS-par-agent : présents directement si Consolidation_Structure
-    // a servi de source dans getRHData ; sinon on les recalcule depuis le détail
-    // AGCO/SU/Autres renvoyé par le fallback table brute.
-    const rhEffectifTotal = rhData.effectif_total || 0;
-    const rhAgeMoyen = (rhData.age_moyen != null) ? rhData.age_moyen : (() => {
-      const sum = (rhData.age_moyen_agco || 0) * (rhData.effectif_agco || 0)
-                + (rhData.age_moyen_su || 0) * (rhData.effectif_su || 0)
-                + (rhData.age_moyen_autres || 0) * (rhData.effectif_autres || 0);
-      return (rhEffectifTotal > 0 && sum > 0) ? sum / rhEffectifTotal : null;
-    })();
-    const rhMsParAgent = (rhData.ms_par_agent != null) ? rhData.ms_par_agent
-      : (rhEffectifTotal > 0 && rhData.masse_salariale ? rhData.masse_salariale / rhEffectifTotal : null);
-
-    // Immobilier : pas de getter combiné dédié → on reproduit la logique de
-    // refreshImmobilier() (Consolidation_Structure + fallback DI 972 agrégeant
-    // les DR rattachées).
-    let immoData = (typeof getConsolidationStructureData === 'function') ? getConsolidationStructureData(sid, annee) : null;
-    if (!immoData || (immoData.sub_total === 0 && immoData.residents_total === 0)) {
-      const drIds = (typeof getDRRattachees === 'function') ? getDRRattachees(sid) : [];
-      if (drIds.length > 0) {
-        let sub = 0, res = 0, energie = 0, nbSites = 0;
-        drIds.forEach(drId => {
-          const d = getConsolidationStructureData(drId, annee);
-          if (!d) return;
-          sub += d.sub_total || 0;
-          res += d.residents_total || 0;
-          energie += d.charges_energie || 0;
-          nbSites += d.nb_sites || 0;
-        });
-        if (sub > 0 || res > 0) {
-          immoData = {
-            sub_total: sub,
-            residents_total: res,
-            nb_sites: nbSites,
-            ratio_occupation: res > 0 ? sub / res : null,
-            cout_surfacique: sub > 0 ? energie / sub : null,
-          };
-        }
-      }
-    }
-    immoData = immoData || {};
-
-    // ── Données de comparaison : N-1 et moyennes de périmètre ────────
-    const perimetre = (typeof getPerimetreStructure === 'function') ? getPerimetreStructure(sid) : null;
-    const consolPerim = perimetre ? getConsolidationData(perimetre, annee) : null;
-    const rhDataN1 = (typeof getRHData === 'function') ? getRHData(sid, annee - 1) : null;
-    const vehDataN1 = (typeof getVehiculesData === 'function') ? getVehiculesData(sid, annee - 1) : null;
-    const itDataN1 = (typeof getInformatiqueData === 'function') ? getInformatiqueData(sid, annee - 1) : null;
-    const fmDataN1 = (typeof getFraisMissionData === 'function') ? getFraisMissionData(sid, annee - 1) : null;
-
-    const rhHist = (typeof getRHHistorique === 'function') ? getRHHistorique(sid) : [];
-    const rhChart = rhHist.length
-      ? _mobBarChart(rhHist.map(h => ({ label: h.annee, value: h.total })), '#1A6B3C',
-          { title: 'Effectif total — historique 4 ans' })
-      : '';
-
-    const fonct = (typeof getFonctionnementData === 'function') ? getFonctionnementData(sid) : null;
-    const fonctChart = fonct
-      ? _mobBarChart(
-          [2022, 2023, 2024, 2025].map(a => ({ label: String(a), value: fonct['cp_' + a] || 0 })),
-          '#C05A00',
-          { title: 'CP fonctionnement — historique 4 ans', valueFormatter: v => formatNumber(v / 1000, 0) + ' k€' }
-        )
-      : '';
-
-    const com = (typeof getCommunicationData === 'function') ? getCommunicationData(sid) : null;
-    const comChart = com
-      ? _mobBarChart(
-          [2022, 2023, 2024, 2025].map(a => ({ label: String(a), value: com['cp_' + a] || 0 })),
-          '#B52020',
-          { title: 'CP communication — historique 4 ans', valueFormatter: v => formatNumber(v / 1000, 0) + ' k€' }
-        )
-      : '';
-
-    const sections = {};
-
-    sections.rh = {
-      kpis: [
-        { label: 'Effectif total', value: formatNumber(rhData.effectif_total),
-          evolution: rhDataN1 ? _mobEvol(rhData.effectif_total, rhDataN1.effectif_total, { yearLabel: annee - 1 }) : '' },
-        { label: 'AGCO', value: formatNumber(rhData.effectif_agco),
-          evolution: rhDataN1 ? _mobEvol(rhData.effectif_agco, rhDataN1.effectif_agco, { yearLabel: annee - 1 }) : '' },
-        { label: 'Surveillance', value: formatNumber(rhData.effectif_su),
-          evolution: rhDataN1 ? _mobEvol(rhData.effectif_su, rhDataN1.effectif_su, { yearLabel: annee - 1 }) : '' },
-        { label: 'Âge moyen', value: rhAgeMoyen ? formatNumber(rhAgeMoyen, 1) + ' ans' : '—',
-          comparison: (rhAgeMoyen && consolPerim && consolPerim.age_moyen_global) ? _mobComp(rhAgeMoyen, consolPerim.age_moyen_global, perimetre, 'invert', formatNumber(consolPerim.age_moyen_global, 1) + ' ans') : '' },
-        { label: 'MS / agent', value: rhMsParAgent ? formatCurrency(rhMsParAgent) : '—',
-          comparison: (rhMsParAgent && consolPerim && consolPerim.moyenne_ms_par_agent) ? _mobComp(rhMsParAgent, consolPerim.moyenne_ms_par_agent, perimetre, undefined, formatCurrency(consolPerim.moyenne_ms_par_agent)) : '' },
-      ],
-      chart: rhChart,
-      comment: getCommentaire(sid, annee, 'RH'),
-    };
-
-    sections.informatique = {
-      kpis: [
-        { label: 'Postes total', value: formatNumber(itData.nb_postes_travail),
-          evolution: itDataN1 ? _mobEvol(itData.nb_postes_travail, itDataN1.nb_postes_travail, { yearLabel: annee - 1 }) : '' },
-        { label: 'Budget IT CP', value: itData.budget_it_cp ? formatCurrency(itData.budget_it_cp) : '—',
-          evolution: (itDataN1 && itDataN1.budget_it_cp) ? _mobEvol(itData.budget_it_cp, itDataN1.budget_it_cp, { yearLabel: annee - 1, isCurrency: true, colorMode: 'invert' }) : '' },
-        { label: 'Taux équipement', value: itData.ratio_poste_agent ? formatPercent(itData.ratio_poste_agent) : '—',
-          comparison: (itData.ratio_poste_agent && consolPerim && consolPerim.moy_ratio_poste_agent) ? _mobComp(itData.ratio_poste_agent, consolPerim.moy_ratio_poste_agent, perimetre, undefined, formatPercent(consolPerim.moy_ratio_poste_agent)) : '' },
-        { label: 'Budget / agent', value: itData.budget_it_par_agent ? formatCurrency(itData.budget_it_par_agent) : '—',
-          comparison: (itData.budget_it_par_agent && consolPerim && consolPerim.moy_budget_it_par_agent) ? _mobComp(itData.budget_it_par_agent, consolPerim.moy_budget_it_par_agent, perimetre, 'invert', formatCurrency(consolPerim.moy_budget_it_par_agent)) : '' },
-      ],
-      chart: '',
-      comment: getCommentaire(sid, annee, 'Informatique'),
-    };
-
-    sections.frais_mission = {
-      kpis: [
-        { label: 'Total dépenses', value: fmData.montant_total ? formatCurrency(fmData.montant_total) : '—',
-          evolution: (fmDataN1 && fmDataN1.montant_total) ? _mobEvol(fmData.montant_total, fmDataN1.montant_total, { yearLabel: annee - 1, isCurrency: true, colorMode: 'invert' }) : '' },
-        { label: 'Formation', value: fmData.total_formation ? formatCurrency(fmData.total_formation) : '—',
-          evolution: (fmDataN1 && fmDataN1.total_formation) ? _mobEvol(fmData.total_formation, fmDataN1.total_formation, { yearLabel: annee - 1, isCurrency: true, colorMode: 'none' }) : '' },
-        { label: 'Autres missions', value: fmData.total_autres ? formatCurrency(fmData.total_autres) : '—',
-          evolution: (fmDataN1 && fmDataN1.total_autres) ? _mobEvol(fmData.total_autres, fmDataN1.total_autres, { yearLabel: annee - 1, isCurrency: true, colorMode: 'none' }) : '' },
-        { label: 'FM / agent', value: fmData.frais_par_agent ? formatCurrency(fmData.frais_par_agent) : '—',
-          comparison: (fmData.frais_par_agent && consolPerim && consolPerim.moy_frais_par_agent) ? _mobComp(fmData.frais_par_agent, consolPerim.moy_frais_par_agent, perimetre, 'invert', formatCurrency(consolPerim.moy_frais_par_agent)) : '' },
-      ],
-      chart: '',
-      comment: getCommentaire(sid, annee, 'Frais_Mission'),
-    };
-
-    sections.fonctionnement = {
-      kpis: fonct ? [
-        { label: 'CP ' + annee, value: fonct['cp_' + annee] ? formatCurrency(fonct['cp_' + annee]) : '—',
-          evolution: (fonct['cp_' + (annee - 1)]) ? _mobEvol(fonct['cp_' + annee], fonct['cp_' + (annee - 1)], { yearLabel: annee - 1, isCurrency: true, colorMode: 'invert' }) : '' },
-        { label: '% maîtrisable', value: fonct['pct_m_' + annee] ? formatPercent(fonct['pct_m_' + annee]) : '—',
-          comparison: (fonct['pct_m_' + annee] && consolPerim && consolPerim.moy_pct_maitrisable) ? _mobComp(fonct['pct_m_' + annee], consolPerim.moy_pct_maitrisable, perimetre, undefined, formatPercent(consolPerim.moy_pct_maitrisable)) : '' },
-        { label: 'CP / agent', value: fonct['fonct_agent_' + annee] ? formatCurrency(fonct['fonct_agent_' + annee]) : '—',
-          comparison: (fonct['fonct_agent_' + annee] && consolPerim && consolPerim.moy_fonct_par_agent) ? _mobComp(fonct['fonct_agent_' + annee], consolPerim.moy_fonct_par_agent, perimetre, 'invert', formatCurrency(consolPerim.moy_fonct_par_agent)) : '' },
-        { label: 'Lissé 4 ans / agent', value: fonct.fonct_agent_4ans ? formatCurrency(fonct.fonct_agent_4ans) : '—',
-          comparison: (fonct.fonct_agent_4ans && consolPerim && consolPerim.moy_fonct_par_agent_4ans) ? _mobComp(fonct.fonct_agent_4ans, consolPerim.moy_fonct_par_agent_4ans, perimetre, 'invert', formatCurrency(consolPerim.moy_fonct_par_agent_4ans)) : '' },
-      ] : [],
-      chart: fonctChart,
-      comment: getCommentaire(sid, annee, 'Fonctionnement'),
-    };
-
-    sections.vehicules = {
-      kpis: [
-        { label: 'Véhicules total', value: formatNumber(vehData.nombre_total),
-          evolution: vehDataN1 ? _mobEvol(vehData.nombre_total, vehDataN1.nombre_total, { yearLabel: annee - 1, colorMode: 'none' }) : '',
-          comparison: (vehData.nombre_total && consolPerim && consolPerim.moy_nb_vehicules) ? _mobComp(vehData.nombre_total, consolPerim.moy_nb_vehicules, perimetre, undefined, formatNumber(consolPerim.moy_nb_vehicules, 1)) : '' },
-        { label: 'Taux vétusté', value: vehData.taux_vetuste ? formatPercent(vehData.taux_vetuste) : '—',
-          evolution: (vehDataN1 && vehDataN1.taux_vetuste) ? _mobEvol(vehData.taux_vetuste, vehDataN1.taux_vetuste, { yearLabel: annee - 1, decimals: 1, colorMode: 'invert' }) : '',
-          comparison: (vehData.taux_vetuste && consolPerim && consolPerim.moy_taux_vetuste) ? _mobComp(vehData.taux_vetuste, consolPerim.moy_taux_vetuste, perimetre, 'invert', formatPercent(consolPerim.moy_taux_vetuste)) : '' },
-        { label: 'Budget total', value: vehData.budget_total ? formatCurrency(vehData.budget_total) : '—',
-          evolution: (vehDataN1 && vehDataN1.budget_total) ? _mobEvol(vehData.budget_total, vehDataN1.budget_total, { yearLabel: annee - 1, isCurrency: true, colorMode: 'invert' }) : '',
-          comparison: (vehData.budget_total && consolPerim && consolPerim.moy_budget_vehicules) ? _mobComp(vehData.budget_total, consolPerim.moy_budget_vehicules, perimetre, undefined, formatCurrency(consolPerim.moy_budget_vehicules)) : '' },
-        { label: 'Ratio véh./agent', value: vehData.ratio_vehicule_agent ? formatNumber(vehData.ratio_vehicule_agent, 2) : '—',
-          comparison: (vehData.ratio_vehicule_agent && consolPerim && consolPerim.moy_ratio_vehicule_agent) ? _mobComp(vehData.ratio_vehicule_agent, consolPerim.moy_ratio_vehicule_agent, perimetre, 'none', formatNumber(consolPerim.moy_ratio_vehicule_agent, 2)) : '' },
-      ],
-      chart: '',
-      comment: getCommentaire(sid, annee, 'Vehicules'),
-    };
-
-    sections.immobilier = {
-      kpis: [
-        { label: 'Sites', value: formatNumber(immoData.nb_sites) },
-        { label: 'SUB totale', value: immoData.sub_total ? formatNumber(immoData.sub_total) + ' m²' : '—' },
-        { label: 'Ratio occupation', value: immoData.ratio_occupation ? formatNumber(immoData.ratio_occupation, 1) + ' m²/rés.' : '—',
-          comparison: (immoData.ratio_occupation && consolPerim && consolPerim.moy_ratio_occupation) ? _mobComp(immoData.ratio_occupation, consolPerim.moy_ratio_occupation, perimetre, 'invert', formatNumber(consolPerim.moy_ratio_occupation, 1) + ' m²/rés.') : '' },
-        { label: 'Coût surfacique', value: immoData.cout_surfacique ? formatCurrency(immoData.cout_surfacique) + '/m²' : '—',
-          comparison: (immoData.cout_surfacique && consolPerim && consolPerim.moy_cout_surfacique) ? _mobComp(immoData.cout_surfacique, consolPerim.moy_cout_surfacique, perimetre, 'invert', formatCurrency(consolPerim.moy_cout_surfacique) + '/m²') : '' },
-      ],
-      chart: '',
-      comment: getCommentaire(sid, annee, 'Immobilier'),
-    };
-
-    const perimCom = (typeof getPerimetreCommunication === 'function') ? getPerimetreCommunication(sid) : perimetre;
-    const tauxMoyenCom = (typeof getCommunicationTauxMoyen === 'function' && perimCom) ? getCommunicationTauxMoyen(perimCom, annee) : null;
-
-    sections.communication = {
-      kpis: com ? [
-        { label: 'CP ' + annee, value: com.cp_2026 ? formatCurrency(com.cp_2026) : '—',
-          evolution: com.cp_2025 ? _mobEvol(com.cp_2026, com.cp_2025, { yearLabel: annee - 1, isCurrency: true, colorMode: 'none' }) : '' },
-        { label: 'Cible', value: com.cible_2026 ? formatCurrency(com.cible_2026) : '—' },
-        { label: 'Disponible', value: com.cap_cp_2026 ? formatCurrency(com.cap_cp_2026) : '—' },
-        { label: 'Taux conso', value: com.taux_pct !== undefined ? formatNumber(com.taux_pct, 1) + ' %' : '—',
-          comparison: (com.taux_pct !== undefined && tauxMoyenCom) ? _mobComp(com.taux_pct, tauxMoyenCom * 100, perimCom, 'none', formatNumber(tauxMoyenCom * 100, 1) + ' %') : '' },
-      ] : [],
-      chart: comChart,
-      comment: getCommentaire(sid, annee, 'Communication'),
-    };
-
-    return { struct, synthese, sections };
-  }
-
-  // ── Construire le HTML pour une structure ───────────────────────
-  function buildStructureHTML(payload, idx) {
-    const { struct, synthese, sections } = payload;
-
-    const shortcuts = DOMAINES.map((d, i) =>
-      `<button class="mob-shortcut" style="border-color:${d.color};color:${d.color};" onclick="showDomain(${idx}, ${i})">${d.icon} ${d.title}</button>`
-    ).join('');
-
-    const overviewHtml = `
-      <div class="mob-overview-header">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg" alt="Douanes" class="mob-logo">
-        <div>
-          <div class="mob-sigle">${_mobSafe(struct.sigle, struct.nom)}</div>
-          <div class="mob-nom">${_mobSafe(struct.nom, '')}</div>
-          <div class="mob-type">${_mobSafe(struct.type, '')} · ${annee}</div>
-        </div>
-      </div>
-      <div class="mob-comment-block" style="margin-top:16px;">
-        <div class="mob-comment-label">Synthèse</div>
-        <div class="md-render mob-md">${_mobMd(synthese)}</div>
-      </div>
-      <div class="mob-section-shortcut-title">Indicateurs</div>
-      <div class="mob-shortcuts">${shortcuts}</div>`;
-
-    const domainPanels = DOMAINES.map((d, i) => {
-      const s = sections[d.id] || { kpis: [], chart: '', comment: '' };
-      const kpiHtml = (s.kpis || []).map(k =>
-        `<div class="kpi-mob">
-          <div class="kpi-mob-label">${k.label}</div>
-          <div class="kpi-mob-value">${k.value}</div>
-          ${k.evolution ? `<div class="kpi-mob-evol">${k.evolution}</div>` : ''}
-          ${k.comparison ? `<div class="kpi-mob-comp">${k.comparison}</div>` : ''}
-        </div>`
-      ).join('');
-      const chartHtml = s.chart ? `<div class="mob-chart-wrap">${s.chart}</div>` : '';
-      return `<div class="mob-domain-panel" data-domain="${i}">
-        <div class="mob-panel-title" style="border-color:${d.color};color:${d.color};">${d.icon} ${d.title}</div>
-        <div class="kpi-mob-grid">${kpiHtml || '<div style="grid-column:1/-1;color:#8A9BAA;font-size:13px;">Aucune donnée disponible.</div>'}</div>
-        ${chartHtml}
-        <div class="mob-comment-block">
-          <div class="mob-comment-label">Analyse de l'indicateur</div>
-          <div class="md-render mob-md">${_mobMd(s.comment)}</div>
-        </div>
-      </div>`;
-    }).join('');
-
-    return `<div class="mob-struct-page" id="struct-${idx}" data-sigle="${(struct.sigle||'').toLowerCase()}" data-nom="${(struct.nom||'').toLowerCase()}">
-      <div class="mob-overview-panel">${overviewHtml}</div>
-      ${domainPanels}
-    </div>`;
-  }
-
-  // ── Générer pour chaque structure ───────────────────────────────
-  const payloads = structuresList.map(buildStructurePayload);
-  const structPages = payloads.map((p, i) => buildStructureHTML(p, i)).join('');
-
-  const selectorOptions = structuresList.map((s, i) =>
-    `<option value="${i}">${_mobSafe(s.sigle, s.nom)} — ${_mobSafe(s.nom,'')}</option>`
-  ).join('');
-
-  const isMulti = structuresList.length > 1;
-
-  // ── Générer le fichier HTML complet ─────────────────────────────
-  const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#002F6C">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Fiches DGDDI ${annee}">
-  <title>Fiches Identité DGDDI ${annee}</title>
-  <style>
-    :root {
-      --rep: #002F6C; --rep2: #1351A8; --rep-pale: #E6ECF8;
-      --gris1: #1E2D3D; --gris2: #4A5A6A; --gris3: #8A9BAA; --gris4: #EEF2F7; --bord: #CDD6E4;
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; background: #f0f2f7; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 14px; color: var(--gris1); display: flex; flex-direction: column; }
-
-    .mob-topbar { background: var(--rep); color: white; padding: 10px 14px env(safe-area-inset-top,0px) 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; min-height: 52px; }
-    .mob-topbar-logo { width: 26px; height: 26px; object-fit: contain; filter: brightness(0) invert(1); flex-shrink: 0; }
-    .mob-topbar-text { flex: 1; overflow: hidden; }
-    .mob-topbar-sigle { font-weight: 700; font-size: 14px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .mob-topbar-sub { font-size: 10px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .mob-back-btn { background: rgba(255,255,255,.15); border: none; color: white; border-radius: 8px; padding: 6px 10px; font-size: 16px; cursor: pointer; display: none; flex-shrink: 0; }
-    .mob-back-btn.show { display: block; }
-
-    ${isMulti ? `
-    .mob-selector-wrap { padding: 10px 14px; background: white; border-bottom: 1px solid var(--bord); flex-shrink: 0; }
-    .mob-search-input { width: 100%; padding: 9px 12px; border: 1px solid var(--bord); border-radius: 8px; font-size: 14px; background: var(--gris4); }
-    .mob-struct-list { max-height: 50vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-    .mob-struct-item { padding: 10px 12px; border-bottom: 1px solid var(--bord); cursor: pointer; font-size: 13px; }
-    .mob-struct-item:active { background: var(--rep-pale); }
-    .mob-struct-item-sigle { font-weight: 700; color: var(--rep); }
-    .mob-struct-item-nom { color: var(--gris2); font-size: 11px; margin-top: 1px; }
-    ` : ''}
-
-    .mob-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-    .mob-struct-page { display: none; }
-    .mob-struct-page.active { display: block; }
-    .mob-overview-panel, .mob-domain-panel { display: none; padding: 16px 14px 30px 14px; animation: fadein .18s ease; }
-    .mob-overview-panel.active, .mob-domain-panel.active { display: block; }
-    @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-    .mob-panel-title { font-size: 16px; font-weight: 700; border-left: 4px solid var(--rep); padding-left: 10px; margin-bottom: 14px; }
-
-    .mob-overview-header { display: flex; align-items: center; gap: 14px; background: var(--rep); color: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
-    .mob-logo { width: 44px; height: 44px; object-fit: contain; filter: brightness(0) invert(1); flex-shrink: 0; }
-    .mob-sigle { font-size: 20px; font-weight: 800; line-height: 1.1; }
-    .mob-nom { font-size: 12px; opacity: 0.85; margin-top: 2px; }
-    .mob-type { font-size: 11px; opacity: 0.65; margin-top: 4px; }
-    .mob-section-shortcut-title { font-weight: 700; font-size: 13px; color: var(--gris2); text-transform: uppercase; letter-spacing: .5px; margin: 18px 0 10px 0; }
-    .mob-shortcuts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .mob-shortcut { background: white; border: 2px solid; border-radius: 10px; padding: 10px 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: left; line-height: 1.3; }
-    .mob-shortcut:active { opacity: 0.7; transform: scale(0.97); }
-
-    .kpi-mob-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-    .kpi-mob { background: white; border-radius: 10px; padding: 12px; border-left: 3px solid var(--rep); box-shadow: 0 1px 4px rgba(0,47,108,.08); }
-    .kpi-mob-label { font-size: 10px; color: var(--gris3); text-transform: uppercase; letter-spacing: .4px; font-weight: 600; margin-bottom: 4px; }
-    .kpi-mob-value { font-size: 17px; font-weight: 700; color: var(--gris1); line-height: 1.2; }
-    .kpi-mob-evol { font-size: 11px; margin-top: 5px; line-height: 1.3; }
-    .kpi-mob-comp { font-size: 10.5px; margin-top: 3px; line-height: 1.3; }
-
-    .mob-chart-wrap { background: white; border-radius: 12px; padding: 12px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,47,108,.08); }
-
-    .mob-comment-block { background: white; border-radius: 12px; padding: 14px; box-shadow: 0 1px 4px rgba(0,47,108,.08); }
-    .mob-comment-label { font-size: 10px; font-style: italic; color: #506090; margin-bottom: 8px; }
-    .mob-md { font-size: 13px; line-height: 1.6; color: var(--gris1); }
-    .mob-md p { margin: 4px 0; }
-    .mob-md ul, .mob-md ol { padding-left: 18px; margin: 4px 0; }
-    .mob-md li { margin: 2px 0; }
-    .mob-md strong { color: var(--rep); }
-    .mob-md em { color: var(--gris2); }
-
-    .mob-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--bord); display: flex; padding-bottom: env(safe-area-inset-bottom,0px); z-index: 100; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-    .mob-bottom-nav::-webkit-scrollbar { display: none; }
-    .mob-tab { flex: 0 0 auto; min-width: 60px; display: flex; flex-direction: column; align-items: center; padding: 8px 6px 6px 6px; border: none; background: transparent; color: var(--gris3); cursor: pointer; font-family: inherit; }
-    .mob-tab.active { color: var(--rep); }
-    .mob-tab-icon { font-size: 19px; line-height: 1; }
-    .mob-tab-label { font-size: 9px; margin-top: 3px; font-weight: 500; white-space: nowrap; }
-    .mob-content { padding-bottom: ${isMulti ? '0' : '64px'}; }
-  </style>
-</head>
-<body>
-
-  <div class="mob-topbar">
-    ${isMulti ? '<button class="mob-back-btn" id="mob-back" onclick="goBackToList()">←</button>' : ''}
-    <img src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg" alt="Douanes" class="mob-topbar-logo">
-    <div class="mob-topbar-text">
-      <div class="mob-topbar-sigle" id="mob-topbar-sigle">${isMulti ? 'Fiches Identité DGDDI' : _mobSafe(structuresList[0].sigle)}</div>
-      <div class="mob-topbar-sub" id="mob-topbar-sub">${isMulti ? structuresList.length + ' structures · ' + annee : _mobSafe(structuresList[0].nom,'')}</div>
-    </div>
-  </div>
-
-  ${isMulti ? `
-  <div class="mob-selector-wrap" id="mob-selector-wrap">
-    <input type="text" class="mob-search-input" id="mob-search" placeholder="Rechercher une structure…" oninput="filterStructList(this.value)">
-    <div class="mob-struct-list" id="mob-struct-list">
-      ${structuresList.map((s,i) => `<div class="mob-struct-item" data-idx="${i}" onclick="openStructure(${i})">
-        <div class="mob-struct-item-sigle">${_mobSafe(s.sigle, s.nom)}</div>
-        <div class="mob-struct-item-nom">${_mobSafe(s.nom,'')} ${s.type ? '· ' + s.type : ''}</div>
-      </div>`).join('')}
-    </div>
-  </div>
-  ` : ''}
-
-  <div class="mob-content" id="mob-content" style="display:${isMulti ? 'none' : 'block'};">
-    ${structPages}
-  </div>
-
-  <nav class="mob-bottom-nav" id="mob-nav" style="display:${isMulti ? 'none' : 'flex'};">
-    <button class="mob-tab active" data-domain="-1" onclick="showDomain(currentStructIdx, -1)"><span class="mob-tab-icon">🏠</span><span class="mob-tab-label">Accueil</span></button>
-    ${DOMAINES.map((d,i) => `<button class="mob-tab" data-domain="${i}" onclick="showDomain(currentStructIdx, ${i})"><span class="mob-tab-icon">${d.icon}</span><span class="mob-tab-label">${d.title.split(' ')[0]}</span></button>`).join('')}
-  </nav>
-
-  <script>
-    var currentStructIdx = ${isMulti ? '-1' : '0'};
-
-    function openStructure(idx) {
-      currentStructIdx = idx;
-      document.getElementById('mob-selector-wrap').style.display = 'none';
-      document.getElementById('mob-content').style.display = 'block';
-      document.getElementById('mob-nav').style.display = 'flex';
-      document.getElementById('mob-back').classList.add('show');
-      document.querySelectorAll('.mob-struct-page').forEach(function(p,i){ p.classList.toggle('active', i===idx); });
-      showDomain(idx, -1);
-      var page = document.getElementById('struct-' + idx);
-      var sigle = page.getAttribute('data-sigle');
-      document.getElementById('mob-topbar-sigle').textContent = page.querySelector('.mob-sigle').textContent;
-      document.getElementById('mob-topbar-sub').textContent = page.querySelector('.mob-nom').textContent;
-      document.getElementById('mob-content').scrollTop = 0;
-    }
-
-    function goBackToList() {
-      document.getElementById('mob-selector-wrap').style.display = 'block';
-      document.getElementById('mob-content').style.display = 'none';
-      document.getElementById('mob-nav').style.display = 'none';
-      document.getElementById('mob-back').classList.remove('show');
-      document.getElementById('mob-topbar-sigle').textContent = 'Fiches Identité DGDDI';
-      document.getElementById('mob-topbar-sub').textContent = '${structuresList.length} structures · ${annee}';
-    }
-
-    function showDomain(structIdx, domainIdx) {
-      var page = document.getElementById('struct-' + structIdx);
-      if (!page) return;
-      var overview = page.querySelector('.mob-overview-panel');
-      overview.classList.toggle('active', domainIdx === -1);
-      page.querySelectorAll('.mob-domain-panel').forEach(function(p){
-        p.classList.toggle('active', parseInt(p.getAttribute('data-domain')) === domainIdx);
-      });
-      document.querySelectorAll('.mob-tab').forEach(function(b){
-        b.classList.toggle('active', parseInt(b.getAttribute('data-domain')) === domainIdx);
-      });
-      document.getElementById('mob-content').scrollTop = 0;
-    }
-
-    function filterStructList(query) {
-      var q = query.trim().toLowerCase();
-      document.querySelectorAll('.mob-struct-item').forEach(function(item, i){
-        var page = document.getElementById('struct-' + i);
-        var match = !q || page.getAttribute('data-sigle').indexOf(q) !== -1 || page.getAttribute('data-nom').indexOf(q) !== -1;
-        item.style.display = match ? 'block' : 'none';
-      });
-    }
-  </script>
-
-</body>
-</html>`;
-
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  const fname = isMulti ? `DGDDI-toutes-structures-${annee}-mobile-${getPDFTimestamp()}.html`
-                        : `${structuresList[0].sigle}-${annee}-mobile-${getPDFTimestamp()}.html`;
-  a.download = fname;
-  a.click();
-  URL.revokeObjectURL(url);
-}
