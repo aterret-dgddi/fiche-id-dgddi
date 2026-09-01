@@ -311,6 +311,10 @@ function getConsolidationData(perimetre, annee) {
   return {
     taux_conso_moyen_ae: n('Taux_Conso_Moyen_AE'),
     taux_conso_moyen_cp: n('Taux_Conso_Moyen_CP'),
+    total_notif_ae: n('Total_Notif_AE'),
+    total_notif_cp: n('Total_Notif_CP'),
+    total_conso_ae: n('Total_Conso_AE'),
+    total_conso_cp: n('Total_Conso_CP'),
     moy_taux_ae_vehicules: n('Moy_Taux_AE_vehicules'),
     moy_taux_cp_vehicules: n('Moy_Taux_CP_vehicules'),
     moy_taux_ae_fonctionnement: n('Moy_Taux_AE_fonctionnement'),
@@ -723,13 +727,191 @@ function buildCategoryTable(data, moy) {
 // ═══════════════════════════════════════════════════════════════
 // CONSTRUCTION D'UNE SECTION STRUCTURE
 // ═══════════════════════════════════════════════════════════════
-async function buildStructureSection(struct, isFirst) {
+// ═══════════════════════════════════════════════════════════════
+// SYNTHÈSE NATIONALE (consommation AE/CP globale + situation par catégorie)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Tableau détaillé par structure pour une catégorie budgétaire donnée :
+ * Dotation AE/CP, Consommé AE/CP, Reste à engager (AE), Reste à payer (CP).
+ * La ligne « Total (structures listées) » est une simple somme des lignes
+ * affichées — ce n'est PAS le total national officiel (voir Consolidation
+ * ci-dessus), car selon le filtre choisi elle peut inclure à la fois une DI
+ * Outremer et ses DR rattachées (double comptage possible).
+ */
+function buildCategoryStructureTable(catKey, structBudgets) {
+  const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, ShadingType, AlignmentType } = docx;
+
+  const headerLabels = ['Structure', 'Dotation AE', 'Consommé AE', 'Reste à engager (AE)', 'Dotation CP', 'Consommé CP', 'Reste à payer (CP)'];
+  const headerCells = headerLabels.map(label => new TableCell({
+    shading: { type: ShadingType.CLEAR, fill: '000091', color: 'auto' },
+    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: label, bold: true, color: 'FFFFFF', size: 15 })] })],
+  }));
+  const rows = [new TableRow({ children: headerCells, tableHeader: true })];
+
+  const cell = (text, opts) => new TableCell({
+    shading: opts && opts.shade ? { type: ShadingType.CLEAR, fill: 'F4F4F4', color: 'auto' } : undefined,
+    children: [new Paragraph({ alignment: opts && opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT, children: [new TextRun({ text, bold: opts && opts.bold, size: 15 })] })],
+  });
+
+  let totDotAE = 0, totConsoAE = 0, totDotCP = 0, totConsoCP = 0, anyRow = false;
+
+  structBudgets.forEach(({ struct, data }) => {
+    if (!data) return;
+    const dotAE = data[`dot_ae_${catKey}`] ?? 0;
+    const consoAE = data[`conso_ae_${catKey}`] ?? 0;
+    const dotCP = data[`dot_cp_${catKey}`] ?? 0;
+    const consoCP = data[`conso_cp_${catKey}`] ?? 0;
+    if (!dotAE && !consoAE && !dotCP && !consoCP) return; // structure sans donnée sur cette catégorie
+    anyRow = true;
+    totDotAE += dotAE; totConsoAE += consoAE; totDotCP += dotCP; totConsoCP += consoCP;
+    rows.push(new TableRow({ children: [
+      cell(struct.sigle),
+      cell(formatCurrency(dotAE), { right: true }),
+      cell(formatCurrency(consoAE), { right: true }),
+      cell(formatCurrency(dotAE - consoAE), { right: true }),
+      cell(formatCurrency(dotCP), { right: true }),
+      cell(formatCurrency(consoCP), { right: true }),
+      cell(formatCurrency(dotCP - consoCP), { right: true }),
+    ] }));
+  });
+
+  if (!anyRow) {
+    rows.push(new TableRow({ children: [new TableCell({ columnSpan: 7, children: [new Paragraph({ children: [new TextRun({ text: 'Aucune donnée disponible pour cette catégorie.', italics: true, color: '888888', size: 15 })] })] })] }));
+  } else {
+    rows.push(new TableRow({ children: [
+      cell('Total (structures listées)', { shade: true, bold: true }),
+      cell(formatCurrency(totDotAE), { right: true, shade: true, bold: true }),
+      cell(formatCurrency(totConsoAE), { right: true, shade: true, bold: true }),
+      cell(formatCurrency(totDotAE - totConsoAE), { right: true, shade: true, bold: true }),
+      cell(formatCurrency(totDotCP), { right: true, shade: true, bold: true }),
+      cell(formatCurrency(totConsoCP), { right: true, shade: true, bold: true }),
+      cell(formatCurrency(totDotCP - totConsoCP), { right: true, shade: true, bold: true }),
+    ] }));
+  }
+
+  return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
+}
+
+function buildNationalCategoryTable(moyNat) {
+  const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, ShadingType, AlignmentType } = docx;
+
+  const headerCells = ['Catégorie', 'Taux AE national', 'Taux CP national'].map(label => new TableCell({
+    shading: { type: ShadingType.CLEAR, fill: '000091', color: 'auto' },
+    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: label, bold: true, color: 'FFFFFF', size: 18 })] })],
+  }));
+
+  const categories = [
+    { label: 'Véhicules', key: 'vehicules' },
+    { label: 'Fonctionnement', key: 'fonctionnement' },
+    { label: 'T6 Buralistes', key: 't6' },
+    { label: 'Immobilier', key: 'immo' },
+  ].map(c => ({ label: c.label, ae: moyNat?.[`taux_ae_${c.key}`], cp: moyNat?.[`taux_cp_${c.key}`] }));
+  categories.push({ label: 'Total', ae: moyNat?.taux_ae_total, cp: moyNat?.taux_cp_total, isTotal: true });
+
+  const fmtTauxColor = v => {
+    if (v == null || isNaN(v)) return '888888';
+    const pct = v * 100;
+    return pct >= 80 ? 'C0392B' : pct >= 50 ? 'D07B00' : '008941';
+  };
+
+  const rows = [new TableRow({ children: headerCells, tableHeader: true })];
+  categories.forEach(c => {
+    const cellText = (text, opts) => new TableCell({
+      shading: c.isTotal ? { type: ShadingType.CLEAR, fill: 'F4F4F4', color: 'auto' } : undefined,
+      children: [new Paragraph({ alignment: opts && opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT, children: [new TextRun({ text, bold: !!c.isTotal, color: opts && opts.color, size: 18 })] })],
+    });
+    rows.push(new TableRow({ children: [
+      cellText(c.label),
+      cellText(formatPercent(c.ae != null ? c.ae * 100 : null), { right: true, color: fmtTauxColor(c.ae) }),
+      cellText(formatPercent(c.cp != null ? c.cp * 100 : null), { right: true, color: fmtTauxColor(c.cp) }),
+    ] }));
+  });
+
+  return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
+}
+
+async function buildNationalSyntheseSection(structBudgets) {
+  const { Paragraph, TextRun, HeadingLevel, ImageRun, AlignmentType } = docx;
+  const elements = [];
+
+  elements.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: '🇫🇷 Synthèse nationale — Budget & Consommation ' + ANNEE })] }));
+
+  const conso  = getConsolidationData('National', ANNEE);
+  const moyNat = getBudgetMoyennes('National', ANNEE);
+
+  if (!conso || !moyNat) {
+    elements.push(new Paragraph({ children: [new TextRun({ text: 'Données de consolidation nationale indisponibles (table Consolidation).', italics: true, color: 'D07B00' })] }));
+  } else {
+    // ── Consommation globale AE / CP au regard de la dotation nationale ──
+    elements.push(new Paragraph({
+      spacing: { after: 80 },
+      children: [new TextRun({ text: `Consommation AE nationale : ${formatPercent(moyNat.taux_ae_total * 100)} (${formatCurrency(conso.total_conso_ae)} consommés / ${formatCurrency(conso.total_notif_ae)} de dotation globale)`, bold: true }) ],
+    }));
+    elements.push(new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ text: `Consommation CP nationale : ${formatPercent(moyNat.taux_cp_total * 100)} (${formatCurrency(conso.total_conso_cp)} consommés / ${formatCurrency(conso.total_notif_cp)} de dotation globale)`, bold: true }) ],
+    }));
+
+    // ── Araignées nationales AE / CP (situation consolidée) ──
+    try {
+      const [radarAE, radarCP] = await Promise.all([
+        renderBudgetRadarPNG('ae', moyNat, null, false),
+        renderBudgetRadarPNG('cp', moyNat, null, false),
+      ]);
+      const imgW = 260, imgH = imgW * (radarAE.height / radarAE.width);
+      elements.push(new Paragraph({
+        spacing: { after: 80 },
+        children: [new TextRun({ text: 'Araignée nationale AE', bold: true, size: 18 }), new TextRun({ text: '                              ' }), new TextRun({ text: 'Araignée nationale CP', bold: true, size: 18 })],
+      }));
+      elements.push(new Paragraph({
+        alignment: AlignmentType.LEFT,
+        children: [
+          new ImageRun({ type: 'png', data: radarAE.bytes, transformation: { width: imgW, height: imgH } }),
+          new TextRun({ text: '   ' }),
+          new ImageRun({ type: 'png', data: radarCP.bytes, transformation: { width: imgW, height: imgH } }),
+        ],
+      }));
+    } catch (e) {
+      elements.push(new Paragraph({ children: [new TextRun({ text: '(Graphiques non générés : ' + (e && e.message ? e.message : e) + ')', italics: true, color: '888888', size: 18 })] }));
+    }
+
+    // ── Situation consolidée par catégorie (taux nationaux) ──
+    elements.push(new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: 'Taux de consommation nationaux par catégorie — ' + ANNEE, bold: true })] }));
+    elements.push(buildNationalCategoryTable(moyNat));
+    elements.push(new Paragraph({
+      spacing: { before: 80, after: 200 },
+      children: [new TextRun({ text: 'Taux moyens consolidés au niveau national (table Consolidation Grist).', italics: true, color: '888888', size: 16 })],
+    }));
+  }
+
+  // ── Détail par structure, par catégorie budgétaire ──
+  const catSections = [
+    { key: 'vehicules', label: '🚗 Véhicules — détail par structure' },
+    { key: 'fonctionnement', label: '🏛️ Fonctionnement courant — détail par structure' },
+    { key: 't6', label: '🚬 T6 Buralistes — détail par structure' },
+    { key: 'immo', label: '🏢 Immobilier — détail par structure' },
+  ];
+  catSections.forEach(cs => {
+    elements.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 200 }, children: [new TextRun({ text: cs.label })] }));
+    elements.push(buildCategoryStructureTable(cs.key, structBudgets));
+    elements.push(new Paragraph({ text: '' }));
+  });
+  elements.push(new Paragraph({
+    children: [new TextRun({ text: 'Le « Total (structures listées) » est la somme des lignes ci-dessus (selon votre filtre) et non le total national officiel — voir la table Consolidation pour ce dernier, qui neutralise les doubles comptages (ex. DI 972 / DR rattachées).', italics: true, color: '888888', size: 16 })],
+  }));
+
+  return elements;
+}
+
+async function buildStructureSection(struct, isFirst, precomputedData) {
   const { Paragraph, TextRun, HeadingLevel, ImageRun, PageBreak, AlignmentType } = docx;
   const elements = [];
 
   if (!isFirst) {
     elements.push(new Paragraph({ children: [new PageBreak()] }));
   }
+
 
   elements.push(new Paragraph({
     heading: HeadingLevel.HEADING_1,
@@ -760,7 +942,7 @@ async function buildStructureSection(struct, isFirst) {
   elements.push(...mdToDocxParagraphs(synthese.description, 'Aucune description disponible pour cette structure.'));
 
   // ── Données budget ──
-  const dataN = getBudgetData(struct.id, ANNEE);
+  const dataN = precomputedData !== undefined ? precomputedData : getBudgetData(struct.id, ANNEE);
   elements.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 200 }, children: [new TextRun({ text: '📈 Indicateurs budgétaires ' + ANNEE })] }));
 
   if (!dataN) {
@@ -856,6 +1038,10 @@ async function generateDocument() {
 
     setProgress(0, `Préparation de ${selected.length} structure(s)…`);
 
+    // Pré-calcul unique des données budget par structure : réutilisé à la fois
+    // pour la synthèse nationale (tableaux par catégorie) et le détail par structure.
+    const structBudgets = selected.map(struct => ({ struct, data: getBudgetData(struct.id, ANNEE) }));
+
     const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer, Header, Footer, PageNumber, TableOfContents } = docx;
 
     const allElements = [];
@@ -874,6 +1060,10 @@ async function generateDocument() {
       children: [new TextRun({ text: 'Clic droit sur le sommaire ci-dessus puis « Mettre à jour les champs » pour l\'actualiser.', italics: true, color: '888888', size: 18 })]
     }));
 
+    setProgress(0, 'Synthèse nationale…');
+    allElements.push(new Paragraph({ children: [new (docx.PageBreak)()] }));
+    allElements.push(...(await buildNationalSyntheseSection(structBudgets)));
+
     let currentGroup = null;
     for (let i = 0; i < selected.length; i++) {
       const struct = selected[i];
@@ -884,10 +1074,10 @@ async function generateDocument() {
         allElements.push(new Paragraph({ children: [new (docx.PageBreak)()] }));
         allElements.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: GROUP_LABELS[g] || 'Autres' })] }));
         currentGroup = g;
-        const sectionElements = await buildStructureSection(struct, true);
+        const sectionElements = await buildStructureSection(struct, true, structBudgets[i].data);
         allElements.push(...sectionElements);
       } else {
-        const sectionElements = await buildStructureSection(struct, false);
+        const sectionElements = await buildStructureSection(struct, false, structBudgets[i].data);
         allElements.push(...sectionElements);
       }
 
