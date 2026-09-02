@@ -209,8 +209,6 @@
         <option value="">-- Choisir une table --</option>
         <option value="Structures">Structures (73 lignes)</option>
         <option value="Referentiel_Prog">Referentiel_Prog (48 lignes)</option>
-        <option value="INFBUD40_2">INFBUD40_2 (Consommations budgétaires)</option>
-        <option value="Notif_BOP">Notif_BOP (Notifications budgétaires)</option>
         <option value="RH">RH (Effectifs et masse salariale)</option>
         <option value="Vehicules">Vehicules (Parc automobile)</option>
         <option value="Frais_Mission">Frais_Mission (Déplacements)</option>
@@ -218,6 +216,7 @@
         <option value="Communication">Communication (Dépenses de communication)</option>
         <option value="Fonctionnement">Fonctionnement (Dépenses de fonctionnement courant)</option>
         <option value="Budget">Budget (Suivi budgétaire AE/CP)</option>
+        <option value="Budget_Mensuel">Budget_Mensuel (Historique mensuel AE/CP)</option>
         <option value="Immobilier">Immobilier (Biens immobiliers et charges)</option>
       </select>
       <div id="table-info" class="table-info"></div>
@@ -283,24 +282,6 @@ const TABLE_CONFIG = {
     description: 'Référentiel des activités budgétaires (48 lignes)',
     columns: ['activite', 'brique', 'sous_brique', 'libelle_long', 'type'],
     keyFields: ['activite']
-  },
-  'INFBUD40_2': {
-    description: 'Consommations budgétaires mensuelles du SI',
-    columns: ['exercice_periode', 'centre_financier', 'activite', 'compte_budgetaire', 'AE', 'CP'],
-    keyFields: ['exercice_periode', 'centre_financier', 'activite', 'compte_budgetaire'],
-    mapping: {
-      'Ex. compt./période': 'exercice_periode',
-      'Centre financier': 'centre_financier',
-      'Référentiel programmation': 'activite',
-      'Compte budgétaire': 'compte_budgetaire',
-      'EUR1': 'AE',
-      'EUR2': 'CP'
-    }
-  },
-  'Notif_BOP': {
-    description: 'Notifications budgétaires par BOP et type',
-    columns: ['BOP', 'Annee', 'Type', 'Notif_AE', 'Notif_CP'],
-    keyFields: ['BOP', 'Annee', 'Type']
   },
   'RH': {
     description: 'Effectifs et masse salariale par structure',
@@ -408,6 +389,26 @@ const TABLE_CONFIG = {
       'dot_CP_immo': 'dot_CP_Immo',
       'Conso_AE_immo': 'Conso_AE_Immo',
       'Conso_CP_immo': 'Conso_CP_Immo'
+    }
+  },
+  'Budget_Mensuel': {
+    description: 'Suivi budgétaire AE/CP mensuel par poste (historique, une ligne par structure × année × mois)',
+    columns: [
+      'Structure', 'Annee', 'Mois', 'Date_Import',
+      'Conso_AE_vehicules', 'Conso_CP_vehicules',
+      'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
+      'Conso_AE_T6', 'Conso_CP_T6',
+      'Conso_AE_Immo', 'Conso_CP_Immo'
+    ],
+    keyFields: ['Structure', 'Annee', 'Mois'],
+    needsStructure: true,
+    mapping: {
+      'HIE': 'Structure',
+      'Conso_CP_Vehicules': 'Conso_CP_vehicules',
+      'Conso_AE_Fonctionnement': 'Conso_AE_fonctionnement',
+      'Conso_CP_Fonctionnement': 'Conso_CP_fonctionnement',
+      'Conso_AE_immobilier': 'Conso_AE_Immo',
+      'Conso_CP_immobilier': 'Conso_CP_Immo'
     }
   },
   'Immobilier': {
