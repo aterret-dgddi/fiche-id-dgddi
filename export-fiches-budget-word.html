@@ -212,15 +212,17 @@ function initGrist() {
 async function loadAllData() {
   if (!STATE.gristReady) return;
   try {
-    const [structures, budget, consolidation, commentaires, rh] = await Promise.all([
+    const [structures, budget, budget_mensuel, consolidation, commentaires, rh] = await Promise.all([
       grist.docApi.fetchTable('Structures'),
       grist.docApi.fetchTable('Budget'),
+      grist.docApi.fetchTable('Budget_Mensuel').catch(() => null),
       grist.docApi.fetchTable('Consolidation').catch(() => null),
       grist.docApi.fetchTable('Commentaires').catch(() => null),
       grist.docApi.fetchTable('RH').catch(() => null),
     ]);
     STATE.data.structures = structures;
     STATE.data.budget = budget;
+    STATE.data.budget_mensuel = budget_mensuel;
     STATE.data.consolidation = consolidation;
     STATE.data.commentaires = commentaires;
     STATE.data.rh = rh;
@@ -308,6 +310,78 @@ function getDRRattachees(structureId) {
     }
   });
   return drList;
+}
+
+/**
+ * Progression mensuelle cumulée AE/CP par domaine (Budget_Mensuel), portée
+ * depuis fiche-identite-core-v2.js. Lit les Cumul_* précalculés côté Grist et
+ * les somme sur le périmètre (structure + DR rattachées si DI). La courbe
+ * s'arrête (null) dès qu'aucune ligne n'existe pour un mois donné.
+ */
+function getBudgetMensuelHistorique(structureId) {
+  const bm = STATE.data.budget_mensuel;
+  if (!bm || !bm.id) return null;
+
+  const idsToScan = [structureId];
+  const structures = STATE.data.structures;
+  if (structures) {
+    const sIdx = structures.id.indexOf(structureId);
+    if (sIdx !== -1 && structures.Type[sIdx] === 'DI') {
+      idsToScan.push(...getDRRattachees(structureId));
+    }
+  }
+
+  const CUMUL_COL = {
+    global:         { AE: 'Cumul_AE_total',          CP: 'Cumul_CP_total' },
+    fonctionnement: { AE: 'Cumul_AE_fonctionnement',  CP: 'Cumul_CP_fonctionnement' },
+    vehicules:      { AE: 'Cumul_AE_vehicules',       CP: 'Cumul_CP_vehicules' },
+    immo:           { AE: 'Cumul_AE_Immo',            CP: 'Cumul_CP_Immo' }
+  };
+
+  const rowsByAnneeMois = {};
+  bm.id.forEach((id, i) => {
+    if (!idsToScan.includes(bm.Structure[i])) return;
+    const annee = bm.Annee[i], mois = bm.Mois[i];
+    if (!annee || !mois) return;
+    rowsByAnneeMois[annee] = rowsByAnneeMois[annee] || {};
+    rowsByAnneeMois[annee][mois] = rowsByAnneeMois[annee][mois] || [];
+    rowsByAnneeMois[annee][mois].push(i);
+  });
+
+  const result = {};
+  Object.keys(CUMUL_COL).forEach(dom => {
+    result[dom] = { AE: {}, CP: {} };
+    Object.keys(rowsByAnneeMois).sort().forEach(annee => {
+      const moisData = rowsByAnneeMois[annee];
+      ['AE', 'CP'].forEach(poste => {
+        const col = CUMUL_COL[dom][poste];
+        const serie = Array(12).fill(null);
+        for (let m = 1; m <= 12; m++) {
+          if (!moisData[m]) break;
+          const total = moisData[m].reduce((s, i) => s + (Number(bm[col]?.[i]) || 0), 0);
+          serie[m - 1] = Math.round(total);
+        }
+        result[dom][poste][annee] = serie;
+      });
+    });
+  });
+
+  return result;
+}
+
+/**
+ * Dégradé de bleus pour les courbes annuelles : année la plus récente en
+ * bleu foncé, années plus anciennes de plus en plus claires (idx=0 = plus
+ * ancienne). Même palette que fiche-identite-core-v2.js.
+ */
+function budgetMensuelYearColor(idx, total) {
+  const dark  = { r: 0,   g: 47,  b: 108 }; // #002F6C
+  const light = { r: 185, g: 207, b: 232 };
+  const t = total > 1 ? idx / (total - 1) : 1;
+  const r = Math.round(light.r + (dark.r - light.r) * t);
+  const g = Math.round(light.g + (dark.g - light.g) * t);
+  const b = Math.round(light.b + (dark.b - light.b) * t);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 function getConsolidationData(perimetre, annee) {
@@ -663,6 +737,90 @@ async function renderBudgetRadarPNG(type, data, moyNat, isDI) {
           pointLabels: { font: { size: 12, weight: '600' }, color: catColors, padding: 10 },
           grid: { color: (ctx) => ctx.index === 0 ? 'transparent' : 'rgba(0,0,0,0.08)' },
           angleLines: { color: 'rgba(0,0,0,0.10)' },
+        }
+      }
+    }
+  });
+
+  await waitFrame();
+  const dataUrl = canvas.toDataURL('image/png');
+  chart.destroy();
+  canvas.remove();
+  return { bytes: dataUrlToUint8Array(dataUrl), width: W, height: H };
+}
+
+const MOIS_LABELS_COURT = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+
+/**
+ * Rend la progression mensuelle cumulée (€) d'un domaine/poste sur un canvas
+ * hors-écran et retourne un PNG. Une courbe par année (dégradé de bleus,
+ * année la plus récente en trait plein), ligne cible rouge pointillée =
+ * dotation notifiée de l'année la plus récente (si connue dans Budget).
+ * Retourne null si aucun historique mensuel n'est disponible pour ce domaine.
+ */
+async function renderBudgetMensuelLinePNG(structureId, domain, poste) {
+  const hist = getBudgetMensuelHistorique(structureId);
+  const posteKey = poste.toUpperCase();
+  const series = hist && hist[domain] ? hist[domain][posteKey] : null;
+  const annees = series ? Object.keys(series).sort() : [];
+  if (!annees.length) return null;
+
+  const anneeMaxAffichee = annees[annees.length - 1];
+
+  const datasets = annees.map((annee, idx) => {
+    const color = budgetMensuelYearColor(idx, annees.length);
+    const isLast = idx === annees.length - 1;
+    return {
+      label: annee,
+      data: series[annee],
+      borderColor: color,
+      backgroundColor: color,
+      borderWidth: isLast ? 3 : 1.5,
+      borderDash: isLast ? [] : [4, 3],
+      pointRadius: 0,
+      tension: 0.25,
+      spanGaps: false
+    };
+  });
+
+  const dotKey = domain === 'global' ? `dot_${poste}_total` : `dot_${poste}_${domain}`;
+  const dataDot = getBudgetData(structureId, Number(anneeMaxAffichee));
+  if (dataDot) {
+    const dotVal = dataDot[dotKey];
+    if (dotVal) {
+      datasets.push({
+        label: `Cible ${anneeMaxAffichee}`,
+        data: Array(12).fill(Math.round(dotVal)),
+        borderColor: '#B52020',
+        borderWidth: 2,
+        borderDash: [2, 3],
+        pointRadius: 0,
+        tension: 0
+      });
+    }
+  }
+
+  const W = 560, H = 340;
+  const canvas = makeOffscreenCanvas(W, H);
+  const chart = new Chart(canvas, {
+    type: 'line',
+    data: { labels: MOIS_LABELS_COURT, datasets },
+    options: {
+      responsive: false,
+      animation: false,
+      devicePixelRatio: 2,
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } },
+      },
+      scales: {
+        y: {
+          min: 0,
+          ticks: { callback: v => formatCurrency(v, 0), color: '#8A9BAA', font: { size: 11 } },
+          grid: { color: '#e1e0d9' }
+        },
+        x: {
+          ticks: { color: '#8A9BAA', font: { size: 11 }, autoSkip: false },
+          grid: { display: false }
         }
       }
     }
@@ -1096,6 +1254,45 @@ async function buildStructureSection(struct, isFirst, precomputedData) {
     }));
   } catch (e) {
     elements.push(new Paragraph({ children: [new TextRun({ text: '(Graphiques non générés : ' + (e && e.message ? e.message : e) + ')', italics: true, color: '888888', size: 18 })] }));
+  }
+
+  // ── Progression mensuelle de la consommation (global + sous-domaines) ──
+  const DOMAINES_MENSUEL = [
+    { key: 'global', label: 'Tous domaines' },
+    { key: 'fonctionnement', label: 'Fonctionnement' },
+    { key: 'vehicules', label: 'Parc automobile' },
+    { key: 'immo', label: 'Immobilier' },
+  ];
+  try {
+    const rowsImgs = await Promise.all(DOMAINES_MENSUEL.map(async d => ({
+      key: d.key,
+      label: d.label,
+      ae: await renderBudgetMensuelLinePNG(struct.id, d.key, 'ae'),
+      cp: await renderBudgetMensuelLinePNG(struct.id, d.key, 'cp'),
+    })));
+    const rowsAvecDonnees = rowsImgs.filter(r => r.ae || r.cp);
+
+    if (rowsAvecDonnees.length) {
+      elements.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 200 }, children: [new TextRun({ text: '📅 Progression mensuelle de la consommation' })] }));
+      rowsAvecDonnees.forEach(r => {
+        const imgW = 260;
+        elements.push(new Paragraph({
+          spacing: { before: 120, after: 80 },
+          children: [
+            new TextRun({ text: `${r.label} — AE`, bold: true, size: 18 }),
+            new TextRun({ text: '                              ' }),
+            new TextRun({ text: `${r.label} — CP`, bold: true, size: 18 }),
+          ],
+        }));
+        const imgRuns = [];
+        if (r.ae) imgRuns.push(new ImageRun({ type: 'png', data: r.ae.bytes, transformation: { width: imgW, height: imgW * (r.ae.height / r.ae.width) } }));
+        if (r.ae && r.cp) imgRuns.push(new TextRun({ text: '   ' }));
+        if (r.cp) imgRuns.push(new ImageRun({ type: 'png', data: r.cp.bytes, transformation: { width: imgW, height: imgW * (r.cp.height / r.cp.width) } }));
+        elements.push(new Paragraph({ alignment: AlignmentType.LEFT, children: imgRuns }));
+      });
+    }
+  } catch (e) {
+    elements.push(new Paragraph({ children: [new TextRun({ text: '(Progression mensuelle non générée : ' + (e && e.message ? e.message : e) + ')', italics: true, color: '888888', size: 18 })] }));
   }
 
   // ── Tableau par catégorie ──
