@@ -783,8 +783,10 @@ function getBudgetHistorique(structureId) {
 /**
  * Retourne la progression mensuelle cumulée AE/CP (Budget_Mensuel), par domaine.
  * Les lignes de Budget_Mensuel sont des DELTAS mensuels (pas des cumuls) : on
- * reconstitue le cumulé mois par mois. Un mois non importé est prolongé à plat
- * (dernière valeur cumulée connue) plutôt que de créer un trou dans la courbe.
+ * reconstitue le cumulé mois par mois. Dès qu'un mois n'a pas été importé, la
+ * courbe s'arrête (valeurs null au-delà) plutôt que de prolonger à plat — un
+ * arrêt franc est plus honnête qu'un palier qui laisserait croire à une pause
+ * de consommation.
  *
  * Retour : { global: {AE:{'2022':[12 valeurs...], ...}, CP:{...}},
  *            fonctionnement: {...}, vehicules: {...}, immo: {...} }
@@ -831,14 +833,11 @@ function getBudgetMensuelHistorique(structureId) {
       const moisData = buckets[annee];
       ['AE', 'CP'].forEach(poste => {
         const serie = Array(12).fill(null);
-        let cumul = 0, dernierConnu = null;
+        let cumul = 0;
         for (let m = 1; m <= 12; m++) {
-          if (!moisData[m]) {
-            serie[m - 1] = dernierConnu; // mois non importé -> palier plat
-            continue;
-          }
+          if (!moisData[m]) break; // pas de donnée au-delà -> la courbe s'arrête ici
           cumul += postesDom.reduce((s, p) => s + (moisData[m][poste][p] || 0), 0);
-          serie[m - 1] = dernierConnu = Math.round(cumul);
+          serie[m - 1] = Math.round(cumul);
         }
         result[dom][poste][annee] = serie;
       });
@@ -3492,8 +3491,35 @@ function createBudgetRadarCP(data, moyNat) {
 
 // ── Progression mensuelle de la consommation (Budget_Mensuel) ────────────────
 
-const BUDGET_MENSUEL_STATE = { poste: 'ae', domain: 'global' };
+const BUDGET_MENSUEL_STATE = { poste: 'ae', domain: 'global', unit: 'eur' };
 const MOIS_LABELS_COURT = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+
+/**
+ * Dégradé de bleus : année la plus récente en bleu foncé (--rep), années plus
+ * anciennes de plus en plus claires. idx = 0 pour l'année la plus ancienne.
+ */
+function budgetMensuelYearColor(idx, total) {
+  const dark  = { r: 0,   g: 47,  b: 108 }; // #002F6C
+  const light = { r: 185, g: 207, b: 232 }; // bleu très clair
+  const t = total > 1 ? idx / (total - 1) : 1;
+  const r = Math.round(light.r + (dark.r - light.r) * t);
+  const g = Math.round(light.g + (dark.g - light.g) * t);
+  const b = Math.round(light.b + (dark.b - light.b) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function setBudgetMensuelUnit(unit) {
+  BUDGET_MENSUEL_STATE.unit = unit;
+  const btnEur = document.getElementById('budget-mensuel-btn-eur');
+  const btnPct = document.getElementById('budget-mensuel-btn-pct');
+  if (btnEur && btnPct) {
+    btnEur.style.background = unit === 'eur' ? 'var(--rep)' : 'transparent';
+    btnEur.style.color = unit === 'eur' ? '#fff' : 'var(--gris2)';
+    btnPct.style.background = unit === 'pct' ? 'var(--rep)' : 'transparent';
+    btnPct.style.color = unit === 'pct' ? '#fff' : 'var(--gris2)';
+  }
+  if (FICHE_STATE.structure) createBudgetMensuelChart(FICHE_STATE.structure.id);
+}
 
 function setBudgetMensuelPoste(poste) {
   BUDGET_MENSUEL_STATE.poste = poste;
@@ -3514,11 +3540,15 @@ function setBudgetMensuelDomain(domain) {
 }
 
 /**
- * Graphique de progression mensuelle cumulée (€), une courbe par année.
- * Année la plus récente en trait plein foncé, année précédente en bleu moyen,
- * années plus anciennes en gris — émulation de l'emphase visuelle, cf. maquette
- * validée avec Antoine. Ligne pointillée verte = dotation notifiée de l'année
- * la plus récente (seule dotation connue, cf. Budget_Mensuel sans colonnes dot_*).
+ * Graphique de progression mensuelle cumulée, une courbe par année.
+ * Dégradé de bleus (clair -> foncé, du plus ancien au plus récent), année la
+ * plus récente en trait plein, les autres en pointillés. La courbe s'arrête
+ * dès qu'il n'y a plus de données importées (pas de palier plat, cf. retour
+ * terrain sur 2026 arrêté fin août).
+ * Ligne rouge pointillée = cible (dotation notifiée) : en € c'est le montant
+ * de dotation de l'année la plus récente ; en % c'est simplement la barre des
+ * 100 %. En mode %, seules les années ayant une dotation connue dans `Budget`
+ * sont affichées (2022-2025 n'en ont pas, cf. décision prise avec Antoine).
  */
 function createBudgetMensuelChart(structureId) {
   const canvas = document.getElementById('chart-budget-mensuel');
@@ -3531,32 +3561,51 @@ function createBudgetMensuelChart(structureId) {
 
   const hist = getBudgetMensuelHistorique(structureId);
   const domain = BUDGET_MENSUEL_STATE.domain;
-  const posteKey = BUDGET_MENSUEL_STATE.poste.toUpperCase(); // 'AE' | 'CP'
+  const poste = BUDGET_MENSUEL_STATE.poste; // 'ae' | 'cp'
+  const posteKey = poste.toUpperCase();
+  const unit = BUDGET_MENSUEL_STATE.unit; // 'eur' | 'pct'
   const series = hist && hist[domain] ? hist[domain][posteKey] : null;
-  const annees = series ? Object.keys(series).sort() : [];
+  let annees = series ? Object.keys(series).sort() : [];
+
+  const dotKey = domain === 'global' ? `dot_${poste}_total` : `dot_${poste}_${domain}`;
+
+  // En mode %, on ne garde que les années où la dotation est connue dans Budget
+  const dotByAnnee = {};
+  annees.forEach(annee => {
+    const d = getBudgetData(structureId, Number(annee));
+    dotByAnnee[annee] = d ? d[dotKey] : null;
+  });
+  if (unit === 'pct') {
+    annees = annees.filter(annee => dotByAnnee[annee]);
+  }
 
   if (!annees.length) {
     if (wrapper) wrapper.style.display = 'none';
     if (emptyMsg) emptyMsg.style.display = 'block';
+    if (emptyMsg) emptyMsg.textContent = unit === 'pct'
+      ? '⚠️ Aucune dotation connue pour calculer un taux sur cette période'
+      : '⚠️ Aucun historique mensuel disponible pour cette structure';
     return;
   }
   if (wrapper) wrapper.style.display = '';
   if (emptyMsg) emptyMsg.style.display = 'none';
 
-  const anneeMax  = annees[annees.length - 1];
-  const anneeMax1 = annees.length > 1 ? annees[annees.length - 2] : null;
+  const anneeMaxAffichee = annees[annees.length - 1];
 
-  const datasets = annees.map(annee => {
-    let color = '#B4B2A9', width = 1.5, dash = [4, 3];
-    if (annee === anneeMax)       { color = '#002F6C'; width = 3; dash = []; }
-    else if (annee === anneeMax1) { color = '#1351A8'; width = 2; dash = [4, 3]; }
+  const datasets = annees.map((annee, idx) => {
+    const color = budgetMensuelYearColor(idx, annees.length);
+    const isLast = idx === annees.length - 1;
+    const rawSerie = series[annee];
+    const data = unit === 'pct'
+      ? rawSerie.map(v => v != null ? Math.round((v / dotByAnnee[annee]) * 1000) / 10 : null)
+      : rawSerie;
     return {
       label: annee,
-      data: series[annee],
+      data,
       borderColor: color,
       backgroundColor: color,
-      borderWidth: width,
-      borderDash: dash,
+      borderWidth: isLast ? 3 : 1.5,
+      borderDash: isLast ? [] : [4, 3],
       pointRadius: 0,
       pointHoverRadius: 4,
       tension: 0.25,
@@ -3564,18 +3613,24 @@ function createBudgetMensuelChart(structureId) {
     };
   });
 
-  // Ligne de référence : dotation de l'année la plus récente, si connue dans Budget
-  const dataDot = getBudgetData(structureId, Number(anneeMax));
-  if (dataDot) {
-    const dotKey = domain === 'global'
-      ? `dot_${BUDGET_MENSUEL_STATE.poste}_total`
-      : `dot_${BUDGET_MENSUEL_STATE.poste}_${domain}`;
-    const dotVal = dataDot[dotKey];
+  // Ligne cible (rouge pointillé) : dotation en €, 100% en mode %
+  if (unit === 'pct') {
+    datasets.push({
+      label: 'Cible (100 %)',
+      data: Array(12).fill(100),
+      borderColor: '#B52020',
+      borderWidth: 2,
+      borderDash: [2, 3],
+      pointRadius: 0,
+      tension: 0
+    });
+  } else {
+    const dotVal = dotByAnnee[anneeMaxAffichee];
     if (dotVal) {
       datasets.push({
-        label: `Dotation notifiée ${anneeMax}`,
+        label: `Cible ${anneeMaxAffichee}`,
         data: Array(12).fill(Math.round(dotVal)),
-        borderColor: '#1A6B3C',
+        borderColor: '#B52020',
         borderWidth: 2,
         borderDash: [2, 3],
         pointRadius: 0,
@@ -3583,6 +3638,8 @@ function createBudgetMensuelChart(structureId) {
       });
     }
   }
+
+  const fmtVal = v => v == null ? '—' : (unit === 'pct' ? v.toFixed(1) + ' %' : formatCurrency(v, 0));
 
   new Chart(canvas, {
     type: 'line',
@@ -3595,14 +3652,14 @@ function createBudgetMensuelChart(structureId) {
         legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } },
         tooltip: {
           callbacks: {
-            label: ctx => `${ctx.dataset.label} : ${ctx.parsed.y != null ? formatCurrency(ctx.parsed.y, 0) : '—'}`
+            label: ctx => `${ctx.dataset.label} : ${fmtVal(ctx.parsed.y)}`
           }
         }
       },
       scales: {
         y: {
           min: 0,
-          ticks: { callback: v => formatCurrency(v, 0), color: '#8A9BAA', font: { size: 11 } },
+          ticks: { callback: v => unit === 'pct' ? v + ' %' : formatCurrency(v, 0), color: '#8A9BAA', font: { size: 11 } },
           grid: { color: '#e1e0d9' }
         },
         x: {

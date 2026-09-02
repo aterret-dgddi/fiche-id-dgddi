@@ -1375,6 +1375,10 @@
     <button id="budget-mensuel-btn-ae" onclick="setBudgetMensuelPoste('ae')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">AE</button>
     <button id="budget-mensuel-btn-cp" onclick="setBudgetMensuelPoste('cp')" style="border:none;background:transparent;color:var(--gris2);padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">CP</button>
     </div>
+    <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
+    <button id="budget-mensuel-btn-eur" onclick="setBudgetMensuelUnit('eur')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">€</button>
+    <button id="budget-mensuel-btn-pct" onclick="setBudgetMensuelUnit('pct')" style="border:none;background:transparent;color:var(--gris2);padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">%</button>
+    </div>
     <select id="budget-mensuel-domain" onchange="setBudgetMensuelDomain(this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord);border-radius:5px;font-family:'Marianne',sans-serif;">
     <option value="global">Tous domaines</option>
     <option value="fonctionnement">Fonctionnement</option>
