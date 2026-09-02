@@ -1188,6 +1188,12 @@
     background: var(--gris4);
   }
   .zone-gestion .zone-header-title { color: var(--gris2); }
+    .budget-mensuel-table { width:100%; border-collapse:collapse; font-size:11px; }
+    .budget-mensuel-table th, .budget-mensuel-table td { padding:4px 6px; text-align:right; border-bottom:1px solid var(--gris4); white-space:nowrap; }
+    .budget-mensuel-table th { color:var(--gris2); font-weight:600; background:var(--rep-pale); text-align:right; }
+    .budget-mensuel-table th:first-child, .budget-mensuel-table td:first-child { text-align:left; position:sticky; left:0; background:#fff; }
+    .budget-mensuel-table th:first-child { background:var(--rep-pale); }
+    .budget-mensuel-table tr.annee-courante td { font-weight:700; color:var(--rep); }
   </style>
 </head>
 <body>
@@ -1368,6 +1374,7 @@
 
     <!-- Progression mensuelle de la consommation -->
     <div class="chart-container" style="margin-top:20px;">
+    <div id="budget-mensuel-controls-and-chart">
     <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;">
     <div class="chart-title" style="margin:0;">Progression mensuelle de la consommation</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -1391,6 +1398,9 @@
     <canvas id="chart-budget-mensuel"></canvas>
     </div>
     <div id="budget-mensuel-empty" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
+    <div id="budget-mensuel-footnote" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
+    <div id="budget-mensuel-table-container" style="margin-top:14px;overflow-x:auto;"></div>
+    </div>
     </div>
 
     <!-- Tableau par catégorie -->

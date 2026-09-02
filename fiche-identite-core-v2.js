@@ -3550,20 +3550,15 @@ function setBudgetMensuelDomain(domain) {
  * 100 %. En mode %, seules les années ayant une dotation connue dans `Budget`
  * sont affichées (2022-2025 n'en ont pas, cf. décision prise avec Antoine).
  */
-function createBudgetMensuelChart(structureId) {
-  const canvas = document.getElementById('chart-budget-mensuel');
-  const wrapper = document.getElementById('budget-mensuel-wrapper');
-  const emptyMsg = document.getElementById('budget-mensuel-empty');
-  if (!canvas) return;
-
-  const existing = Chart.getChart('chart-budget-mensuel');
-  if (existing) existing.destroy();
-
+/**
+ * Construit les datasets Chart.js (+ métadonnées) pour la progression
+ * mensuelle d'un domaine/poste/unité donnés. Fonction pure, réutilisée par
+ * le rendu interactif (createBudgetMensuelChart) et le rendu statique
+ * utilisé à l'export PDF (renderBudgetMensuelChartOnCanvas).
+ */
+function computeBudgetMensuelChartSpec(structureId, domain, poste, unit) {
   const hist = getBudgetMensuelHistorique(structureId);
-  const domain = BUDGET_MENSUEL_STATE.domain;
-  const poste = BUDGET_MENSUEL_STATE.poste; // 'ae' | 'cp'
   const posteKey = poste.toUpperCase();
-  const unit = BUDGET_MENSUEL_STATE.unit; // 'eur' | 'pct'
   const series = hist && hist[domain] ? hist[domain][posteKey] : null;
   let annees = series ? Object.keys(series).sort() : [];
 
@@ -3588,22 +3583,11 @@ function createBudgetMensuelChart(structureId) {
   }
 
   if (!annees.length) {
-    if (wrapper) wrapper.style.display = 'none';
-    if (emptyMsg) emptyMsg.style.display = 'block';
-    if (emptyMsg) emptyMsg.textContent = unit === 'pct'
-      ? '⚠️ Aucune dotation (réelle ou estimée) disponible pour calculer un taux sur cette période'
-      : '⚠️ Aucun historique mensuel disponible pour cette structure';
-    const footnoteEmpty = document.getElementById('budget-mensuel-footnote');
-    if (footnoteEmpty) footnoteEmpty.style.display = 'none';
-    return;
+    return { hasData: false, annees: [], series, dotByAnnee };
   }
-  if (wrapper) wrapper.style.display = '';
-  if (emptyMsg) emptyMsg.style.display = 'none';
 
   const anneeMaxAffichee = annees[annees.length - 1];
   const auMoinsUneEstimee = unit === 'pct' && annees.some(a => dotByAnnee[a].estime);
-  const footnote = document.getElementById('budget-mensuel-footnote');
-  if (footnote) footnote.style.display = auMoinsUneEstimee ? 'block' : 'none';
 
   const datasets = annees.map((annee, idx) => {
     const color = budgetMensuelYearColor(idx, annees.length);
@@ -3653,11 +3637,46 @@ function createBudgetMensuelChart(structureId) {
     }
   }
 
+  return { hasData: true, annees, series, dotByAnnee, anneeMaxAffichee, auMoinsUneEstimee, datasets };
+}
+
+function createBudgetMensuelChart(structureId) {
+  const canvas = document.getElementById('chart-budget-mensuel');
+  const wrapper = document.getElementById('budget-mensuel-wrapper');
+  const emptyMsg = document.getElementById('budget-mensuel-empty');
+  if (!canvas) return;
+
+  const existing = Chart.getChart('chart-budget-mensuel');
+  if (existing) existing.destroy();
+
+  const domain = BUDGET_MENSUEL_STATE.domain;
+  const poste = BUDGET_MENSUEL_STATE.poste; // 'ae' | 'cp'
+  const unit = BUDGET_MENSUEL_STATE.unit;   // 'eur' | 'pct'
+
+  const spec = computeBudgetMensuelChartSpec(structureId, domain, poste, unit);
+
+  if (!spec.hasData) {
+    if (wrapper) wrapper.style.display = 'none';
+    if (emptyMsg) emptyMsg.style.display = 'block';
+    if (emptyMsg) emptyMsg.textContent = unit === 'pct'
+      ? '⚠️ Aucune dotation (réelle ou estimée) disponible pour calculer un taux sur cette période'
+      : '⚠️ Aucun historique mensuel disponible pour cette structure';
+    const footnoteEmpty = document.getElementById('budget-mensuel-footnote');
+    if (footnoteEmpty) footnoteEmpty.style.display = 'none';
+    renderBudgetMensuelTable(null);
+    return;
+  }
+  if (wrapper) wrapper.style.display = '';
+  if (emptyMsg) emptyMsg.style.display = 'none';
+
+  const footnote = document.getElementById('budget-mensuel-footnote');
+  if (footnote) footnote.style.display = spec.auMoinsUneEstimee ? 'block' : 'none';
+
   const fmtVal = v => v == null ? '—' : (unit === 'pct' ? v.toFixed(1) + ' %' : formatCurrency(v, 0));
 
   new Chart(canvas, {
     type: 'line',
-    data: { labels: MOIS_LABELS_COURT, datasets },
+    data: { labels: MOIS_LABELS_COURT, datasets: spec.datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -3683,7 +3702,152 @@ function createBudgetMensuelChart(structureId) {
       }
     }
   });
+
+  renderBudgetMensuelTable(spec, unit);
 }
+
+/**
+ * Tableau sous le graphique : une ligne par année, une colonne par mois,
+ * valeur = cumul (€ ou %) selon le mode courant. Reflète toujours ce qui est
+ * affiché dans le graphique au-dessus (même sélection AE/CP, domaine, unité).
+ */
+function renderBudgetMensuelTable(spec, unit) {
+  const container = document.getElementById('budget-mensuel-table-container');
+  if (!container) return;
+  if (!spec || !spec.hasData) {
+    container.innerHTML = '';
+    return;
+  }
+  const fmt = v => v == null ? '—' : (unit === 'pct' ? v.toFixed(1) + ' %' : formatCurrency(v, 0));
+  let html = '<table class="budget-mensuel-table"><thead><tr><th>Année</th>';
+  MOIS_LABELS_COURT.forEach(m => { html += `<th>${m}</th>`; });
+  html += '</tr></thead><tbody>';
+  spec.annees.forEach((annee, idx) => {
+    const isLast = idx === spec.annees.length - 1;
+    const rawSerie = spec.series[annee];
+    const row = unit === 'pct'
+      ? rawSerie.map(v => v != null ? Math.round((v / spec.dotByAnnee[annee].value) * 1000) / 10 : null)
+      : rawSerie;
+    const label = (unit === 'pct' && spec.dotByAnnee[annee].estime) ? `${annee} *` : annee;
+    html += `<tr${isLast ? ' class="annee-courante"' : ''}><td>${label}</td>`;
+    row.forEach(v => { html += `<td>${fmt(v)}</td>`; });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+// ── Export PDF : bascule temporaire vers 8 graphiques détaillés par nature ──
+
+const BUDGET_MENSUEL_EXPORT_DOMAINS = [
+  { key: 'global', label: 'Tous domaines' },
+  { key: 'fonctionnement', label: 'Fonctionnement' },
+  { key: 'vehicules', label: 'Parc automobile' },
+  { key: 'immo', label: 'Immobilier' },
+];
+
+/** Rend un graphique statique (sans contrôles) sur un canvas donné. Utilisé à l'export. */
+function renderBudgetMensuelChartOnCanvas(canvas, structureId, domain, poste, unit) {
+  const spec = computeBudgetMensuelChartSpec(structureId, domain, poste, unit);
+  if (!spec.hasData) return false;
+  const fmtVal = v => v == null ? '—' : (unit === 'pct' ? v.toFixed(1) + ' %' : formatCurrency(v, 0));
+  new Chart(canvas, {
+    type: 'line',
+    data: { labels: MOIS_LABELS_COURT, datasets: spec.datasets },
+    options: {
+      responsive: false,
+      animation: false,
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label} : ${fmtVal(ctx.parsed.y)}` } }
+      },
+      scales: {
+        y: {
+          min: 0,
+          ticks: { callback: v => unit === 'pct' ? v + ' %' : formatCurrency(v, 0), color: '#8A9BAA', font: { size: 9 } },
+          grid: { color: '#e1e0d9' }
+        },
+        x: { ticks: { color: '#8A9BAA', font: { size: 9 }, autoSkip: false }, grid: { display: false } }
+      }
+    }
+  });
+  return true;
+}
+
+/**
+ * Remplace temporairement le graphique interactif (avec ses sélecteurs) par
+ * une grille statique de 8 graphiques (4 domaines × AE/CP) — appelé juste
+ * avant la capture html2canvas d'une structure lors d'un export PDF. Toujours
+ * en €, pour rester lisible sur un document figé. À restaurer avec
+ * _restoreBudgetMensuelExportMode() après capture.
+ */
+async function _prepareBudgetMensuelExportMode(structureId) {
+  const host = document.getElementById('budget-mensuel-controls-and-chart');
+  if (!host) return;
+
+  host.dataset.prevDisplay = host.style.display || '';
+  host.style.display = 'none';
+
+  let exportDiv = document.getElementById('budget-mensuel-export-block');
+  if (!exportDiv) {
+    exportDiv = document.createElement('div');
+    exportDiv.id = 'budget-mensuel-export-block';
+    host.parentNode.insertBefore(exportDiv, host.nextSibling);
+  }
+  exportDiv.innerHTML = '';
+
+  BUDGET_MENSUEL_EXPORT_DOMAINS.forEach(d => {
+    const row = document.createElement('div');
+    row.style.marginBottom = '10px';
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:4px;';
+    title.textContent = d.label;
+    row.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:flex;gap:10px;';
+
+    ['ae', 'cp'].forEach(poste => {
+      const cell = document.createElement('div');
+      cell.style.cssText = 'flex:1;min-width:0;';
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:10px;color:var(--gris3);text-align:center;margin-bottom:2px;';
+      lbl.textContent = poste.toUpperCase();
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 220;
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+      cell.appendChild(lbl);
+      cell.appendChild(canvas);
+      grid.appendChild(cell);
+      renderBudgetMensuelChartOnCanvas(canvas, structureId, d.key, poste, 'eur');
+    });
+
+    row.appendChild(grid);
+    exportDiv.appendChild(row);
+  });
+
+  // Laisser Chart.js peindre avant la capture html2canvas
+  await new Promise(resolve => setTimeout(resolve, 60));
+}
+
+/** Restaure le graphique interactif après l'export PDF. */
+function _restoreBudgetMensuelExportMode() {
+  const host = document.getElementById('budget-mensuel-controls-and-chart');
+  const exportDiv = document.getElementById('budget-mensuel-export-block');
+  if (exportDiv) {
+    exportDiv.querySelectorAll('canvas').forEach(c => {
+      const ch = Chart.getChart(c);
+      if (ch) ch.destroy();
+    });
+    exportDiv.remove();
+  }
+  if (host) host.style.display = host.dataset.prevDisplay || '';
+}
+
+
+
 
 function createBudgetTable(data, moy, libPerimetre, annee) {
   const tbody = document.getElementById('budget-types-tbody');
@@ -4570,6 +4734,7 @@ async function exportSingleStructurePDF(struct, annee) {
     hideLoadingMessage(loadingDiv);
     alert('Erreur PDF: ' + (error && error.message ? error.message : String(error)));
     console.error('PDF export error:', error);
+    _restoreBudgetMensuelExportMode();
   }
 }
 
@@ -4616,6 +4781,7 @@ async function exportAllStructuresInOnePDF(filters) {
     alert('Erreur lors de la génération du PDF.');
   } finally {
     if (typeof Chart !== 'undefined') Chart.defaults.animation = _animBackup;
+    _restoreBudgetMensuelExportMode();
   }
 }
 
@@ -4675,6 +4841,7 @@ async function exportAllStructuresAsZIP(filters) {
     alert('Erreur lors de la génération de l\'archive ZIP.');
   } finally {
     if (typeof Chart !== 'undefined') Chart.defaults.animation = _animBackup;
+    _restoreBudgetMensuelExportMode();
   }
 }
 
@@ -5295,6 +5462,8 @@ function renderMarkdownToPDF(pdf, markdownText, x, ctx, maxWidth) {
 
 
 async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
+  await _prepareBudgetMensuelExportMode(struct.id);
+
   const pageWidth = 210;
   const pageHeight = 297;
   const margin = 15;
@@ -6137,6 +6306,7 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
   
   addHeaderFooter(currentPage);
   _totalPages = currentPage;
+  _restoreBudgetMensuelExportMode();
   return currentPage;
 }
 
