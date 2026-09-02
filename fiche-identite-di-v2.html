@@ -1399,7 +1399,13 @@
     </div>
     <div id="budget-mensuel-empty" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
     <div id="budget-mensuel-footnote" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
-    <div id="budget-mensuel-table-container" style="margin-top:14px;overflow-x:auto;"></div>
+    <div id="budget-mensuel-table-toggle" style="display:none;justify-content:flex-end;margin-top:14px;">
+    <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
+    <button id="budget-mensuel-table-btn-cumule" onclick="setBudgetMensuelTableMode('cumule')" style="border:none;background:var(--rep);color:#fff;padding:4px 10px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;">Cumulé</button>
+    <button id="budget-mensuel-table-btn-mensuel" onclick="setBudgetMensuelTableMode('mensuel')" style="border:none;background:transparent;color:var(--gris2);padding:4px 10px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;">Mensuel</button>
+    </div>
+    </div>
+    <div id="budget-mensuel-table-container" style="margin-top:6px;overflow-x:auto;"></div>
     </div>
     </div>
 

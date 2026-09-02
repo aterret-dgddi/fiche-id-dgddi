@@ -3491,7 +3491,7 @@ function createBudgetRadarCP(data, moyNat) {
 
 // ── Progression mensuelle de la consommation (Budget_Mensuel) ────────────────
 
-const BUDGET_MENSUEL_STATE = { poste: 'ae', domain: 'global', unit: 'eur' };
+const BUDGET_MENSUEL_STATE = { poste: 'ae', domain: 'global', unit: 'eur', tableMode: 'cumule' };
 const MOIS_LABELS_COURT = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
 
 /**
@@ -3706,18 +3706,50 @@ function createBudgetMensuelChart(structureId) {
   renderBudgetMensuelTable(spec, unit);
 }
 
+let _lastBudgetMensuelSpec = null;
+let _lastBudgetMensuelUnit = 'eur';
+
+function setBudgetMensuelTableMode(mode) {
+  BUDGET_MENSUEL_STATE.tableMode = mode;
+  const btnCumule = document.getElementById('budget-mensuel-table-btn-cumule');
+  const btnMensuel = document.getElementById('budget-mensuel-table-btn-mensuel');
+  if (btnCumule && btnMensuel) {
+    btnCumule.style.background = mode === 'cumule' ? 'var(--rep)' : 'transparent';
+    btnCumule.style.color = mode === 'cumule' ? '#fff' : 'var(--gris2)';
+    btnMensuel.style.background = mode === 'mensuel' ? 'var(--rep)' : 'transparent';
+    btnMensuel.style.color = mode === 'mensuel' ? '#fff' : 'var(--gris2)';
+  }
+  renderBudgetMensuelTable(_lastBudgetMensuelSpec, _lastBudgetMensuelUnit);
+}
+
+/** Convertit une série cumulée en série de deltas mensuels (montant/point du mois seul). */
+function toIncrementalSerie(row) {
+  return row.map((v, i) => {
+    if (v == null) return null;
+    const prev = i === 0 ? 0 : row[i - 1];
+    return prev == null ? null : v - prev;
+  });
+}
+
 /**
  * Tableau sous le graphique : une ligne par année, une colonne par mois,
- * valeur = cumul (€ ou %) selon le mode courant. Reflète toujours ce qui est
- * affiché dans le graphique au-dessus (même sélection AE/CP, domaine, unité).
+ * valeur = cumul OU mensuel (deltas) selon le toggle, en € ou % selon le
+ * graphique au-dessus. Reflète toujours la sélection AE/CP/domaine du
+ * graphique ; le mode cumulé/mensuel est propre au tableau.
  */
 function renderBudgetMensuelTable(spec, unit) {
   const container = document.getElementById('budget-mensuel-table-container');
+  const toggle = document.getElementById('budget-mensuel-table-toggle');
   if (!container) return;
+  _lastBudgetMensuelSpec = spec;
+  _lastBudgetMensuelUnit = unit;
   if (!spec || !spec.hasData) {
     container.innerHTML = '';
+    if (toggle) toggle.style.display = 'none';
     return;
   }
+  if (toggle) toggle.style.display = '';
+  const mode = BUDGET_MENSUEL_STATE.tableMode;
   const fmt = v => v == null ? '—' : (unit === 'pct' ? v.toFixed(1) + ' %' : formatCurrency(v, 0));
   let html = '<table class="budget-mensuel-table"><thead><tr><th>Année</th>';
   MOIS_LABELS_COURT.forEach(m => { html += `<th>${m}</th>`; });
@@ -3725,9 +3757,10 @@ function renderBudgetMensuelTable(spec, unit) {
   spec.annees.forEach((annee, idx) => {
     const isLast = idx === spec.annees.length - 1;
     const rawSerie = spec.series[annee];
-    const row = unit === 'pct'
+    const cumulRow = unit === 'pct'
       ? rawSerie.map(v => v != null ? Math.round((v / spec.dotByAnnee[annee].value) * 1000) / 10 : null)
       : rawSerie;
+    const row = mode === 'mensuel' ? toIncrementalSerie(cumulRow) : cumulRow;
     const label = (unit === 'pct' && spec.dotByAnnee[annee].estime) ? `${annee} *` : annee;
     html += `<tr${isLast ? ' class="annee-courante"' : ''}><td>${label}</td>`;
     row.forEach(v => { html += `<td>${fmt(v)}</td>`; });
