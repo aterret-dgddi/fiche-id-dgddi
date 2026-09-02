@@ -410,6 +410,36 @@
 </div>
 
 
+<!-- Progression mensuelle de la consommation -->
+<div class="chart-container" style="margin:12px 16px;padding:16px;background:#fff;border:1px solid var(--bord);border-radius:8px;">
+  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+    <div style="font-weight:700;font-size:14px;color:var(--gris1);">📅 Progression mensuelle de la consommation</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <select id="budget-mensuel-service" onchange="setBudgetMensuelTBB('service', this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord);border-radius:5px;font-family:var(--font);min-width:180px;">
+        <option value="national">🇫🇷 Consolidation nationale</option>
+      </select>
+      <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
+        <button id="budget-mensuel-tbb-btn-ae" onclick="setBudgetMensuelTBB('poste','ae')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">AE</button>
+        <button id="budget-mensuel-tbb-btn-cp" onclick="setBudgetMensuelTBB('poste','cp')" style="border:none;background:transparent;color:var(--gris2);padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">CP</button>
+      </div>
+      <select id="budget-mensuel-tbb-domain" onchange="setBudgetMensuelTBB('domain', this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord);border-radius:5px;font-family:var(--font);">
+        <option value="global">Tous domaines</option>
+        <option value="fonctionnement">Fonctionnement</option>
+        <option value="vehicules">Parc automobile</option>
+        <option value="immo">Immobilier</option>
+      </select>
+      <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
+        <button id="budget-mensuel-tbb-btn-eur" onclick="setBudgetMensuelTBB('unit','eur')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">€</button>
+        <button id="budget-mensuel-tbb-btn-pct" onclick="setBudgetMensuelTBB('unit','pct')" style="border:none;background:transparent;color:var(--gris2);padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">%</button>
+      </div>
+    </div>
+  </div>
+  <div id="budget-mensuel-tbb-wrapper" style="position:relative;height:280px;">
+    <canvas id="chart-budget-mensuel-tbb"></canvas>
+  </div>
+  <div id="budget-mensuel-tbb-empty" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+  <div id="budget-mensuel-tbb-footnote" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
+</div>
 
 <!-- Filtres type de structure -->
 <div class="filter-bar">
@@ -441,6 +471,11 @@ let filterActive = 'all';
 let sortMode = 'sigle';
 let moyNational = null;
 let chartInstances = {};
+let STATE_structuresTable = null;
+let STATE_budgetTable = null;
+let STATE_budgetMensuelTable = null;
+const BUDGET_MENSUEL_TBB_STATE = { service: 'national', poste: 'ae', domain: 'global', unit: 'eur' };
+let budgetMensuelChartInstance = null;
 
 // ── Utilitaires ───────────────────────────────────────────────────────────────
 const pct = v => (v != null && !isNaN(v)) ? (v * 100).toFixed(1) + ' %' : '—';
@@ -957,6 +992,283 @@ function buildCard(card) {
 
 // ── Calcul des groupes (filtre + tri + regroupement) — partagé entre l'affichage
 //    et l'export PDF, afin que le PDF respecte exactement l'organisation à l'écran ──
+// ── Progression mensuelle de la consommation (Budget_Mensuel) ────────────────
+
+function getDRRattacheesTBB(structureId) {
+  const structures = STATE_structuresTable;
+  const drList = [];
+  if (!structures || !structures.id) return drList;
+  structures.id.forEach((id, idx) => {
+    if (structures.Type[idx] === 'DR' && structures.Parent && structures.Parent[idx] === structureId) {
+      drList.push(id);
+    }
+  });
+  return drList;
+}
+
+const CUMUL_COL_TBB = {
+  global:         { AE: 'Cumul_AE_total',          CP: 'Cumul_CP_total' },
+  fonctionnement: { AE: 'Cumul_AE_fonctionnement',  CP: 'Cumul_CP_fonctionnement' },
+  vehicules:      { AE: 'Cumul_AE_vehicules',       CP: 'Cumul_CP_vehicules' },
+  immo:           { AE: 'Cumul_AE_Immo',            CP: 'Cumul_CP_Immo' }
+};
+
+/**
+ * Progression mensuelle cumulée par domaine/poste/année, sur un périmètre
+ * donné (liste d'ids Structure — soit une structure + ses DR rattachées,
+ * soit TOUTES les structures pour la consolidation nationale). Lit les
+ * Cumul_* précalculés dans Grist. La courbe s'arrête (null) dès qu'aucune
+ * ligne n'existe pour un mois donné sur le périmètre.
+ */
+function computeBudgetMensuelHistorique(idsToScan) {
+  const bm = STATE_budgetMensuelTable;
+  if (!bm || !bm.id) return null;
+  const idsSet = new Set(idsToScan);
+
+  const rowsByAnneeMois = {};
+  bm.id.forEach((id, i) => {
+    if (!idsSet.has(bm.Structure[i])) return;
+    const annee = bm.Annee[i], mois = bm.Mois[i];
+    if (!annee || !mois) return;
+    rowsByAnneeMois[annee] = rowsByAnneeMois[annee] || {};
+    rowsByAnneeMois[annee][mois] = rowsByAnneeMois[annee][mois] || [];
+    rowsByAnneeMois[annee][mois].push(i);
+  });
+
+  const result = {};
+  Object.keys(CUMUL_COL_TBB).forEach(dom => {
+    result[dom] = { AE: {}, CP: {} };
+    Object.keys(rowsByAnneeMois).sort().forEach(annee => {
+      const moisData = rowsByAnneeMois[annee];
+      ['AE', 'CP'].forEach(poste => {
+        const col = CUMUL_COL_TBB[dom][poste];
+        const serie = Array(12).fill(null);
+        for (let m = 1; m <= 12; m++) {
+          if (!moisData[m]) break;
+          const total = moisData[m].reduce((s, i) => s + (Number(bm[col]?.[i]) || 0), 0);
+          serie[m - 1] = Math.round(total);
+        }
+        result[dom][poste][annee] = serie;
+      });
+    });
+  });
+  return result;
+}
+
+/** Périmètre pour un service donné : lui-même + ses DR rattachées si DI. */
+function getBudgetMensuelHistoriquePourService(structureId) {
+  const idsToScan = [structureId];
+  const structures = STATE_structuresTable;
+  if (structures) {
+    const sIdx = structures.id.indexOf(structureId);
+    if (sIdx !== -1 && structures.Type[sIdx] === 'DI') {
+      idsToScan.push(...getDRRattacheesTBB(structureId));
+    }
+  }
+  return computeBudgetMensuelHistorique(idsToScan);
+}
+
+/** Consolidation nationale : somme de TOUTES les structures ayant du Budget_Mensuel. */
+function getBudgetMensuelHistoriqueNational() {
+  const bm = STATE_budgetMensuelTable;
+  if (!bm || !bm.id) return null;
+  const idsToScan = [...new Set(bm.Structure)];
+  return computeBudgetMensuelHistorique(idsToScan);
+}
+
+/** Dotation (réelle) pour la ligne cible, sur un périmètre de structures et une année. */
+function getDotationPourPerimetre(idsToScan, poste, domain, annee) {
+  const budget = STATE_budgetTable;
+  if (!budget || !budget.id) return null;
+  const colMap = {
+    global:         null,
+    fonctionnement: `dot_${poste}_fonctionnement`,
+    vehicules:      `dot_${poste}_vehicules`,
+    immo:           `dot_${poste}_Immo`
+  };
+  const idsSet = new Set(idsToScan);
+  let total = 0, found = false;
+  budget.id.forEach((id, i) => {
+    if (!idsSet.has(budget.Structure[i]) || budget.Annee[i] !== annee) return;
+    found = true;
+    if (domain === 'global') {
+      total += (Number(budget[`dot_${poste}_vehicules`]?.[i]) || 0)
+             + (Number(budget[`dot_${poste}_fonctionnement`]?.[i]) || 0)
+             + (Number(budget[`${poste === 'ae' ? 'Dot_AE_T6' : 'Dot_CP_T6'}`]?.[i]) || 0)
+             + (Number(budget[`dot_${poste}_Immo`]?.[i]) || 0);
+    } else {
+      total += Number(budget[colMap[domain]]?.[i]) || 0;
+    }
+  });
+  return found ? total : null;
+}
+
+function budgetMensuelYearColorTBB(idx, total) {
+  const dark  = { r: 19,  g: 81,  b: 168 }; // --rep (#1351A8)
+  const light = { r: 197, g: 216, b: 240 };
+  const t = total > 1 ? idx / (total - 1) : 1;
+  const r = Math.round(light.r + (dark.r - light.r) * t);
+  const g = Math.round(light.g + (dark.g - light.g) * t);
+  const b = Math.round(light.b + (dark.b - light.b) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+const MOIS_LABELS_TBB = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+
+function populateServiceSelector() {
+  const sel = document.getElementById('budget-mensuel-service');
+  if (!sel) return;
+  sel.innerHTML = '<option value="national">🇫🇷 Consolidation nationale</option>';
+  const sorted = [...allCards].sort((a, b) => a.sigle.localeCompare(b.sigle, 'fr'));
+  sorted.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.sigle;
+    sel.appendChild(opt);
+  });
+}
+
+function renderBudgetMensuelDashboardChart() {
+  const canvas = document.getElementById('chart-budget-mensuel-tbb');
+  const wrapper = document.getElementById('budget-mensuel-tbb-wrapper');
+  const emptyMsg = document.getElementById('budget-mensuel-tbb-empty');
+  if (!canvas) return;
+
+  if (budgetMensuelChartInstance) { budgetMensuelChartInstance.destroy(); budgetMensuelChartInstance = null; }
+
+  const { service, poste, domain, unit } = BUDGET_MENSUEL_TBB_STATE;
+  const isNational = service === 'national';
+  const idsToScan = isNational
+    ? (STATE_budgetMensuelTable ? [...new Set(STATE_budgetMensuelTable.Structure)] : [])
+    : (() => {
+        const ids = [service];
+        const sIdx = STATE_structuresTable ? STATE_structuresTable.id.indexOf(service) : -1;
+        if (sIdx !== -1 && STATE_structuresTable.Type[sIdx] === 'DI') ids.push(...getDRRattacheesTBB(service));
+        return ids;
+      })();
+
+  const hist = isNational ? getBudgetMensuelHistoriqueNational() : getBudgetMensuelHistoriquePourService(service);
+  const posteKey = poste.toUpperCase();
+  const series = hist && hist[domain] ? hist[domain][posteKey] : null;
+  let annees = series ? Object.keys(series).sort() : [];
+
+  const dotByAnnee = {};
+  annees.forEach(annee => {
+    const dotReelle = getDotationPourPerimetre(idsToScan, poste, domain, Number(annee));
+    if (dotReelle) {
+      dotByAnnee[annee] = { value: dotReelle, estime: false };
+    } else {
+      const totalDecembre = series[annee][11];
+      dotByAnnee[annee] = totalDecembre != null ? { value: totalDecembre, estime: true } : null;
+    }
+  });
+  if (unit === 'pct') {
+    annees = annees.filter(annee => dotByAnnee[annee]);
+  }
+
+  if (!annees.length) {
+    if (wrapper) wrapper.style.display = 'none';
+    if (emptyMsg) {
+      emptyMsg.style.display = 'block';
+      emptyMsg.textContent = unit === 'pct'
+        ? '⚠️ Aucune dotation (réelle ou estimée) disponible pour calculer un taux sur cette période'
+        : '⚠️ Aucun historique mensuel disponible pour ce périmètre';
+    }
+    return;
+  }
+  if (wrapper) wrapper.style.display = '';
+  if (emptyMsg) emptyMsg.style.display = 'none';
+
+  const anneeMaxAffichee = annees[annees.length - 1];
+  const auMoinsUneEstimee = unit === 'pct' && annees.some(a => dotByAnnee[a].estime);
+  const footnote = document.getElementById('budget-mensuel-tbb-footnote');
+  if (footnote) footnote.style.display = auMoinsUneEstimee ? 'block' : 'none';
+
+  const datasets = annees.map((annee, idx) => {
+    const color = budgetMensuelYearColorTBB(idx, annees.length);
+    const isLast = idx === annees.length - 1;
+    const rawSerie = series[annee];
+    const data = unit === 'pct'
+      ? rawSerie.map(v => v != null ? Math.round((v / dotByAnnee[annee].value) * 1000) / 10 : null)
+      : rawSerie;
+    const label = (unit === 'pct' && dotByAnnee[annee].estime) ? `${annee} *` : annee;
+    return {
+      label, data,
+      borderColor: color, backgroundColor: color,
+      borderWidth: isLast ? 3 : 1.5,
+      borderDash: isLast ? [] : [4, 3],
+      pointRadius: 0, pointHoverRadius: 4,
+      tension: 0.25, spanGaps: false
+    };
+  });
+
+  if (unit === 'pct') {
+    datasets.push({
+      label: 'Cible (100 %)', data: Array(12).fill(100),
+      borderColor: '#C0392B', borderWidth: 2, borderDash: [2, 3], pointRadius: 0, tension: 0
+    });
+  } else {
+    const dot = dotByAnnee[anneeMaxAffichee];
+    if (dot && !dot.estime) {
+      datasets.push({
+        label: `Cible ${anneeMaxAffichee}`, data: Array(12).fill(Math.round(dot.value)),
+        borderColor: '#C0392B', borderWidth: 2, borderDash: [2, 3], pointRadius: 0, tension: 0
+      });
+    }
+  }
+
+  const fmtVal = v => v == null ? '—' : (unit === 'pct' ? v.toFixed(1) + ' %' : fmtEuro(v));
+
+  budgetMensuelChartInstance = new Chart(canvas, {
+    type: 'line',
+    data: { labels: MOIS_LABELS_TBB, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label} : ${fmtVal(ctx.parsed.y)}` } }
+      },
+      scales: {
+        y: {
+          min: 0,
+          ticks: { callback: v => unit === 'pct' ? v + ' %' : fmtEuroK(v), color: '#8A9BAA', font: { size: 11 } },
+          grid: { color: '#e1e0d9' }
+        },
+        x: { ticks: { color: '#8A9BAA', font: { size: 11 }, autoSkip: false }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function setBudgetMensuelTBB(key, value) {
+  BUDGET_MENSUEL_TBB_STATE[key] = value;
+
+  if (key === 'poste') {
+    const btnAE = document.getElementById('budget-mensuel-tbb-btn-ae');
+    const btnCP = document.getElementById('budget-mensuel-tbb-btn-cp');
+    if (btnAE && btnCP) {
+      btnAE.style.background = value === 'ae' ? 'var(--rep)' : 'transparent';
+      btnAE.style.color = value === 'ae' ? '#fff' : 'var(--gris2)';
+      btnCP.style.background = value === 'cp' ? 'var(--rep)' : 'transparent';
+      btnCP.style.color = value === 'cp' ? '#fff' : 'var(--gris2)';
+    }
+  }
+  if (key === 'unit') {
+    const btnEur = document.getElementById('budget-mensuel-tbb-btn-eur');
+    const btnPct = document.getElementById('budget-mensuel-tbb-btn-pct');
+    if (btnEur && btnPct) {
+      btnEur.style.background = value === 'eur' ? 'var(--rep)' : 'transparent';
+      btnEur.style.color = value === 'eur' ? '#fff' : 'var(--gris2)';
+      btnPct.style.background = value === 'pct' ? 'var(--rep)' : 'transparent';
+      btnPct.style.color = value === 'pct' ? '#fff' : 'var(--gris2)';
+    }
+  }
+
+  renderBudgetMensuelDashboardChart();
+}
+
 function computeGroups() {
   // Filtrer
   let cards = allCards.filter(c => filterActive === 'all' || typeLabel(c.typeAff) === filterActive);
@@ -1169,11 +1481,15 @@ async function init() {
     // dans "Sélectionner par" des autres widgets liés à Structures
     grist.ready({ requiredAccess: 'read table' });
 
-    const [budgetTable, structuresTable, consolidationTable] = await Promise.all([
+    const [budgetTable, structuresTable, consolidationTable, budgetMensuelTable] = await Promise.all([
       grist.docApi.fetchTable('Budget').catch(() => null),
       grist.docApi.fetchTable('Structures').catch(() => null),
       grist.docApi.fetchTable('Consolidation').catch(() => null),
+      grist.docApi.fetchTable('Budget_Mensuel').catch(() => null),
     ]);
+    STATE_structuresTable = structuresTable;
+    STATE_budgetTable = budgetTable;
+    STATE_budgetMensuelTable = budgetMensuelTable;
 
     if (!structuresTable) throw new Error('Table Structures non accessible.');
     if (!budgetTable)     throw new Error('Table Budget non accessible.');
@@ -1314,6 +1630,9 @@ async function init() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
     render();
+
+    populateServiceSelector();
+    renderBudgetMensuelDashboardChart();
 
   } catch (e) {
     document.getElementById('loading').style.display = 'none';
