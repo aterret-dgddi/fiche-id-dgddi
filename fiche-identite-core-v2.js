@@ -261,7 +261,7 @@ async function loadAllData() {
     showLoader('Chargement des données...');
     
     // Charger toutes les tables en parallèle
-    const [structures, rh, vehicules, frais_mission, informatique, communication, fonctionnement, budget, consolidation, consolidation_structure, commentaires, immobilier] = await Promise.all([
+    const [structures, rh, vehicules, frais_mission, informatique, communication, fonctionnement, budget, budget_mensuel, consolidation, consolidation_structure, commentaires, immobilier] = await Promise.all([
       grist.docApi.fetchTable('Structures'),
       grist.docApi.fetchTable('RH'),
       grist.docApi.fetchTable('Vehicules'),
@@ -270,6 +270,7 @@ async function loadAllData() {
       grist.docApi.fetchTable('Communication').catch(() => null),
       grist.docApi.fetchTable('Fonctionnement').catch(() => null),
       grist.docApi.fetchTable('Budget').catch(() => null),
+      grist.docApi.fetchTable('Budget_Mensuel').catch(() => null),
       grist.docApi.fetchTable('Consolidation').catch(() => null),
       grist.docApi.fetchTable('Consolidation_Structure').catch(() => null),
       grist.docApi.fetchTable('Commentaires').catch(() => null),
@@ -284,6 +285,7 @@ async function loadAllData() {
     FICHE_STATE.data.communication = communication;
     FICHE_STATE.data.fonctionnement = fonctionnement;
     FICHE_STATE.data.budget = budget;
+    FICHE_STATE.data.budget_mensuel = budget_mensuel;
     FICHE_STATE.data.consolidation = consolidation;
     FICHE_STATE.data.consolidation_structure = consolidation_structure;
     FICHE_STATE.data.commentaires = commentaires;
@@ -775,6 +777,74 @@ function getBudgetHistorique(structureId) {
     const d = getBudgetData(structureId, annee);
     if (d) result[annee] = d;
   });
+  return result;
+}
+
+/**
+ * Retourne la progression mensuelle cumulée AE/CP (Budget_Mensuel), par domaine.
+ * Les lignes de Budget_Mensuel sont des DELTAS mensuels (pas des cumuls) : on
+ * reconstitue le cumulé mois par mois. Un mois non importé est prolongé à plat
+ * (dernière valeur cumulée connue) plutôt que de créer un trou dans la courbe.
+ *
+ * Retour : { global: {AE:{'2022':[12 valeurs...], ...}, CP:{...}},
+ *            fonctionnement: {...}, vehicules: {...}, immo: {...} }
+ * (valeur = null tant qu'aucune donnée n'a encore été vue pour cette année)
+ */
+function getBudgetMensuelHistorique(structureId) {
+  const bm = FICHE_STATE.data.budget_mensuel;
+  if (!bm || !bm.id) return null;
+
+  // Périmètre : structure + DR rattachées si DI (même logique que getBudgetHistorique)
+  const idsToScan = [structureId];
+  const structures = FICHE_STATE.data.structures;
+  if (structures) {
+    const sIdx = structures.id.indexOf(structureId);
+    if (sIdx !== -1 && structures.Type[sIdx] === 'DI') {
+      idsToScan.push(...getDRRattachees(structureId));
+    }
+  }
+
+  const POSTES = ['vehicules', 'fonctionnement', 'T6', 'Immo'];
+
+  // 1. Sommer les deltas mensuels par (année, mois) sur le périmètre
+  const buckets = {};
+  bm.id.forEach((id, i) => {
+    if (!idsToScan.includes(bm.Structure[i])) return;
+    const annee = bm.Annee[i], mois = bm.Mois[i];
+    if (!annee || !mois) return;
+    buckets[annee] = buckets[annee] || {};
+    buckets[annee][mois] = buckets[annee][mois] || { AE: {}, CP: {} };
+    POSTES.forEach(p => {
+      buckets[annee][mois].AE[p] = (buckets[annee][mois].AE[p] || 0) + (Number(bm[`Conso_AE_${p}`]?.[i]) || 0);
+      buckets[annee][mois].CP[p] = (buckets[annee][mois].CP[p] || 0) + (Number(bm[`Conso_CP_${p}`]?.[i]) || 0);
+    });
+  });
+
+  // 2. Courbes cumulées par domaine / poste (AE, CP) / année
+  const domaines = { global: POSTES, fonctionnement: ['fonctionnement'], vehicules: ['vehicules'], immo: ['Immo'] };
+  const result = {};
+
+  Object.keys(domaines).forEach(dom => {
+    const postesDom = domaines[dom];
+    result[dom] = { AE: {}, CP: {} };
+    Object.keys(buckets).sort().forEach(annee => {
+      const moisData = buckets[annee];
+      ['AE', 'CP'].forEach(poste => {
+        const serie = Array(12).fill(null);
+        let cumul = 0, dernierConnu = null;
+        for (let m = 1; m <= 12; m++) {
+          if (!moisData[m]) {
+            serie[m - 1] = dernierConnu; // mois non importé -> palier plat
+            continue;
+          }
+          cumul += postesDom.reduce((s, p) => s + (moisData[m][poste][p] || 0), 0);
+          serie[m - 1] = dernierConnu = Math.round(cumul);
+        }
+        result[dom][poste][annee] = serie;
+      });
+    });
+  });
+
   return result;
 }
 
@@ -3175,6 +3245,12 @@ function refreshBudget(structureId, annee) {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '';
     });
+    const cMensuel = Chart.getChart('chart-budget-mensuel');
+    if (cMensuel) cMensuel.destroy();
+    const wrapMensuel = document.getElementById('budget-mensuel-wrapper');
+    const emptyMensuel = document.getElementById('budget-mensuel-empty');
+    if (wrapMensuel) wrapMensuel.style.display = 'none';
+    if (emptyMensuel) emptyMensuel.style.display = 'block';
     const tbody = document.getElementById('budget-types-tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée budgétaire disponible pour ' + annee + '</td></tr>';
     initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
@@ -3226,6 +3302,9 @@ function refreshBudget(structureId, annee) {
 
   // ── Araignée budgétaire CP ────────────────────────────────
   createBudgetRadarCP(dataN, moyNational);
+
+  // ── Progression mensuelle de la consommation ──────────────
+  createBudgetMensuelChart(structureId);
 
   // ── Tableau par catégorie ─────────────────────────────────
   createBudgetTable(dataN, moyPerimetre, libPerimetre, annee);
@@ -3409,6 +3488,130 @@ function createBudgetRadarCP(data, moyNat) {
   createBudgetRadar('chart-budget-radar-cp', 'cp', data, moyNat);
   const el = document.getElementById('budget-radar-cp-kpis');
   if (el) el.innerHTML = buildBudgetRadarKPIs('cp', data, moyNat);
+}
+
+// ── Progression mensuelle de la consommation (Budget_Mensuel) ────────────────
+
+const BUDGET_MENSUEL_STATE = { poste: 'ae', domain: 'global' };
+const MOIS_LABELS_COURT = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+
+function setBudgetMensuelPoste(poste) {
+  BUDGET_MENSUEL_STATE.poste = poste;
+  const btnAE = document.getElementById('budget-mensuel-btn-ae');
+  const btnCP = document.getElementById('budget-mensuel-btn-cp');
+  if (btnAE && btnCP) {
+    btnAE.style.background = poste === 'ae' ? 'var(--rep)' : 'transparent';
+    btnAE.style.color = poste === 'ae' ? '#fff' : 'var(--gris2)';
+    btnCP.style.background = poste === 'cp' ? 'var(--rep)' : 'transparent';
+    btnCP.style.color = poste === 'cp' ? '#fff' : 'var(--gris2)';
+  }
+  if (FICHE_STATE.structure) createBudgetMensuelChart(FICHE_STATE.structure.id);
+}
+
+function setBudgetMensuelDomain(domain) {
+  BUDGET_MENSUEL_STATE.domain = domain;
+  if (FICHE_STATE.structure) createBudgetMensuelChart(FICHE_STATE.structure.id);
+}
+
+/**
+ * Graphique de progression mensuelle cumulée (€), une courbe par année.
+ * Année la plus récente en trait plein foncé, année précédente en bleu moyen,
+ * années plus anciennes en gris — émulation de l'emphase visuelle, cf. maquette
+ * validée avec Antoine. Ligne pointillée verte = dotation notifiée de l'année
+ * la plus récente (seule dotation connue, cf. Budget_Mensuel sans colonnes dot_*).
+ */
+function createBudgetMensuelChart(structureId) {
+  const canvas = document.getElementById('chart-budget-mensuel');
+  const wrapper = document.getElementById('budget-mensuel-wrapper');
+  const emptyMsg = document.getElementById('budget-mensuel-empty');
+  if (!canvas) return;
+
+  const existing = Chart.getChart('chart-budget-mensuel');
+  if (existing) existing.destroy();
+
+  const hist = getBudgetMensuelHistorique(structureId);
+  const domain = BUDGET_MENSUEL_STATE.domain;
+  const posteKey = BUDGET_MENSUEL_STATE.poste.toUpperCase(); // 'AE' | 'CP'
+  const series = hist && hist[domain] ? hist[domain][posteKey] : null;
+  const annees = series ? Object.keys(series).sort() : [];
+
+  if (!annees.length) {
+    if (wrapper) wrapper.style.display = 'none';
+    if (emptyMsg) emptyMsg.style.display = 'block';
+    return;
+  }
+  if (wrapper) wrapper.style.display = '';
+  if (emptyMsg) emptyMsg.style.display = 'none';
+
+  const anneeMax  = annees[annees.length - 1];
+  const anneeMax1 = annees.length > 1 ? annees[annees.length - 2] : null;
+
+  const datasets = annees.map(annee => {
+    let color = '#B4B2A9', width = 1.5, dash = [4, 3];
+    if (annee === anneeMax)       { color = '#002F6C'; width = 3; dash = []; }
+    else if (annee === anneeMax1) { color = '#1351A8'; width = 2; dash = [4, 3]; }
+    return {
+      label: annee,
+      data: series[annee],
+      borderColor: color,
+      backgroundColor: color,
+      borderWidth: width,
+      borderDash: dash,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      tension: 0.25,
+      spanGaps: false
+    };
+  });
+
+  // Ligne de référence : dotation de l'année la plus récente, si connue dans Budget
+  const dataDot = getBudgetData(structureId, Number(anneeMax));
+  if (dataDot) {
+    const dotKey = domain === 'global'
+      ? `dot_${BUDGET_MENSUEL_STATE.poste}_total`
+      : `dot_${BUDGET_MENSUEL_STATE.poste}_${domain}`;
+    const dotVal = dataDot[dotKey];
+    if (dotVal) {
+      datasets.push({
+        label: `Dotation notifiée ${anneeMax}`,
+        data: Array(12).fill(Math.round(dotVal)),
+        borderColor: '#1A6B3C',
+        borderWidth: 2,
+        borderDash: [2, 3],
+        pointRadius: 0,
+        tension: 0
+      });
+    }
+  }
+
+  new Chart(canvas, {
+    type: 'line',
+    data: { labels: MOIS_LABELS_COURT, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label} : ${ctx.parsed.y != null ? formatCurrency(ctx.parsed.y, 0) : '—'}`
+          }
+        }
+      },
+      scales: {
+        y: {
+          min: 0,
+          ticks: { callback: v => formatCurrency(v, 0), color: '#8A9BAA', font: { size: 11 } },
+          grid: { color: '#e1e0d9' }
+        },
+        x: {
+          ticks: { color: '#8A9BAA', font: { size: 11 }, autoSkip: false },
+          grid: { display: false }
+        }
+      }
+    }
+  });
 }
 
 function createBudgetTable(data, moy, libPerimetre, annee) {

@@ -395,6 +395,81 @@
       font-size: 13px;
     }
 
+    /* Légende compacte des couleurs (icône ⓘ + popover au survol) */
+    .pills-legend-info {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--gris4);
+      color: var(--gris3);
+      font-size: 10px;
+      font-style: italic;
+      font-weight: 700;
+      cursor: help;
+      flex-shrink: 0;
+      position: relative;
+      margin-left: 2px;
+    }
+    .pills-legend-info:hover,
+    .pills-legend-info:focus-visible {
+      background: var(--rep-pale);
+      color: var(--rep);
+      outline: none;
+    }
+    .pills-legend-popover {
+      display: none;
+      position: absolute;
+      top: 130%;
+      left: 0;
+      background: #fff;
+      border: 1px solid var(--bord);
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      font-style: normal;
+      color: var(--gris1);
+      white-space: nowrap;
+      z-index: 50;
+      cursor: default;
+    }
+    .pills-legend-info:hover .pills-legend-popover,
+    .pills-legend-info:focus-visible .pills-legend-popover {
+      display: block;
+    }
+    .pills-legend-popover-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 0;
+    }
+
+    /* Légende imprimée : invisible à l'écran, révélée uniquement lors de la
+       capture PDF (voir _h2cOnClone dans fiche-identite-core-v2.js) car les
+       popovers CSS :hover ne sont jamais déclenchés par html2canvas. */
+    .pills-legend-print {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--bord);
+      font-size: 10px;
+      color: var(--gris3);
+      font-weight: 500;
+    }
+    .pills-legend-print-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
     /* ══════════════════════════════════ */
     /* NAVIGATION RAPIDE */
     /* ══════════════════════════════════ */
@@ -1207,9 +1282,23 @@
       </div>
       <div class="comment-pills-wrapper">
         <span class="comment-pills-label">Sujets :</span>
+        <span class="pills-legend-info" tabindex="0" aria-label="Légende des couleurs des sujets">i
+          <span class="pills-legend-popover">
+            <div class="pills-legend-popover-row"><span class="comment-pill-icon">🔴</span> Urgent</div>
+            <div class="pills-legend-popover-row"><span class="comment-pill-icon">🟠</span> Important</div>
+            <div class="pills-legend-popover-row"><span class="comment-pill-icon">🔵</span> À surveiller</div>
+            <div class="pills-legend-popover-row"><span class="comment-pill-icon">🟢</span> Opportunité</div>
+          </span>
+        </span>
         <div class="comment-pills" id="comment-pills">
           <!-- Pills chargées dynamiquement -->
         </div>
+      </div>
+      <div class="pills-legend-print" id="pills-legend-print">
+        <span class="pills-legend-print-item"><span class="comment-pill-icon">🔴</span>Urgent</span>
+        <span class="pills-legend-print-item"><span class="comment-pill-icon">🟠</span>Important</span>
+        <span class="pills-legend-print-item"><span class="comment-pill-icon">🔵</span>À surveiller</span>
+        <span class="pills-legend-print-item"><span class="comment-pill-icon">🟢</span>Opportunité</span>
       </div>
       <div class="comment-description" id="comment-description">
         [Description générale de la structure - sera chargée dynamiquement]
@@ -1275,6 +1364,29 @@
     </div>
     <div id="budget-radar-cp-kpis"></div>
     </div>
+    </div>
+
+    <!-- Progression mensuelle de la consommation -->
+    <div class="chart-container" style="margin-top:20px;">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;">
+    <div class="chart-title" style="margin:0;">Progression mensuelle de la consommation</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
+    <button id="budget-mensuel-btn-ae" onclick="setBudgetMensuelPoste('ae')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">AE</button>
+    <button id="budget-mensuel-btn-cp" onclick="setBudgetMensuelPoste('cp')" style="border:none;background:transparent;color:var(--gris2);padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">CP</button>
+    </div>
+    <select id="budget-mensuel-domain" onchange="setBudgetMensuelDomain(this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord);border-radius:5px;font-family:'Marianne',sans-serif;">
+    <option value="global">Tous domaines</option>
+    <option value="fonctionnement">Fonctionnement</option>
+    <option value="vehicules">Parc automobile</option>
+    <option value="immo">Immobilier</option>
+    </select>
+    </div>
+    </div>
+    <div id="budget-mensuel-wrapper" class="chart-wrapper" style="position:relative;height:260px;">
+    <canvas id="chart-budget-mensuel"></canvas>
+    </div>
+    <div id="budget-mensuel-empty" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
     </div>
 
     <!-- Tableau par catégorie -->
@@ -2388,15 +2500,22 @@
     function createPill(category, text) {
       const pill = document.createElement('span');
       pill.className = `comment-pill ${category}`;
-      
-      // Icônes selon la catégorie
+
+      // Icônes + libellés selon la catégorie
       const icons = {
         'urgent': '🔴',
         'important': '🟠',
         'watch': '🔵',
         'opportunity': '🟢'
       };
-      
+      const labels = {
+        'urgent': 'Urgent',
+        'important': 'Important',
+        'watch': 'À surveiller',
+        'opportunity': 'Opportunité'
+      };
+      pill.title = labels[category] || '';
+
       const icon = document.createElement('span');
       icon.className = 'comment-pill-icon';
       icon.textContent = icons[category] || '●';
