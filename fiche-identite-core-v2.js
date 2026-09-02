@@ -782,11 +782,12 @@ function getBudgetHistorique(structureId) {
 
 /**
  * Retourne la progression mensuelle cumulée AE/CP (Budget_Mensuel), par domaine.
- * Les lignes de Budget_Mensuel sont des DELTAS mensuels (pas des cumuls) : on
- * reconstitue le cumulé mois par mois. Dès qu'un mois n'a pas été importé, la
- * courbe s'arrête (valeurs null au-delà) plutôt que de prolonger à plat — un
- * arrêt franc est plus honnête qu'un palier qui laisserait croire à une pause
- * de consommation.
+ * Lit directement les colonnes Cumul_* précalculées côté Grist (une ligne =
+ * cumul de la structure pour ce mois) et les somme sur le périmètre (structure
+ * + DR rattachées si DI). Dès qu'aucune ligne n'existe pour un mois donné sur
+ * le périmètre, la courbe s'arrête (valeurs null au-delà) plutôt que de
+ * prolonger à plat — un arrêt franc est plus honnête qu'un palier qui
+ * laisserait croire à une pause de consommation.
  *
  * Retour : { global: {AE:{'2022':[12 valeurs...], ...}, CP:{...}},
  *            fonctionnement: {...}, vehicules: {...}, immo: {...} }
@@ -806,38 +807,37 @@ function getBudgetMensuelHistorique(structureId) {
     }
   }
 
-  const POSTES = ['vehicules', 'fonctionnement', 'T6', 'Immo'];
+  // Colonne Cumul_* à lire par domaine / poste (AE, CP)
+  const CUMUL_COL = {
+    global:         { AE: 'Cumul_AE_total',           CP: 'Cumul_CP_total' },
+    fonctionnement: { AE: 'Cumul_AE_fonctionnement',  CP: 'Cumul_CP_fonctionnement' },
+    vehicules:      { AE: 'Cumul_AE_vehicules',        CP: 'Cumul_CP_vehicules' },
+    immo:           { AE: 'Cumul_AE_Immo',             CP: 'Cumul_CP_Immo' }
+  };
 
-  // 1. Sommer les deltas mensuels par (année, mois) sur le périmètre
-  const buckets = {};
+  // Regrouper les lignes Budget_Mensuel du périmètre par (année, mois)
+  const rowsByAnneeMois = {};
   bm.id.forEach((id, i) => {
     if (!idsToScan.includes(bm.Structure[i])) return;
     const annee = bm.Annee[i], mois = bm.Mois[i];
     if (!annee || !mois) return;
-    buckets[annee] = buckets[annee] || {};
-    buckets[annee][mois] = buckets[annee][mois] || { AE: {}, CP: {} };
-    POSTES.forEach(p => {
-      buckets[annee][mois].AE[p] = (buckets[annee][mois].AE[p] || 0) + (Number(bm[`Conso_AE_${p}`]?.[i]) || 0);
-      buckets[annee][mois].CP[p] = (buckets[annee][mois].CP[p] || 0) + (Number(bm[`Conso_CP_${p}`]?.[i]) || 0);
-    });
+    rowsByAnneeMois[annee] = rowsByAnneeMois[annee] || {};
+    rowsByAnneeMois[annee][mois] = rowsByAnneeMois[annee][mois] || [];
+    rowsByAnneeMois[annee][mois].push(i);
   });
 
-  // 2. Courbes cumulées par domaine / poste (AE, CP) / année
-  const domaines = { global: POSTES, fonctionnement: ['fonctionnement'], vehicules: ['vehicules'], immo: ['Immo'] };
   const result = {};
-
-  Object.keys(domaines).forEach(dom => {
-    const postesDom = domaines[dom];
+  Object.keys(CUMUL_COL).forEach(dom => {
     result[dom] = { AE: {}, CP: {} };
-    Object.keys(buckets).sort().forEach(annee => {
-      const moisData = buckets[annee];
+    Object.keys(rowsByAnneeMois).sort().forEach(annee => {
+      const moisData = rowsByAnneeMois[annee];
       ['AE', 'CP'].forEach(poste => {
+        const col = CUMUL_COL[dom][poste];
         const serie = Array(12).fill(null);
-        let cumul = 0;
         for (let m = 1; m <= 12; m++) {
-          if (!moisData[m]) break; // pas de donnée au-delà -> la courbe s'arrête ici
-          cumul += postesDom.reduce((s, p) => s + (moisData[m][poste][p] || 0), 0);
-          serie[m - 1] = Math.round(cumul);
+          if (!moisData[m]) break; // aucune ligne pour ce mois sur le périmètre -> arrêt de la courbe
+          const total = moisData[m].reduce((s, i) => s + (Number(bm[col]?.[i]) || 0), 0);
+          serie[m - 1] = Math.round(total);
         }
         result[dom][poste][annee] = serie;
       });
@@ -3569,11 +3569,19 @@ function createBudgetMensuelChart(structureId) {
 
   const dotKey = domain === 'global' ? `dot_${poste}_total` : `dot_${poste}_${domain}`;
 
-  // En mode %, on ne garde que les années où la dotation est connue dans Budget
+  // Dotation par année : réelle si connue dans Budget (2026+), sinon estimée
+  // par la consommation totale de l'année (uniquement si le cumul va jusqu'à
+  // décembre, sinon on ne sait pas ce que sera le total -> pas de dénominateur).
   const dotByAnnee = {};
   annees.forEach(annee => {
     const d = getBudgetData(structureId, Number(annee));
-    dotByAnnee[annee] = d ? d[dotKey] : null;
+    const dotReelle = d ? d[dotKey] : null;
+    if (dotReelle) {
+      dotByAnnee[annee] = { value: dotReelle, estime: false };
+    } else {
+      const totalDecembre = series[annee][11]; // index 11 = décembre
+      dotByAnnee[annee] = totalDecembre != null ? { value: totalDecembre, estime: true } : null;
+    }
   });
   if (unit === 'pct') {
     annees = annees.filter(annee => dotByAnnee[annee]);
@@ -3583,24 +3591,30 @@ function createBudgetMensuelChart(structureId) {
     if (wrapper) wrapper.style.display = 'none';
     if (emptyMsg) emptyMsg.style.display = 'block';
     if (emptyMsg) emptyMsg.textContent = unit === 'pct'
-      ? '⚠️ Aucune dotation connue pour calculer un taux sur cette période'
+      ? '⚠️ Aucune dotation (réelle ou estimée) disponible pour calculer un taux sur cette période'
       : '⚠️ Aucun historique mensuel disponible pour cette structure';
+    const footnoteEmpty = document.getElementById('budget-mensuel-footnote');
+    if (footnoteEmpty) footnoteEmpty.style.display = 'none';
     return;
   }
   if (wrapper) wrapper.style.display = '';
   if (emptyMsg) emptyMsg.style.display = 'none';
 
   const anneeMaxAffichee = annees[annees.length - 1];
+  const auMoinsUneEstimee = unit === 'pct' && annees.some(a => dotByAnnee[a].estime);
+  const footnote = document.getElementById('budget-mensuel-footnote');
+  if (footnote) footnote.style.display = auMoinsUneEstimee ? 'block' : 'none';
 
   const datasets = annees.map((annee, idx) => {
     const color = budgetMensuelYearColor(idx, annees.length);
     const isLast = idx === annees.length - 1;
     const rawSerie = series[annee];
     const data = unit === 'pct'
-      ? rawSerie.map(v => v != null ? Math.round((v / dotByAnnee[annee]) * 1000) / 10 : null)
+      ? rawSerie.map(v => v != null ? Math.round((v / dotByAnnee[annee].value) * 1000) / 10 : null)
       : rawSerie;
+    const label = (unit === 'pct' && dotByAnnee[annee].estime) ? `${annee} *` : annee;
     return {
-      label: annee,
+      label,
       data,
       borderColor: color,
       backgroundColor: color,
@@ -3625,11 +3639,11 @@ function createBudgetMensuelChart(structureId) {
       tension: 0
     });
   } else {
-    const dotVal = dotByAnnee[anneeMaxAffichee];
-    if (dotVal) {
+    const dot = dotByAnnee[anneeMaxAffichee];
+    if (dot && !dot.estime) {
       datasets.push({
         label: `Cible ${anneeMaxAffichee}`,
-        data: Array(12).fill(Math.round(dotVal)),
+        data: Array(12).fill(Math.round(dot.value)),
         borderColor: '#B52020',
         borderWidth: 2,
         borderDash: [2, 3],
