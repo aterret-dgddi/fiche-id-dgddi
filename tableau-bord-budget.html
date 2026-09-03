@@ -1090,11 +1090,12 @@ function getBudgetMensuelHistoriqueNational() {
 function getDotationPourPerimetre(idsToScan, poste, domain, annee) {
   const budget = STATE_budgetTable;
   if (!budget || !budget.id) return null;
+  const P = poste.toUpperCase(); // 'AE' | 'CP' -- casse exacte des colonnes Budget
   const colMap = {
     global:         null,
-    fonctionnement: `dot_${poste}_fonctionnement`,
-    vehicules:      `dot_${poste}_vehicules`,
-    immo:           `dot_${poste}_Immo`
+    fonctionnement: `dot_${P}_fonctionnement`,
+    vehicules:      `dot_${P}_vehicules`,
+    immo:           `dot_${P}_Immo`
   };
   const idsSet = new Set(idsToScan);
   let total = 0, found = false;
@@ -1102,10 +1103,10 @@ function getDotationPourPerimetre(idsToScan, poste, domain, annee) {
     if (!idsSet.has(budget.Structure[i]) || budget.Annee[i] !== annee) return;
     found = true;
     if (domain === 'global') {
-      total += (Number(budget[`dot_${poste}_vehicules`]?.[i]) || 0)
-             + (Number(budget[`dot_${poste}_fonctionnement`]?.[i]) || 0)
-             + (Number(budget[`${poste === 'ae' ? 'Dot_AE_T6' : 'Dot_CP_T6'}`]?.[i]) || 0)
-             + (Number(budget[`dot_${poste}_Immo`]?.[i]) || 0);
+      total += (Number(budget[`dot_${P}_vehicules`]?.[i]) || 0)
+             + (Number(budget[`dot_${P}_fonctionnement`]?.[i]) || 0)
+             + (Number(budget[`Dot_${P}_T6`]?.[i]) || 0)
+             + (Number(budget[`dot_${P}_Immo`]?.[i]) || 0);
     } else {
       total += Number(budget[colMap[domain]]?.[i]) || 0;
     }
