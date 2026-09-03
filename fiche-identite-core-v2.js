@@ -3778,16 +3778,9 @@ function toIncrementalSerie(row) {
  * colonne par mois, valeur = cumul OU mensuel (deltas) selon le toggle
  * partagé, en € ou % selon le graphique au-dessus.
  */
-function renderBudgetMensuelTable(spec, unit, poste) {
-  const container = document.getElementById(`budget-mensuel-table-container-${poste}`);
-  if (!container) return;
-  _lastBudgetMensuelSpec[poste] = spec;
-  _lastBudgetMensuelUnit = unit;
-  if (!spec || !spec.hasData) {
-    container.innerHTML = '';
-    return;
-  }
-  const mode = BUDGET_MENSUEL_STATE.tableMode;
+/** Construit le HTML du tableau (pur), réutilisé par l'affichage interactif et l'export PDF. */
+function buildBudgetMensuelTableHTML(spec, unit, mode) {
+  if (!spec || !spec.hasData) return '';
   const fmt = v => v == null ? '—' : (unit === 'pct' ? v.toFixed(1) + ' %' : formatCurrency(v, 0));
   let html = '<table class="budget-mensuel-table"><thead><tr><th>Année</th>';
   MOIS_LABELS_COURT.forEach(m => { html += `<th>${m}</th>`; });
@@ -3805,7 +3798,15 @@ function renderBudgetMensuelTable(spec, unit, poste) {
     html += '</tr>';
   });
   html += '</tbody></table>';
-  container.innerHTML = html;
+  return html;
+}
+
+function renderBudgetMensuelTable(spec, unit, poste) {
+  const container = document.getElementById(`budget-mensuel-table-container-${poste}`);
+  if (!container) return;
+  _lastBudgetMensuelSpec[poste] = spec;
+  _lastBudgetMensuelUnit = unit;
+  container.innerHTML = buildBudgetMensuelTableHTML(spec, unit, BUDGET_MENSUEL_STATE.tableMode);
 }
 
 // ── Export PDF : bascule temporaire vers 8 graphiques détaillés par nature ──
@@ -3897,6 +3898,24 @@ async function _prepareBudgetMensuelExportMode(structureId) {
 
     row.appendChild(grid);
     exportDiv.appendChild(row);
+  });
+
+  // Tableaux détaillés (domaine global, cumulé, en €) — chacun est un enfant
+  // direct du bloc export pour être traité comme une unité atomique par le
+  // découpage PDF (jamais coupé en cours de ligne, cf. flattenForPDF).
+  ['ae', 'cp'].forEach(poste => {
+    const spec = computeBudgetMensuelChartSpec(structureId, 'global', poste, 'eur');
+    if (!spec.hasData) return;
+    const tableBlock = document.createElement('div');
+    tableBlock.style.marginBottom = '10px';
+    const tableTitle = document.createElement('div');
+    tableTitle.style.cssText = 'font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:4px;';
+    tableTitle.textContent = `Détail mensuel cumulé — ${poste.toUpperCase()}`;
+    tableBlock.appendChild(tableTitle);
+    const tableWrap = document.createElement('div');
+    tableWrap.innerHTML = buildBudgetMensuelTableHTML(spec, 'eur', 'cumule');
+    tableBlock.appendChild(tableWrap);
+    exportDiv.appendChild(tableBlock);
   });
 
   // Laisser Chart.js peindre avant la capture html2canvas
