@@ -1487,11 +1487,13 @@ async function exportPDF() {
           });
           blocks.push({ canvas: radarCanvas, h: radarCanvas.height * (colWidth / radarCanvas.width) });
 
-          // 2) Graphique d'exécution mensuelle (AE + CP, année en cours)
-          const chartPng = await renderExecutionChartPNG(card.id, colWidth);
-          if (chartPng) {
-            blocks.push({ dataUrl: chartPng.dataUrl, h: chartPng.height * (colWidth / chartPng.width) });
-          }
+          // 2) Graphiques de progression mensuelle multi-années (style widget), AE puis CP
+          const [pngAE, pngCP] = await Promise.all([
+            renderMensuelChartPNGForExport(card.id, 'ae'),
+            renderMensuelChartPNGForExport(card.id, 'cp'),
+          ]);
+          if (pngAE) blocks.push({ dataUrl: pngAE.dataUrl, h: pngAE.height * (colWidth / pngAE.width) });
+          if (pngCP) blocks.push({ dataUrl: pngCP.dataUrl, h: pngCP.height * (colWidth / pngCP.width) });
 
           // 3) Tableau budgétaire détaillé (par nature)
           const tableCanvas = await renderDetailTableImage(card.id, colWidth);
@@ -1553,54 +1555,10 @@ function makeOffscreenCanvasTBB(w, h) {
 const MOIS_LABELS_TBB_COURT = ['J','F','M','A','M','J','J','A','S','O','N','D'];
 
 /**
- * Graphique d'exécution mensuelle compact : AE et CP combinés sur l'année la
- * plus récente (domaine global, cumulé en €). Destiné à venir se glisser sous
- * chaque carte araignée dans la grille d'export PDF standard.
- */
-async function renderExecutionChartPNG(structureId, targetWidth) {
-  const hist = getBudgetMensuelHistoriquePourService(structureId);
-  const anneesAE = hist && hist.global ? Object.keys(hist.global.AE || {}).sort() : [];
-  if (!anneesAE.length) return null;
-  const anneeMax = anneesAE[anneesAE.length - 1];
-  const serieAE = hist.global.AE[anneeMax];
-  const serieCP = hist.global.CP[anneeMax];
-
-  const datasets = [
-    { label: `AE ${anneeMax}`, data: serieAE, borderColor: '#1351A8', backgroundColor: '#1351A8', borderWidth: 2, pointRadius: 0, tension: 0.25, spanGaps: false },
-    { label: `CP ${anneeMax}`, data: serieCP, borderColor: '#C0392B', backgroundColor: '#C0392B', borderWidth: 2, pointRadius: 0, tension: 0.25, spanGaps: false },
-  ];
-
-  const W = Math.round((targetWidth || 90) * 5.5), H = Math.round(W * 0.42);
-  const canvas = makeOffscreenCanvasTBB(W, H);
-  const chart = new Chart(canvas, {
-    type: 'line',
-    data: { labels: MOIS_LABELS_TBB_COURT, datasets },
-    options: {
-      responsive: false,
-      animation: false,
-      plugins: {
-        title: { display: true, text: `Exécution mensuelle ${anneeMax}`, font: { size: 11 }, color: '#444' },
-        legend: { display: true, position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } },
-      },
-      scales: {
-        y: { min: 0, ticks: { callback: v => fmtEuroK(v), color: '#8A9BAA', font: { size: 8 } }, grid: { color: '#e1e0d9' } },
-        x: { ticks: { color: '#8A9BAA', font: { size: 8 } }, grid: { display: false } }
-      }
-    }
-  });
-
-  await new Promise(r => setTimeout(r, 30));
-  const dataUrl = canvas.toDataURL('image/png');
-  chart.destroy();
-  canvas.remove();
-  return { dataUrl, width: W, height: H };
-}
-
-/**
  * Mini-tableau "consommation par nature" (5 lignes × AE/CP) construit comme
  * un vrai <table> HTML hors-écran, puis capturé en image via html2canvas —
  * pour s'intégrer dans le même flux d'images empilées que la carte araignée
- * et le graphique d'exécution.
+ * et les graphiques mensuels.
  */
 async function renderDetailTableImage(structureId, targetWidth) {
   const data = getDonneesTableauExport(structureId);
