@@ -1579,7 +1579,7 @@ async function renderMensuelChartPNGForExport(structureId, poste) {
     });
   }
 
-  const W = 420, H = 220;
+  const W = 700, H = 366;
   const canvas = makeOffscreenCanvasTBB(W, H);
   const chart = new Chart(canvas, {
     type: 'line',
@@ -1643,11 +1643,54 @@ function getDonneesTableauExport(structureId) {
 
   return {
     annee: anneeMax,
+    annees: anneesGlobal,
     mensuelAE: hist.global.AE?.[anneeMax] || [],
     mensuelCP: hist.global.CP?.[anneeMax] || [],
+    multiAnneeAE: hist.global.AE || {},
+    multiAnneeCP: hist.global.CP || {},
     parNature
   };
 }
+
+/**
+ * Dessine un tableau multi-années (Année + 12 mois) en texte natif jsPDF,
+ * pleine largeur. Retourne le y après le tableau.
+ */
+function pdfDrawMultiYearTable(pdf, x, y, width, title, annees, seriesByYear, accentColor) {
+  pdf.setFontSize(8);
+  pdf.setTextColor(90, 90, 90);
+  pdf.setFont(undefined, 'bold');
+  pdf.text(title, x, y);
+  pdf.setFont(undefined, 'normal');
+  y += 4.5;
+
+  const labelColW = width * 0.06;
+  const monthColW = (width - labelColW) / 12;
+
+  pdf.setFontSize(6.5);
+  pdf.setTextColor(120, 120, 120);
+  pdf.text('Année', x, y);
+  MOIS_LABELS_TBB_COURT.forEach((m, i) => { pdf.text(m, x + labelColW + i * monthColW, y); });
+  y += 1.5;
+  pdf.setDrawColor(210, 210, 210);
+  pdf.line(x, y, x + width, y);
+  y += 3.5;
+
+  annees.forEach((annee, idx) => {
+    const isLast = idx === annees.length - 1;
+    const serie = seriesByYear[annee] || [];
+    pdf.setFontSize(isLast ? 7.5 : 7);
+    pdf.setTextColor(...(isLast ? accentColor : [90, 90, 90]));
+    pdf.text(String(annee), x, y);
+    serie.forEach((v, i) => {
+      pdf.text(v != null ? fmtEuroK(v) : '—', x + labelColW + i * monthColW, y);
+    });
+    y += 4.3;
+  });
+
+  return y + 2;
+}
+
 
 async function exportPDFDetaille() {
   if (typeof window.jspdf === 'undefined') {
@@ -1669,133 +1712,131 @@ async function exportPDFDetaille() {
   try {
     const { jsPDF } = window.jspdf;
     const groups = computeGroups();
-    const totalCards = groups.reduce((acc, g) => acc + g.cards.length, 0);
+    const cardsToExport = groups.flatMap(g => g.cards.filter(c => c.hasData));
+    const totalCards = cardsToExport.length;
 
     const pdf = new jsPDF('l', 'mm', 'a4', { compress: true });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 10;
-    let y = margin;
-
-    pdf.setFontSize(14);
-    pdf.setTextColor(19, 81, 168);
-    pdf.text(`Détail budgétaire par service — ${ANNEE}`, margin, y + 4);
-    y += 8;
-    const now = new Date();
-    pdf.setFontSize(9);
-    pdf.setTextColor(120, 120, 120);
-    pdf.text(`Généré le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR').slice(0,5)}`, margin, y + 3);
-    y += 9;
-    pdf.setDrawColor(220, 220, 220);
-    pdf.line(margin, y, pageWidth - margin, y);
-    y += 4;
-
-    // Largeurs des 4 blocs : araignées | AE | CP | tableau
-    const colAraignee = 62, colAE = 68, colCP = 68, colTable = pageWidth - 2 * margin - colAraignee - colAE - colCP - 12;
-    const rowHeight = 54;
+    const usableWidth = pageWidth - 2 * margin;
 
     let doneCount = 0;
+    let isFirstPage = true;
 
-    for (const g of groups) {
-      if (g.title) {
-        if (y + 8 > pageHeight - margin) { pdf.addPage(); y = margin; }
-        pdf.setFontSize(11);
-        pdf.setTextColor(30, 30, 30);
-        pdf.text(`${g.title} (${g.cards.length})`, margin, y + 4);
-        y += 7;
-      }
+    for (const card of cardsToExport) {
+      doneCount++;
+      if (btn) btn.textContent = `⏳ ${doneCount}/${totalCards}...`;
 
-      for (const card of g.cards) {
-        doneCount++;
-        if (btn) btn.textContent = `⏳ ${doneCount}/${totalCards}...`;
-        if (!card.hasData) continue;
+      if (!isFirstPage) pdf.addPage();
+      isFirstPage = false;
+      let y = margin;
 
-        if (y + rowHeight > pageHeight - margin) { pdf.addPage(); y = margin; }
+      // ── En-tête de page : nom du service ──
+      pdf.setFontSize(15);
+      pdf.setTextColor(19, 81, 168);
+      pdf.setFont(undefined, 'bold');
+      pdf.text(card.sigle, margin, y + 5);
+      pdf.setFont(undefined, 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(120, 120, 120);
+      pdf.text(`${typeLabel(card.typeAff)} · ${ANNEE}`, margin, y + 10);
+      y += 14;
+      pdf.setDrawColor(220, 220, 220);
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 6;
 
-        let x = margin;
+      // ── Araignées AE / CP (canvas déjà rendus à l'écran, capture directe) ──
+      pdf.setFontSize(9);
+      pdf.setTextColor(60, 60, 60);
+      pdf.text('Araignée budgétaire', margin, y);
+      y += 4;
+      const radarSize = 42;
+      const canvasAE = document.getElementById(`radar-ae-${card.id}`);
+      const canvasCP = document.getElementById(`radar-cp-${card.id}`);
+      pdf.setFontSize(7.5);
+      pdf.setTextColor(90, 90, 90);
+      pdf.text('AE', margin, y + 3);
+      pdf.text('CP', margin + radarSize + 10, y + 3);
+      if (canvasAE) { try { pdf.addImage(canvasAE.toDataURL('image/png'), 'PNG', margin, y + 4, radarSize, radarSize); } catch(e) {} }
+      if (canvasCP) { try { pdf.addImage(canvasCP.toDataURL('image/png'), 'PNG', margin + radarSize + 10, y + 4, radarSize, radarSize); } catch(e) {} }
+      y += radarSize + 10;
 
-        // Nom du service
-        pdf.setFontSize(9);
-        pdf.setTextColor(30, 30, 30);
-        pdf.text(card.sigle, x, y + 4);
-
-        const blockY = y + 6;
-
-        // ── Araignées AE/CP (canvas déjà rendus à l'écran, capture directe) ──
-        const canvasAE = document.getElementById(`radar-ae-${card.id}`);
-        const canvasCP = document.getElementById(`radar-cp-${card.id}`);
-        const halfW = colAraignee / 2 - 1;
-        if (canvasAE) {
-          try { pdf.addImage(canvasAE.toDataURL('image/png'), 'PNG', x, blockY, halfW, halfW); } catch(e) {}
-        }
-        if (canvasCP) {
-          try { pdf.addImage(canvasCP.toDataURL('image/png'), 'PNG', x + halfW + 2, blockY, halfW, halfW); } catch(e) {}
-        }
-        x += colAraignee + 4;
-
-        // ── Graphique AE mensuel ──
-        const pngAE = await renderMensuelChartPNGForExport(card.id, 'ae');
-        if (pngAE) {
-          const h = colAE * (pngAE.height / pngAE.width);
-          pdf.addImage(pngAE.dataUrl, 'PNG', x, blockY, colAE, h);
-        } else {
-          pdf.setFontSize(7); pdf.setTextColor(160,160,160);
-          pdf.text('Aucun historique mensuel', x, blockY + 10);
-        }
-        x += colAE + 4;
-
-        // ── Graphique CP mensuel ──
-        const pngCP = await renderMensuelChartPNGForExport(card.id, 'cp');
-        if (pngCP) {
-          const h = colCP * (pngCP.height / pngCP.width);
-          pdf.addImage(pngCP.dataUrl, 'PNG', x, blockY, colCP, h);
-        } else {
-          pdf.setFontSize(7); pdf.setTextColor(160,160,160);
-          pdf.text('Aucun historique mensuel', x, blockY + 10);
-        }
-        x += colCP + 4;
-
-        // ── Tableau (conso par nature + conso mensuelle) ──
-        const data = getDonneesTableauExport(card.id);
-        if (data) {
-          let ty = blockY;
-          pdf.setFontSize(7);
-          pdf.setTextColor(90, 90, 90);
-          pdf.text(`Conso par nature (${data.annee}, cumul le plus récent) — AE / CP`, x, ty + 2);
-          ty += 5;
-          data.parNature.forEach(r => {
-            const isTotal = r.label === 'Total';
-            pdf.setTextColor(isTotal ? 30 : 90, isTotal ? 30 : 90, isTotal ? 30 : 90);
-            pdf.setFontSize(isTotal ? 7.5 : 7);
-            pdf.text(r.label, x, ty + 3);
-            pdf.text(fmtEuroK(r.ae), x + colTable * 0.55, ty + 3);
-            pdf.text(fmtEuroK(r.cp), x + colTable * 0.78, ty + 3);
-            ty += isTotal ? 4.5 : 4;
-          });
-          ty += 2;
-          pdf.setFontSize(7);
-          pdf.setTextColor(90, 90, 90);
-          pdf.text(`Conso mensuelle ${data.annee} — AE / CP`, x, ty + 2);
-          ty += 4.5;
-          const monthColW = colTable / 12;
-          pdf.setFontSize(5.5);
-          MOIS_LABELS_TBB_COURT.forEach((m, i) => { pdf.text(m, x + i * monthColW, ty); });
-          ty += 3;
-          pdf.setTextColor(19, 81, 168);
-          data.mensuelAE.forEach((v, i) => { pdf.text(v != null ? fmtEuroK(v) : '—', x + i * monthColW, ty); });
-          ty += 3;
-          pdf.setTextColor(192, 57, 43);
-          data.mensuelCP.forEach((v, i) => { pdf.text(v != null ? fmtEuroK(v) : '—', x + i * monthColW, ty); });
-        } else {
-          pdf.setFontSize(7); pdf.setTextColor(160,160,160);
-          pdf.text('Aucune donnée', x, blockY + 10);
-        }
-
-        y += rowHeight;
-        pdf.setDrawColor(235, 235, 235);
-        pdf.line(margin, y - 4, pageWidth - margin, y - 4);
-      }
+      // ── Graphiques mensuels AE / CP (côte à côte) ──
+      const chartW = (usableWidth - 8) / 2;
+      const [pngAE, pngCP] = await Promise.all([
+        renderMensuelChartPNGForExport(card.id, 'ae'),
+        renderMensuelChartPNGForExport(card.id, 'cp')
+      ]);
+      pdf.setFontSize(9);
+      pdf.setTextColor(60, 60, 60);
+      pdf.text('Progression mensuelle — AE', margin, y);
+      pdf.text('Progression mensuelle — CP', margin + chartW + 8, y);
       y += 3;
+      let chartBlockH = 0;
+      if (pngAE) {
+        const h = chartW * (pngAE.height / pngAE.width);
+        pdf.addImage(pngAE.dataUrl, 'PNG', margin, y, chartW, h);
+        chartBlockH = Math.max(chartBlockH, h);
+      } else {
+        pdf.setFontSize(7.5); pdf.setTextColor(160,160,160);
+        pdf.text('Aucun historique mensuel', margin, y + 10);
+      }
+      if (pngCP) {
+        const h = chartW * (pngCP.height / pngCP.width);
+        pdf.addImage(pngCP.dataUrl, 'PNG', margin + chartW + 8, y, chartW, h);
+        chartBlockH = Math.max(chartBlockH, h);
+      } else {
+        pdf.setFontSize(7.5); pdf.setTextColor(160,160,160);
+        pdf.text('Aucun historique mensuel', margin + chartW + 8, y + 10);
+      }
+      y += (chartBlockH || 40) + 8;
+
+      // ── Données ──
+      const data = getDonneesTableauExport(card.id);
+      if (data) {
+        // Conso par nature (cumul le plus récent, compact)
+        pdf.setFontSize(9);
+        pdf.setTextColor(60, 60, 60);
+        pdf.text(`Consommation par nature (${data.annee}, cumul le plus récent)`, margin, y);
+        y += 5;
+        const natColLabel = 55, natColVal = 35;
+        pdf.setFontSize(7);
+        pdf.setTextColor(120, 120, 120);
+        pdf.text('AE', margin + natColLabel, y);
+        pdf.text('CP', margin + natColLabel + natColVal, y);
+        y += 3.5;
+        pdf.setDrawColor(220, 220, 220);
+        pdf.line(margin, y, margin + natColLabel + 2 * natColVal, y);
+        y += 3.5;
+        data.parNature.forEach(r => {
+          const isTotal = r.label === 'Total';
+          pdf.setFont(undefined, isTotal ? 'bold' : 'normal');
+          pdf.setFontSize(isTotal ? 8 : 7.5);
+          pdf.setTextColor(isTotal ? 30 : 80, isTotal ? 30 : 80, isTotal ? 30 : 80);
+          pdf.text(r.label, margin, y);
+          pdf.text(fmtEuro(r.ae), margin + natColLabel, y);
+          pdf.text(fmtEuro(r.cp), margin + natColLabel + natColVal, y);
+          y += isTotal ? 5 : 4.3;
+        });
+        pdf.setFont(undefined, 'normal');
+        y += 6;
+
+        // Vérifier l'espace restant pour les deux grands tableaux
+        const neededForTables = 8 + (data.annees.length * 4.3 + 6) * 2;
+        if (y + neededForTables > pageHeight - margin) { pdf.addPage(); y = margin; }
+
+        y = pdfDrawMultiYearTable(pdf, margin, y, usableWidth, 'Détail mensuel cumulé — AE (€)', data.annees, data.multiAnneeAE, [19, 81, 168]);
+        y = pdfDrawMultiYearTable(pdf, margin, y, usableWidth, 'Détail mensuel cumulé — CP (€)', data.annees, data.multiAnneeCP, [192, 57, 43]);
+      } else {
+        pdf.setFontSize(8); pdf.setTextColor(160, 160, 160);
+        pdf.text('Aucune donnée de progression mensuelle disponible pour ce service.', margin, y);
+      }
+
+      // Pied de page
+      pdf.setFontSize(7);
+      pdf.setTextColor(160, 160, 160);
+      pdf.text(`${doneCount} / ${totalCards}`, pageWidth - margin - 15, pageHeight - 5);
     }
 
     pdf.save(`detail-budgetaire-services-${ANNEE}-${pdfTimestamp()}.pdf`);
