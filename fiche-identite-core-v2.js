@@ -1531,34 +1531,71 @@ function showError(message) {
  */
 function getFraisMissionData(structureId, annee) {
   const fraisMission = FICHE_STATE.data.frais_mission;
-  if (!fraisMission) return null;
-  
-  const idx = fraisMission.id.findIndex((id, i) => 
-    fraisMission.Structure[i] === structureId && 
-    fraisMission.Annee[i] === annee
+
+  // Priorite 1 : table Frais_Mission brute (donnees exactes de la structure)
+  if (fraisMission && fraisMission.id) {
+    const idx = fraisMission.id.findIndex((id, i) =>
+      fraisMission.Structure[i] === structureId &&
+      fraisMission.Annee[i] === annee
+    );
+    if (idx !== -1) {
+      return {
+        montant_total: fraisMission.Montant_Total?.[idx] || 0,
+        total_formation: fraisMission.Total_Formation?.[idx] || 0,
+        total_autres: fraisMission.Total_Autres?.[idx] || 0,
+        total_transport: fraisMission.Total_Transport?.[idx] || 0,
+        total_repas: fraisMission.Total_Repas?.[idx] || 0,
+        total_hebergement: fraisMission.Total_Hebergement?.[idx] || 0,
+        formation_transport: fraisMission.Formation_Transport?.[idx] || 0,
+        formation_repas: fraisMission.Formation_Repas?.[idx] || 0,
+        formation_hebergement: fraisMission.Formation_Hebergement?.[idx] || 0,
+        autres_transport: fraisMission.Autres_Transport?.[idx] || 0,
+        autres_repas: fraisMission.Autres_Repas?.[idx] || 0,
+        autres_hebergement: fraisMission.Autres_Hebergement?.[idx] || 0,
+        frais_par_agent: fraisMission.Frais_Par_Agent?.[idx] || 0,
+        formation_par_agent: fraisMission.Formation_Par_Agent?.[idx] || 0,
+        autres_par_agent: fraisMission.Autres_Par_Agent?.[idx] || 0,
+        pct_formation: fraisMission.Pct_Formation?.[idx] || 0,
+        pct_autres: fraisMission.Pct_Autres?.[idx] || 0
+      };
+    }
+  }
+
+  // Priorite 2 : Consolidation_Structure (DI sans ligne propre, ex: DI 972)
+  const consolData = getConsolidationStructureData(structureId, annee);
+  const hasFrais = consolData && (
+    consolData.montant_total > 0 ||
+    consolData.frais_transport > 0 ||
+    consolData.frais_hebergement > 0 ||
+    consolData.frais_repas > 0 ||
+    consolData.frais_formation > 0 ||
+    consolData.frais_autres_missions > 0
   );
-  
-  if (idx === -1) return null;
-  
-  return {
-    montant_total: fraisMission.Montant_Total?.[idx] || 0,
-    total_formation: fraisMission.Total_Formation?.[idx] || 0,
-    total_autres: fraisMission.Total_Autres?.[idx] || 0,
-    total_transport: fraisMission.Total_Transport?.[idx] || 0,
-    total_repas: fraisMission.Total_Repas?.[idx] || 0,
-    total_hebergement: fraisMission.Total_Hebergement?.[idx] || 0,
-    formation_transport: fraisMission.Formation_Transport?.[idx] || 0,
-    formation_repas: fraisMission.Formation_Repas?.[idx] || 0,
-    formation_hebergement: fraisMission.Formation_Hebergement?.[idx] || 0,
-    autres_transport: fraisMission.Autres_Transport?.[idx] || 0,
-    autres_repas: fraisMission.Autres_Repas?.[idx] || 0,
-    autres_hebergement: fraisMission.Autres_Hebergement?.[idx] || 0,
-    frais_par_agent: fraisMission.Frais_Par_Agent?.[idx] || 0,
-    formation_par_agent: fraisMission.Formation_Par_Agent?.[idx] || 0,
-    autres_par_agent: fraisMission.Autres_Par_Agent?.[idx] || 0,
-    pct_formation: fraisMission.Pct_Formation?.[idx] || 0,
-    pct_autres: fraisMission.Pct_Autres?.[idx] || 0
-  };
+  if (hasFrais) {
+    return {
+      montant_total: consolData.montant_total || 0,
+      total_formation: consolData.frais_formation || 0,
+      total_autres: consolData.frais_autres_missions || 0,
+      total_transport: consolData.frais_transport || 0,
+      total_repas: consolData.frais_repas || 0,
+      total_hebergement: consolData.frais_hebergement || 0,
+      // Détail Formation/Autres x Transport/Repas/Hebergement non disponible
+      // au niveau consolidé (Consolidation_Structure n'a que les totaux) :
+      formation_transport: 0,
+      formation_repas: 0,
+      formation_hebergement: 0,
+      autres_transport: 0,
+      autres_repas: 0,
+      autres_hebergement: 0,
+      frais_par_agent: consolData.frais_mission_par_agent || 0,
+      formation_par_agent: consolData.formation_par_agent || 0,
+      autres_par_agent: consolData.autres_par_agent || 0,
+      pct_formation: consolData.pct_formation || 0,
+      pct_autres: consolData.pct_autres_missions || 0
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -3244,12 +3281,19 @@ function refreshBudget(structureId, annee) {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '';
     });
-    const cMensuel = Chart.getChart('chart-budget-mensuel');
-    if (cMensuel) cMensuel.destroy();
-    const wrapMensuel = document.getElementById('budget-mensuel-wrapper');
-    const emptyMensuel = document.getElementById('budget-mensuel-empty');
-    if (wrapMensuel) wrapMensuel.style.display = 'none';
-    if (emptyMensuel) emptyMensuel.style.display = 'block';
+    ['ae', 'cp'].forEach(poste => {
+      const canvas = document.getElementById(`chart-budget-mensuel-${poste}`);
+      const c = canvas ? Chart.getChart(canvas) : null;
+      if (c) c.destroy();
+      const wrapMensuel = document.getElementById(`budget-mensuel-wrapper-${poste}`);
+      const emptyMensuel = document.getElementById(`budget-mensuel-empty-${poste}`);
+      if (wrapMensuel) wrapMensuel.style.display = 'none';
+      if (emptyMensuel) emptyMensuel.style.display = 'block';
+      const tableContainer = document.getElementById(`budget-mensuel-table-container-${poste}`);
+      if (tableContainer) tableContainer.innerHTML = '';
+    });
+    const tableToggle = document.getElementById('budget-mensuel-table-toggle');
+    if (tableToggle) tableToggle.style.display = 'none';
     const tbody = document.getElementById('budget-types-tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée budgétaire disponible pour ' + annee + '</td></tr>';
     initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
@@ -3491,7 +3535,7 @@ function createBudgetRadarCP(data, moyNat) {
 
 // ── Progression mensuelle de la consommation (Budget_Mensuel) ────────────────
 
-const BUDGET_MENSUEL_STATE = { poste: 'ae', domain: 'global', unit: 'eur', tableMode: 'cumule' };
+const BUDGET_MENSUEL_STATE = { domain: 'global', unit: 'eur', tableMode: 'cumule' };
 const MOIS_LABELS_COURT = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
 
 /**
@@ -3521,40 +3565,16 @@ function setBudgetMensuelUnit(unit) {
   if (FICHE_STATE.structure) createBudgetMensuelChart(FICHE_STATE.structure.id);
 }
 
-function setBudgetMensuelPoste(poste) {
-  BUDGET_MENSUEL_STATE.poste = poste;
-  const btnAE = document.getElementById('budget-mensuel-btn-ae');
-  const btnCP = document.getElementById('budget-mensuel-btn-cp');
-  if (btnAE && btnCP) {
-    btnAE.style.background = poste === 'ae' ? 'var(--rep)' : 'transparent';
-    btnAE.style.color = poste === 'ae' ? '#fff' : 'var(--gris2)';
-    btnCP.style.background = poste === 'cp' ? 'var(--rep)' : 'transparent';
-    btnCP.style.color = poste === 'cp' ? '#fff' : 'var(--gris2)';
-  }
-  if (FICHE_STATE.structure) createBudgetMensuelChart(FICHE_STATE.structure.id);
-}
-
 function setBudgetMensuelDomain(domain) {
   BUDGET_MENSUEL_STATE.domain = domain;
   if (FICHE_STATE.structure) createBudgetMensuelChart(FICHE_STATE.structure.id);
 }
 
 /**
- * Graphique de progression mensuelle cumulée, une courbe par année.
- * Dégradé de bleus (clair -> foncé, du plus ancien au plus récent), année la
- * plus récente en trait plein, les autres en pointillés. La courbe s'arrête
- * dès qu'il n'y a plus de données importées (pas de palier plat, cf. retour
- * terrain sur 2026 arrêté fin août).
- * Ligne rouge pointillée = cible (dotation notifiée) : en € c'est le montant
- * de dotation de l'année la plus récente ; en % c'est simplement la barre des
- * 100 %. En mode %, seules les années ayant une dotation connue dans `Budget`
- * sont affichées (2022-2025 n'en ont pas, cf. décision prise avec Antoine).
- */
-/**
  * Construit les datasets Chart.js (+ métadonnées) pour la progression
  * mensuelle d'un domaine/poste/unité donnés. Fonction pure, réutilisée par
- * le rendu interactif (createBudgetMensuelChart) et le rendu statique
- * utilisé à l'export PDF (renderBudgetMensuelChartOnCanvas).
+ * le rendu interactif (createBudgetMensuelChart, un appel par poste AE/CP)
+ * et le rendu statique utilisé à l'export PDF (renderBudgetMensuelChartOnCanvas).
  */
 function computeBudgetMensuelChartSpec(structureId, domain, poste, unit) {
   const hist = getBudgetMensuelHistorique(structureId);
@@ -3640,36 +3660,55 @@ function computeBudgetMensuelChartSpec(structureId, domain, poste, unit) {
   return { hasData: true, annees, series, dotByAnnee, anneeMaxAffichee, auMoinsUneEstimee, datasets };
 }
 
+/**
+ * Rend les DEUX graphiques (AE et CP) côte à côte pour une structure.
+ * Domaine et unité sont partagés (BUDGET_MENSUEL_STATE) ; chaque poste garde
+ * ses propres éléments DOM (suffixe -ae / -cp).
+ */
 function createBudgetMensuelChart(structureId) {
-  const canvas = document.getElementById('chart-budget-mensuel');
-  const wrapper = document.getElementById('budget-mensuel-wrapper');
-  const emptyMsg = document.getElementById('budget-mensuel-empty');
-  if (!canvas) return;
+  const anySpec = { ae: null, cp: null };
+  ['ae', 'cp'].forEach(poste => {
+    anySpec[poste] = renderBudgetMensuelSide(structureId, poste);
+  });
+  const toggle = document.getElementById('budget-mensuel-table-toggle');
+  if (toggle) {
+    const hasAny = (anySpec.ae && anySpec.ae.hasData) || (anySpec.cp && anySpec.cp.hasData);
+    toggle.style.display = hasAny ? '' : 'none';
+  }
+}
 
-  const existing = Chart.getChart('chart-budget-mensuel');
+/** Rend le graphique + tableau d'un seul poste (AE ou CP), retourne le spec calculé. */
+function renderBudgetMensuelSide(structureId, poste) {
+  const canvas = document.getElementById(`chart-budget-mensuel-${poste}`);
+  const wrapper = document.getElementById(`budget-mensuel-wrapper-${poste}`);
+  const emptyMsg = document.getElementById(`budget-mensuel-empty-${poste}`);
+  if (!canvas) return null;
+
+  const existing = Chart.getChart(canvas);
   if (existing) existing.destroy();
 
   const domain = BUDGET_MENSUEL_STATE.domain;
-  const poste = BUDGET_MENSUEL_STATE.poste; // 'ae' | 'cp'
-  const unit = BUDGET_MENSUEL_STATE.unit;   // 'eur' | 'pct'
+  const unit = BUDGET_MENSUEL_STATE.unit;
 
   const spec = computeBudgetMensuelChartSpec(structureId, domain, poste, unit);
 
   if (!spec.hasData) {
     if (wrapper) wrapper.style.display = 'none';
-    if (emptyMsg) emptyMsg.style.display = 'block';
-    if (emptyMsg) emptyMsg.textContent = unit === 'pct'
-      ? '⚠️ Aucune dotation (réelle ou estimée) disponible pour calculer un taux sur cette période'
-      : '⚠️ Aucun historique mensuel disponible pour cette structure';
-    const footnoteEmpty = document.getElementById('budget-mensuel-footnote');
+    if (emptyMsg) {
+      emptyMsg.style.display = 'block';
+      emptyMsg.textContent = unit === 'pct'
+        ? '⚠️ Aucune dotation (réelle ou estimée) disponible pour calculer un taux sur cette période'
+        : '⚠️ Aucun historique mensuel disponible pour cette structure';
+    }
+    const footnoteEmpty = document.getElementById(`budget-mensuel-footnote-${poste}`);
     if (footnoteEmpty) footnoteEmpty.style.display = 'none';
-    renderBudgetMensuelTable(null);
-    return;
+    renderBudgetMensuelTable(null, unit, poste);
+    return spec;
   }
   if (wrapper) wrapper.style.display = '';
   if (emptyMsg) emptyMsg.style.display = 'none';
 
-  const footnote = document.getElementById('budget-mensuel-footnote');
+  const footnote = document.getElementById(`budget-mensuel-footnote-${poste}`);
   if (footnote) footnote.style.display = spec.auMoinsUneEstimee ? 'block' : 'none';
 
   const fmtVal = v => v == null ? '—' : (unit === 'pct' ? v.toFixed(1) + ' %' : formatCurrency(v, 0));
@@ -3703,10 +3742,11 @@ function createBudgetMensuelChart(structureId) {
     }
   });
 
-  renderBudgetMensuelTable(spec, unit);
+  renderBudgetMensuelTable(spec, unit, poste);
+  return spec;
 }
 
-let _lastBudgetMensuelSpec = null;
+const _lastBudgetMensuelSpec = { ae: null, cp: null };
 let _lastBudgetMensuelUnit = 'eur';
 
 function setBudgetMensuelTableMode(mode) {
@@ -3719,7 +3759,9 @@ function setBudgetMensuelTableMode(mode) {
     btnMensuel.style.background = mode === 'mensuel' ? 'var(--rep)' : 'transparent';
     btnMensuel.style.color = mode === 'mensuel' ? '#fff' : 'var(--gris2)';
   }
-  renderBudgetMensuelTable(_lastBudgetMensuelSpec, _lastBudgetMensuelUnit);
+  ['ae', 'cp'].forEach(poste => {
+    renderBudgetMensuelTable(_lastBudgetMensuelSpec[poste], _lastBudgetMensuelUnit, poste);
+  });
 }
 
 /** Convertit une série cumulée en série de deltas mensuels (montant/point du mois seul). */
@@ -3732,23 +3774,19 @@ function toIncrementalSerie(row) {
 }
 
 /**
- * Tableau sous le graphique : une ligne par année, une colonne par mois,
- * valeur = cumul OU mensuel (deltas) selon le toggle, en € ou % selon le
- * graphique au-dessus. Reflète toujours la sélection AE/CP/domaine du
- * graphique ; le mode cumulé/mensuel est propre au tableau.
+ * Tableau sous le graphique d'un poste donné : une ligne par année, une
+ * colonne par mois, valeur = cumul OU mensuel (deltas) selon le toggle
+ * partagé, en € ou % selon le graphique au-dessus.
  */
-function renderBudgetMensuelTable(spec, unit) {
-  const container = document.getElementById('budget-mensuel-table-container');
-  const toggle = document.getElementById('budget-mensuel-table-toggle');
+function renderBudgetMensuelTable(spec, unit, poste) {
+  const container = document.getElementById(`budget-mensuel-table-container-${poste}`);
   if (!container) return;
-  _lastBudgetMensuelSpec = spec;
+  _lastBudgetMensuelSpec[poste] = spec;
   _lastBudgetMensuelUnit = unit;
   if (!spec || !spec.hasData) {
     container.innerHTML = '';
-    if (toggle) toggle.style.display = 'none';
     return;
   }
-  if (toggle) toggle.style.display = '';
   const mode = BUDGET_MENSUEL_STATE.tableMode;
   const fmt = v => v == null ? '—' : (unit === 'pct' ? v.toFixed(1) + ' %' : formatCurrency(v, 0));
   let html = '<table class="budget-mensuel-table"><thead><tr><th>Année</th>';

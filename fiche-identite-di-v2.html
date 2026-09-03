@@ -1379,10 +1379,6 @@
     <div class="chart-title" style="margin:0;">Progression mensuelle de la consommation</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
-    <button id="budget-mensuel-btn-ae" onclick="setBudgetMensuelPoste('ae')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">AE</button>
-    <button id="budget-mensuel-btn-cp" onclick="setBudgetMensuelPoste('cp')" style="border:none;background:transparent;color:var(--gris2);padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">CP</button>
-    </div>
-    <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
     <button id="budget-mensuel-btn-eur" onclick="setBudgetMensuelUnit('eur')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">€</button>
     <button id="budget-mensuel-btn-pct" onclick="setBudgetMensuelUnit('pct')" style="border:none;background:transparent;color:var(--gris2);padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">%</button>
     </div>
@@ -1394,18 +1390,40 @@
     </select>
     </div>
     </div>
-    <div id="budget-mensuel-wrapper" class="chart-wrapper" style="position:relative;height:260px;">
-    <canvas id="chart-budget-mensuel"></canvas>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:280px;">
+    <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">AE</div>
+    <div id="budget-mensuel-wrapper-ae" class="chart-wrapper" style="position:relative;height:240px;">
+    <canvas id="chart-budget-mensuel-ae"></canvas>
     </div>
-    <div id="budget-mensuel-empty" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
-    <div id="budget-mensuel-footnote" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
+    <div id="budget-mensuel-empty-ae" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
+    <div id="budget-mensuel-footnote-ae" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
+    </div>
+    <div style="flex:1;min-width:280px;">
+    <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">CP</div>
+    <div id="budget-mensuel-wrapper-cp" class="chart-wrapper" style="position:relative;height:240px;">
+    <canvas id="chart-budget-mensuel-cp"></canvas>
+    </div>
+    <div id="budget-mensuel-empty-cp" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
+    <div id="budget-mensuel-footnote-cp" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
+    </div>
+    </div>
     <div id="budget-mensuel-table-toggle" style="display:none;justify-content:flex-end;margin-top:14px;">
     <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
     <button id="budget-mensuel-table-btn-cumule" onclick="setBudgetMensuelTableMode('cumule')" style="border:none;background:var(--rep);color:#fff;padding:4px 10px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;">Cumulé</button>
     <button id="budget-mensuel-table-btn-mensuel" onclick="setBudgetMensuelTableMode('mensuel')" style="border:none;background:transparent;color:var(--gris2);padding:4px 10px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;">Mensuel</button>
     </div>
     </div>
-    <div id="budget-mensuel-table-container" style="margin-top:6px;overflow-x:auto;"></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;">
+    <div style="flex:1;min-width:280px;">
+    <div style="font-weight:600;font-size:11px;color:var(--gris3);margin-bottom:4px;">AE</div>
+    <div id="budget-mensuel-table-container-ae" style="overflow-x:auto;"></div>
+    </div>
+    <div style="flex:1;min-width:280px;">
+    <div style="font-weight:600;font-size:11px;color:var(--gris3);margin-bottom:4px;">CP</div>
+    <div id="budget-mensuel-table-container-cp" style="overflow-x:auto;"></div>
+    </div>
+    </div>
     </div>
     </div>
 

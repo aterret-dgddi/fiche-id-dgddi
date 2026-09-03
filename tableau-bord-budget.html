@@ -418,10 +418,6 @@
       <select id="budget-mensuel-service" onchange="setBudgetMensuelTBB('service', this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord);border-radius:5px;font-family:var(--font);min-width:180px;">
         <option value="national">🇫🇷 Consolidation nationale</option>
       </select>
-      <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
-        <button id="budget-mensuel-tbb-btn-ae" onclick="setBudgetMensuelTBB('poste','ae')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">AE</button>
-        <button id="budget-mensuel-tbb-btn-cp" onclick="setBudgetMensuelTBB('poste','cp')" style="border:none;background:transparent;color:var(--gris2);padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">CP</button>
-      </div>
       <select id="budget-mensuel-tbb-domain" onchange="setBudgetMensuelTBB('domain', this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord);border-radius:5px;font-family:var(--font);">
         <option value="global">Tous domaines</option>
         <option value="fonctionnement">Fonctionnement</option>
@@ -434,11 +430,24 @@
       </div>
     </div>
   </div>
-  <div id="budget-mensuel-tbb-wrapper" style="position:relative;height:280px;">
-    <canvas id="chart-budget-mensuel-tbb"></canvas>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:280px;">
+      <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">AE</div>
+      <div id="budget-mensuel-tbb-wrapper-ae" style="position:relative;height:260px;">
+        <canvas id="chart-budget-mensuel-tbb-ae"></canvas>
+      </div>
+      <div id="budget-mensuel-tbb-empty-ae" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+      <div id="budget-mensuel-tbb-footnote-ae" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
+    </div>
+    <div style="flex:1;min-width:280px;">
+      <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">CP</div>
+      <div id="budget-mensuel-tbb-wrapper-cp" style="position:relative;height:260px;">
+        <canvas id="chart-budget-mensuel-tbb-cp"></canvas>
+      </div>
+      <div id="budget-mensuel-tbb-empty-cp" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+      <div id="budget-mensuel-tbb-footnote-cp" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
+    </div>
   </div>
-  <div id="budget-mensuel-tbb-empty" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
-  <div id="budget-mensuel-tbb-footnote" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
 </div>
 
 <!-- Filtres type de structure -->
@@ -475,8 +484,8 @@ let STATE_structuresTable = null;
 let STATE_budgetTable = null;
 let STATE_budgetMensuelTable = null;
 let STATE_consolidationTable = null;
-const BUDGET_MENSUEL_TBB_STATE = { service: 'national', poste: 'ae', domain: 'global', unit: 'eur' };
-let budgetMensuelChartInstance = null;
+const BUDGET_MENSUEL_TBB_STATE = { service: 'national', domain: 'global', unit: 'eur' };
+let budgetMensuelChartInstance = { ae: null, cp: null };
 
 // ── Utilitaires ───────────────────────────────────────────────────────────────
 const pct = v => (v != null && !isNaN(v)) ? (v * 100).toFixed(1) + ' %' : '—';
@@ -1153,14 +1162,18 @@ function populateServiceSelector() {
 }
 
 function renderBudgetMensuelDashboardChart() {
-  const canvas = document.getElementById('chart-budget-mensuel-tbb');
-  const wrapper = document.getElementById('budget-mensuel-tbb-wrapper');
-  const emptyMsg = document.getElementById('budget-mensuel-tbb-empty');
+  ['ae', 'cp'].forEach(poste => renderBudgetMensuelDashboardSide(poste));
+}
+
+function renderBudgetMensuelDashboardSide(poste) {
+  const canvas = document.getElementById(`chart-budget-mensuel-tbb-${poste}`);
+  const wrapper = document.getElementById(`budget-mensuel-tbb-wrapper-${poste}`);
+  const emptyMsg = document.getElementById(`budget-mensuel-tbb-empty-${poste}`);
   if (!canvas) return;
 
-  if (budgetMensuelChartInstance) { budgetMensuelChartInstance.destroy(); budgetMensuelChartInstance = null; }
+  if (budgetMensuelChartInstance[poste]) { budgetMensuelChartInstance[poste].destroy(); budgetMensuelChartInstance[poste] = null; }
 
-  const { service, poste, domain, unit } = BUDGET_MENSUEL_TBB_STATE;
+  const { service, domain, unit } = BUDGET_MENSUEL_TBB_STATE;
   const isNational = service === 'national';
   const idsToScan = isNational
     ? (STATE_budgetMensuelTable ? [...new Set(STATE_budgetMensuelTable.Structure)] : [])
@@ -1200,6 +1213,8 @@ function renderBudgetMensuelDashboardChart() {
         ? '⚠️ Aucune dotation (réelle ou estimée) disponible pour calculer un taux sur cette période'
         : '⚠️ Aucun historique mensuel disponible pour ce périmètre';
     }
+    const footnoteEmpty = document.getElementById(`budget-mensuel-tbb-footnote-${poste}`);
+    if (footnoteEmpty) footnoteEmpty.style.display = 'none';
     return;
   }
   if (wrapper) wrapper.style.display = '';
@@ -1207,7 +1222,7 @@ function renderBudgetMensuelDashboardChart() {
 
   const anneeMaxAffichee = annees[annees.length - 1];
   const auMoinsUneEstimee = unit === 'pct' && annees.some(a => dotByAnnee[a].estime);
-  const footnote = document.getElementById('budget-mensuel-tbb-footnote');
+  const footnote = document.getElementById(`budget-mensuel-tbb-footnote-${poste}`);
   if (footnote) footnote.style.display = auMoinsUneEstimee ? 'block' : 'none';
 
   const datasets = annees.map((annee, idx) => {
@@ -1245,7 +1260,7 @@ function renderBudgetMensuelDashboardChart() {
 
   const fmtVal = v => v == null ? '—' : (unit === 'pct' ? v.toFixed(1) + ' %' : fmtEuro(v));
 
-  budgetMensuelChartInstance = new Chart(canvas, {
+  budgetMensuelChartInstance[poste] = new Chart(canvas, {
     type: 'line',
     data: { labels: MOIS_LABELS_TBB, datasets },
     options: {
@@ -1271,16 +1286,6 @@ function renderBudgetMensuelDashboardChart() {
 function setBudgetMensuelTBB(key, value) {
   BUDGET_MENSUEL_TBB_STATE[key] = (key === 'service' && value !== 'national') ? Number(value) : value;
 
-  if (key === 'poste') {
-    const btnAE = document.getElementById('budget-mensuel-tbb-btn-ae');
-    const btnCP = document.getElementById('budget-mensuel-tbb-btn-cp');
-    if (btnAE && btnCP) {
-      btnAE.style.background = value === 'ae' ? 'var(--rep)' : 'transparent';
-      btnAE.style.color = value === 'ae' ? '#fff' : 'var(--gris2)';
-      btnCP.style.background = value === 'cp' ? 'var(--rep)' : 'transparent';
-      btnCP.style.color = value === 'cp' ? '#fff' : 'var(--gris2)';
-    }
-  }
   if (key === 'unit') {
     const btnEur = document.getElementById('budget-mensuel-tbb-btn-eur');
     const btnPct = document.getElementById('budget-mensuel-tbb-btn-pct');
