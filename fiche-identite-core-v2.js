@@ -1896,6 +1896,9 @@ function getInformatiqueMultiAnnees(structureId, annees) {
  * @param {number} annee - Année de référence
  */
 function refreshVehicules(structureId, annee) {
+  const elTitleVehicules = document.getElementById('vehicules-section-title');
+  if (elTitleVehicules) elTitleVehicules.textContent = `Parc Automobile — ${annee}`;
+
   const data = getVehiculesData(structureId, annee);
   if (!data) {
     // Afficher placeholder si pas de données - vider TOUS les champs
@@ -2537,6 +2540,9 @@ function getCommunicationLignesFilles(structureId) {
  * @param {number} annee
  */
 function refreshCommunication(structureId, annee) {
+  const elTitleCommunication = document.getElementById('communication-section-title');
+  if (elTitleCommunication) elTitleCommunication.textContent = `Dépenses de communication — ${annee}`;
+
   const d   = getCommunicationData(structureId);
   const fmt = formatCommunicationMontant;
 
@@ -2883,6 +2889,9 @@ function buildFonctComparison(val, moyNat, moyPer, inverser, libPerimetre) {
  * @param {number} annee
  */
 function refreshFonctionnement(structureId, annee) {
+  const elTitleFonctionnement = document.getElementById('fonctionnement-section-title');
+  if (elTitleFonctionnement) elTitleFonctionnement.textContent = `Fonctionnement courant — ${annee}`;
+
   const d = getFonctionnementData(structureId);
 
   // ── Données absentes ───────────────────────────────────────────
@@ -3044,6 +3053,9 @@ function refreshFonctionnement(structureId, annee) {
 // ══════════════════════════════════════════════════════════════════════
 
 function refreshRH(structureId, annee) {
+  const elTitleRH = document.getElementById('rh-section-title');
+  if (elTitleRH) elTitleRH.textContent = `Ressources Humaines — ${annee}`;
+
   const dataN = getRHData(structureId, annee);
   const dataNMoins1 = getRHData(structureId, annee - 1);
   
@@ -4018,6 +4030,9 @@ function createBudgetTable(data, moy, libPerimetre, annee, isDI) {
 }
 
 function refreshFraisMission(structureId, annee) {
+  const elTitleFraisMission = document.getElementById('fraismission-section-title');
+  if (elTitleFraisMission) elTitleFraisMission.textContent = `Frais de Mission — ${annee}`;
+
   // Année courante et année précédente
   const anneeCourante = annee;
   const anneePrecedente = annee - 1;
@@ -4325,6 +4340,9 @@ options: {
 }
 
 function refreshInformatique(structureId, annee) {
+  const elTitleInformatique = document.getElementById('informatique-section-title');
+  if (elTitleInformatique) elTitleInformatique.textContent = `Informatique — ${annee}`;
+
   const anneeCourante = annee;
   const anneePrecedente = annee - 1;
   
@@ -4519,12 +4537,16 @@ document.getElementById('it-budget-agent-moyen-comp').innerHTML = `
   // GRAPHIQUE
   // ═══════════════════════════════════════════════════════════════
   
-  const dataMultiAnnees = getInformatiqueMultiAnnees(structureId, annees4);
+  // Graphique et tableau : ordre chronologique croissant (le plus ancien en
+  // premier), contrairement à annees4 (décroissant) utilisé pour les libellés
+  // "Lissé {ancien}-{récent}" ci-dessus.
+  const annees4Croissant = [...annees4].reverse();
+  const dataMultiAnnees = getInformatiqueMultiAnnees(structureId, annees4Croissant);
   
   const portables = dataMultiAnnees.map(d => d.nb_portables || 0);
   const fixes = dataMultiAnnees.map(d => d.nb_fixes || 0);
   
-  createInformatiqueChart(annees4, portables, fixes);
+  createInformatiqueChart(annees4Croissant, portables, fixes);
   
   // ═══════════════════════════════════════════════════════════════
   // TABLEAU
@@ -5089,6 +5111,9 @@ function getImmobilierHistorique(structureId) {
  * Rafraîchit la section Immobilier
  */
 function refreshImmobilier(structureId, annee) {
+  const elTitleImmobilier = document.getElementById('immobilier-section-title');
+  if (elTitleImmobilier) elTitleImmobilier.textContent = `Immobilier — ${annee}`;
+
   // Récupération KPI : fallback agrégation DR rattachées pour DI sans ligne propre (ex: DI 972)
   let data    = getConsolidationStructureData(structureId, annee);
   let dataN1  = getConsolidationStructureData(structureId, annee - 1);
