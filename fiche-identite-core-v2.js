@@ -642,6 +642,20 @@ function getVehiculesData(structureId, annee) {
  * Retourne les données budgétaires depuis la table Budget pour une structure/année.
  * Retourne null si aucune ligne trouvée.
  */
+/** Parse une valeur Date_Import Grist : timestamp Unix (cas normal via fetchTable),
+ *  ISO 'YYYY-MM-DD', ou 'DD-MM-YYYY' (au cas où le format d'affichage de la colonne
+ *  influence la valeur retournée). Retourne null si non reconnu. */
+function parseGristDate(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'number') return new Date(raw * 1000);
+  if (typeof raw === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return new Date(raw);
+    const m = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  }
+  return null;
+}
+
 function getBudgetData(structureId, annee) {
   const budget = FICHE_STATE.data.budget;
   if (!budget) return null;
@@ -678,6 +692,20 @@ function getBudgetData(structureId, annee) {
     const taux = (conso, dot) => dot > 0 ? conso / dot : 0;
     const sumHorsT6 = arr => arr[0] + arr[1] + arr[3];
 
+    // Date_Import : la DI n'a pas de ligne propre, mais toutes les DR
+    // rattachées sont chargées lors du même import -> on prend la première
+    // date disponible parmi elles.
+    let date_import = null;
+    for (const drId of drIds) {
+      const i = budget.id.findIndex((_, j) =>
+        budget.Structure[j] === drId && budget.Annee[j] === annee
+      );
+      if (i !== -1) {
+        const d = parseGristDate(budget['Date_Import']?.[i]);
+        if (d) { date_import = d; break; }
+      }
+    }
+
     return {
       dot_ae_vehicules: dot_ae[0], dot_ae_fonctionnement: dot_ae[1], dot_ae_t6: dot_ae[2], dot_ae_immo: dot_ae[3],
       dot_cp_vehicules: dot_cp[0], dot_cp_fonctionnement: dot_cp[1], dot_cp_t6: dot_cp[2], dot_cp_immo: dot_cp[3],
@@ -691,7 +719,7 @@ function getBudgetData(structureId, annee) {
       taux_cp_fonctionnement: taux(conso_cp[1], dot_cp[1]),
       taux_cp_t6: taux(conso_cp[2], dot_cp[2]),
       taux_cp_immo: taux(conso_cp[3], dot_cp[3]),
-      date_import: null,
+      date_import,
       get dot_ae_total() { return sumHorsT6(dot_ae); },
       get dot_cp_total() { return sumHorsT6(dot_cp); },
       get conso_ae_total() { return sumHorsT6(conso_ae); },
@@ -734,13 +762,7 @@ function getBudgetData(structureId, annee) {
     taux_cp_t6:             n('Taux_CP_T6'),
     taux_cp_immo:           n('Taux_CP_Immo'),
     // Date import
-    date_import: (() => {
-      const raw = budget['Date_Import']?.[idx];
-      if (!raw) return null;
-      if (typeof raw === 'string' && raw.match(/^\d{4}-\d{2}-\d{2}$/)) return new Date(raw);
-      if (typeof raw === 'number') return new Date(raw * 1000);
-      return null;
-    })(),
+    date_import: parseGristDate(budget['Date_Import']?.[idx]),
     // Totaux — lus directement depuis Grist (Dot_AE_Total/Conso_AE_Total) :
     // ces formules excluent déjà T6 pour les DI et le consolident au niveau DG.
     // Ne pas recalculer en JS pour éviter toute désynchronisation.
