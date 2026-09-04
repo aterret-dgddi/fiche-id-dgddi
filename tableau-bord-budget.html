@@ -29,10 +29,10 @@
     --font:   'Marianne', system-ui, sans-serif;
 
     /* couleurs catégories radar */
-    --c-veh:  #E67E22;
+    --c-veh:  #0891B2;
     --c-fonct:#1351A8;
     --c-t6:   #8E44AD;
-    --c-immo: #27AE60;
+    --c-immo: #8D6E63;
 
     --badge-dg:   #1A1A1A;
     --badge-di:   #1351A8;
@@ -378,10 +378,10 @@
       <span style="opacity:.4;">|</span>
       <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <span style="font-size:10px;opacity:.75;">Axes :</span>
-        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#E67E22;display:inline-block;"></span>Véhicules</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#0891B2;display:inline-block;"></span>Véhicules</span>
         <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#1351A8;display:inline-block;border:1px solid rgba(255,255,255,.4);"></span>Fonctionnement</span>
         <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#8E44AD;display:inline-block;"></span>T6 Buralistes</span>
-        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#27AE60;display:inline-block;"></span>Immobilier</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#8D6E63;display:inline-block;"></span>Immobilier</span>
         <span style="opacity:.4;">|</span>
         <span style="font-size:10px;opacity:.75;">Écart :</span>
         <span style="display:flex;align-items:center;gap:4px;font-size:10px;"><span style="width:8px;height:8px;border-radius:50%;background:#008941;display:inline-block;"></span>&lt;±10 pts</span>
@@ -526,7 +526,7 @@
 const ANNEE = 2026;
 const CATS = ['Véhicules','Fonctionnement','T6 Buralistes','Immobilier'];
 const CAT_KEYS = ['vehicules','fonctionnement','t6','immo'];
-const CAT_COLORS = ['#E67E22','#1351A8','#8E44AD','#27AE60'];
+const CAT_COLORS = ['#0891B2','#1351A8','#8E44AD','#8D6E63'];
 const CAT_FILL   = ['rgba(230,126,34,.18)','rgba(19,81,168,.18)','rgba(142,68,173,.18)','rgba(39,174,96,.18)'];
 
 const TYPES_AFFICHES = ['DG','DI_Hexagone','DI_Outremer','DR_Antilles','DR_Outremer','SCN'];
@@ -1034,7 +1034,7 @@ function buildCard(card) {
         ${buildAECPBar(card.taux_ae_total, card.taux_cp_total, natAETotal, natTotal)}
         <div class="card-kpi-row">
           <div class="card-kpi">
-            <div style="font-size:9px;font-weight:700;color:#E67E22;margin-bottom:3px;">Véh.</div>
+            <div style="font-size:9px;font-weight:700;color:#0891B2;margin-bottom:3px;">Véh.</div>
             <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_vehicules), natAEVeh)};">${pct(card.taux_ae_vehicules)}</div>
             <div style="font-size:9px;color:#aaa;">AE</div>
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_ae_vehicules)}/${fmtEuroK(card.dot_ae_vehicules)}</div>
@@ -1061,7 +1061,7 @@ function buildCard(card) {
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_t6)}/${fmtEuroK(card.dot_cp_t6)}</div>
           </div>
           <div class="card-kpi">
-            <div style="font-size:9px;font-weight:700;color:#27AE60;margin-bottom:3px;">Immo.</div>
+            <div style="font-size:9px;font-weight:700;color:#8D6E63;margin-bottom:3px;">Immo.</div>
             <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_immo), natAEImmo)};">${pct(card.taux_ae_immo)}</div>
             <div style="font-size:9px;color:#aaa;">AE</div>
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_ae_immo)}/${fmtEuroK(card.dot_ae_immo)}</div>

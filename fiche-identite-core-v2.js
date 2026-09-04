@@ -3441,7 +3441,7 @@ function budgetClrStyle(v, ref, hasDot = true) {
 }
 
 const BUDGET_CAT_LABELS = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
-const BUDGET_CAT_COLORS = ['#E67E22', '#1351A8', '#8E44AD', '#27AE60'];
+const BUDGET_CAT_COLORS = ['#0891B2', '#1351A8', '#8E44AD', '#8D6E63'];
 const BUDGET_CAT_KEYS   = ['vehicules', 'fonctionnement', 't6', 'immo'];
 
 /**
