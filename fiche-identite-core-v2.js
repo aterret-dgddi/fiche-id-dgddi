@@ -651,6 +651,9 @@ function getBudgetData(structureId, annee) {
   );
 
   // Fallback DI sans ligne propre : agréger les DR rattachées (ex. DI 972 → DR 971/972/973)
+  // Pas de ligne Budget = pas de formule Grist Dot_AE_Total/Conso_AE_Total à lire ici :
+  // le Total est donc recalculé en JS, en excluant toujours T6 (cette branche ne
+  // concerne que les DI, cf. check structures.Type[sIdx] !== 'DI' ci-dessous).
   if (idx === -1) {
     const structures = FICHE_STATE.data.structures;
     if (!structures) return null;
@@ -673,6 +676,7 @@ function getBudgetData(structureId, annee) {
     const conso_cp = ['Conso_CP_vehicules','Conso_CP_fonctionnement','Conso_CP_T6','Conso_CP_Immo'].map(sum);
 
     const taux = (conso, dot) => dot > 0 ? conso / dot : 0;
+    const sumHorsT6 = arr => arr[0] + arr[1] + arr[3];
 
     return {
       dot_ae_vehicules: dot_ae[0], dot_ae_fonctionnement: dot_ae[1], dot_ae_t6: dot_ae[2], dot_ae_immo: dot_ae[3],
@@ -688,10 +692,10 @@ function getBudgetData(structureId, annee) {
       taux_cp_t6: taux(conso_cp[2], dot_cp[2]),
       taux_cp_immo: taux(conso_cp[3], dot_cp[3]),
       date_import: null,
-      get dot_ae_total() { return dot_ae.reduce((a,b) => a+b, 0); },
-      get dot_cp_total() { return dot_cp.reduce((a,b) => a+b, 0); },
-      get conso_ae_total() { return conso_ae.reduce((a,b) => a+b, 0); },
-      get conso_cp_total() { return conso_cp.reduce((a,b) => a+b, 0); },
+      get dot_ae_total() { return sumHorsT6(dot_ae); },
+      get dot_cp_total() { return sumHorsT6(dot_cp); },
+      get conso_ae_total() { return sumHorsT6(conso_ae); },
+      get conso_cp_total() { return sumHorsT6(conso_cp); },
       get taux_ae_total() { return this.dot_ae_total > 0 ? this.conso_ae_total / this.dot_ae_total : 0; },
       get taux_cp_total() { return this.dot_cp_total > 0 ? this.conso_cp_total / this.dot_cp_total : 0; },
     };
@@ -737,11 +741,13 @@ function getBudgetData(structureId, annee) {
       if (typeof raw === 'number') return new Date(raw * 1000);
       return null;
     })(),
-    // Totaux
-    get dot_ae_total() { return this.dot_ae_vehicules + this.dot_ae_fonctionnement + this.dot_ae_t6 + this.dot_ae_immo; },
-    get dot_cp_total() { return this.dot_cp_vehicules + this.dot_cp_fonctionnement + this.dot_cp_t6 + this.dot_cp_immo; },
-    get conso_ae_total() { return this.conso_ae_vehicules + this.conso_ae_fonctionnement + this.conso_ae_t6 + this.conso_ae_immo; },
-    get conso_cp_total() { return this.conso_cp_vehicules + this.conso_cp_fonctionnement + this.conso_cp_t6 + this.conso_cp_immo; },
+    // Totaux — lus directement depuis Grist (Dot_AE_Total/Conso_AE_Total) :
+    // ces formules excluent déjà T6 pour les DI et le consolident au niveau DG.
+    // Ne pas recalculer en JS pour éviter toute désynchronisation.
+    dot_ae_total:      n('Dot_AE_Total'),
+    dot_cp_total:      n('Dot_CP_Total'),
+    conso_ae_total:    n('Conso_AE_Total'),
+    conso_cp_total:    n('Conso_CP_Total'),
     get taux_ae_total() { return this.dot_ae_total > 0 ? this.conso_ae_total / this.dot_ae_total : 0; },
     get taux_cp_total() { return this.dot_cp_total > 0 ? this.conso_cp_total / this.dot_cp_total : 0; },
   };
@@ -889,6 +895,8 @@ function getWeightedBudgetMoyennes(perimetre, annee) {
     taux_cp_t6:             ratio(conso.total_conso_cp_t6, conso.total_dot_cp_t6),
     taux_ae_immo:           ratio(conso.total_conso_ae_immo, conso.total_dot_ae_immo),
     taux_cp_immo:           ratio(conso.total_conso_cp_immo, conso.total_dot_cp_immo),
+    // Total_Notif_AE/CP et Total_Conso_AE/CP excluent déjà T6 pour le périmètre
+    // 'DI'/'Metropole' côté Grist (Consolidation) -> pas de retraitement ici.
     taux_ae_total:          ratio(conso.total_conso_ae, conso.total_notif_ae),
     taux_cp_total:          ratio(conso.total_conso_cp, conso.total_notif_cp),
   };
@@ -3259,6 +3267,14 @@ function refreshBudget(structureId, annee) {
 
   annee = 2026;
 
+  // T6 Buralistes : non discrétionnaire pour les DI depuis 2026 (UOT créée au
+  // niveau DG) -> exclu du Total (Grist s'en charge partout : Budget.Dot_AE_Total,
+  // Consolidation.Total_Notif_AE, Budget_Mensuel.Conso_AE_total), toujours
+  // restitué en détail (ligne à part) pour information. isDI reste utile ici
+  // uniquement pour le radar (exclusion de l'axe T6, cf. createBudgetRadar) et
+  // le libellé "pour information" du tableau par catégorie (createBudgetTable).
+  const isDI = FICHE_STATE.structure && FICHE_STATE.structure.type === 'DI';
+
   const dataN = getBudgetData(structureId, annee);
   const perimetre = getPerimetreBudget(structureId);
   const libPerimetre = { 'Metropole': 'DI Métropole', 'SCN': 'SCN', 'Outremer': 'Outremer', 'National': 'National' }[perimetre] || perimetre;
@@ -3350,15 +3366,16 @@ function refreshBudget(structureId, annee) {
   createBudgetMensuelChart(structureId);
 
   // ── Tableau par catégorie ─────────────────────────────────
-  createBudgetTable(dataN, moyPerimetre, libPerimetre, annee);
+  createBudgetTable(dataN, moyPerimetre, libPerimetre, annee, isDI);
 
   initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
 }
 
 // ── Coloration selon écart à la moyenne nationale (points de %) ──────────────
 // v : taux en % (0-100) ; ref : taux national en décimal (0-1)
-function budgetColorClass(v, ref) {
+function budgetColorClass(v, ref, hasDot = true) {
   if (v == null || isNaN(v)) return 'na';
+  if (!hasDot) return 'na'; // pas de dotation -> le taux calculé (souvent 0) n'est pas une alerte
   if (ref != null) {
     const ecart = Math.abs(v - ref * 100);
     if (ecart > 20) return 'bad';
@@ -3370,9 +3387,9 @@ function budgetColorClass(v, ref) {
   return 'ok';
 }
 
-function budgetClrStyle(v, ref) {
+function budgetClrStyle(v, ref, hasDot = true) {
   const m = { ok: '#008941', warn: '#D07B00', bad: '#C0392B', na: '#aaa' };
-  return m[budgetColorClass(v, ref)] || '#aaa';
+  return m[budgetColorClass(v, ref, hasDot)] || '#aaa';
 }
 
 const BUDGET_CAT_LABELS = ['Véhicules', 'Fonctionnement', 'T6 Buralistes', 'Immobilier'];
@@ -3393,7 +3410,7 @@ function buildBudgetRadarKPIs(type, data, moyNat) {
     const conso = data[`conso_${type}_${key}`];
     const dot = data[`dot_${type}_${key}`];
     const natRef = moyNat ? moyNat[`taux_${type}_${key}`] : null;
-    const color = budgetClrStyle(taux, natRef);
+    const color = budgetClrStyle(taux, natRef, dot > 0);
     return `
       <div style="text-align:center;">
         <div style="font-size:9px;font-weight:700;color:${BUDGET_CAT_COLORS[i]};margin-bottom:3px;">${BUDGET_CAT_LABELS[i]}</div>
@@ -3403,8 +3420,9 @@ function buildBudgetRadarKPIs(type, data, moyNat) {
   }).join('');
 
   const tauxTotal = pctNum(data[`taux_${type}_total`]);
+  const dotTotal = data[`dot_${type}_total`];
   const natTotal = moyNat ? moyNat[`taux_${type}_total`] : null;
-  const colorTotal = budgetClrStyle(tauxTotal, natTotal);
+  const colorTotal = budgetClrStyle(tauxTotal, natTotal, dotTotal > 0);
   const diffTotal = natTotal != null ? (tauxTotal - natTotal * 100) : null;
   const diffLabel = diffTotal != null ? `${diffTotal >= 0 ? '+' : ''}${diffTotal.toFixed(1)} pts vs national` : '';
 
@@ -3579,6 +3597,10 @@ function setBudgetMensuelDomain(domain) {
 function computeBudgetMensuelChartSpec(structureId, domain, poste, unit) {
   const hist = getBudgetMensuelHistorique(structureId);
   const posteKey = poste.toUpperCase();
+
+  // Cumul_AE_total/Cumul_CP_total (domaine "global") excluent déjà T6 pour les
+  // DI et le consolident au niveau DG côté Grist (Budget_Mensuel.Conso_AE_total) :
+  // plus besoin de reconstruire la série en JS, hist.global est directement fiable.
   const series = hist && hist[domain] ? hist[domain][posteKey] : null;
   let annees = series ? Object.keys(series).sort() : [];
 
@@ -3939,7 +3961,7 @@ function _restoreBudgetMensuelExportMode() {
 
 
 
-function createBudgetTable(data, moy, libPerimetre, annee) {
+function createBudgetTable(data, moy, libPerimetre, annee, isDI) {
   const tbody = document.getElementById('budget-types-tbody');
   if (!tbody) return;
   document.getElementById('budget-table-title').textContent =
@@ -3948,14 +3970,18 @@ function createBudgetTable(data, moy, libPerimetre, annee) {
   const categories = [
     { label: 'Véhicules',        dot_ae: data.dot_ae_vehicules,      conso_ae: data.conso_ae_vehicules,      taux_ae: data.taux_ae_vehicules,      dot_cp: data.dot_cp_vehicules,      conso_cp: data.conso_cp_vehicules,      taux_cp: data.taux_cp_vehicules,      moy_cp: moy?.taux_cp_vehicules },
     { label: 'Fonctionnement',   dot_ae: data.dot_ae_fonctionnement,  conso_ae: data.conso_ae_fonctionnement, taux_ae: data.taux_ae_fonctionnement,  dot_cp: data.dot_cp_fonctionnement,  conso_cp: data.conso_cp_fonctionnement, taux_cp: data.taux_cp_fonctionnement,  moy_cp: moy?.taux_cp_fonctionnement },
-    { label: 'T6 Buralistes',    dot_ae: data.dot_ae_t6,             conso_ae: data.conso_ae_t6,            taux_ae: data.taux_ae_t6,             dot_cp: data.dot_cp_t6,             conso_cp: data.conso_cp_t6,            taux_cp: data.taux_cp_t6,            moy_cp: moy?.taux_cp_t6 },
+    { label: isDI ? 'T6 Buralistes <span style="font-weight:400;font-style:italic;color:var(--gris3);font-size:11px;">(pour information — consolidé au niveau DG)</span>' : 'T6 Buralistes', dot_ae: data.dot_ae_t6, conso_ae: data.conso_ae_t6, taux_ae: data.taux_ae_t6, dot_cp: data.dot_cp_t6, conso_cp: data.conso_cp_t6, taux_cp: data.taux_cp_t6, moy_cp: moy?.taux_cp_t6, isInfo: isDI },
     { label: 'Immobilier',       dot_ae: data.dot_ae_immo,           conso_ae: data.conso_ae_immo,          taux_ae: data.taux_ae_immo,           dot_cp: data.dot_cp_immo,           conso_cp: data.conso_cp_immo,          taux_cp: data.taux_cp_immo,          moy_cp: moy?.taux_cp_immo },
     { label: '<strong>Total</strong>', dot_ae: data.dot_ae_total, conso_ae: data.conso_ae_total, taux_ae: data.taux_ae_total, dot_cp: data.dot_cp_total, conso_cp: data.conso_cp_total, taux_cp: data.taux_cp_total, moy_cp: moy?.taux_cp_total, isTotal: true },
   ];
 
-  const fmtTaux = (v) => {
+  // pct = null/undefined -> "—" (pas de couleur). pct calculé mais dot = 0
+  // (pas de crédits notifiés) -> gris neutre, jamais rouge : un 0% qui ne
+  // reflète aucune dotation n'est pas une alerte de sous-consommation.
+  const fmtTaux = (v, dot) => {
     if (v === null || v === undefined || isNaN(v)) return '—';
     const pct = v * 100;
+    if (!dot || dot <= 0) return `<span style="color:var(--gris3);font-weight:600;">${pct.toFixed(1)} %</span>`;
     const color = pct >= 80 ? 'var(--rouge)' : pct >= 50 ? 'var(--orange)' : 'var(--vert)';
     return `<span style="color:${color};font-weight:600;">${pct.toFixed(1)} %</span>`;
   };
@@ -3965,14 +3991,14 @@ function createBudgetTable(data, moy, libPerimetre, annee) {
   };
 
   tbody.innerHTML = categories.map(c => `
-    <tr${c.isTotal ? ' style="font-weight:600;border-top:2px solid var(--bord);background:var(--gris4);"' : ''}>
+    <tr${c.isTotal ? ' style="font-weight:600;border-top:2px solid var(--bord);background:var(--gris4);"' : ''}${c.isInfo ? ' style="color:var(--gris2);"' : ''}>
       <td>${c.label}</td>
       <td style="text-align:right;">${formatCurrency(c.dot_ae, 0)}</td>
       <td style="text-align:right;">${formatCurrency(c.conso_ae, 0)}</td>
-      <td style="text-align:right;">${fmtTaux(c.taux_ae)}</td>
+      <td style="text-align:right;">${fmtTaux(c.taux_ae, c.dot_ae)}</td>
       <td style="text-align:right;">${formatCurrency(c.dot_cp, 0)}</td>
       <td style="text-align:right;">${formatCurrency(c.conso_cp, 0)}</td>
-      <td style="text-align:right;">${fmtTaux(c.taux_cp)}</td>
+      <td style="text-align:right;">${fmtTaux(c.taux_cp, c.dot_cp)}</td>
       <td style="text-align:right;color:var(--gris2);">${fmtMoy(c.moy_cp)}</td>
     </tr>`).join('');
 }

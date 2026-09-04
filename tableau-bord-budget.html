@@ -572,10 +572,13 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     const conso_cp_v = n('Conso_CP_vehicules'), conso_cp_f = n('Conso_CP_fonctionnement');
     const conso_cp_t6 = n('Conso_CP_T6'),       conso_cp_i = n('Conso_CP_Immo');
 
-    const dot_ae_total   = dot_ae_v + dot_ae_f + dot_ae_t6 + dot_ae_i;
-    const dot_cp_total   = dot_cp_v + dot_cp_f + dot_cp_t6 + dot_cp_i;
-    const conso_ae_total = conso_ae_v + conso_ae_f + conso_ae_t6 + conso_ae_i;
-    const conso_cp_total = conso_cp_v + conso_cp_f + conso_cp_t6 + conso_cp_i;
+    // Totaux lus directement depuis Grist : Dot_AE_Total/Conso_AE_Total excluent
+    // déjà T6 pour les DI et le consolident au niveau DG (Type == 'Siège') —
+    // ne pas ré-additionner les 4 catégories en JS pour éviter toute désync.
+    const dot_ae_total   = n('Dot_AE_Total');
+    const dot_cp_total   = n('Dot_CP_Total');
+    const conso_ae_total = n('Conso_AE_Total');
+    const conso_cp_total = n('Conso_CP_Total');
 
     return {
       taux_ae_vehicules:      taux(conso_ae_v,  dot_ae_v),
@@ -602,7 +605,10 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     };
   }
 
-  // Fallback agrégation DR rattachées — uniquement pour les DI sans ligne propre
+  // Fallback agrégation DR rattachées — uniquement pour les DI sans ligne propre.
+  // Pas de ligne Budget = pas de formule Grist Dot_AE_Total à lire ici : le Total
+  // est recalculé en JS, en excluant toujours T6 (cette branche est DI par
+  // construction, cf. check structuresTable.Type?.[sIdx] !== 'DI' ci-dessous).
   if (!structuresTable) return null;
   const sIdx = structuresTable.id.indexOf(structureId);
   if (sIdx === -1 || structuresTable.Type?.[sIdx] !== 'DI') return null;
@@ -641,10 +647,11 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
   const conso_cp_v = sumCols('Conso_CP_vehicules'), conso_cp_f = sumCols('Conso_CP_fonctionnement');
   const conso_cp_t6 = sumCols('Conso_CP_T6'),       conso_cp_i = sumCols('Conso_CP_Immo');
 
-  const dot_ae_total   = dot_ae_v + dot_ae_f + dot_ae_t6 + dot_ae_i;
-  const dot_cp_total   = dot_cp_v + dot_cp_f + dot_cp_t6 + dot_cp_i;
-  const conso_ae_total = conso_ae_v + conso_ae_f + conso_ae_t6 + conso_ae_i;
-  const conso_cp_total = conso_cp_v + conso_cp_f + conso_cp_t6 + conso_cp_i;
+  // T6 exclu du Total (DI) — toujours restitué en détail (dot_ae_t6/conso_ae_t6) pour information.
+  const dot_ae_total   = dot_ae_v + dot_ae_f + dot_ae_i;
+  const dot_cp_total   = dot_cp_v + dot_cp_f + dot_cp_i;
+  const conso_ae_total = conso_ae_v + conso_ae_f + conso_ae_i;
+  const conso_cp_total = conso_cp_v + conso_cp_f + conso_cp_i;
 
   return {
     taux_ae_vehicules:      taux(conso_ae_v,  dot_ae_v),
@@ -1758,6 +1765,174 @@ function pdfDrawMultiYearTable(pdf, x, y, width, title, annees, seriesByYear, ac
   return y + 2;
 }
 
+
+async function init() {
+  try {
+    // allowSelectBy: true + grist.onRecords sur Structures = ce widget apparaît
+    // dans "Sélectionner par" des autres widgets liés à Structures
+    grist.ready({ requiredAccess: 'read table' });
+
+    const [budgetTable, structuresTable, consolidationTable, budgetMensuelTable] = await Promise.all([
+      grist.docApi.fetchTable('Budget').catch(() => null),
+      grist.docApi.fetchTable('Structures').catch(() => null),
+      grist.docApi.fetchTable('Consolidation').catch(() => null),
+      grist.docApi.fetchTable('Budget_Mensuel').catch(() => null),
+    ]);
+
+    if (!structuresTable) throw new Error('Table Structures non accessible.');
+    if (!budgetTable)     throw new Error('Table Budget non accessible.');
+
+    STATE_structuresTable = structuresTable;
+    STATE_budgetTable = budgetTable;
+    STATE_budgetMensuelTable = budgetMensuelTable;
+    STATE_consolidationTable = consolidationTable;
+
+    // Moyennes nationales par catégorie : TOUJOURS calculées en pondéré (Σconso/Σdot)
+    // depuis la table Budget brute — les colonnes Moy_Taux_* de Consolidation sont une
+    // moyenne simple des taux par structure (non pondérée), qui surestime la consommation
+    // réelle car elle donne autant de poids à une petite structure qu'à une grosse.
+    // Les totaux AE/CP globaux (Taux_Conso_Moyen_AE/CP) restent pris depuis Consolidation
+    // quand disponibles : ils sont déjà calculés en pondéré côté Grist (Total_Conso/Total_Notif).
+    moyNational = computeNationalMoyFromBudget(budgetTable);
+    const moyNationalConso = extractNationalMoy(consolidationTable);
+    if (moyNationalConso) {
+      moyNational = moyNational || {};
+      if (moyNationalConso.taux_ae_total != null) moyNational.taux_ae_total = moyNationalConso.taux_ae_total;
+      if (moyNationalConso.taux_cp_total != null) moyNational.taux_cp_total = moyNationalConso.taux_cp_total;
+    }
+    renderNationalBar(moyNational);
+
+    // Construire la liste des cartes
+    // Pour les DG : collecter tous les candidats, puis n'en garder qu'un seul
+    const dgCandidats = [];
+    const nonDgCards  = [];
+
+    for (let i = 0; i < structuresTable.id.length; i++) {
+      const ta    = structuresTable.Type_Affichage?.[i];
+      if (!TYPES_AFFICHES.includes(ta)) continue;
+      const sigle = (structuresTable.Sigle?.[i] || '').trim();
+      if (!sigle) continue;
+
+      const sid  = structuresTable.id[i];
+      const nom  = structuresTable.Nom?.[i] || sigle;
+      const data = extractBudgetData(budgetTable, sid, structuresTable);
+      const card = {
+        id: sid, sigle, nom, typeAff: ta, hasData: !!data,
+        taux_ae_total:          data?.taux_ae_total          ?? null,
+        taux_cp_total:          data?.taux_cp_total          ?? null,
+        taux_ae_vehicules:      data?.taux_ae_vehicules      ?? null,
+        taux_ae_fonctionnement: data?.taux_ae_fonctionnement ?? null,
+        taux_ae_t6:             data?.taux_ae_t6             ?? null,
+        taux_ae_immo:           data?.taux_ae_immo           ?? null,
+        taux_cp_vehicules:      data?.taux_cp_vehicules      ?? null,
+        taux_cp_fonctionnement: data?.taux_cp_fonctionnement ?? null,
+        taux_cp_t6:             data?.taux_cp_t6             ?? null,
+        taux_cp_immo:           data?.taux_cp_immo           ?? null,
+        date_import:            data?.date_import             ?? null,
+        // Montants € (totaux + détail par catégorie AE/CP) — affichage cartes + tri poids/reste
+        dot_ae_total:            data?.dot_ae_total            ?? null,
+        dot_cp_total:            data?.dot_cp_total            ?? null,
+        conso_ae_total:          data?.conso_ae_total          ?? null,
+        conso_cp_total:          data?.conso_cp_total          ?? null,
+        dot_ae_vehicules:        data?.dot_ae_vehicules        ?? null,
+        conso_ae_vehicules:      data?.conso_ae_vehicules      ?? null,
+        dot_ae_fonctionnement:   data?.dot_ae_fonctionnement   ?? null,
+        conso_ae_fonctionnement: data?.conso_ae_fonctionnement ?? null,
+        dot_ae_t6:               data?.dot_ae_t6               ?? null,
+        conso_ae_t6:             data?.conso_ae_t6             ?? null,
+        dot_ae_immo:             data?.dot_ae_immo             ?? null,
+        conso_ae_immo:           data?.conso_ae_immo           ?? null,
+        dot_cp_vehicules:        data?.dot_cp_vehicules        ?? null,
+        conso_cp_vehicules:      data?.conso_cp_vehicules      ?? null,
+        dot_cp_fonctionnement:   data?.dot_cp_fonctionnement   ?? null,
+        conso_cp_fonctionnement: data?.conso_cp_fonctionnement ?? null,
+        dot_cp_t6:               data?.dot_cp_t6               ?? null,
+        conso_cp_t6:             data?.conso_cp_t6             ?? null,
+        dot_cp_immo:             data?.dot_cp_immo             ?? null,
+        conso_cp_immo:           data?.conso_cp_immo           ?? null,
+      };
+
+      if (ta === 'DG') dgCandidats.push(card);
+      else             nonDgCards.push(card);
+    }
+
+    // Pour DG : préférer la carte avec données, sinon la plus haute dans la hiérarchie
+    // (DGDDI est parent de DG → on prend DGDDI si elle a les données consolidées,
+    //  sinon on agrège les enfants DG sous DGDDI)
+    allCards = [...nonDgCards];
+    if (dgCandidats.length > 0) {
+      // Priorité 1 : candidat avec données budgétaires
+      let dgCard = dgCandidats.find(c => c.hasData && c.taux_cp_total !== null);
+      // Priorité 2 : candidat sans données mais sigle le plus court (DGDDI > DG)
+      if (!dgCard) dgCard = dgCandidats.sort((a,b) => b.sigle.length - a.sigle.length)[0];
+      // Si pas de données : tenter consolidation de tous les enfants DG
+      if (dgCard && !dgCard.hasData) {
+        const childIds = dgCandidats.filter(c => c.id !== dgCard.id).map(c => c.id);
+        if (childIds.length) {
+          const taux = (c, d) => d > 0 ? c / d : null;
+          const sumChild = (col) => childIds.reduce((acc, cid) => {
+            const j = budgetTable.id.findIndex((_, k) =>
+              budgetTable.Structure[k] === cid && budgetTable.Annee[k] === ANNEE);
+            return acc + (j !== -1 ? Number(budgetTable[col]?.[j]) || 0 : 0);
+          }, 0);
+          const daeV=sumChild('dot_AE_vehicules'), daeF=sumChild('dot_AE_fonctionnement'),
+                daeT=sumChild('Dot_AE_T6'), daeI=sumChild('dot_AE_Immo');
+          const dcpV=sumChild('dot_CP_vehicules'), dcpF=sumChild('dot_CP_fonctionnement'),
+                dcpT=sumChild('Dot_CP_T6'), dcpI=sumChild('dot_CP_Immo');
+          const caeV=sumChild('Conso_AE_vehicules'), caeF=sumChild('Conso_AE_fonctionnement'),
+                caeT=sumChild('Conso_AE_T6'), caeI=sumChild('Conso_AE_Immo');
+          const ccpV=sumChild('Conso_CP_vehicules'), ccpF=sumChild('Conso_CP_fonctionnement'),
+                ccpT=sumChild('Conso_CP_T6'), ccpI=sumChild('Conso_CP_Immo');
+          const daeTotal=daeV+daeF+daeT+daeI, dcpTotal=dcpV+dcpF+dcpT+dcpI;
+          const caeTotal=caeV+caeF+caeT+caeI, ccpTotal=ccpV+ccpF+ccpT+ccpI;
+          // Date d'import la plus récente parmi les enfants DG agrégés
+          let dgDateImport = null;
+          for (const cid of childIds) {
+            const j = budgetTable.id.findIndex((_, k) =>
+              budgetTable.Structure[k] === cid && budgetTable.Annee[k] === ANNEE);
+            const d = parseDateImport(budgetTable, j);
+            if (d && (!dgDateImport || d > dgDateImport)) dgDateImport = d;
+          }
+          if (dcpTotal > 0 || daeTotal > 0) {
+            dgCard = { ...dgCard, hasData: true,
+              taux_ae_total: taux(caeTotal,daeTotal), taux_cp_total: taux(ccpTotal,dcpTotal),
+              taux_ae_vehicules: taux(caeV,daeV), taux_cp_vehicules: taux(ccpV,dcpV),
+              taux_ae_fonctionnement: taux(caeF,daeF), taux_cp_fonctionnement: taux(ccpF,dcpF),
+              taux_ae_t6: taux(caeT,daeT), taux_cp_t6: taux(ccpT,dcpT),
+              taux_ae_immo: taux(caeI,daeI), taux_cp_immo: taux(ccpI,dcpI),
+              date_import: dgDateImport,
+              dot_ae_total: daeTotal, dot_cp_total: dcpTotal,
+              conso_ae_total: caeTotal, conso_cp_total: ccpTotal,
+              dot_ae_vehicules: daeV, conso_ae_vehicules: caeV,
+              dot_ae_fonctionnement: daeF, conso_ae_fonctionnement: caeF,
+              dot_ae_t6: daeT, conso_ae_t6: caeT,
+              dot_ae_immo: daeI, conso_ae_immo: caeI,
+              dot_cp_vehicules: dcpV, conso_cp_vehicules: ccpV,
+              dot_cp_fonctionnement: dcpF, conso_cp_fonctionnement: ccpF,
+              dot_cp_t6: dcpT, conso_cp_t6: ccpT,
+              dot_cp_immo: dcpI, conso_cp_immo: ccpI,
+            };
+          }
+        }
+      }
+      allCards.push(dgCard);
+    }
+
+    if (!allCards.length) throw new Error('Aucune structure trouvée.');
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    render();
+
+    populateServiceSelector();
+    renderBudgetMensuelDashboardChart();
+
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'flex';
+    document.getElementById('error').textContent = '❌ ' + e.message;
+  }
+}
 
 // ── Contrôles UI ──────────────────────────────────────────────────────────────
 document.querySelectorAll('.filter-btn').forEach(btn => {
