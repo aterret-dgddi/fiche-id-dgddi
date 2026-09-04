@@ -463,6 +463,28 @@
   </div>
 </div>
 
+<!-- Détail budgétaire par nature (dotation / consommation / taux, AE et CP) —
+     suit le même sélecteur de service que la progression mensuelle -->
+<div class="chart-container" style="margin:12px 16px;padding:16px;background:#fff;border:1px solid var(--bord);border-radius:8px;">
+  <div style="font-weight:700;font-size:14px;color:var(--gris1);margin-bottom:10px;" id="budget-detail-title">📊 Détail budgétaire par nature</div>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--bord);">
+          <th style="text-align:left;padding:6px 8px;color:var(--gris3);font-weight:700;">Nature</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Dotation AE</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Consommation AE</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Taux AE</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Dotation CP</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Consommation CP</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Taux CP</th>
+        </tr>
+      </thead>
+      <tbody id="budget-detail-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
 
 <div id="loading">⏳ Chargement des données budgétaires…</div>
 <div id="error" style="display:none;"></div>
@@ -1189,6 +1211,103 @@ function renderBudgetMensuelDashboardChart() {
     elTitle.textContent = '📅 Progression mensuelle de la consommation' + (isDI ? ', hors buralistes' : '');
   }
   ['ae', 'cp'].forEach(poste => renderBudgetMensuelDashboardSide(poste));
+  renderBudgetDetailTable();
+}
+
+/** Détail budgétaire national (dotation/consommation par nature, AE + CP),
+ * lu directement dans Consolidation (Perimetre='National') — même principe
+ * que extractBudgetData mais au niveau national plutôt que par structure. */
+function getNationalBudgetDetail() {
+  const t = STATE_consolidationTable;
+  if (!t) return null;
+  const idx = t.id.findIndex((_, i) => t.Perimetre[i] === 'National' && t.Annee[i] === ANNEE);
+  if (idx === -1) return null;
+  const n = col => Number(t[col]?.[idx]) || 0;
+  const taux = (c, d) => d > 0 ? c / d : null;
+
+  const dot_ae_vehicules = n('Total_Dot_AE_vehicules'), conso_ae_vehicules = n('Total_Conso_AE_vehicules');
+  const dot_ae_fonctionnement = n('Total_Dot_AE_fonctionnement'), conso_ae_fonctionnement = n('Total_Conso_AE_fonctionnement');
+  const dot_ae_t6 = n('Total_Dot_AE_T6'), conso_ae_t6 = n('Total_Conso_AE_T6');
+  const dot_ae_immo = n('Total_Dot_AE_Immo'), conso_ae_immo = n('Total_Conso_AE_Immo');
+  const dot_cp_vehicules = n('Total_Dot_CP_vehicules'), conso_cp_vehicules = n('Total_Conso_CP_vehicules');
+  const dot_cp_fonctionnement = n('Total_Dot_CP_fonctionnement'), conso_cp_fonctionnement = n('Total_Conso_CP_fonctionnement');
+  const dot_cp_t6 = n('Total_Dot_CP_T6'), conso_cp_t6 = n('Total_Conso_CP_T6');
+  const dot_cp_immo = n('Total_Dot_CP_Immo'), conso_cp_immo = n('Total_Conso_CP_Immo');
+  const dot_ae_total = n('Total_Notif_AE'), conso_ae_total = n('Total_Conso_AE');
+  const dot_cp_total = n('Total_Notif_CP'), conso_cp_total = n('Total_Conso_CP');
+
+  return {
+    dot_ae_vehicules, conso_ae_vehicules, taux_ae_vehicules: taux(conso_ae_vehicules, dot_ae_vehicules),
+    dot_ae_fonctionnement, conso_ae_fonctionnement, taux_ae_fonctionnement: taux(conso_ae_fonctionnement, dot_ae_fonctionnement),
+    dot_ae_t6, conso_ae_t6, taux_ae_t6: taux(conso_ae_t6, dot_ae_t6),
+    dot_ae_immo, conso_ae_immo, taux_ae_immo: taux(conso_ae_immo, dot_ae_immo),
+    dot_ae_total, conso_ae_total, taux_ae_total: taux(conso_ae_total, dot_ae_total),
+    dot_cp_vehicules, conso_cp_vehicules, taux_cp_vehicules: taux(conso_cp_vehicules, dot_cp_vehicules),
+    dot_cp_fonctionnement, conso_cp_fonctionnement, taux_cp_fonctionnement: taux(conso_cp_fonctionnement, dot_cp_fonctionnement),
+    dot_cp_t6, conso_cp_t6, taux_cp_t6: taux(conso_cp_t6, dot_cp_t6),
+    dot_cp_immo, conso_cp_immo, taux_cp_immo: taux(conso_cp_immo, dot_cp_immo),
+    dot_cp_total, conso_cp_total, taux_cp_total: taux(conso_cp_total, dot_cp_total),
+  };
+}
+
+/** Tableau détaillé (dotation/conso/taux AE+CP par nature) pour le service
+ * actuellement sélectionné dans la progression mensuelle (national ou une
+ * structure). T6 placé après Total, "pour information" uniquement pour les DI
+ * (seul cas où le Total l'exclut réellement — cf. Budget.Dot_AE_Total). */
+function renderBudgetDetailTable() {
+  const tbody = document.getElementById('budget-detail-tbody');
+  const elTitle = document.getElementById('budget-detail-title');
+  if (!tbody) return;
+
+  const service = BUDGET_MENSUEL_TBB_STATE.service;
+  const isNational = service === 'national';
+  const sIdx = (!isNational && STATE_structuresTable) ? STATE_structuresTable.id.indexOf(service) : -1;
+  const isDI = sIdx !== -1 && STATE_structuresTable.Type[sIdx] === 'DI';
+  const sigle = sIdx !== -1 ? (STATE_structuresTable.Sigle?.[sIdx] || '') : '';
+
+  if (elTitle) {
+    elTitle.textContent = '📊 Détail budgétaire par nature — ' + (isNational ? 'Consolidation nationale' : (sigle || 'Service'));
+  }
+
+  const data = isNational ? getNationalBudgetDetail() : extractBudgetData(STATE_budgetTable, service, STATE_structuresTable);
+  if (!data) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--gris3);font-style:italic;">Aucune donnée disponible</td></tr>';
+    return;
+  }
+
+  const categories = [
+    { label: 'Véhicules',      k: 'vehicules' },
+    { label: 'Fonctionnement', k: 'fonctionnement' },
+    { label: 'Immobilier',     k: 'immo' },
+    { label: '<strong>Total</strong>', k: 'total', isTotal: true },
+    { label: isDI
+        ? 'T6 Buralistes <span style="font-weight:400;font-style:italic;color:var(--gris3);font-size:10px;">(pour information — consolidé au niveau DG)</span>'
+        : 'T6 Buralistes',
+      k: 't6', isInfo: isDI },
+  ];
+
+  const fmtTaux = (v, dot) => {
+    if (v == null || isNaN(v)) return '—';
+    const pct = v * 100;
+    if (!dot || dot <= 0) return `<span style="color:var(--gris3);font-weight:600;">${pct.toFixed(1)} %</span>`;
+    const color = pct >= 80 ? 'var(--rouge)' : pct >= 50 ? 'var(--orange)' : 'var(--vert)';
+    return `<span style="color:${color};font-weight:600;">${pct.toFixed(1)} %</span>`;
+  };
+
+  tbody.innerHTML = categories.map(c => {
+    const dotAE = data[`dot_ae_${c.k}`], consoAE = data[`conso_ae_${c.k}`], tauxAE = data[`taux_ae_${c.k}`];
+    const dotCP = data[`dot_cp_${c.k}`], consoCP = data[`conso_cp_${c.k}`], tauxCP = data[`taux_cp_${c.k}`];
+    return `
+    <tr${c.isTotal ? ' style="font-weight:600;border-top:2px solid var(--bord);background:var(--gris4);"' : ''}${c.isInfo ? ' style="color:var(--gris2);"' : ''}>
+      <td style="padding:6px 8px;">${c.label}</td>
+      <td style="text-align:right;padding:6px 8px;">${fmtEuro(dotAE)}</td>
+      <td style="text-align:right;padding:6px 8px;">${fmtEuro(consoAE)}</td>
+      <td style="text-align:right;padding:6px 8px;">${fmtTaux(tauxAE, dotAE)}</td>
+      <td style="text-align:right;padding:6px 8px;">${fmtEuro(dotCP)}</td>
+      <td style="text-align:right;padding:6px 8px;">${fmtEuro(consoCP)}</td>
+      <td style="text-align:right;padding:6px 8px;">${fmtTaux(tauxCP, dotCP)}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderBudgetMensuelDashboardSide(poste) {
