@@ -492,7 +492,11 @@ function getBudgetData(structureId, annee) {
   const idx = budget.id.findIndex((id, i) => budget.Structure[i] === structureId && budget.Annee[i] === annee);
 
   if (idx === -1) {
-    // Fallback DI sans ligne propre : agréger les DR rattachées
+    // Fallback DI sans ligne propre : agréger les DR rattachées. Pas de ligne
+    // Budget = pas de formule Grist Dot_AE_Total à lire ici -> le Total est
+    // recalculé en JS, en excluant toujours T6 (branche DI par construction,
+    // cf. check structures.Type[sIdx] !== 'DI' ci-dessous). T6 reste restitué
+    // en détail (dot_ae_t6/conso_ae_t6) pour information.
     const structures = STATE.data.structures;
     if (!structures) return null;
     const sIdx = structures.id.indexOf(structureId);
@@ -511,6 +515,18 @@ function getBudgetData(structureId, annee) {
     const conso_ae = ['Conso_AE_vehicules','Conso_AE_fonctionnement','Conso_AE_T6','Conso_AE_Immo'].map(sum);
     const conso_cp = ['Conso_CP_vehicules','Conso_CP_fonctionnement','Conso_CP_T6','Conso_CP_Immo'].map(sum);
     const taux = (c, d) => d > 0 ? c / d : 0;
+    const sumHorsT6 = arr => arr[0] + arr[1] + arr[3];
+
+    // Date d'import : pas de ligne propre, on prend la première trouvée parmi les DR rattachées
+    let date_import = null;
+    for (const drId of drIds) {
+      const i = budget.id.findIndex((_, j) => budget.Structure[j] === drId && budget.Annee[j] === annee);
+      if (i !== -1) {
+        const raw = budget['Date_Import']?.[i];
+        const d = raw ? (typeof raw === 'number' ? new Date(raw * 1000) : (typeof raw === 'string' && raw.match(/^\d{4}-\d{2}-\d{2}$/) ? new Date(raw) : null)) : null;
+        if (d) { date_import = d; break; }
+      }
+    }
 
     return {
       dot_ae_vehicules: dot_ae[0], dot_ae_fonctionnement: dot_ae[1], dot_ae_t6: dot_ae[2], dot_ae_immo: dot_ae[3],
@@ -525,11 +541,11 @@ function getBudgetData(structureId, annee) {
       taux_cp_fonctionnement: taux(conso_cp[1], dot_cp[1]),
       taux_cp_t6: taux(conso_cp[2], dot_cp[2]),
       taux_cp_immo: taux(conso_cp[3], dot_cp[3]),
-      date_import: null,
-      dot_ae_total: dot_ae.reduce((a,b) => a+b, 0),
-      dot_cp_total: dot_cp.reduce((a,b) => a+b, 0),
-      conso_ae_total: conso_ae.reduce((a,b) => a+b, 0),
-      conso_cp_total: conso_cp.reduce((a,b) => a+b, 0),
+      date_import,
+      get dot_ae_total() { return sumHorsT6(dot_ae); },
+      get dot_cp_total() { return sumHorsT6(dot_cp); },
+      get conso_ae_total() { return sumHorsT6(conso_ae); },
+      get conso_cp_total() { return sumHorsT6(conso_cp); },
       get taux_ae_total() { return this.dot_ae_total > 0 ? this.conso_ae_total / this.dot_ae_total : 0; },
       get taux_cp_total() { return this.dot_cp_total > 0 ? this.conso_cp_total / this.dot_cp_total : 0; },
     };
@@ -556,10 +572,14 @@ function getBudgetData(structureId, annee) {
       if (typeof raw === 'number') return new Date(raw * 1000);
       return null;
     })(),
-    get dot_ae_total() { return this.dot_ae_vehicules + this.dot_ae_fonctionnement + this.dot_ae_t6 + this.dot_ae_immo; },
-    get dot_cp_total() { return this.dot_cp_vehicules + this.dot_cp_fonctionnement + this.dot_cp_t6 + this.dot_cp_immo; },
-    get conso_ae_total() { return this.conso_ae_vehicules + this.conso_ae_fonctionnement + this.conso_ae_t6 + this.conso_ae_immo; },
-    get conso_cp_total() { return this.conso_cp_vehicules + this.conso_cp_fonctionnement + this.conso_cp_t6 + this.conso_cp_immo; },
+    // Totaux lus directement depuis Grist (Dot_AE_Total/Conso_AE_Total) : ces
+    // formules excluent déjà T6 pour les DI et le consolident au niveau DG —
+    // ne pas recalculer en JS pour éviter toute désynchronisation avec la
+    // fiche identité et le tableau de bord budget.
+    dot_ae_total: n('Dot_AE_Total'),
+    dot_cp_total: n('Dot_CP_Total'),
+    conso_ae_total: n('Conso_AE_Total'),
+    conso_cp_total: n('Conso_CP_Total'),
     get taux_ae_total() { return this.dot_ae_total > 0 ? this.conso_ae_total / this.dot_ae_total : 0; },
     get taux_cp_total() { return this.dot_cp_total > 0 ? this.conso_cp_total / this.dot_cp_total : 0; },
   };
@@ -955,6 +975,63 @@ function buildCategoryTable(data, moy) {
  * ci-dessus), car selon le filtre choisi elle peut inclure à la fois une DI
  * Outremer et ses DR rattachées (double comptage possible).
  */
+/**
+ * Classe les structures par « Reste CP » décroissant (Dotation CP − Consommé CP)
+ * et retourne les 10 premières — combine naturellement un taux de consommation
+ * bas ET un enjeu budgétaire important : un taux bas sur une petite dotation
+ * donne un reste faible (peu prioritaire), un taux bas sur une grosse dotation
+ * donne un reste élevé (prioritaire). Le CP (dépense réelle/décaissement) est
+ * retenu comme critère de tri plutôt que l'AE (engagement).
+ */
+function buildTopEnjeuTable(structBudgets) {
+  const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, ShadingType, AlignmentType } = docx;
+
+  const headerLabels = ['Structure', 'Dotation CP', 'Consommé CP', 'Reste CP', 'Taux CP', 'Taux AE'];
+  const headerCells = headerLabels.map(label => new TableCell({
+    shading: { type: ShadingType.CLEAR, fill: 'C0392B', color: 'auto' },
+    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: label, bold: true, color: 'FFFFFF', size: 14 })] })],
+  }));
+  const rows = [new TableRow({ children: headerCells, tableHeader: true })];
+
+  const cell = (text, opts) => new TableCell({
+    shading: opts && opts.shade ? { type: ShadingType.CLEAR, fill: 'F4F4F4', color: 'auto' } : undefined,
+    children: [new Paragraph({ alignment: opts && opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT, children: [new TextRun({ text, bold: opts && opts.bold, color: opts && opts.color, size: 14 })] })],
+  });
+
+  const fmtTauxColor = tauxPct => {
+    if (tauxPct == null || isNaN(tauxPct)) return '888888';
+    return tauxPct >= 80 ? 'C0392B' : tauxPct >= 50 ? 'D07B00' : '008941';
+  };
+
+  const ranked = structBudgets
+    .filter(({ data }) => data && data.dot_cp_total > 0)
+    .map(({ struct, data }) => ({
+      struct, data,
+      resteCP: data.dot_cp_total - data.conso_cp_total,
+      tauxCPPct: data.taux_cp_total * 100,
+      tauxAEPct: data.taux_ae_total * 100,
+    }))
+    .sort((a, b) => b.resteCP - a.resteCP)
+    .slice(0, 10);
+
+  if (!ranked.length) {
+    rows.push(new TableRow({ children: [new TableCell({ columnSpan: 6, children: [new Paragraph({ children: [new TextRun({ text: 'Aucune donnée disponible.', italics: true, color: '888888', size: 14 })] })] })] }));
+  } else {
+    ranked.forEach(({ struct, data, resteCP, tauxCPPct, tauxAEPct }, i) => {
+      rows.push(new TableRow({ children: [
+        cell(`${i + 1}. ${struct.sigle}`, { bold: i < 3 }),
+        cell(formatCurrency(data.dot_cp_total), { right: true }),
+        cell(formatCurrency(data.conso_cp_total), { right: true }),
+        cell(formatCurrency(resteCP), { right: true, bold: true }),
+        cell(formatPercent(tauxCPPct), { right: true, color: fmtTauxColor(tauxCPPct) }),
+        cell(formatPercent(tauxAEPct), { right: true, color: fmtTauxColor(tauxAEPct) }),
+      ] }));
+    });
+  }
+
+  return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
+}
+
 function buildCategoryStructureTable(catKey, structBudgets) {
   const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, ShadingType, AlignmentType } = docx;
 
@@ -1097,6 +1174,22 @@ async function buildNationalSyntheseSection(structBudgets) {
     elements.push(new Paragraph({
       spacing: { after: 200 },
       children: [new TextRun({ text: `Consommation CP nationale : ${formatPercent(moyNat.taux_cp_total * 100)} (${formatCurrency(conso.total_conso_cp)} consommés / ${formatCurrency(conso.total_notif_cp)} de dotation globale)`, bold: true }) ],
+    }));
+
+    // ── Consommation globale par structure (AE:CP — dotation, consommé, reste, taux) ──
+    elements.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 100, after: 100 }, children: [new TextRun({ text: 'Consommation globale par structure — ' + ANNEE })] }));
+    elements.push(buildCategoryStructureTable('total', structBudgets));
+    elements.push(new Paragraph({
+      spacing: { before: 80, after: 200 },
+      children: [new TextRun({ text: 'Total tous domaines (Véhicules, Fonctionnement, Immobilier, et T6 Buralistes sauf pour les DI où il est exclu du total et consolidé au niveau DG). Le « Total (structures listées) » est la somme des lignes affichées selon votre filtre.', italics: true, color: '888888', size: 16 })],
+    }));
+
+    // ── Top 10 des services à enjeu budgétaire prioritaire ──
+    elements.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 100, after: 100 }, children: [new TextRun({ text: '⚠️ Top 10 — Services à enjeu budgétaire prioritaire' })] }));
+    elements.push(buildTopEnjeuTable(structBudgets));
+    elements.push(new Paragraph({
+      spacing: { before: 80, after: 200 },
+      children: [new TextRun({ text: 'Classement par « Reste CP » décroissant (Dotation CP − Consommé CP) : combine un taux de consommation bas et un enjeu financier important — un taux bas sur une petite dotation ne fait pas remonter le service ici, contrairement à un taux bas sur une grosse dotation.', italics: true, color: '888888', size: 16 })],
     }));
 
     // ── Araignées nationales AE / CP (taux pondérés par le poids budgétaire, Σconso/Σdotation) ──
