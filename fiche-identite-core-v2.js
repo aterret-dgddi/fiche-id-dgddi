@@ -5973,10 +5973,14 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
 
     let canvas = null, pxToMm = 0, imgHeight = 0;
     if (!skipFullCapture) {
+      // Pas de width/height figés ici : la police système forcée par onclone
+      // (voir _h2cOnClone) peut élargir le texte et donc changer le nombre de
+      // lignes après passage à la ligne — figer les dimensions AVANT cette
+      // substitution risquait de couper du contenu qui déborde en hauteur.
+      // html2canvas mesure alors naturellement le clone déjà transformé.
       canvas = await html2canvas(element, {
         scale: 1.5, useCORS: true, logging: false,
         backgroundColor: '#ffffff',
-        width: element.scrollWidth, height: element.scrollHeight,
         onclone: _h2cOnClone
       });
       pxToMm    = imgWidth / canvas.width;
@@ -6108,13 +6112,13 @@ async function addStructureToPDF(pdf, struct, annee, isFirstPage) {
     // Capturer le header fiche
     let hHeader = 0, dataHeader = null;
     if (ficheHeader && ficheHeader.offsetParent) {
-      const cHeader = await html2canvas(ficheHeader, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', width:ficheHeader.scrollWidth, height:ficheHeader.scrollHeight, onclone:_h2cOnClone });
+      const cHeader = await html2canvas(ficheHeader, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', onclone:_h2cOnClone });
       hHeader = cHeader.height * (imgW / cHeader.width);
       dataHeader = cHeader.toDataURL('image/jpeg', 0.82);
     }
 
     // Capturer le bloc pills (sans la description)
-    const cPills = await html2canvas(mainCommentBox, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', width:mainCommentBox.scrollWidth, height:mainCommentBox.scrollHeight, onclone:_h2cOnClone });
+    const cPills = await html2canvas(mainCommentBox, { scale:1.5, useCORS:true, logging:false, backgroundColor:'#ffffff', onclone:_h2cOnClone });
     const hPills = cPills.height * (imgW / cPills.width);
 
     // Lire le markdown du commentaire général
