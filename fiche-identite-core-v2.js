@@ -818,7 +818,8 @@ function getBudgetMensuelHistorique(structureId) {
     global:         { AE: 'Cumul_AE_total',           CP: 'Cumul_CP_total' },
     fonctionnement: { AE: 'Cumul_AE_fonctionnement',  CP: 'Cumul_CP_fonctionnement' },
     vehicules:      { AE: 'Cumul_AE_vehicules',        CP: 'Cumul_CP_vehicules' },
-    immo:           { AE: 'Cumul_AE_Immo',             CP: 'Cumul_CP_Immo' }
+    immo:           { AE: 'Cumul_AE_Immo',             CP: 'Cumul_CP_Immo' },
+    t6:             { AE: 'Cumul_AE_T6',               CP: 'Cumul_CP_T6' }
   };
 
   // Regrouper les lignes Budget_Mensuel du périmètre par (année, mois)

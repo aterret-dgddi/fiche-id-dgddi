@@ -410,8 +410,19 @@
 </div>
 
 
-<!-- Progression mensuelle de la consommation (fixe, ne défile pas — reste
-     dans le wrapper sticky-top avec l'en-tête et la barre nationale) -->
+<!-- Filtres type de structure -->
+<div class="filter-bar">
+  <span style="font-size:11px;color:var(--gris3);">Afficher :</span>
+  <button class="filter-btn active" data-filter="all">Tout</button>
+  <button class="filter-btn" data-filter="DG">DG</button>
+  <button class="filter-btn" data-filter="DI">DI</button>
+  <button class="filter-btn" data-filter="DR">DR</button>
+  <button class="filter-btn" data-filter="SCN">SCN</button>
+</div>
+</div><!-- /sticky-top -->
+
+<!-- Progression mensuelle de la consommation (défile normalement avec le
+     reste de la page, au-dessus de la grille des araignées) -->
 <div class="chart-container" style="margin:12px 16px;padding:16px;background:#fff;border:1px solid var(--bord);border-radius:8px;">
   <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
     <div style="font-weight:700;font-size:14px;color:var(--gris1);" id="budget-mensuel-tbb-title">📅 Progression mensuelle de la consommation</div>
@@ -424,6 +435,7 @@
         <option value="fonctionnement">Fonctionnement</option>
         <option value="vehicules">Parc automobile</option>
         <option value="immo">Immobilier</option>
+        <option value="t6">T6 Buralistes</option>
       </select>
       <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
         <button id="budget-mensuel-tbb-btn-eur" onclick="setBudgetMensuelTBB('unit','eur')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">€</button>
@@ -434,7 +446,7 @@
   <div style="display:flex;gap:16px;flex-wrap:wrap;">
     <div style="flex:1;min-width:280px;">
       <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">AE</div>
-      <div id="budget-mensuel-tbb-wrapper-ae" style="position:relative;height:190px;">
+      <div id="budget-mensuel-tbb-wrapper-ae" style="position:relative;height:260px;">
         <canvas id="chart-budget-mensuel-tbb-ae"></canvas>
       </div>
       <div id="budget-mensuel-tbb-empty-ae" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
@@ -442,7 +454,7 @@
     </div>
     <div style="flex:1;min-width:280px;">
       <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">CP</div>
-      <div id="budget-mensuel-tbb-wrapper-cp" style="position:relative;height:190px;">
+      <div id="budget-mensuel-tbb-wrapper-cp" style="position:relative;height:260px;">
         <canvas id="chart-budget-mensuel-tbb-cp"></canvas>
       </div>
       <div id="budget-mensuel-tbb-empty-cp" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
@@ -451,16 +463,6 @@
   </div>
 </div>
 
-<!-- Filtres type de structure -->
-<div class="filter-bar">
-  <span style="font-size:11px;color:var(--gris3);">Afficher :</span>
-  <button class="filter-btn active" data-filter="all">Tout</button>
-  <button class="filter-btn" data-filter="DG">DG</button>
-  <button class="filter-btn" data-filter="DI">DI</button>
-  <button class="filter-btn" data-filter="DR">DR</button>
-  <button class="filter-btn" data-filter="SCN">SCN</button>
-</div>
-</div><!-- /sticky-top -->
 
 <div id="loading">⏳ Chargement des données budgétaires…</div>
 <div id="error" style="display:none;"></div>
@@ -1033,7 +1035,8 @@ const CUMUL_COL_TBB = {
   global:         { AE: 'Cumul_AE_total',          CP: 'Cumul_CP_total' },
   fonctionnement: { AE: 'Cumul_AE_fonctionnement',  CP: 'Cumul_CP_fonctionnement' },
   vehicules:      { AE: 'Cumul_AE_vehicules',       CP: 'Cumul_CP_vehicules' },
-  immo:           { AE: 'Cumul_AE_Immo',            CP: 'Cumul_CP_Immo' }
+  immo:           { AE: 'Cumul_AE_Immo',            CP: 'Cumul_CP_Immo' },
+  t6:             { AE: 'Cumul_AE_T6',              CP: 'Cumul_CP_T6' }
 };
 
 /**
@@ -1108,7 +1111,8 @@ function getDotationPourPerimetre(idsToScan, poste, domain, annee) {
     global:         null,
     fonctionnement: `dot_${P}_fonctionnement`,
     vehicules:      `dot_${P}_vehicules`,
-    immo:           `dot_${P}_Immo`
+    immo:           `dot_${P}_Immo`,
+    t6:             `Dot_${P}_T6`
   };
   const idsSet = new Set(idsToScan);
   let total = 0, found = false;
@@ -1144,7 +1148,8 @@ function getDotationNationale(poste, domain, annee) {
     global:         `Total_Notif_${P}`,
     fonctionnement: `Total_Dot_${P}_fonctionnement`,
     vehicules:      `Total_Dot_${P}_vehicules`,
-    immo:           `Total_Dot_${P}_Immo`
+    immo:           `Total_Dot_${P}_Immo`,
+    t6:             `Total_Dot_${P}_T6`
   };
   const val = Number(conso[colMap[domain]]?.[idx]);
   return val > 0 ? val : null;
