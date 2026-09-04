@@ -3283,6 +3283,8 @@ function refreshBudget(structureId, annee) {
 
   // ── Vider si pas de données ───────────────────────────────
   if (!dataN) {
+    const elTitleEmpty = document.getElementById('budget-section-title');
+    if (elTitleEmpty) elTitleEmpty.textContent = 'Budget & Consommation';
     ['budget-pill-taux-ae','budget-pill-taux-cp',
      'budget-pill-montants-ae','budget-pill-montants-cp',
      'budget-pill-ae-groupe','budget-pill-ae-national',
@@ -3316,15 +3318,26 @@ function refreshBudget(structureId, annee) {
     return;
   }
 
-  // ── Date import ───────────────────────────────────────────
-  const elDate = document.getElementById('budget-date-import');
-  if (elDate) {
+  // ── Titre de section avec date de dernier chargement ───────
+  const elTitle = document.getElementById('budget-section-title');
+  if (elTitle) {
     if (dataN.date_import && !isNaN(dataN.date_import)) {
-      elDate.textContent = `Données au ${dataN.date_import.toLocaleDateString('fr-FR')}`;
+      elTitle.textContent = `Budget & Consommation au ${dataN.date_import.toLocaleDateString('fr-FR')}`;
     } else {
-      elDate.textContent = '';
+      elTitle.textContent = 'Budget & Consommation';
     }
   }
+
+  // ── Libellés "hors buralistes" — uniquement exact pour les DI (seul cas où
+  // le Total exclut réellement T6 ; pour le DG le Total le consolide au
+  // contraire, donc pas de mention "hors buralistes" ici) ──────
+  const suffixeT6 = isDI ? ', hors buralistes' : '';
+  const elLabelAE = document.getElementById('budget-pill-label-ae');
+  const elLabelCP = document.getElementById('budget-pill-label-cp');
+  if (elLabelAE) elLabelAE.textContent = 'Consommation AE globale' + suffixeT6;
+  if (elLabelCP) elLabelCP.textContent = 'Consommation CP globale' + suffixeT6;
+  const elMensuelTitle = document.getElementById('budget-mensuel-chart-title');
+  if (elMensuelTitle) elMensuelTitle.textContent = 'Progression mensuelle de la consommation' + suffixeT6;
 
   // ── Pills globales ────────────────────────────────────────
   const pctAE = (dataN.taux_ae_total * 100).toFixed(1) + ' %';
@@ -3970,9 +3983,9 @@ function createBudgetTable(data, moy, libPerimetre, annee, isDI) {
   const categories = [
     { label: 'Véhicules',        dot_ae: data.dot_ae_vehicules,      conso_ae: data.conso_ae_vehicules,      taux_ae: data.taux_ae_vehicules,      dot_cp: data.dot_cp_vehicules,      conso_cp: data.conso_cp_vehicules,      taux_cp: data.taux_cp_vehicules,      moy_cp: moy?.taux_cp_vehicules },
     { label: 'Fonctionnement',   dot_ae: data.dot_ae_fonctionnement,  conso_ae: data.conso_ae_fonctionnement, taux_ae: data.taux_ae_fonctionnement,  dot_cp: data.dot_cp_fonctionnement,  conso_cp: data.conso_cp_fonctionnement, taux_cp: data.taux_cp_fonctionnement,  moy_cp: moy?.taux_cp_fonctionnement },
-    { label: isDI ? 'T6 Buralistes <span style="font-weight:400;font-style:italic;color:var(--gris3);font-size:11px;">(pour information — consolidé au niveau DG)</span>' : 'T6 Buralistes', dot_ae: data.dot_ae_t6, conso_ae: data.conso_ae_t6, taux_ae: data.taux_ae_t6, dot_cp: data.dot_cp_t6, conso_cp: data.conso_cp_t6, taux_cp: data.taux_cp_t6, moy_cp: moy?.taux_cp_t6, isInfo: isDI },
     { label: 'Immobilier',       dot_ae: data.dot_ae_immo,           conso_ae: data.conso_ae_immo,          taux_ae: data.taux_ae_immo,           dot_cp: data.dot_cp_immo,           conso_cp: data.conso_cp_immo,          taux_cp: data.taux_cp_immo,          moy_cp: moy?.taux_cp_immo },
     { label: '<strong>Total</strong>', dot_ae: data.dot_ae_total, conso_ae: data.conso_ae_total, taux_ae: data.taux_ae_total, dot_cp: data.dot_cp_total, conso_cp: data.conso_cp_total, taux_cp: data.taux_cp_total, moy_cp: moy?.taux_cp_total, isTotal: true },
+    { label: isDI ? 'T6 Buralistes <span style="font-weight:400;font-style:italic;color:var(--gris3);font-size:11px;">(pour information — consolidé au niveau DG)</span>' : 'T6 Buralistes', dot_ae: data.dot_ae_t6, conso_ae: data.conso_ae_t6, taux_ae: data.taux_ae_t6, dot_cp: data.dot_cp_t6, conso_cp: data.conso_cp_t6, taux_cp: data.taux_cp_t6, moy_cp: moy?.taux_cp_t6, isInfo: isDI },
   ];
 
   // pct = null/undefined -> "—" (pas de couleur). pct calculé mais dot = 0

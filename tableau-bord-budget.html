@@ -219,7 +219,7 @@
     margin-bottom: 2px;
   }
   .card-canvas-wrap-sm {
-    height: 160px;
+    height: 172px;
   }
   .card-kpi-row {
     display: flex;
@@ -343,7 +343,7 @@
 <div id="sticky-top" style="position:sticky;top:0;z-index:100;">
 <div class="page-header" style="position:static;">
   <div>
-    <h1>🕷️ Araignées budgétaires — Taux de consommation AE / CP 2026</h1>
+    <h1 id="dashboard-title">🕷️ Araignées budgétaires — Taux de consommation AE / CP 2026</h1>
     <div class="subtitle" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
       <span>Budget HT2 — Véhicules · Fonctionnement · T6 Buralistes · Immobilier</span>
       <span style="opacity:.4;">|</span>
@@ -410,10 +410,11 @@
 </div>
 
 
-<!-- Progression mensuelle de la consommation -->
+<!-- Progression mensuelle de la consommation (fixe, ne défile pas — reste
+     dans le wrapper sticky-top avec l'en-tête et la barre nationale) -->
 <div class="chart-container" style="margin:12px 16px;padding:16px;background:#fff;border:1px solid var(--bord);border-radius:8px;">
   <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-    <div style="font-weight:700;font-size:14px;color:var(--gris1);">📅 Progression mensuelle de la consommation</div>
+    <div style="font-weight:700;font-size:14px;color:var(--gris1);" id="budget-mensuel-tbb-title">📅 Progression mensuelle de la consommation</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <select id="budget-mensuel-service" onchange="setBudgetMensuelTBB('service', this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord);border-radius:5px;font-family:var(--font);min-width:180px;">
         <option value="national">🇫🇷 Consolidation nationale</option>
@@ -433,7 +434,7 @@
   <div style="display:flex;gap:16px;flex-wrap:wrap;">
     <div style="flex:1;min-width:280px;">
       <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">AE</div>
-      <div id="budget-mensuel-tbb-wrapper-ae" style="position:relative;height:260px;">
+      <div id="budget-mensuel-tbb-wrapper-ae" style="position:relative;height:190px;">
         <canvas id="chart-budget-mensuel-tbb-ae"></canvas>
       </div>
       <div id="budget-mensuel-tbb-empty-ae" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
@@ -441,7 +442,7 @@
     </div>
     <div style="flex:1;min-width:280px;">
       <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">CP</div>
-      <div id="budget-mensuel-tbb-wrapper-cp" style="position:relative;height:260px;">
+      <div id="budget-mensuel-tbb-wrapper-cp" style="position:relative;height:190px;">
         <canvas id="chart-budget-mensuel-tbb-cp"></canvas>
       </div>
       <div id="budget-mensuel-tbb-empty-cp" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
@@ -469,6 +470,7 @@
 // ── Constantes ────────────────────────────────────────────────────────────────
 const ANNEE = 2026;
 const CATS = ['Véhicules','Fonctionnement','T6 Buralistes','Immobilier'];
+const CAT_KEYS = ['vehicules','fonctionnement','t6','immo'];
 const CAT_COLORS = ['#E67E22','#1351A8','#8E44AD','#27AE60'];
 const CAT_FILL   = ['rgba(230,126,34,.18)','rgba(19,81,168,.18)','rgba(142,68,173,.18)','rgba(39,174,96,.18)'];
 
@@ -754,12 +756,16 @@ function createRadar(canvasId, type, data, natMoy) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
-  const struct_vals = [
-    pctNum(data[`taux_${type}_vehicules`]),
-    pctNum(data[`taux_${type}_fonctionnement`]),
-    pctNum(data[`taux_${type}_t6`]),
-    pctNum(data[`taux_${type}_immo`]),
-  ];
+  // T6 Buralistes : non discrétionnaire pour les structures de terrain depuis
+  // 2026 (UOT créée au niveau DG) -> axe retiré de l'araignée pour tout le
+  // monde SAUF le DG lui-même. Le détail chiffré reste dans les badges sous
+  // l'araignée (buildCard), quel que soit le type de structure.
+  const isDG = data.typeAff === 'DG';
+  const catIdx    = CAT_KEYS.map((k, i) => i).filter(i => isDG || CAT_KEYS[i] !== 't6');
+  const catLabels = catIdx.map(i => CATS[i]);
+  const catColors = catIdx.map(i => CAT_COLORS[i]);
+
+  const struct_vals = catIdx.map(i => pctNum(data[`taux_${type}_${CAT_KEYS[i]}`]));
 
   const datasets = [];
 
@@ -767,12 +773,7 @@ function createRadar(canvasId, type, data, natMoy) {
   if (natMoy) {
     datasets.push({
       label: 'National',
-      data: [
-        pctNum(natMoy[`taux_${type}_vehicules`]),
-        pctNum(natMoy[`taux_${type}_fonctionnement`]),
-        pctNum(natMoy[`taux_${type}_t6`]),
-        pctNum(natMoy[`taux_${type}_immo`]),
-      ],
+      data: catIdx.map(i => pctNum(natMoy[`taux_${type}_${CAT_KEYS[i]}`])),
       borderColor: 'rgba(160,160,160,0.7)',
       backgroundColor: 'rgba(160,160,160,0.08)',
       borderWidth: 1.5,
@@ -789,7 +790,7 @@ function createRadar(canvasId, type, data, natMoy) {
     borderColor: 'rgba(19,81,168,0.9)',
     backgroundColor: 'rgba(19,81,168,0.12)',
     borderWidth: 2.5,
-    pointBackgroundColor: CAT_COLORS,
+    pointBackgroundColor: catColors,
     pointBorderColor: '#fff',
     pointBorderWidth: 2,
     pointRadius: 5,
@@ -798,11 +799,12 @@ function createRadar(canvasId, type, data, natMoy) {
 
   const chart = new Chart(canvas, {
     type: 'radar',
-    data: { labels: CATS, datasets },
+    data: { labels: catLabels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 300 },
+      layout: { padding: 14 },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -826,9 +828,9 @@ function createRadar(canvasId, type, data, natMoy) {
             display: false,   // ← supprime les labels 25/50/75/100
           },
           pointLabels: {
-            font: { size: 10, weight: '600' },
-            color: CAT_COLORS,
-            padding: 8,
+            font: { size: 9, weight: '600' },
+            color: catColors,
+            padding: 6,
           },
           grid: {
             color: (ctx) => ctx.index === 0
@@ -967,39 +969,39 @@ function buildCard(card) {
         <div class="card-kpi-row">
           <div class="card-kpi">
             <div style="font-size:9px;font-weight:700;color:#E67E22;margin-bottom:3px;">Véh.</div>
-            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_vehicules), natVeh)};">${pct(card.taux_cp_vehicules)}</div>
-            <div style="font-size:9px;color:#aaa;">CP</div>
-            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_vehicules)}/${fmtEuroK(card.dot_cp_vehicules)}</div>
-            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_vehicules), natAEVeh)};margin-top:3px;">${pct(card.taux_ae_vehicules)}</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_vehicules), natAEVeh)};">${pct(card.taux_ae_vehicules)}</div>
             <div style="font-size:9px;color:#aaa;">AE</div>
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_ae_vehicules)}/${fmtEuroK(card.dot_ae_vehicules)}</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_vehicules), natVeh)};margin-top:3px;">${pct(card.taux_cp_vehicules)}</div>
+            <div style="font-size:9px;color:#aaa;">CP</div>
+            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_vehicules)}/${fmtEuroK(card.dot_cp_vehicules)}</div>
           </div>
           <div class="card-kpi">
             <div style="font-size:9px;font-weight:700;color:#1351A8;margin-bottom:3px;">Fonct.</div>
-            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_fonctionnement), natFonct)};">${pct(card.taux_cp_fonctionnement)}</div>
-            <div style="font-size:9px;color:#aaa;">CP</div>
-            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_fonctionnement)}/${fmtEuroK(card.dot_cp_fonctionnement)}</div>
-            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_fonctionnement), natAEFonct)};margin-top:3px;">${pct(card.taux_ae_fonctionnement)}</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_fonctionnement), natAEFonct)};">${pct(card.taux_ae_fonctionnement)}</div>
             <div style="font-size:9px;color:#aaa;">AE</div>
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_ae_fonctionnement)}/${fmtEuroK(card.dot_ae_fonctionnement)}</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_fonctionnement), natFonct)};margin-top:3px;">${pct(card.taux_cp_fonctionnement)}</div>
+            <div style="font-size:9px;color:#aaa;">CP</div>
+            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_fonctionnement)}/${fmtEuroK(card.dot_cp_fonctionnement)}</div>
           </div>
           <div class="card-kpi">
             <div style="font-size:9px;font-weight:700;color:#8E44AD;margin-bottom:3px;">T6</div>
-            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_t6), natT6)};">${pct(card.taux_cp_t6)}</div>
-            <div style="font-size:9px;color:#aaa;">CP</div>
-            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_t6)}/${fmtEuroK(card.dot_cp_t6)}</div>
-            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_t6), natAET6)};margin-top:3px;">${pct(card.taux_ae_t6)}</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_t6), natAET6)};">${pct(card.taux_ae_t6)}</div>
             <div style="font-size:9px;color:#aaa;">AE</div>
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_ae_t6)}/${fmtEuroK(card.dot_ae_t6)}</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_t6), natT6)};margin-top:3px;">${pct(card.taux_cp_t6)}</div>
+            <div style="font-size:9px;color:#aaa;">CP</div>
+            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_t6)}/${fmtEuroK(card.dot_cp_t6)}</div>
           </div>
           <div class="card-kpi">
             <div style="font-size:9px;font-weight:700;color:#27AE60;margin-bottom:3px;">Immo.</div>
-            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_immo), natImmo)};">${pct(card.taux_cp_immo)}</div>
-            <div style="font-size:9px;color:#aaa;">CP</div>
-            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_immo)}/${fmtEuroK(card.dot_cp_immo)}</div>
-            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_immo), natAEImmo)};margin-top:3px;">${pct(card.taux_ae_immo)}</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_ae_immo), natAEImmo)};">${pct(card.taux_ae_immo)}</div>
             <div style="font-size:9px;color:#aaa;">AE</div>
             <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_ae_immo)}/${fmtEuroK(card.dot_ae_immo)}</div>
+            <div style="font-size:12px;font-weight:700;color:${clrStyle(pctNum(card.taux_cp_immo), natImmo)};margin-top:3px;">${pct(card.taux_cp_immo)}</div>
+            <div style="font-size:9px;color:#aaa;">CP</div>
+            <div style="font-size:8px;color:#bbb;margin-top:1px;white-space:nowrap;">${fmtEuroK(card.conso_cp_immo)}/${fmtEuroK(card.dot_cp_immo)}</div>
           </div>
         </div>
         ${buildMontantsLine(card)}
@@ -1174,6 +1176,13 @@ function populateServiceSelector() {
 }
 
 function renderBudgetMensuelDashboardChart() {
+  const elTitle = document.getElementById('budget-mensuel-tbb-title');
+  if (elTitle) {
+    const service = BUDGET_MENSUEL_TBB_STATE.service;
+    const sIdx = (service !== 'national' && STATE_structuresTable) ? STATE_structuresTable.id.indexOf(service) : -1;
+    const isDI = sIdx !== -1 && STATE_structuresTable.Type[sIdx] === 'DI';
+    elTitle.textContent = '📅 Progression mensuelle de la consommation' + (isDI ? ', hors buralistes' : '');
+  }
   ['ae', 'cp'].forEach(poste => renderBudgetMensuelDashboardSide(poste));
 }
 
@@ -1356,6 +1365,17 @@ function computeGroups() {
 function render() {
   const groups = computeGroups();
   const content = document.getElementById('content');
+
+  // Date de dernier chargement la plus récente parmi toutes les structures affichées
+  const elDashTitle = document.getElementById('dashboard-title');
+  if (elDashTitle) {
+    let dateMax = null;
+    allCards.forEach(c => {
+      if (c.date_import && (!dateMax || c.date_import > dateMax)) dateMax = c.date_import;
+    });
+    const base = '🕷️ Araignées budgétaires — Taux de consommation AE / CP 2026';
+    elDashTitle.textContent = dateMax ? `${base} — données au ${formatDateFR(dateMax)}` : base;
+  }
 
   if (groups.length === 1 && groups[0].title === null) {
     content.innerHTML = `<div class="section-block"><div class="grid">${groups[0].cards.map(buildCard).join('')}</div></div>`;

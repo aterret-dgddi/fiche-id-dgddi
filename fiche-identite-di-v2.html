@@ -1324,14 +1324,13 @@
     <div class="section" id="section-budget">
     <div class="section-header">
     <div class="section-icon">📈</div>
-    <div class="section-title">Budget & Consommation</div>
+    <div class="section-title" id="budget-section-title">Budget & Consommation</div>
     </div>
 
     <!-- KPI Pills : taux globaux -->
-    <div style="text-align:right;font-size:11px;color:var(--gris2);font-style:italic;margin-bottom:8px;" id="budget-date-import"></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;">
     <div class="kpi-card">
-    <div class="kpi-card-label">Consommation AE globale</div>
+    <div class="kpi-card-label" id="budget-pill-label-ae">Consommation AE globale</div>
     <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-ae">—</div>
     <div class="kpi-card-details">
     <div id="budget-pill-montants-ae" style="font-weight:600;margin-bottom:4px;">—</div>
@@ -1340,7 +1339,7 @@
     </div>
     </div>
     <div class="kpi-card">
-    <div class="kpi-card-label">Consommation CP globale</div>
+    <div class="kpi-card-label" id="budget-pill-label-cp">Consommation CP globale</div>
     <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-cp">—</div>
     <div class="kpi-card-details">
     <div id="budget-pill-montants-cp" style="font-weight:600;margin-bottom:4px;">—</div>
@@ -1376,7 +1375,7 @@
     <div class="chart-container" style="margin-top:20px;">
     <div id="budget-mensuel-controls-and-chart">
     <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;">
-    <div class="chart-title" style="margin:0;">Progression mensuelle de la consommation</div>
+    <div class="chart-title" style="margin:0;" id="budget-mensuel-chart-title">Progression mensuelle de la consommation</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
     <button id="budget-mensuel-btn-eur" onclick="setBudgetMensuelUnit('eur')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">€</button>
