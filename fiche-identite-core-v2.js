@@ -2562,11 +2562,16 @@ function getCommunicationLignesFilles(structureId) {
  * @param {number} annee
  */
 function refreshCommunication(structureId, annee) {
-  const elTitleCommunication = document.getElementById('communication-section-title');
-  if (elTitleCommunication) elTitleCommunication.textContent = `Dépenses de communication — ${annee}`;
-
   const d   = getCommunicationData(structureId);
   const fmt = formatCommunicationMontant;
+
+  // L'année globale de la fiche (FICHE_STATE.annee) est dérivée de la table
+  // RH — sans rapport avec Communication, qui a son propre suivi par année
+  // (CP_2026, Date_Import_2026). Si le 2026 a été importé pour ce sujet, le
+  // titre doit le refléter même si le RH 2026 n'est pas encore chargé.
+  const anneeAffichee = (d && d.date_import && !isNaN(d.date_import)) ? 2026 : (annee || 2025);
+  const elTitleCommunication = document.getElementById('communication-section-title');
+  if (elTitleCommunication) elTitleCommunication.textContent = `Dépenses de communication — ${anneeAffichee}`;
 
   const structures = FICHE_STATE.data.structures;
   const sIdx = structures ? structures.id.indexOf(structureId) : -1;
@@ -6677,6 +6682,44 @@ function exportToHTML() {
 // EXPORT XLSX — Données chiffrées lisibles pour exploitation IA
 // ═══════════════════════════════════════════════════════════════
 
+/** Vrai si la structure sid est une DI (seul cas où T6 est exclu du Total). */
+function _isStructureDI(sid) {
+  const structures = FICHE_STATE.data.structures;
+  if (!structures) return false;
+  const idx = structures.id.indexOf(sid);
+  return idx !== -1 && structures.Type[idx] === 'DI';
+}
+
+/**
+ * Construit les lignes XLSX du suivi mensuel cumulé (AE puis CP, domaine
+ * "Tous domaines"), à partir de la même fonction que le graphique interactif
+ * (computeBudgetMensuelChartSpec) — garantit la cohérence avec ce qui est
+ * affiché à l'écran, y compris l'exclusion T6 pour les DI.
+ */
+function buildBudgetMensuelXLSXRows(sid) {
+  const isDI = _isStructureDI(sid);
+  const suffix = isDI ? ', hors buralistes' : '';
+  const rows = [];
+  ['ae', 'cp'].forEach(poste => {
+    const spec = (typeof computeBudgetMensuelChartSpec === 'function')
+      ? computeBudgetMensuelChartSpec(sid, 'global', poste, 'eur') : null;
+    rows.push([`Progression mensuelle cumulee - ${poste.toUpperCase()} (Tous domaines${suffix})`]);
+    if (spec && spec.hasData) {
+      rows.push(['Annee','Jan','Fev','Mar','Avr','Mai','Juin','Juil','Aout','Sep','Oct','Nov','Dec','Dotation (EUR)']);
+      spec.annees.forEach(annee => {
+        const serie = spec.series[annee] || [];
+        const dot = spec.dotByAnnee[annee];
+        const dotTxt = dot ? Math.round(dot.value) + (dot.estime ? ' (estimee)' : '') : '';
+        rows.push([annee, ...serie.map(v => v == null ? '' : Math.round(v)), dotTxt]);
+      });
+    } else {
+      rows.push(['Aucune donnee mensuelle disponible']);
+    }
+    rows.push([]);
+  });
+  return rows;
+}
+
 function exportToXLSX() {
   if (typeof XLSX === 'undefined') {
     alert('Librairie SheetJS non chargee. Rechargez la page.');
@@ -6810,6 +6853,9 @@ function exportToXLSX() {
     });
   }
   addSheet('Budget', budgetRows);
+
+  // ── 3bis. Budget_Mensuel (suivi mensuel cumulé, nouveauté) ─────
+  addSheet('Budget_Mensuel', buildBudgetMensuelXLSXRows(sid));
 
   // ── 4. Communication ─────────────────────────────────────────
   const comRows = [
@@ -7351,6 +7397,9 @@ function exportToXLSXWorkbook(struct, annee) {
     });
   }
   addSheet('Budget', budgetRows);
+
+  // ── Budget_Mensuel (suivi mensuel cumulé, nouveauté) ──────────
+  addSheet('Budget_Mensuel', buildBudgetMensuelXLSXRows(sid));
 
   // ── Communication (manquait dans workbook) ───────────────────
   const comRowsWB = [
