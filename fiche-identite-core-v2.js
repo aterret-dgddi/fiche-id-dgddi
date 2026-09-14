@@ -6520,11 +6520,18 @@ function exportToHTML() {
   
   // ── Préparer le contenu pour l'export ──────────────────────────
   // 1. Convertir les éditeurs EasyMDE (Markdown) en HTML statique pour l'export
+  // NB : EasyMDE insère .EasyMDEContainer comme FRÈRE du <textarea> d'origine
+  // (CodeMirror.fromTextArea cache le textarea et place son wrapper juste après),
+  // jamais comme parent. Il faut donc partir des instances connues (_mdeInstances),
+  // pas d'une recherche `.EasyMDEContainer textarea` qui ne peut jamais matcher.
   const _mdeHtmlExportDivs = [];
-  ficheBody.querySelectorAll('.EasyMDEContainer').forEach(container => {
-    const ta = container.querySelector('textarea');
-    const mdeId = ta ? ta.id : null;
-    const mdValue = mdeId && _mdeInstances[mdeId] ? _mdeInstances[mdeId].value() : (ta ? ta.value : '');
+  Object.keys(_mdeInstances).forEach(mdeId => {
+    if (mdeId === 'synthese-mde-textarea') return; // synthèse gérée séparément (comment-description)
+    const ta = document.getElementById(mdeId);
+    if (!ta || !ficheBody.contains(ta)) return; // hors de la fiche affichée
+    const container = ta.parentNode ? ta.parentNode.querySelector('.EasyMDEContainer') : null;
+    if (!container) return;
+    const mdValue = _mdeInstances[mdeId].value();
     const div = document.createElement('div');
     div.className = 'md-render';
     div.style.cssText = 'font-family:Marianne,sans-serif;font-size:12px;line-height:1.55;color:var(--gris1);padding:10px 12px 10px 14px;border-left:3px solid var(--rep2);border-top:none;border-right:none;border-bottom:none;background:#f8f9fb;min-height:32px;margin-top:4px;';
