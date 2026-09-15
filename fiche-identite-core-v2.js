@@ -6640,7 +6640,7 @@ function exportToHTML() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fiche Identite \${struct.sigle} \${FICHE_STATE.annee}</title>
+  <title>Fiche Identite ${struct.sigle} ${FICHE_STATE.annee}</title>
   <style>
     /* Responsive base */
     *, *::before, *::after { box-sizing: border-box; }
