@@ -688,6 +688,11 @@ function getBudgetData(structureId, annee) {
     const dot_cp = ['dot_CP_vehicules','dot_CP_fonctionnement','Dot_CP_T6','dot_CP_Immo'].map(sum);
     const conso_ae = ['Conso_AE_vehicules','Conso_AE_fonctionnement','Conso_AE_T6','Conso_AE_Immo'].map(sum);
     const conso_cp = ['Conso_CP_vehicules','Conso_CP_fonctionnement','Conso_CP_T6','Conso_CP_Immo'].map(sum);
+    // REJB (consommations AE négatives isolées) — à soustraire de conso_ae pour
+    // que taux/total restent cohérents avec Budget.Conso_AE_Total côté Grist,
+    // qui applique la même correction quand la DI a sa propre ligne.
+    const rejb_ae = ['REJB_Vehicules','REJB_Fonctionnement','REJB_T6buralistes','REJB_Immo'].map(sum);
+    const conso_ae_net = conso_ae.map((v, i) => v - (rejb_ae[i] || 0));
 
     const taux = (conso, dot) => dot > 0 ? conso / dot : 0;
     const sumHorsT6 = arr => arr[0] + arr[1] + arr[3];
@@ -711,10 +716,10 @@ function getBudgetData(structureId, annee) {
       dot_cp_vehicules: dot_cp[0], dot_cp_fonctionnement: dot_cp[1], dot_cp_t6: dot_cp[2], dot_cp_immo: dot_cp[3],
       conso_ae_vehicules: conso_ae[0], conso_ae_fonctionnement: conso_ae[1], conso_ae_t6: conso_ae[2], conso_ae_immo: conso_ae[3],
       conso_cp_vehicules: conso_cp[0], conso_cp_fonctionnement: conso_cp[1], conso_cp_t6: conso_cp[2], conso_cp_immo: conso_cp[3],
-      taux_ae_vehicules: taux(conso_ae[0], dot_ae[0]),
-      taux_ae_fonctionnement: taux(conso_ae[1], dot_ae[1]),
-      taux_ae_t6: taux(conso_ae[2], dot_ae[2]),
-      taux_ae_immo: taux(conso_ae[3], dot_ae[3]),
+      taux_ae_vehicules: taux(conso_ae_net[0], dot_ae[0]),
+      taux_ae_fonctionnement: taux(conso_ae_net[1], dot_ae[1]),
+      taux_ae_t6: taux(conso_ae_net[2], dot_ae[2]),
+      taux_ae_immo: taux(conso_ae_net[3], dot_ae[3]),
       taux_cp_vehicules: taux(conso_cp[0], dot_cp[0]),
       taux_cp_fonctionnement: taux(conso_cp[1], dot_cp[1]),
       taux_cp_t6: taux(conso_cp[2], dot_cp[2]),
@@ -722,7 +727,7 @@ function getBudgetData(structureId, annee) {
       date_import,
       get dot_ae_total() { return sumHorsT6(dot_ae); },
       get dot_cp_total() { return sumHorsT6(dot_cp); },
-      get conso_ae_total() { return sumHorsT6(conso_ae); },
+      get conso_ae_total() { return sumHorsT6(conso_ae_net); },
       get conso_cp_total() { return sumHorsT6(conso_cp); },
       get taux_ae_total() { return this.dot_ae_total > 0 ? this.conso_ae_total / this.dot_ae_total : 0; },
       get taux_cp_total() { return this.dot_cp_total > 0 ? this.conso_cp_total / this.dot_cp_total : 0; },
@@ -874,6 +879,90 @@ function getBudgetMensuelHistorique(structureId) {
   });
 
   return result;
+}
+
+/**
+ * Retourne les montants AE isolés dans Budget_Mensuel au titre des REJB
+ * (consommations AE négatives — rejets de bordereaux — déjà retirées du
+ * calcul de l'indicateur mensuel côté Grist, cf. Conso_AE_total /
+ * Cumul_AE_*). Lit directement les colonnes Cumul_REJB_* précalculées côté
+ * Grist (cumul de la structure du 1er janvier au dernier mois disponible) et
+ * les somme sur le périmètre structure + DR rattachées si DI — même logique
+ * que getBudgetMensuelHistorique. Retourne null si aucune ligne disponible.
+ */
+function getBudgetRejbTotals(structureId, annee) {
+  const bm = FICHE_STATE.data.budget_mensuel;
+  if (!bm || !bm.id) return null;
+
+  const idsToScan = [structureId];
+  const structures = FICHE_STATE.data.structures;
+  if (structures) {
+    const sIdx = structures.id.indexOf(structureId);
+    if (sIdx !== -1 && structures.Type[sIdx] === 'DI') {
+      idsToScan.push(...getDRRattachees(structureId));
+    }
+  }
+
+  // Pour chaque structure du périmètre, on prend sa ligne du dernier mois
+  // disponible sur l'année : les colonnes Cumul_REJB_* y contiennent déjà le
+  // cumul Grist du 1er janvier à ce mois.
+  const latestByStructure = {};
+  bm.id.forEach((id, i) => {
+    if (!idsToScan.includes(bm.Structure[i])) return;
+    if (bm.Annee[i] !== annee) return;
+    const sid = bm.Structure[i];
+    const mois = bm.Mois[i];
+    if (!latestByStructure[sid] || mois > latestByStructure[sid].mois) {
+      latestByStructure[sid] = { mois, i };
+    }
+  });
+
+  const rows = Object.values(latestByStructure);
+  if (!rows.length) return null;
+
+  const totals = { vehicules: 0, fonctionnement: 0, t6: 0, immo: 0 };
+  rows.forEach(({ i }) => {
+    totals.vehicules      += Number(bm.Cumul_REJB_vehicules?.[i]) || 0;
+    totals.fonctionnement += Number(bm.Cumul_REJB_fonctionnement?.[i]) || 0;
+    totals.t6             += Number(bm.Cumul_REJB_T6?.[i]) || 0;
+    totals.immo           += Number(bm.Cumul_REJB_Immo?.[i]) || 0;
+  });
+
+  totals.total = totals.vehicules + totals.fonctionnement + totals.t6 + totals.immo;
+  return totals;
+}
+
+/**
+ * Rend le tableau "Consommations AE négatives isolées (REJB)" sous
+ * l'indicateur de progression mensuelle. Masqué si aucune donnée REJB.
+ */
+function createBudgetRejbTable(structureId, annee) {
+  const wrapper = document.getElementById('budget-rejb-wrapper');
+  const titleEl = document.getElementById('budget-rejb-title');
+  const tbody = document.getElementById('budget-rejb-tbody');
+  if (!wrapper || !tbody) return;
+
+  const totals = getBudgetRejbTotals(structureId, annee);
+  if (!totals || totals.total === 0) {
+    wrapper.style.display = 'none';
+    tbody.innerHTML = '';
+    return;
+  }
+
+  if (titleEl) titleEl.textContent = `Consommations AE négatives isolées (REJB) — ${annee}`;
+  const rows = [
+    ['Parc automobile', totals.vehicules],
+    ['Fonctionnement', totals.fonctionnement],
+    ['T6 Buralistes', totals.t6],
+    ['Immobilier', totals.immo]
+  ];
+  let html = '';
+  rows.forEach(([label, val]) => {
+    html += `<tr><td>${label}</td><td style="text-align:right;">${formatCurrency(val, 0)}</td></tr>`;
+  });
+  html += `<tr style="font-weight:700;"><td>Total</td><td style="text-align:right;">${formatCurrency(totals.total, 0)}</td></tr>`;
+  tbody.innerHTML = html;
+  wrapper.style.display = '';
 }
 
 /**
@@ -3352,6 +3441,8 @@ function refreshBudget(structureId, annee) {
     });
     const tableToggle = document.getElementById('budget-mensuel-table-toggle');
     if (tableToggle) tableToggle.style.display = 'none';
+    const rejbWrapperEmpty = document.getElementById('budget-rejb-wrapper');
+    if (rejbWrapperEmpty) rejbWrapperEmpty.style.display = 'none';
     const tbody = document.getElementById('budget-types-tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée budgétaire disponible pour ' + annee + '</td></tr>';
     initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
@@ -3417,6 +3508,9 @@ function refreshBudget(structureId, annee) {
 
   // ── Progression mensuelle de la consommation ──────────────
   createBudgetMensuelChart(structureId);
+
+  // ── Consommations AE négatives isolées (REJB) ─────────────
+  createBudgetRejbTable(structureId, annee);
 
   // ── Tableau par catégorie ─────────────────────────────────
   createBudgetTable(dataN, moyPerimetre, libPerimetre, annee, isDI);

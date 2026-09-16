@@ -370,7 +370,8 @@ const TABLE_CONFIG = {
       'dot_AE_vehicules', 'dot_CP_vehicules', 'Conso_AE_vehicules', 'Conso_CP_vehicules',
       'dot_AE_fonctionnement', 'dot_CP_fonctionnement', 'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
       'Dot_AE_T6', 'Dot_CP_T6', 'Conso_AE_T6', 'Conso_CP_T6',
-      'dot_AE_Immo', 'dot_CP_Immo', 'Conso_AE_Immo', 'Conso_CP_Immo'
+      'dot_AE_Immo', 'dot_CP_Immo', 'Conso_AE_Immo', 'Conso_CP_Immo',
+      'REJB_Vehicules', 'REJB_Fonctionnement', 'REJB_T6buralistes', 'REJB_Immo'
     ],
     keyFields: ['Structure', 'Annee'],
     needsStructure: true,
@@ -388,7 +389,15 @@ const TABLE_CONFIG = {
       'dot_AE_immo': 'dot_AE_Immo',
       'dot_CP_immo': 'dot_CP_Immo',
       'Conso_AE_immo': 'Conso_AE_Immo',
-      'Conso_CP_immo': 'Conso_CP_Immo'
+      'Conso_CP_immo': 'Conso_CP_Immo',
+      // REJB (consommations AE négatives isolées) — variantes de nommage tolérées
+      'REJB_vehicules': 'REJB_Vehicules',
+      'REJB_fonctionnement': 'REJB_Fonctionnement',
+      'REJB_T6_buralistes': 'REJB_T6buralistes',
+      'REJB_T6Buralistes': 'REJB_T6buralistes',
+      'REJB_Buralistes': 'REJB_T6buralistes',
+      'REJB_immo': 'REJB_Immo',
+      'REJB_immobilier': 'REJB_Immo'
     }
   },
   'Budget_Mensuel': {
@@ -398,7 +407,8 @@ const TABLE_CONFIG = {
       'Conso_AE_vehicules', 'Conso_CP_vehicules',
       'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
       'Conso_AE_T6', 'Conso_CP_T6',
-      'Conso_AE_Immo', 'Conso_CP_Immo'
+      'Conso_AE_Immo', 'Conso_CP_Immo',
+      'REJB_Vehicules', 'REJB_Fonctionnement', 'REJB_T6buralistes', 'REJB_Immo'
     ],
     keyFields: ['Structure', 'Annee', 'Mois'],
     needsStructure: true,
@@ -408,7 +418,15 @@ const TABLE_CONFIG = {
       'Conso_AE_Fonctionnement': 'Conso_AE_fonctionnement',
       'Conso_CP_Fonctionnement': 'Conso_CP_fonctionnement',
       'Conso_AE_immobilier': 'Conso_AE_Immo',
-      'Conso_CP_immobilier': 'Conso_CP_Immo'
+      'Conso_CP_immobilier': 'Conso_CP_Immo',
+      // REJB (consommations AE négatives isolées) — variantes de nommage tolérées
+      'REJB_vehicules': 'REJB_Vehicules',
+      'REJB_fonctionnement': 'REJB_Fonctionnement',
+      'REJB_T6_buralistes': 'REJB_T6buralistes',
+      'REJB_T6Buralistes': 'REJB_T6buralistes',
+      'REJB_Buralistes': 'REJB_T6buralistes',
+      'REJB_immo': 'REJB_Immo',
+      'REJB_immobilier': 'REJB_Immo'
     }
   },
   'Immobilier': {
