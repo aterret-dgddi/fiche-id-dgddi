@@ -882,15 +882,17 @@ function getBudgetMensuelHistorique(structureId) {
 }
 
 /**
- * Retourne les montants AE isolés dans Budget_Mensuel au titre des REJB
+ * Retourne l'historique annuel des montants isolés au titre des REJB
  * (consommations AE négatives — rejets de bordereaux — déjà retirées du
  * calcul de l'indicateur mensuel côté Grist, cf. Conso_AE_total /
- * Cumul_AE_*). Lit directement les colonnes Cumul_REJB_* précalculées côté
- * Grist (cumul de la structure du 1er janvier au dernier mois disponible) et
- * les somme sur le périmètre structure + DR rattachées si DI — même logique
- * que getBudgetMensuelHistorique. Retourne null si aucune ligne disponible.
+ * Cumul_AE_*). Pour chaque (structure, année) du périmètre — structure + DR
+ * rattachées si DI —, on prend la ligne du dernier mois disponible sur
+ * l'année : les colonnes Cumul_REJB_* y contiennent déjà le cumul Grist du
+ * 1er janvier à ce mois. Retourne { annees: [...triées], parAnnee: {
+ * annee: {vehicules, fonctionnement, t6, immo, total} } }, ou null si aucune
+ * donnée.
  */
-function getBudgetRejbTotals(structureId, annee) {
+function getBudgetRejbHistorique(structureId) {
   const bm = FICHE_STATE.data.budget_mensuel;
   if (!bm || !bm.id) return null;
 
@@ -903,64 +905,69 @@ function getBudgetRejbTotals(structureId, annee) {
     }
   }
 
-  // Pour chaque structure du périmètre, on prend sa ligne du dernier mois
-  // disponible sur l'année : les colonnes Cumul_REJB_* y contiennent déjà le
-  // cumul Grist du 1er janvier à ce mois.
-  const latestByStructure = {};
+  const latestByStructureAnnee = {};
   bm.id.forEach((id, i) => {
     if (!idsToScan.includes(bm.Structure[i])) return;
-    if (bm.Annee[i] !== annee) return;
-    const sid = bm.Structure[i];
-    const mois = bm.Mois[i];
-    if (!latestByStructure[sid] || mois > latestByStructure[sid].mois) {
-      latestByStructure[sid] = { mois, i };
+    const annee = bm.Annee[i], mois = bm.Mois[i];
+    if (!annee || !mois) return;
+    const key = `${bm.Structure[i]}-${annee}`;
+    if (!latestByStructureAnnee[key] || mois > latestByStructureAnnee[key].mois) {
+      latestByStructureAnnee[key] = { annee, mois, i };
     }
   });
 
-  const rows = Object.values(latestByStructure);
-  if (!rows.length) return null;
-
-  const totals = { vehicules: 0, fonctionnement: 0, t6: 0, immo: 0 };
-  rows.forEach(({ i }) => {
-    totals.vehicules      += Number(bm.Cumul_REJB_vehicules?.[i]) || 0;
-    totals.fonctionnement += Number(bm.Cumul_REJB_fonctionnement?.[i]) || 0;
-    totals.t6             += Number(bm.Cumul_REJB_T6?.[i]) || 0;
-    totals.immo           += Number(bm.Cumul_REJB_Immo?.[i]) || 0;
+  const parAnnee = {};
+  Object.values(latestByStructureAnnee).forEach(({ annee, i }) => {
+    if (!parAnnee[annee]) parAnnee[annee] = { vehicules: 0, fonctionnement: 0, t6: 0, immo: 0 };
+    parAnnee[annee].vehicules      += Number(bm.Cumul_REJB_vehicules?.[i]) || 0;
+    parAnnee[annee].fonctionnement += Number(bm.Cumul_REJB_fonctionnement?.[i]) || 0;
+    parAnnee[annee].t6             += Number(bm.Cumul_REJB_T6?.[i]) || 0;
+    parAnnee[annee].immo           += Number(bm.Cumul_REJB_Immo?.[i]) || 0;
   });
 
-  totals.total = totals.vehicules + totals.fonctionnement + totals.t6 + totals.immo;
-  return totals;
+  const annees = Object.keys(parAnnee).map(Number).sort((a, b) => a - b);
+  if (!annees.length) return null;
+
+  annees.forEach(annee => {
+    const t = parAnnee[annee];
+    t.total = t.vehicules + t.fonctionnement + t.t6 + t.immo;
+  });
+
+  return { annees, parAnnee };
 }
 
 /**
  * Rend le tableau "Consommations AE négatives isolées (REJB)" sous
- * l'indicateur de progression mensuelle. Masqué si aucune donnée REJB.
+ * l'indicateur de progression mensuelle : une ligne par année, colonnes par
+ * nature + total. Masqué si aucune donnée REJB.
  */
-function createBudgetRejbTable(structureId, annee) {
+function createBudgetRejbTable(structureId) {
   const wrapper = document.getElementById('budget-rejb-wrapper');
   const titleEl = document.getElementById('budget-rejb-title');
   const tbody = document.getElementById('budget-rejb-tbody');
   if (!wrapper || !tbody) return;
 
-  const totals = getBudgetRejbTotals(structureId, annee);
-  if (!totals || totals.total === 0) {
+  const hist = getBudgetRejbHistorique(structureId);
+  if (!hist || !hist.annees.length) {
     wrapper.style.display = 'none';
     tbody.innerHTML = '';
     return;
   }
 
-  if (titleEl) titleEl.textContent = `Consommations AE négatives isolées (REJB) — ${annee}`;
-  const rows = [
-    ['Parc automobile', totals.vehicules],
-    ['Fonctionnement', totals.fonctionnement],
-    ['T6 Buralistes', totals.t6],
-    ['Immobilier', totals.immo]
-  ];
+  if (titleEl) titleEl.textContent = 'Consommations AE négatives isolées (REJB)';
   let html = '';
-  rows.forEach(([label, val]) => {
-    html += `<tr><td>${label}</td><td style="text-align:right;">${formatCurrency(val, 0)}</td></tr>`;
+  hist.annees.forEach((annee, idx) => {
+    const t = hist.parAnnee[annee];
+    const isLast = idx === hist.annees.length - 1;
+    html += `<tr${isLast ? ' class="annee-courante"' : ''}>
+      <td>${annee}</td>
+      <td style="text-align:right;">${formatCurrency(t.vehicules, 0)}</td>
+      <td style="text-align:right;">${formatCurrency(t.fonctionnement, 0)}</td>
+      <td style="text-align:right;">${formatCurrency(t.t6, 0)}</td>
+      <td style="text-align:right;">${formatCurrency(t.immo, 0)}</td>
+      <td style="text-align:right;font-weight:700;">${formatCurrency(t.total, 0)}</td>
+    </tr>`;
   });
-  html += `<tr style="font-weight:700;"><td>Total</td><td style="text-align:right;">${formatCurrency(totals.total, 0)}</td></tr>`;
   tbody.innerHTML = html;
   wrapper.style.display = '';
 }
@@ -3510,7 +3517,7 @@ function refreshBudget(structureId, annee) {
   createBudgetMensuelChart(structureId);
 
   // ── Consommations AE négatives isolées (REJB) ─────────────
-  createBudgetRejbTable(structureId, annee);
+  createBudgetRejbTable(structureId);
 
   // ── Tableau par catégorie ─────────────────────────────────
   createBudgetTable(dataN, moyPerimetre, libPerimetre, annee, isDI);
