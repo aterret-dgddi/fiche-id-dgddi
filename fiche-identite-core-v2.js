@@ -3516,6 +3516,9 @@ function refreshBudget(structureId, annee) {
   // ── Progression mensuelle de la consommation ──────────────
   createBudgetMensuelChart(structureId);
 
+  // ── Détail Fonctionnement : consommation mensuelle CP (Loyer/Formation/Missions/Contentieux) ──
+  createBudgetMensuelPosteCharts(structureId);
+
   // ── Consommations AE négatives isolées (REJB) ─────────────
   createBudgetRejbTable(structureId);
 
@@ -3983,6 +3986,162 @@ function renderBudgetMensuelTable(spec, unit, poste) {
   _lastBudgetMensuelSpec[poste] = spec;
   _lastBudgetMensuelUnit = unit;
   container.innerHTML = buildBudgetMensuelTableHTML(spec, unit, BUDGET_MENSUEL_STATE.tableMode);
+}
+
+// ── Détail Fonctionnement — consommation mensuelle CP (Loyer/Formation/Missions/Contentieux) ──
+// Ces 4 postes sont un sous-détail informatif de Fonctionnement (colonnes
+// Conso_Loyer_CP / Conso_Formation_CP / Conso_Missions_CP / Conso_Contx_CP de
+// Budget_Mensuel, CP uniquement). Contrairement aux Cumul_* utilisés ailleurs
+// sur cette page, ces colonnes portent directement la consommation DU MOIS
+// (pas un cumul depuis janvier) : aucune reconstruction de delta n'est
+// nécessaire. Purement informatif — n'entre dans aucun total, taux ou calcul
+// existant.
+
+const BUDGET_MENSUEL_POSTE_COL = {
+  loyer:       'Conso_Loyer_CP',
+  formation:   'Conso_Formation_CP',
+  missions:    'Conso_Missions_CP',
+  contentieux: 'Conso_Contx_CP'
+};
+
+/**
+ * Retourne la consommation mensuelle (non cumulée) CP pour les 4 postes
+ * informatifs, par année. Même périmètre (structure + DR rattachées si DI)
+ * et même règle d'arrêt franc de la courbe (dès qu'aucune ligne n'existe pour
+ * un mois donné sur le périmètre) que getBudgetMensuelHistorique().
+ * Retour : { loyer: {'2024':[12 valeurs...], ...}, formation: {...}, missions: {...} }
+ * ou null si la table Budget_Mensuel n'est pas chargée.
+ */
+function getBudgetMensuelPosteHistorique(structureId) {
+  const bm = FICHE_STATE.data.budget_mensuel;
+  if (!bm || !bm.id) return null;
+
+  const idsToScan = [structureId];
+  const structures = FICHE_STATE.data.structures;
+  if (structures) {
+    const sIdx = structures.id.indexOf(structureId);
+    if (sIdx !== -1 && structures.Type[sIdx] === 'DI') {
+      idsToScan.push(...getDRRattachees(structureId));
+    }
+  }
+
+  const rowsByAnneeMois = {};
+  bm.id.forEach((id, i) => {
+    if (!idsToScan.includes(bm.Structure[i])) return;
+    const annee = bm.Annee[i], mois = bm.Mois[i];
+    if (!annee || !mois) return;
+    rowsByAnneeMois[annee] = rowsByAnneeMois[annee] || {};
+    rowsByAnneeMois[annee][mois] = rowsByAnneeMois[annee][mois] || [];
+    rowsByAnneeMois[annee][mois].push(i);
+  });
+
+  const result = {};
+  Object.keys(BUDGET_MENSUEL_POSTE_COL).forEach(poste => {
+    result[poste] = {};
+    const col = BUDGET_MENSUEL_POSTE_COL[poste];
+    Object.keys(rowsByAnneeMois).sort().forEach(annee => {
+      const moisData = rowsByAnneeMois[annee];
+      const serie = Array(12).fill(null);
+      for (let m = 1; m <= 12; m++) {
+        if (!moisData[m]) break; // aucune ligne pour ce mois sur le périmètre -> arrêt de la courbe
+        const total = moisData[m].reduce((s, i) => s + (Number(bm[col]?.[i]) || 0), 0);
+        serie[m - 1] = Math.round(total);
+      }
+      result[poste][annee] = serie;
+    });
+  });
+
+  return result;
+}
+
+/**
+ * Construit les datasets Chart.js pour un poste informatif CP donné
+ * (loyer/formation/missions/contentieux) — même dégradé de bleu par année que le
+ * graphique CP principal (année la plus récente en trait plein foncé, les
+ * précédentes en pointillés plus clairs), mais valeurs mensuelles NON
+ * cumulées. Pas de dotation ni de ligne cible : ces postes n'ont pas
+ * d'enveloppe propre.
+ */
+function computeBudgetMensuelPosteChartSpec(structureId, poste) {
+  const hist = getBudgetMensuelPosteHistorique(structureId);
+  const series = hist ? hist[poste] : null;
+  const annees = series ? Object.keys(series).sort() : [];
+
+  if (!annees.length) return { hasData: false, annees: [], series };
+
+  const datasets = annees.map((annee, idx) => {
+    const color = budgetMensuelYearColor(idx, annees.length);
+    const isLast = idx === annees.length - 1;
+    return {
+      label: annee,
+      data: series[annee],
+      borderColor: color,
+      backgroundColor: color,
+      borderWidth: isLast ? 3 : 1.5,
+      borderDash: isLast ? [] : [4, 3],
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      tension: 0.25,
+      spanGaps: false
+    };
+  });
+
+  return { hasData: true, annees, series, datasets };
+}
+
+/** Rend le graphique d'un seul poste informatif (loyer/formation/missions/contentieux). */
+function renderBudgetMensuelPosteChart(structureId, poste) {
+  const canvas = document.getElementById(`chart-budget-mensuel-${poste}`);
+  const wrapper = document.getElementById(`budget-mensuel-wrapper-${poste}`);
+  const emptyMsg = document.getElementById(`budget-mensuel-empty-${poste}`);
+  if (!canvas) return;
+
+  const existing = Chart.getChart(canvas);
+  if (existing) existing.destroy();
+
+  const spec = computeBudgetMensuelPosteChartSpec(structureId, poste);
+
+  if (!spec.hasData) {
+    if (wrapper) wrapper.style.display = 'none';
+    if (emptyMsg) emptyMsg.style.display = 'block';
+    return;
+  }
+  if (wrapper) wrapper.style.display = '';
+  if (emptyMsg) emptyMsg.style.display = 'none';
+
+  const fmtVal = v => v == null ? '—' : formatCurrency(v, 0);
+
+  new Chart(canvas, {
+    type: 'line',
+    data: { labels: MOIS_LABELS_COURT, datasets: spec.datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label} : ${fmtVal(ctx.parsed.y)}` } }
+      },
+      scales: {
+        y: {
+          min: 0,
+          ticks: { callback: v => formatCurrency(v, 0), color: '#8A9BAA', font: { size: 10 } },
+          grid: { color: '#e1e0d9' }
+        },
+        x: {
+          ticks: { color: '#8A9BAA', font: { size: 10 }, autoSkip: false },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+/** Rend les 4 graphiques informatifs (loyer/formation/missions/contentieux) pour une structure. */
+function createBudgetMensuelPosteCharts(structureId) {
+  Object.keys(BUDGET_MENSUEL_POSTE_COL).forEach(poste => {
+    renderBudgetMensuelPosteChart(structureId, poste);
+  });
 }
 
 // ── Export PDF : bascule temporaire vers 8 graphiques détaillés par nature ──

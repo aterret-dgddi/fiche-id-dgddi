@@ -1426,6 +1426,42 @@
     </div>
     </div>
 
+    <!-- Détail Fonctionnement — Consommation mensuelle CP (Loyer / Formation / Missions hors formation) -->
+    <div class="chart-container" style="margin-top:20px;">
+    <div class="chart-title" style="margin:0 0 2px;">Détail Fonctionnement — Consommation mensuelle CP</div>
+    <div style="font-size:11px;color:var(--gris3);font-style:italic;margin-bottom:12px;">Information complémentaire : ces 3 postes sont déjà inclus dans Fonctionnement et n'ont aucune incidence sur les totaux ni les taux affichés ci-dessus.</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:260px;">
+    <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Loyers</div>
+    <div id="budget-mensuel-wrapper-loyer" class="chart-wrapper" style="position:relative;height:200px;">
+    <canvas id="chart-budget-mensuel-loyer"></canvas>
+    </div>
+    <div id="budget-mensuel-empty-loyer" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
+    </div>
+    <div style="flex:1;min-width:260px;">
+    <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Formation</div>
+    <div id="budget-mensuel-wrapper-formation" class="chart-wrapper" style="position:relative;height:200px;">
+    <canvas id="chart-budget-mensuel-formation"></canvas>
+    </div>
+    <div id="budget-mensuel-empty-formation" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
+    </div>
+    <div style="flex:1;min-width:260px;">
+    <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Missions (hors formation)</div>
+    <div id="budget-mensuel-wrapper-missions" class="chart-wrapper" style="position:relative;height:200px;">
+    <canvas id="chart-budget-mensuel-missions"></canvas>
+    </div>
+    <div id="budget-mensuel-empty-missions" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
+    </div>
+    <div style="flex:1;min-width:260px;">
+    <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Contentieux</div>
+    <div id="budget-mensuel-wrapper-contentieux" class="chart-wrapper" style="position:relative;height:200px;">
+    <canvas id="chart-budget-mensuel-contentieux"></canvas>
+    </div>
+    <div id="budget-mensuel-empty-contentieux" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
+    </div>
+    </div>
+    </div>
+
     <!-- Consommations AE négatives isolées (REJB) -->
     <div id="budget-rejb-wrapper" style="margin-top:24px;display:none;">
     <div class="chart-title" id="budget-rejb-title">Consommations AE négatives isolées (REJB)</div>
