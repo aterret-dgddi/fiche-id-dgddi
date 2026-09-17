@@ -3472,10 +3472,10 @@ function refreshBudget(structureId, annee) {
   const suffixeT6 = isDI ? ', hors buralistes' : '';
   const elLabelAE = document.getElementById('budget-pill-label-ae');
   const elLabelCP = document.getElementById('budget-pill-label-cp');
-  if (elLabelAE) elLabelAE.textContent = 'Consommation AE globale' + suffixeT6;
+  if (elLabelAE) elLabelAE.textContent = 'Consommation AE globale (hors REJB)' + suffixeT6;
   if (elLabelCP) elLabelCP.textContent = 'Consommation CP globale' + suffixeT6;
   const elMensuelTitle = document.getElementById('budget-mensuel-chart-title');
-  if (elMensuelTitle) elMensuelTitle.textContent = 'Progression mensuelle de la consommation' + suffixeT6;
+  if (elMensuelTitle) elMensuelTitle.textContent = 'Progression mensuelle de la consommation (AE hors REJB)' + suffixeT6;
 
   // ── Pills globales ────────────────────────────────────────
   const pctAE = (dataN.taux_ae_total * 100).toFixed(1) + ' %';
@@ -4119,7 +4119,7 @@ function createBudgetTable(data, moy, libPerimetre, annee, isDI) {
   const tbody = document.getElementById('budget-types-tbody');
   if (!tbody) return;
   document.getElementById('budget-table-title').textContent =
-    `Exécution budgétaire par catégorie — ${annee}`;
+    `Exécution budgétaire par catégorie — ${annee} (Taux AE hors REJB)`;
 
   const categories = [
     { label: 'Véhicules',        dot_ae: data.dot_ae_vehicules,      conso_ae: data.conso_ae_vehicules,      taux_ae: data.taux_ae_vehicules,      dot_cp: data.dot_cp_vehicules,      conso_cp: data.conso_cp_vehicules,      taux_cp: data.taux_cp_vehicules,      moy_cp: moy?.taux_cp_vehicules },
@@ -6954,7 +6954,7 @@ function exportToXLSX() {
   if (budgetTableEl) {
     budgetRows.push([]);
     budgetRows.push(['Execution budgetaire par categorie '+annee]);
-    budgetRows.push(['Categorie','Dotation AE','Conso AE','Taux AE (%)','Dotation CP','Conso CP','Taux CP (%)','Moy. perimetre CP']);
+    budgetRows.push(['Categorie','Dotation AE','Conso AE','Taux AE hors REJB (%)','Dotation CP','Conso CP','Taux CP (%)','Moy. perimetre CP']);
     budgetTableEl.querySelectorAll('tbody tr').forEach(tr => {
       const cells = Array.from(tr.querySelectorAll('td')).map(td=>(td.innerText||'').trim());
       if (cells.some(c=>c&&c!=='—')) budgetRows.push(cells.map(c=>c==='—'?'':c));
@@ -7498,7 +7498,7 @@ function exportToXLSXWorkbook(struct, annee) {
   ];
   const budgetEl = document.querySelector('.section:has(#budget-pill-taux-ae) .data-table');
   if (budgetEl) {
-    budgetRows.push([]); budgetRows.push(['Categorie','Dotation AE','Conso AE','Taux AE (%)','Dotation CP','Conso CP','Taux CP (%)','Moy. perimetre CP']);
+    budgetRows.push([]); budgetRows.push(['Categorie','Dotation AE','Conso AE','Taux AE hors REJB (%)','Dotation CP','Conso CP','Taux CP (%)','Moy. perimetre CP']);
     budgetEl.querySelectorAll('tbody tr').forEach(tr => {
       const c = Array.from(tr.querySelectorAll('td')).map(td=>(td.innerText||'').trim());
       if (c.some(x=>x&&x!=='—')) budgetRows.push(c.map(x=>x==='—'?'':x));

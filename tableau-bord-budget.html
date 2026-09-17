@@ -372,7 +372,7 @@
 <div id="sticky-top" style="position:sticky;top:0;z-index:100;">
 <div class="page-header" style="position:static;">
   <div>
-    <h1 id="dashboard-title">🕷️ Araignées budgétaires — Taux de consommation AE / CP 2026</h1>
+    <h1 id="dashboard-title">🕷️ Araignées budgétaires — Taux de consommation AE (hors REJB) / CP 2026</h1>
     <div class="subtitle" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
       <span>Budget HT2 — Véhicules · Fonctionnement · T6 Buralistes · Immobilier</span>
       <span style="opacity:.4;">|</span>
@@ -408,7 +408,7 @@
   <span style="font-weight:700;font-size:12px;opacity:.9;">NATIONAL 2026</span>
   <div class="nat-item">
     <div class="nat-dot"></div>
-    <span class="nat-lbl">Taux AE global :</span>
+    <span class="nat-lbl">Taux AE global (hors REJB) :</span>
     <span class="nat-val" id="nat-ae">—</span>
   </div>
   <div class="nat-item">
@@ -454,7 +454,7 @@
      reste de la page, au-dessus de la grille des araignées) -->
 <div class="chart-container" style="margin:12px 16px;padding:16px;background:#fff;border:1px solid var(--bord);border-radius:8px;">
   <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-    <div style="font-weight:700;font-size:14px;color:var(--gris1);" id="budget-mensuel-tbb-title">📅 Progression mensuelle de la consommation</div>
+    <div style="font-weight:700;font-size:14px;color:var(--gris1);" id="budget-mensuel-tbb-title">📅 Progression mensuelle de la consommation (AE hors REJB)</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <select id="budget-mensuel-service" onchange="setBudgetMensuelTBB('service', this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord);border-radius:5px;font-family:var(--font);min-width:180px;">
         <option value="national">🇫🇷 Consolidation nationale</option>
@@ -495,7 +495,7 @@
 <!-- Détail budgétaire par nature (dotation / consommation / taux, AE et CP) —
      suit le même sélecteur de service que la progression mensuelle -->
 <div class="chart-container" style="margin:12px 16px;padding:16px;background:#fff;border:1px solid var(--bord);border-radius:8px;">
-  <div style="font-weight:700;font-size:14px;color:var(--gris1);margin-bottom:10px;" id="budget-detail-title">📊 Détail budgétaire par nature</div>
+  <div style="font-weight:700;font-size:14px;color:var(--gris1);margin-bottom:10px;" id="budget-detail-title">📊 Détail budgétaire par nature (Taux AE hors REJB)</div>
   <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
       <thead>
@@ -512,6 +512,24 @@
         </tr>
       </thead>
       <tbody id="budget-detail-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Consommations AE négatives isolées (REJB) par structure — montant 2026,
+     toutes structures ayant une ligne Budget confondues -->
+<div class="chart-container" id="budget-rejb-structures-wrapper" style="margin:12px 16px;padding:16px;background:#fff;border:1px solid var(--bord);border-radius:8px;display:none;">
+  <div style="font-weight:700;font-size:14px;color:var(--gris1);margin-bottom:4px;">💰 Consommations AE négatives isolées (REJB) par structure</div>
+  <div style="font-size:11px;color:var(--gris3);font-style:italic;margin-bottom:10px;">Montants déjà retirés de la consommation AE affichée dans les indicateurs (Taux AE, araignées, détail par nature)</div>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--bord);">
+          <th style="text-align:left;padding:6px 8px;color:var(--gris3);font-weight:700;">Structure</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Montant REJB AE</th>
+        </tr>
+      </thead>
+      <tbody id="budget-rejb-structures-tbody"></tbody>
     </table>
   </div>
 </div>
@@ -1266,10 +1284,50 @@ function renderBudgetMensuelDashboardChart() {
     const service = BUDGET_MENSUEL_TBB_STATE.service;
     const sIdx = (service !== 'national' && STATE_structuresTable) ? STATE_structuresTable.id.indexOf(service) : -1;
     const isDI = sIdx !== -1 && STATE_structuresTable.Type[sIdx] === 'DI';
-    elTitle.textContent = '📅 Progression mensuelle de la consommation' + (isDI ? ', hors buralistes' : '');
+    elTitle.textContent = '📅 Progression mensuelle de la consommation (AE hors REJB)' + (isDI ? ', hors buralistes' : '');
   }
   ['ae', 'cp'].forEach(poste => renderBudgetMensuelDashboardSide(poste));
   renderBudgetDetailTable();
+}
+
+/** Consommations AE négatives isolées (REJB) par structure, année en cours —
+ * une ligne par structure ayant une ligne Budget avec un montant REJB non
+ * nul, triée par montant croissant (impact le plus fort en premier, REJB
+ * étant stocké en négatif). Purement informatif : n'est jamais réinjecté
+ * dans un calcul, contrairement à Budget.Conso_AE_Total/Cumul_AE_* (Grist)
+ * qui l'ont déjà retiré de la consommation affichée ailleurs. */
+function renderRejbParStructure(budgetTable, structuresTable) {
+  const wrapper = document.getElementById('budget-rejb-structures-wrapper');
+  const tbody = document.getElementById('budget-rejb-structures-tbody');
+  if (!wrapper || !tbody || !budgetTable || !structuresTable) return;
+
+  const sigleById = {};
+  structuresTable.id.forEach((id, i) => { sigleById[id] = structuresTable.Sigle?.[i] || structuresTable.Nom?.[i] || `#${id}`; });
+
+  const rows = [];
+  for (let i = 0; i < budgetTable.id.length; i++) {
+    if (budgetTable.Annee?.[i] !== ANNEE) continue;
+    const montant = Number(budgetTable['REJB_Total']?.[i]) || 0;
+    if (montant === 0) continue;
+    rows.push({ sigle: sigleById[budgetTable.Structure[i]] || '—', montant });
+  }
+
+  if (!rows.length) {
+    wrapper.style.display = 'none';
+    tbody.innerHTML = '';
+    return;
+  }
+
+  rows.sort((a, b) => a.montant - b.montant);
+
+  let html = '';
+  rows.forEach(({ sigle, montant }) => {
+    html += `<tr><td>${sigle}</td><td style="text-align:right;">${fmtEuro(montant)}</td></tr>`;
+  });
+  const total = rows.reduce((acc, r) => acc + r.montant, 0);
+  html += `<tr style="border-top:2px solid var(--bord);font-weight:700;"><td>Total</td><td style="text-align:right;">${fmtEuro(total)}</td></tr>`;
+  tbody.innerHTML = html;
+  wrapper.style.display = '';
 }
 
 /** Détail budgétaire national (dotation/consommation par nature, AE + CP),
@@ -1324,7 +1382,7 @@ function renderBudgetDetailTable() {
   const sigle = sIdx !== -1 ? (STATE_structuresTable.Sigle?.[sIdx] || '') : '';
 
   if (elTitle) {
-    elTitle.textContent = '📊 Détail budgétaire par nature — ' + (isNational ? 'Consolidation nationale' : (sigle || 'Service'));
+    elTitle.textContent = '📊 Détail budgétaire par nature (Taux AE hors REJB) — ' + (isNational ? 'Consolidation nationale' : (sigle || 'Service'));
   }
 
   const data = isNational ? getNationalBudgetDetail() : extractBudgetData(STATE_budgetTable, service, STATE_structuresTable);
@@ -1565,7 +1623,7 @@ function render() {
     allCards.forEach(c => {
       if (c.date_import && (!dateMax || c.date_import > dateMax)) dateMax = c.date_import;
     });
-    const base = '🕷️ Araignées budgétaires — Taux de consommation AE / CP 2026';
+    const base = '🕷️ Araignées budgétaires — Taux de consommation AE (hors REJB) / CP 2026';
     elDashTitle.textContent = dateMax ? `${base} — données au ${formatDateFR(dateMax)}` : base;
   }
 
@@ -1657,7 +1715,7 @@ async function exportPDF() {
       ]);
       pdf.setFontSize(9);
       pdf.setTextColor(60, 60, 60);
-      pdf.text('Progression mensuelle — AE', margin, y);
+      pdf.text('Progression mensuelle — AE (hors REJB)', margin, y);
       pdf.text('Progression mensuelle — CP', margin + chartW + 8, y);
       y += 3;
       let chartBlockH = 0;
@@ -1938,7 +1996,7 @@ function pdfDrawBudgetDetailTable(pdf, x, y, width, data, isDI) {
   pdf.setFontSize(8);
   pdf.setTextColor(90, 90, 90);
   pdf.setFont(undefined, 'bold');
-  pdf.text('Détail budgétaire par nature', x, y);
+  pdf.text('Détail budgétaire par nature (Taux AE hors REJB)', x, y);
   pdf.setFont(undefined, 'normal');
   y += 4.5;
 
@@ -1952,7 +2010,7 @@ function pdfDrawBudgetDetailTable(pdf, x, y, width, data, isDI) {
 
   const colNature = 42;
   const colW = (width - colNature) / 8;
-  const headers = ['Dot AE', 'Conso AE', 'Taux AE', 'Reste AE', 'Dot CP', 'Conso CP', 'Taux CP', 'Reste CP'];
+  const headers = ['Dot AE', 'Conso AE', 'Taux AE (hors REJB)', 'Reste AE', 'Dot CP', 'Conso CP', 'Taux CP', 'Reste CP'];
   pdf.setFontSize(6.5);
   pdf.setTextColor(120, 120, 120);
   headers.forEach((h, i) => pdf.text(h, x + colNature + i * colW, y));
@@ -2046,6 +2104,8 @@ async function init() {
     STATE_budgetTable = budgetTable;
     STATE_budgetMensuelTable = budgetMensuelTable;
     STATE_consolidationTable = consolidationTable;
+
+    renderRejbParStructure(budgetTable, structuresTable);
 
     // Moyennes nationales par catégorie : TOUJOURS calculées en pondéré (Σconso/Σdot)
     // depuis la table Budget brute — les colonnes Moy_Taux_* de Consolidation sont une
