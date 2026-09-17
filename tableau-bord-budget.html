@@ -229,6 +229,23 @@
     margin-top: 2px;
     margin-bottom: 4px;
   }
+  .png-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border: 1px solid var(--bord);
+    border-radius: 5px;
+    background: #fff;
+    color: var(--gris3);
+    cursor: pointer;
+    font-family: var(--font);
+  }
+  .png-export-btn:hover { background: var(--gris4); color: var(--gris1); }
+  .card-png-export-row { text-align: center; margin-top: 2px; margin-bottom: 4px; }
+  .card-png-export-row .png-export-btn { font-size: 9px; padding: 2px 6px; }
   .card-radar-legend-item {
     display: flex;
     flex-direction: column;
@@ -480,6 +497,9 @@
       </div>
       <div id="budget-mensuel-tbb-empty-ae" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
       <div id="budget-mensuel-tbb-footnote-ae" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
+      <div style="text-align:center;margin-top:8px;">
+        <button class="png-export-btn" onclick="exportCanvasPNG('chart-budget-mensuel-tbb-ae', 'progression-mensuelle-AE')">📷 Export PNG</button>
+      </div>
     </div>
     <div style="flex:1;min-width:280px;">
       <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">CP</div>
@@ -488,6 +508,9 @@
       </div>
       <div id="budget-mensuel-tbb-empty-cp" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
       <div id="budget-mensuel-tbb-footnote-cp" style="display:none;font-size:10px;color:var(--gris3);font-style:italic;margin-top:6px;">* dotation estimée = consommation totale de l'année (pas de dotation historisée avant 2026)</div>
+      <div style="text-align:center;margin-top:8px;">
+        <button class="png-export-btn" onclick="exportCanvasPNG('chart-budget-mensuel-tbb-cp', 'progression-mensuelle-CP')">📷 Export PNG</button>
+      </div>
     </div>
   </div>
 </div>
@@ -563,6 +586,9 @@
         <canvas id="chart-budget-mensuel-poste-tbb-formation"></canvas>
       </div>
       <div id="budget-mensuel-poste-tbb-empty-formation" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+      <div style="text-align:center;margin-top:8px;">
+        <button class="png-export-btn" onclick="exportCanvasPNG('chart-budget-mensuel-poste-tbb-formation', 'consommation-mensuelle-Formation-CP')">📷 Export PNG</button>
+      </div>
     </div>
     <div style="flex:1;min-width:260px;">
       <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Missions (hors formation)</div>
@@ -570,6 +596,9 @@
         <canvas id="chart-budget-mensuel-poste-tbb-missions"></canvas>
       </div>
       <div id="budget-mensuel-poste-tbb-empty-missions" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+      <div style="text-align:center;margin-top:8px;">
+        <button class="png-export-btn" onclick="exportCanvasPNG('chart-budget-mensuel-poste-tbb-missions', 'consommation-mensuelle-Missions-CP')">📷 Export PNG</button>
+      </div>
     </div>
   </div>
   <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;">
@@ -580,6 +609,9 @@
         <canvas id="chart-budget-mensuel-poste-tbb-loyer"></canvas>
       </div>
       <div id="budget-mensuel-poste-tbb-empty-loyer" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+      <div style="text-align:center;margin-top:8px;">
+        <button class="png-export-btn" onclick="exportCanvasPNG('chart-budget-mensuel-poste-tbb-loyer', 'consommation-mensuelle-Loyer-CP')">📷 Export PNG</button>
+      </div>
     </div>
     <div style="flex:1;min-width:260px;">
       <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Contentieux</div>
@@ -587,6 +619,9 @@
         <canvas id="chart-budget-mensuel-poste-tbb-contentieux"></canvas>
       </div>
       <div id="budget-mensuel-poste-tbb-empty-contentieux" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+      <div style="text-align:center;margin-top:8px;">
+        <button class="png-export-btn" onclick="exportCanvasPNG('chart-budget-mensuel-poste-tbb-contentieux', 'consommation-mensuelle-Contentieux-CP')">📷 Export PNG</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1124,6 +1159,9 @@ function buildCard(card) {
           </div>
         </div>
         <div class="card-radar-legend" id="radar-legend-${card.id}"></div>
+        <div class="card-png-export-row">
+          <button class="png-export-btn" onclick="exportRadarCardPNG('${card.id}', '${card.sigle.replace(/'/g, "\\'")}')" title="Exporter les araignées AE/CP en PNG">📷 PNG</button>
+        </div>
         ${buildAECPBar(card.taux_ae_total, card.taux_cp_total, natAETotal, natTotal)}
         <div class="card-kpi-row">
           <div class="card-kpi">
@@ -1323,6 +1361,52 @@ function budgetMensuelYearColorTBB(idx, total) {
 }
 
 const MOIS_LABELS_TBB = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+
+// ── Export PNG des graphiques ────────────────────────────────────────────────
+
+/** Télécharge un canvas Chart.js unique en PNG. */
+function exportCanvasPNG(canvasId, baseName) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const safeName = baseName.replace(/[^a-z0-9\-]+/gi, '_');
+  const link = document.createElement('a');
+  link.download = `${safeName}-${ANNEE}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+/** Télécharge les 2 mini-araignées AE/CP d'une carte structure, côte à côte,
+ * sur un canvas composite avec un titre (sigle + année). */
+function exportRadarCardPNG(cardId, sigle) {
+  const canvasAE = document.getElementById(`radar-ae-${cardId}`);
+  const canvasCP = document.getElementById(`radar-cp-${cardId}`);
+  if (!canvasAE || !canvasCP) return;
+
+  const gap = 24;
+  const titleH = 34;
+  const w = canvasAE.width + canvasCP.width + gap;
+  const h = Math.max(canvasAE.height, canvasCP.height) + titleH;
+
+  const out = document.createElement('canvas');
+  out.width = w;
+  out.height = h;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#262633';
+  ctx.font = '600 16px sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`${sigle} — Araignées budgétaires AE / CP — ${ANNEE}`, 8, 8);
+
+  ctx.drawImage(canvasAE, 0, titleH);
+  ctx.drawImage(canvasCP, canvasAE.width + gap, titleH);
+
+  const safeName = sigle.replace(/[^a-z0-9\-]+/gi, '_');
+  const link = document.createElement('a');
+  link.download = `araignee-${safeName}-${ANNEE}.png`;
+  link.href = out.toDataURL('image/png');
+  link.click();
+}
 
 function populateServiceSelector() {
   const sorted = [...allCards].sort((a, b) => a.sigle.localeCompare(b.sigle, 'fr'));
