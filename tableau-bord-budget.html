@@ -618,6 +618,9 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
 
   if (idx !== -1) {
     const n = col => Number(budgetTable[col]?.[idx]) || 0;
+    // Comme n(), mais préserve null (Grist renvoie None quand la dotation vaut 0 —
+    // ne pas confondre avec un taux de 0 %).
+    const nNull = col => { const v = budgetTable[col]?.[idx]; return v === null || v === undefined ? null : Number(v); };
 
     const dot_ae_v = n('dot_AE_vehicules'), dot_ae_f = n('dot_AE_fonctionnement');
     const dot_ae_t6 = n('Dot_AE_T6'),      dot_ae_i = n('dot_AE_Immo');
@@ -638,10 +641,10 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     const conso_cp_total = n('Conso_CP_Total');
 
     return {
-      taux_ae_vehicules:      taux(conso_ae_v,  dot_ae_v),
-      taux_ae_fonctionnement: taux(conso_ae_f,  dot_ae_f),
-      taux_ae_t6:             taux(conso_ae_t6, dot_ae_t6),
-      taux_ae_immo:           taux(conso_ae_i,  dot_ae_i),
+      taux_ae_vehicules:      nNull('Taux_AE_vehicules'),
+      taux_ae_fonctionnement: nNull('Taux_AE_fonctionnement'),
+      taux_ae_t6:             nNull('Taux_AE_T6'),
+      taux_ae_immo:           nNull('Taux_AE_Immo'),
       taux_ae_total:          taux(conso_ae_total, dot_ae_total),
       taux_cp_vehicules:      taux(conso_cp_v,  dot_cp_v),
       taux_cp_fonctionnement: taux(conso_cp_f,  dot_cp_f),
@@ -703,18 +706,25 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
   const conso_ae_t6 = sumCols('Conso_AE_T6'),       conso_ae_i = sumCols('Conso_AE_Immo');
   const conso_cp_v = sumCols('Conso_CP_vehicules'), conso_cp_f = sumCols('Conso_CP_fonctionnement');
   const conso_cp_t6 = sumCols('Conso_CP_T6'),       conso_cp_i = sumCols('Conso_CP_Immo');
+  // REJB (consommations AE négatives isolées, valeurs stockées en négatif) —
+  // à soustraire de conso_ae_* pour rester cohérent avec Budget.Conso_AE_Total
+  // côté Grist, qui applique la même correction quand la DI a sa propre ligne.
+  const rejb_v = sumCols('REJB_Vehicules'), rejb_f = sumCols('REJB_Fonctionnement');
+  const rejb_t6 = sumCols('REJB_T6buralistes'), rejb_i = sumCols('REJB_Immo');
+  const conso_ae_v_net = conso_ae_v - rejb_v, conso_ae_f_net = conso_ae_f - rejb_f;
+  const conso_ae_t6_net = conso_ae_t6 - rejb_t6, conso_ae_i_net = conso_ae_i - rejb_i;
 
   // T6 exclu du Total (DI) — toujours restitué en détail (dot_ae_t6/conso_ae_t6) pour information.
   const dot_ae_total   = dot_ae_v + dot_ae_f + dot_ae_i;
   const dot_cp_total   = dot_cp_v + dot_cp_f + dot_cp_i;
-  const conso_ae_total = conso_ae_v + conso_ae_f + conso_ae_i;
+  const conso_ae_total = conso_ae_v_net + conso_ae_f_net + conso_ae_i_net;
   const conso_cp_total = conso_cp_v + conso_cp_f + conso_cp_i;
 
   return {
-    taux_ae_vehicules:      taux(conso_ae_v,  dot_ae_v),
-    taux_ae_fonctionnement: taux(conso_ae_f,  dot_ae_f),
-    taux_ae_t6:             taux(conso_ae_t6, dot_ae_t6),
-    taux_ae_immo:           taux(conso_ae_i,  dot_ae_i),
+    taux_ae_vehicules:      taux(conso_ae_v_net,  dot_ae_v),
+    taux_ae_fonctionnement: taux(conso_ae_f_net,  dot_ae_f),
+    taux_ae_t6:             taux(conso_ae_t6_net, dot_ae_t6),
+    taux_ae_immo:           taux(conso_ae_i_net,  dot_ae_i),
     taux_ae_total:          taux(conso_ae_total, dot_ae_total),
     taux_cp_vehicules:      taux(conso_cp_v,  dot_cp_v),
     taux_cp_fonctionnement: taux(conso_cp_f,  dot_cp_f),
@@ -762,6 +772,7 @@ function computeNationalMoyFromBudget(budgetTable) {
   const taux = (c, d) => d > 0 ? c / d : null;
   let daeV=0,daeF=0,daeT=0,daeI=0, dcpV=0,dcpF=0,dcpT=0,dcpI=0;
   let caeV=0,caeF=0,caeT=0,caeI=0, ccpV=0,ccpF=0,ccpT=0,ccpI=0;
+  let rejbV=0,rejbF=0,rejbT=0,rejbI=0;
   for (let i = 0; i < budgetTable.id.length; i++) {
     if (budgetTable.Annee?.[i] !== ANNEE) continue;
     const n = col => Number(budgetTable[col]?.[i]) || 0;
@@ -773,19 +784,24 @@ function computeNationalMoyFromBudget(budgetTable) {
     caeT+=n('Conso_AE_T6');        caeI+=n('Conso_AE_Immo');
     ccpV+=n('Conso_CP_vehicules'); ccpF+=n('Conso_CP_fonctionnement');
     ccpT+=n('Conso_CP_T6');        ccpI+=n('Conso_CP_Immo');
+    // REJB (consommations AE négatives isolées, valeurs négatives) — à
+    // soustraire de caeV/F/T/I pour rester cohérent avec Budget.Conso_AE_Total.
+    rejbV+=n('REJB_Vehicules'); rejbF+=n('REJB_Fonctionnement');
+    rejbT+=n('REJB_T6buralistes'); rejbI+=n('REJB_Immo');
   }
+  const caeVNet=caeV-rejbV, caeFNet=caeF-rejbF, caeTNet=caeT-rejbT, caeINet=caeI-rejbI;
   const daeTotal=daeV+daeF+daeT+daeI, dcpTotal=dcpV+dcpF+dcpT+dcpI;
-  const caeTotal=caeV+caeF+caeT+caeI, ccpTotal=ccpV+ccpF+ccpT+ccpI;
+  const caeTotal=caeVNet+caeFNet+caeTNet+caeINet, ccpTotal=ccpV+ccpF+ccpT+ccpI;
   return {
     taux_ae_total: taux(caeTotal,daeTotal),
     taux_cp_total: taux(ccpTotal,dcpTotal),
-    taux_ae_vehicules:      taux(caeV,daeV),
+    taux_ae_vehicules:      taux(caeVNet,daeV),
     taux_cp_vehicules:      taux(ccpV,dcpV),
-    taux_ae_fonctionnement: taux(caeF,daeF),
+    taux_ae_fonctionnement: taux(caeFNet,daeF),
     taux_cp_fonctionnement: taux(ccpF,dcpF),
-    taux_ae_t6:             taux(caeT,daeT),
+    taux_ae_t6:             taux(caeTNet,daeT),
     taux_cp_t6:             taux(ccpT,dcpT),
-    taux_ae_immo:           taux(caeI,daeI),
+    taux_ae_immo:           taux(caeINet,daeI),
     taux_cp_immo:           taux(ccpI,dcpI),
   };
 }
@@ -2127,8 +2143,13 @@ async function init() {
                 caeT=sumChild('Conso_AE_T6'), caeI=sumChild('Conso_AE_Immo');
           const ccpV=sumChild('Conso_CP_vehicules'), ccpF=sumChild('Conso_CP_fonctionnement'),
                 ccpT=sumChild('Conso_CP_T6'), ccpI=sumChild('Conso_CP_Immo');
+          // REJB (consommations AE négatives isolées, valeurs négatives) — à
+          // soustraire des caeV/F/T/I pour rester cohérent avec Budget.Conso_AE_Total.
+          const rejbV=sumChild('REJB_Vehicules'), rejbF=sumChild('REJB_Fonctionnement'),
+                rejbT=sumChild('REJB_T6buralistes'), rejbI=sumChild('REJB_Immo');
+          const caeVNet=caeV-rejbV, caeFNet=caeF-rejbF, caeTNet=caeT-rejbT, caeINet=caeI-rejbI;
           const daeTotal=daeV+daeF+daeT+daeI, dcpTotal=dcpV+dcpF+dcpT+dcpI;
-          const caeTotal=caeV+caeF+caeT+caeI, ccpTotal=ccpV+ccpF+ccpT+ccpI;
+          const caeTotal=caeVNet+caeFNet+caeTNet+caeINet, ccpTotal=ccpV+ccpF+ccpT+ccpI;
           // Date d'import la plus récente parmi les enfants DG agrégés
           let dgDateImport = null;
           for (const cid of childIds) {
@@ -2140,10 +2161,10 @@ async function init() {
           if (dcpTotal > 0 || daeTotal > 0) {
             dgCard = { ...dgCard, hasData: true,
               taux_ae_total: taux(caeTotal,daeTotal), taux_cp_total: taux(ccpTotal,dcpTotal),
-              taux_ae_vehicules: taux(caeV,daeV), taux_cp_vehicules: taux(ccpV,dcpV),
-              taux_ae_fonctionnement: taux(caeF,daeF), taux_cp_fonctionnement: taux(ccpF,dcpF),
-              taux_ae_t6: taux(caeT,daeT), taux_cp_t6: taux(ccpT,dcpT),
-              taux_ae_immo: taux(caeI,daeI), taux_cp_immo: taux(ccpI,dcpI),
+              taux_ae_vehicules: taux(caeVNet,daeV), taux_cp_vehicules: taux(ccpV,dcpV),
+              taux_ae_fonctionnement: taux(caeFNet,daeF), taux_cp_fonctionnement: taux(ccpF,dcpF),
+              taux_ae_t6: taux(caeTNet,daeT), taux_cp_t6: taux(ccpT,dcpT),
+              taux_ae_immo: taux(caeINet,daeI), taux_cp_immo: taux(ccpI,dcpI),
               date_import: dgDateImport,
               dot_ae_total: daeTotal, dot_cp_total: dcpTotal,
               conso_ae_total: caeTotal, conso_cp_total: ccpTotal,
