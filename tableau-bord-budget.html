@@ -526,11 +526,68 @@
       <thead>
         <tr style="border-bottom:2px solid var(--bord);">
           <th style="text-align:left;padding:6px 8px;color:var(--gris3);font-weight:700;">Structure</th>
-          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Montant REJB AE</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Véhicules</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Fonctionnement</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">T6 Buralistes</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Immobilier</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Total</th>
         </tr>
       </thead>
       <tbody id="budget-rejb-structures-tbody"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- Détail Fonctionnement — Consommation mensuelle CP par nature (Formation /
+     Missions hors formation / Loyer / Contentieux) — sélecteur national ou
+     structure + toggle Mensuel/Cumulé UNIQUE, partagé par les 4 graphiques -->
+<div class="chart-container" style="margin:12px 16px;padding:16px;background:#fff;border:1px solid var(--bord);border-radius:8px;">
+  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px;">
+    <div style="font-weight:700;font-size:14px;color:var(--gris1);">🧾 Détail Fonctionnement — Consommation mensuelle CP par nature</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <select id="budget-mensuel-poste-tbb-service" onchange="setBudgetMensuelPosteTBB('service', this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--bord);border-radius:5px;font-family:var(--font);min-width:180px;">
+        <option value="national">🇫🇷 Consolidation nationale</option>
+      </select>
+      <div style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
+        <button id="budget-mensuel-poste-tbb-btn-mensuel" onclick="setBudgetMensuelPosteTBB('mode','mensuel')" style="border:none;background:var(--rep);color:#fff;padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">Mensuel</button>
+        <button id="budget-mensuel-poste-tbb-btn-cumule" onclick="setBudgetMensuelPosteTBB('mode','cumule')" style="border:none;background:transparent;color:var(--gris2);padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;">Cumulé</button>
+      </div>
+    </div>
+  </div>
+  <div style="font-size:11px;color:var(--gris3);font-style:italic;margin-bottom:12px;">Information complémentaire : ces 4 postes sont déjà inclus dans Fonctionnement et n'ont aucune incidence sur les totaux ni les taux affichés ailleurs sur ce tableau de bord.</div>
+
+  <div style="display:flex;gap:16px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:260px;">
+      <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Formation</div>
+      <div id="budget-mensuel-poste-tbb-wrapper-formation" style="position:relative;height:220px;">
+        <canvas id="chart-budget-mensuel-poste-tbb-formation"></canvas>
+      </div>
+      <div id="budget-mensuel-poste-tbb-empty-formation" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+    </div>
+    <div style="flex:1;min-width:260px;">
+      <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Missions (hors formation)</div>
+      <div id="budget-mensuel-poste-tbb-wrapper-missions" style="position:relative;height:220px;">
+        <canvas id="chart-budget-mensuel-poste-tbb-missions"></canvas>
+      </div>
+      <div id="budget-mensuel-poste-tbb-empty-missions" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;">
+    <div style="flex:1;min-width:260px;">
+      <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:2px;">Loyers</div>
+      <div id="budget-mensuel-poste-tbb-loyer-subtitle" style="font-size:10px;color:var(--gris3);margin-bottom:4px;"></div>
+      <div id="budget-mensuel-poste-tbb-wrapper-loyer" style="position:relative;height:220px;">
+        <canvas id="chart-budget-mensuel-poste-tbb-loyer"></canvas>
+      </div>
+      <div id="budget-mensuel-poste-tbb-empty-loyer" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+    </div>
+    <div style="flex:1;min-width:260px;">
+      <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Contentieux</div>
+      <div id="budget-mensuel-poste-tbb-wrapper-contentieux" style="position:relative;height:220px;">
+        <canvas id="chart-budget-mensuel-poste-tbb-contentieux"></canvas>
+      </div>
+      <div id="budget-mensuel-poste-tbb-empty-contentieux" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible</div>
+    </div>
   </div>
 </div>
 
@@ -559,7 +616,9 @@ let STATE_structuresTable = null;
 let STATE_budgetTable = null;
 let STATE_budgetMensuelTable = null;
 let STATE_consolidationTable = null;
+let STATE_immobilierTable = null;
 const BUDGET_MENSUEL_TBB_STATE = { service: 'national', domain: 'global', unit: 'eur' };
+let budgetMensuelPosteChartInstanceTBB = { formation: null, missions: null, loyer: null, contentieux: null };
 let budgetMensuelChartInstance = { ae: null, cp: null };
 
 // ── Utilitaires ───────────────────────────────────────────────────────────────
@@ -1266,15 +1325,17 @@ function budgetMensuelYearColorTBB(idx, total) {
 const MOIS_LABELS_TBB = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
 
 function populateServiceSelector() {
-  const sel = document.getElementById('budget-mensuel-service');
-  if (!sel) return;
-  sel.innerHTML = '<option value="national">🇫🇷 Consolidation nationale</option>';
   const sorted = [...allCards].sort((a, b) => a.sigle.localeCompare(b.sigle, 'fr'));
-  sorted.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.sigle;
-    sel.appendChild(opt);
+  ['budget-mensuel-service', 'budget-mensuel-poste-tbb-service'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    sel.innerHTML = '<option value="national">🇫🇷 Consolidation nationale</option>';
+    sorted.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.sigle;
+      sel.appendChild(opt);
+    });
   });
 }
 
@@ -1292,10 +1353,12 @@ function renderBudgetMensuelDashboardChart() {
 
 /** Consommations AE négatives isolées (REJB) par structure, année en cours —
  * une ligne par structure ayant une ligne Budget avec un montant REJB non
- * nul, triée par montant croissant (impact le plus fort en premier, REJB
- * étant stocké en négatif). Purement informatif : n'est jamais réinjecté
- * dans un calcul, contrairement à Budget.Conso_AE_Total/Cumul_AE_* (Grist)
- * qui l'ont déjà retiré de la consommation affichée ailleurs. */
+ * nul (sur au moins une nature), détaillée en colonnes Véhicules /
+ * Fonctionnement / T6 Buralistes / Immobilier / Total. Triée par Total
+ * croissant (impact le plus fort en premier, REJB étant stocké en négatif).
+ * Purement informatif : n'est jamais réinjecté dans un calcul, contrairement
+ * à Budget.Conso_AE_Total/Cumul_AE_* (Grist) qui l'ont déjà retiré de la
+ * consommation affichée ailleurs. */
 function renderRejbParStructure(budgetTable, structuresTable) {
   const wrapper = document.getElementById('budget-rejb-structures-wrapper');
   const tbody = document.getElementById('budget-rejb-structures-tbody');
@@ -1307,9 +1370,13 @@ function renderRejbParStructure(budgetTable, structuresTable) {
   const rows = [];
   for (let i = 0; i < budgetTable.id.length; i++) {
     if (budgetTable.Annee?.[i] !== ANNEE) continue;
-    const montant = Number(budgetTable['REJB_Total']?.[i]) || 0;
-    if (montant === 0) continue;
-    rows.push({ sigle: sigleById[budgetTable.Structure[i]] || '—', montant });
+    const v = Number(budgetTable['REJB_Vehicules']?.[i]) || 0;
+    const f = Number(budgetTable['REJB_Fonctionnement']?.[i]) || 0;
+    const t = Number(budgetTable['REJB_T6buralistes']?.[i]) || 0;
+    const im = Number(budgetTable['REJB_Immo']?.[i]) || 0;
+    const total = Number(budgetTable['REJB_Total']?.[i]) || 0;
+    if (v === 0 && f === 0 && t === 0 && im === 0 && total === 0) continue;
+    rows.push({ sigle: sigleById[budgetTable.Structure[i]] || '—', v, f, t, im, total });
   }
 
   if (!rows.length) {
@@ -1318,14 +1385,28 @@ function renderRejbParStructure(budgetTable, structuresTable) {
     return;
   }
 
-  rows.sort((a, b) => a.montant - b.montant);
+  rows.sort((a, b) => a.total - b.total);
 
   let html = '';
-  rows.forEach(({ sigle, montant }) => {
-    html += `<tr><td>${sigle}</td><td style="text-align:right;">${fmtEuro(montant)}</td></tr>`;
+  rows.forEach(({ sigle, v, f, t, im, total }) => {
+    html += `<tr><td>${sigle}</td>`
+      + `<td style="text-align:right;">${fmtEuro(v)}</td>`
+      + `<td style="text-align:right;">${fmtEuro(f)}</td>`
+      + `<td style="text-align:right;">${fmtEuro(t)}</td>`
+      + `<td style="text-align:right;">${fmtEuro(im)}</td>`
+      + `<td style="text-align:right;font-weight:700;">${fmtEuro(total)}</td></tr>`;
   });
-  const total = rows.reduce((acc, r) => acc + r.montant, 0);
-  html += `<tr style="border-top:2px solid var(--bord);font-weight:700;"><td>Total</td><td style="text-align:right;">${fmtEuro(total)}</td></tr>`;
+  const totV = rows.reduce((acc, r) => acc + r.v, 0);
+  const totF = rows.reduce((acc, r) => acc + r.f, 0);
+  const totT = rows.reduce((acc, r) => acc + r.t, 0);
+  const totI = rows.reduce((acc, r) => acc + r.im, 0);
+  const totTotal = rows.reduce((acc, r) => acc + r.total, 0);
+  html += `<tr style="border-top:2px solid var(--bord);font-weight:700;"><td>Total</td>`
+    + `<td style="text-align:right;">${fmtEuro(totV)}</td>`
+    + `<td style="text-align:right;">${fmtEuro(totF)}</td>`
+    + `<td style="text-align:right;">${fmtEuro(totT)}</td>`
+    + `<td style="text-align:right;">${fmtEuro(totI)}</td>`
+    + `<td style="text-align:right;">${fmtEuro(totTotal)}</td></tr>`;
   tbody.innerHTML = html;
   wrapper.style.display = '';
 }
@@ -1569,6 +1650,225 @@ function setBudgetMensuelTBB(key, value) {
   }
 
   renderBudgetMensuelDashboardChart();
+}
+
+// ── Détail Fonctionnement — consommation mensuelle CP par nature (national/service) ──
+// Même principe que le module équivalent des fiches identité : lecture directe
+// des colonnes Conso_Loyer_CP / Conso_Formation_CP / Conso_Missions_CP /
+// Conso_Contx_CP de Budget_Mensuel (valeur DU MOIS, pas un cumul — aucune
+// colonne Grist supplémentaire nécessaire pour le cumul, reconstruit en JS).
+// Ici le périmètre est piloté par un sélecteur national/structure dédié, et
+// le mode Mensuel/Cumulé est UNIQUE et partagé par les 4 graphiques
+// (contrairement aux fiches identité où chaque graphique a son propre toggle).
+
+const BUDGET_MENSUEL_POSTE_COL_TBB = {
+  formation:   'Conso_Formation_CP',
+  missions:    'Conso_Missions_CP',
+  loyer:       'Conso_Loyer_CP',
+  contentieux: 'Conso_Contx_CP'
+};
+
+const BUDGET_MENSUEL_POSTE_TBB_STATE = { service: 'national', mode: 'mensuel' };
+
+/** Consommation mensuelle NON cumulée des 4 postes informatifs, par année, sur un périmètre donné. */
+function computeBudgetMensuelPosteHistoriqueTBB(idsToScan) {
+  const bm = STATE_budgetMensuelTable;
+  if (!bm || !bm.id) return null;
+  const idsSet = new Set(idsToScan);
+
+  const rowsByAnneeMois = {};
+  bm.id.forEach((id, i) => {
+    if (!idsSet.has(bm.Structure[i])) return;
+    const annee = bm.Annee[i], mois = bm.Mois[i];
+    if (!annee || !mois) return;
+    rowsByAnneeMois[annee] = rowsByAnneeMois[annee] || {};
+    rowsByAnneeMois[annee][mois] = rowsByAnneeMois[annee][mois] || [];
+    rowsByAnneeMois[annee][mois].push(i);
+  });
+
+  const result = {};
+  Object.keys(BUDGET_MENSUEL_POSTE_COL_TBB).forEach(poste => {
+    result[poste] = {};
+    const col = BUDGET_MENSUEL_POSTE_COL_TBB[poste];
+    Object.keys(rowsByAnneeMois).sort().forEach(annee => {
+      const moisData = rowsByAnneeMois[annee];
+      const serie = Array(12).fill(null);
+      for (let m = 1; m <= 12; m++) {
+        if (!moisData[m]) break; // aucune ligne pour ce mois sur le périmètre -> arrêt de la courbe
+        const total = moisData[m].reduce((s, i) => s + (Number(bm[col]?.[i]) || 0), 0);
+        serie[m - 1] = Math.round(total);
+      }
+      result[poste][annee] = serie;
+    });
+  });
+  return result;
+}
+
+/** Périmètre pour un service donné : lui-même + ses DR rattachées si DI. */
+function getBudgetMensuelPosteHistoriquePourServiceTBB(structureId) {
+  const idsToScan = [structureId];
+  const structures = STATE_structuresTable;
+  if (structures) {
+    const sIdx = structures.id.indexOf(structureId);
+    if (sIdx !== -1 && structures.Type[sIdx] === 'DI') idsToScan.push(...getDRRattacheesTBB(structureId));
+  }
+  return computeBudgetMensuelPosteHistoriqueTBB(idsToScan);
+}
+
+/** Consolidation nationale : somme de TOUTES les structures ayant du Budget_Mensuel. */
+function getBudgetMensuelPosteHistoriqueNationalTBB() {
+  const bm = STATE_budgetMensuelTable;
+  if (!bm || !bm.id) return null;
+  const idsToScan = [...new Set(bm.Structure)];
+  return computeBudgetMensuelPosteHistoriqueTBB(idsToScan);
+}
+
+/** Convertit une série mensuelle NON cumulée en cumul depuis janvier. */
+function toCumulativeSerieTBB(row) {
+  const result = [];
+  let sum = 0, broken = false;
+  row.forEach(v => {
+    if (broken || v == null) { result.push(null); broken = true; return; }
+    sum += v;
+    result.push(Math.round(sum));
+  });
+  return result;
+}
+
+/**
+ * Loyer annuel estimé (table Immobilier, colonne Loyer_Annuel), pour le
+ * périmètre national (tous les sites, tous services confondus, dédupliqués
+ * par site) ou un service donné (structure + DR rattachées si DI) — sert de
+ * ligne cible sur le graphique "Loyers".
+ */
+function getLoyerAnnuelEstimeTBB(service) {
+  const immo = STATE_immobilierTable;
+  if (!immo || !immo.id) return 0;
+
+  let idsToScan = null; // null = toutes structures (national)
+  if (service !== 'national') {
+    idsToScan = [service];
+    const structures = STATE_structuresTable;
+    const sIdx = structures ? structures.id.indexOf(service) : -1;
+    if (sIdx !== -1 && structures.Type[sIdx] === 'DI') idsToScan.push(...getDRRattacheesTBB(service));
+  }
+
+  const seenSite = new Set();
+  let total = 0;
+  for (let i = 0; i < immo.id.length; i++) {
+    if (idsToScan && !idsToScan.includes(immo.Structure[i])) continue;
+    const siteKey = immo.site?.[i] || immo.Libelle?.[i] || String(immo.id[i]);
+    if (seenSite.has(siteKey)) continue;
+    seenSite.add(siteKey);
+    total += Number(immo.Loyer_Annuel?.[i]) || 0;
+  }
+  return total;
+}
+
+/** Rend le graphique d'un seul poste informatif (formation/missions/loyer/contentieux). */
+function renderBudgetMensuelPosteChartTBB(poste) {
+  const canvas = document.getElementById(`chart-budget-mensuel-poste-tbb-${poste}`);
+  const wrapper = document.getElementById(`budget-mensuel-poste-tbb-wrapper-${poste}`);
+  const emptyMsg = document.getElementById(`budget-mensuel-poste-tbb-empty-${poste}`);
+  if (!canvas) return;
+
+  if (budgetMensuelPosteChartInstanceTBB[poste]) {
+    budgetMensuelPosteChartInstanceTBB[poste].destroy();
+    budgetMensuelPosteChartInstanceTBB[poste] = null;
+  }
+
+  const { service, mode } = BUDGET_MENSUEL_POSTE_TBB_STATE;
+  const isNational = service === 'national';
+  const hist = isNational ? getBudgetMensuelPosteHistoriqueNationalTBB() : getBudgetMensuelPosteHistoriquePourServiceTBB(service);
+  const series = hist ? hist[poste] : null;
+  const annees = series ? Object.keys(series).sort() : [];
+
+  const loyerAnnuelEstime = poste === 'loyer' ? getLoyerAnnuelEstimeTBB(service) : null;
+  if (poste === 'loyer') {
+    const subEl = document.getElementById('budget-mensuel-poste-tbb-loyer-subtitle');
+    if (subEl) {
+      subEl.textContent = loyerAnnuelEstime
+        ? `Loyer annuel estimé (Immobilier) : ${fmtEuro(loyerAnnuelEstime)}`
+        : 'Aucun loyer renseigné dans Immobilier pour ce périmètre';
+    }
+  }
+
+  if (!annees.length) {
+    if (wrapper) wrapper.style.display = 'none';
+    if (emptyMsg) emptyMsg.style.display = 'block';
+    return;
+  }
+  if (wrapper) wrapper.style.display = '';
+  if (emptyMsg) emptyMsg.style.display = 'none';
+
+  const datasets = annees.map((annee, idx) => {
+    const color = budgetMensuelYearColorTBB(idx, annees.length);
+    const isLast = idx === annees.length - 1;
+    const data = mode === 'cumule' ? toCumulativeSerieTBB(series[annee]) : series[annee];
+    return {
+      label: annee, data,
+      borderColor: color, backgroundColor: color,
+      borderWidth: isLast ? 3 : 1.5,
+      borderDash: isLast ? [] : [4, 3],
+      pointRadius: 0, pointHoverRadius: 4,
+      tension: 0.25, spanGaps: false
+    };
+  });
+
+  if (poste === 'loyer' && loyerAnnuelEstime) {
+    const cibleValue = mode === 'cumule' ? loyerAnnuelEstime : loyerAnnuelEstime / 12;
+    datasets.push({
+      label: mode === 'cumule' ? 'Loyer annuel estimé' : 'Moyenne mensuelle estimée',
+      data: Array(12).fill(Math.round(cibleValue)),
+      borderColor: '#C0392B', borderWidth: 2, borderDash: [2, 3], pointRadius: 0, tension: 0
+    });
+  }
+
+  const fmtVal = v => v == null ? '—' : fmtEuro(v);
+
+  budgetMensuelPosteChartInstanceTBB[poste] = new Chart(canvas, {
+    type: 'line',
+    data: { labels: MOIS_LABELS_TBB, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label} : ${fmtVal(ctx.parsed.y)}` } }
+      },
+      scales: {
+        y: {
+          min: 0,
+          ticks: { callback: v => fmtEuroK(v), color: '#8A9BAA', font: { size: 10 } },
+          grid: { color: '#e1e0d9' }
+        },
+        x: { ticks: { color: '#8A9BAA', font: { size: 10 }, autoSkip: false }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+/** Rend les 4 graphiques informatifs (formation/missions/loyer/contentieux). */
+function renderBudgetMensuelPosteChartsTBB() {
+  Object.keys(BUDGET_MENSUEL_POSTE_COL_TBB).forEach(poste => renderBudgetMensuelPosteChartTBB(poste));
+}
+
+function setBudgetMensuelPosteTBB(key, value) {
+  BUDGET_MENSUEL_POSTE_TBB_STATE[key] = (key === 'service' && value !== 'national') ? Number(value) : value;
+
+  if (key === 'mode') {
+    const btnMensuel = document.getElementById('budget-mensuel-poste-tbb-btn-mensuel');
+    const btnCumule = document.getElementById('budget-mensuel-poste-tbb-btn-cumule');
+    if (btnMensuel && btnCumule) {
+      btnMensuel.style.background = value === 'mensuel' ? 'var(--rep)' : 'transparent';
+      btnMensuel.style.color = value === 'mensuel' ? '#fff' : 'var(--gris2)';
+      btnCumule.style.background = value === 'cumule' ? 'var(--rep)' : 'transparent';
+      btnCumule.style.color = value === 'cumule' ? '#fff' : 'var(--gris2)';
+    }
+  }
+
+  renderBudgetMensuelPosteChartsTBB();
 }
 
 function computeGroups() {
@@ -2090,11 +2390,12 @@ async function init() {
     // dans "Sélectionner par" des autres widgets liés à Structures
     grist.ready({ requiredAccess: 'read table' });
 
-    const [budgetTable, structuresTable, consolidationTable, budgetMensuelTable] = await Promise.all([
+    const [budgetTable, structuresTable, consolidationTable, budgetMensuelTable, immobilierTable] = await Promise.all([
       grist.docApi.fetchTable('Budget').catch(() => null),
       grist.docApi.fetchTable('Structures').catch(() => null),
       grist.docApi.fetchTable('Consolidation').catch(() => null),
       grist.docApi.fetchTable('Budget_Mensuel').catch(() => null),
+      grist.docApi.fetchTable('Immobilier').catch(() => null),
     ]);
 
     if (!structuresTable) throw new Error('Table Structures non accessible.');
@@ -2104,6 +2405,7 @@ async function init() {
     STATE_budgetTable = budgetTable;
     STATE_budgetMensuelTable = budgetMensuelTable;
     STATE_consolidationTable = consolidationTable;
+    STATE_immobilierTable = immobilierTable;
 
     renderRejbParStructure(budgetTable, structuresTable);
 
@@ -2251,6 +2553,7 @@ async function init() {
 
     populateServiceSelector();
     renderBudgetMensuelDashboardChart();
+    renderBudgetMensuelPosteChartsTBB();
 
   } catch (e) {
     document.getElementById('loading').style.display = 'none';
