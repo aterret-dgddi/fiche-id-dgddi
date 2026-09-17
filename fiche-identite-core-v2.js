@@ -4004,6 +4004,41 @@ const BUDGET_MENSUEL_POSTE_COL = {
   contentieux: 'Conso_Contx_CP'
 };
 
+// Mode d'affichage par poste ('mensuel' = valeur du mois, 'cumule' = cumul
+// depuis janvier reconstruit côté JS) — indépendant pour chacun des 4
+// graphiques, contrairement au toggle unique du graphique CP principal.
+const BUDGET_MENSUEL_POSTE_STATE = { loyer: 'mensuel', formation: 'mensuel', missions: 'mensuel', contentieux: 'mensuel' };
+
+/**
+ * Convertit une série mensuelle NON cumulée en cumul depuis janvier (opération
+ * inverse de toIncrementalSerie). Dès qu'une valeur manque (mois pas encore
+ * disponible), le cumul s'arrête net (null) plutôt que de rester figé.
+ */
+function toCumulativeSerie(row) {
+  const result = [];
+  let sum = 0;
+  let broken = false;
+  row.forEach(v => {
+    if (broken || v == null) { result.push(null); broken = true; return; }
+    sum += v;
+    result.push(Math.round(sum));
+  });
+  return result;
+}
+
+function setBudgetMensuelPosteMode(poste, mode) {
+  BUDGET_MENSUEL_POSTE_STATE[poste] = mode;
+  const btnMensuel = document.getElementById(`budget-mensuel-poste-btn-mensuel-${poste}`);
+  const btnCumule = document.getElementById(`budget-mensuel-poste-btn-cumule-${poste}`);
+  if (btnMensuel && btnCumule) {
+    btnMensuel.style.background = mode === 'mensuel' ? 'var(--rep)' : 'transparent';
+    btnMensuel.style.color = mode === 'mensuel' ? '#fff' : 'var(--gris2)';
+    btnCumule.style.background = mode === 'cumule' ? 'var(--rep)' : 'transparent';
+    btnCumule.style.color = mode === 'cumule' ? '#fff' : 'var(--gris2)';
+  }
+  if (FICHE_STATE.structure) renderBudgetMensuelPosteChart(FICHE_STATE.structure.id, poste);
+}
+
 /**
  * Retourne la consommation mensuelle (non cumulée) CP pour les 4 postes
  * informatifs, par année. Même périmètre (structure + DR rattachées si DI)
@@ -4055,26 +4090,46 @@ function getBudgetMensuelPosteHistorique(structureId) {
 }
 
 /**
- * Construit les datasets Chart.js pour un poste informatif CP donné
- * (loyer/formation/missions/contentieux) — même dégradé de bleu par année que le
- * graphique CP principal (année la plus récente en trait plein foncé, les
- * précédentes en pointillés plus clairs), mais valeurs mensuelles NON
- * cumulées. Pas de dotation ni de ligne cible : ces postes n'ont pas
- * d'enveloppe propre.
+ * Retourne le loyer annuel estimé d'une structure (table Immobilier,
+ * colonne Loyer_Annuel), réutilisé comme ligne cible sur le graphique
+ * informatif "Loyers". Réutilise getImmobilierSites() — même périmètre
+ * (structure + DR rattachées si DI) et même déduplication par site que
+ * l'onglet Immobilier — donc toujours cohérent avec les montants qui y
+ * sont affichés.
  */
-function computeBudgetMensuelPosteChartSpec(structureId, poste) {
+function getLoyerAnnuelEstime(structureId) {
+  const { public: pub, prive } = getImmobilierSites(structureId);
+  return [...pub, ...prive].reduce((s, site) => s + (site.loyer_annuel || 0), 0);
+}
+
+/**
+ * Construit les datasets Chart.js pour un poste informatif CP donné
+ * (loyer/formation/missions/contentieux) — même dégradé de bleu par année que
+ * le graphique CP principal (année la plus récente en trait plein foncé, les
+ * précédentes en pointillés plus clairs). mode = 'mensuel' (valeur du mois,
+ * par défaut) ou 'cumule' (cumul depuis janvier, reconstruit en JS via
+ * toCumulativeSerie — aucune colonne Grist supplémentaire nécessaire). Pas de
+ * dotation ni de ligne cible dans les deux cas, SAUF pour le poste Loyer :
+ * le loyer annuel estimé (table Immobilier) y sert de ligne cible rouge
+ * pointillée — la valeur annuelle telle quelle en vue cumulée, sa moyenne
+ * mensuelle (÷12) en vue mensuelle.
+ */
+function computeBudgetMensuelPosteChartSpec(structureId, poste, mode) {
   const hist = getBudgetMensuelPosteHistorique(structureId);
   const series = hist ? hist[poste] : null;
   const annees = series ? Object.keys(series).sort() : [];
 
-  if (!annees.length) return { hasData: false, annees: [], series };
+  const loyerAnnuelEstime = poste === 'loyer' ? getLoyerAnnuelEstime(structureId) : null;
+
+  if (!annees.length) return { hasData: false, annees: [], series, loyerAnnuelEstime };
 
   const datasets = annees.map((annee, idx) => {
     const color = budgetMensuelYearColor(idx, annees.length);
     const isLast = idx === annees.length - 1;
+    const data = mode === 'cumule' ? toCumulativeSerie(series[annee]) : series[annee];
     return {
       label: annee,
-      data: series[annee],
+      data,
       borderColor: color,
       backgroundColor: color,
       borderWidth: isLast ? 3 : 1.5,
@@ -4086,7 +4141,20 @@ function computeBudgetMensuelPosteChartSpec(structureId, poste) {
     };
   });
 
-  return { hasData: true, annees, series, datasets };
+  if (poste === 'loyer' && loyerAnnuelEstime) {
+    const cibleValue = mode === 'cumule' ? loyerAnnuelEstime : loyerAnnuelEstime / 12;
+    datasets.push({
+      label: mode === 'cumule' ? 'Loyer annuel estimé' : 'Moyenne mensuelle estimée',
+      data: Array(12).fill(Math.round(cibleValue)),
+      borderColor: '#B52020',
+      borderWidth: 2,
+      borderDash: [2, 3],
+      pointRadius: 0,
+      tension: 0
+    });
+  }
+
+  return { hasData: true, annees, series, datasets, loyerAnnuelEstime };
 }
 
 /** Rend le graphique d'un seul poste informatif (loyer/formation/missions/contentieux). */
@@ -4099,7 +4167,17 @@ function renderBudgetMensuelPosteChart(structureId, poste) {
   const existing = Chart.getChart(canvas);
   if (existing) existing.destroy();
 
-  const spec = computeBudgetMensuelPosteChartSpec(structureId, poste);
+  const mode = BUDGET_MENSUEL_POSTE_STATE[poste] || 'mensuel';
+  const spec = computeBudgetMensuelPosteChartSpec(structureId, poste, mode);
+
+  if (poste === 'loyer') {
+    const subEl = document.getElementById('budget-mensuel-loyer-subtitle');
+    if (subEl) {
+      subEl.textContent = spec.loyerAnnuelEstime
+        ? `Loyer annuel estimé (Immobilier) : ${formatCurrency(spec.loyerAnnuelEstime, 0)}`
+        : 'Aucun loyer renseigné dans Immobilier pour cette structure';
+    }
+  }
 
   if (!spec.hasData) {
     if (wrapper) wrapper.style.display = 'none';

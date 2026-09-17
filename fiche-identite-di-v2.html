@@ -1426,34 +1426,63 @@
     </div>
     </div>
 
-    <!-- Détail Fonctionnement — Consommation mensuelle CP (Loyer / Formation / Missions hors formation) -->
+    <!-- Détail Fonctionnement — Consommation mensuelle CP (Formation / Missions hors formation / Loyer / Contentieux) -->
     <div class="chart-container" style="margin-top:20px;">
     <div class="chart-title" style="margin:0 0 2px;">Détail Fonctionnement — Consommation mensuelle CP</div>
-    <div style="font-size:11px;color:var(--gris3);font-style:italic;margin-bottom:12px;">Information complémentaire : ces 3 postes sont déjà inclus dans Fonctionnement et n'ont aucune incidence sur les totaux ni les taux affichés ci-dessus.</div>
+    <div style="font-size:11px;color:var(--gris3);font-style:italic;margin-bottom:12px;">Information complémentaire : ces 4 postes sont déjà inclus dans Fonctionnement et n'ont aucune incidence sur les totaux ni les taux affichés ci-dessus.</div>
+
     <div style="display:flex;gap:16px;flex-wrap:wrap;">
     <div style="flex:1;min-width:260px;">
-    <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Loyers</div>
-    <div id="budget-mensuel-wrapper-loyer" class="chart-wrapper" style="position:relative;height:200px;">
-    <canvas id="chart-budget-mensuel-loyer"></canvas>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+    <div style="font-weight:600;font-size:12px;color:var(--gris2);">Formation</div>
+    <div style="display:flex;gap:3px;background:var(--gris4);border-radius:5px;padding:2px;">
+    <button id="budget-mensuel-poste-btn-mensuel-formation" onclick="setBudgetMensuelPosteMode('formation','mensuel')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
+    <button id="budget-mensuel-poste-btn-cumule-formation" onclick="setBudgetMensuelPosteMode('formation','cumule')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
     </div>
-    <div id="budget-mensuel-empty-loyer" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
     </div>
-    <div style="flex:1;min-width:260px;">
-    <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Formation</div>
     <div id="budget-mensuel-wrapper-formation" class="chart-wrapper" style="position:relative;height:200px;">
     <canvas id="chart-budget-mensuel-formation"></canvas>
     </div>
     <div id="budget-mensuel-empty-formation" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
     </div>
     <div style="flex:1;min-width:260px;">
-    <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Missions (hors formation)</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+    <div style="font-weight:600;font-size:12px;color:var(--gris2);">Missions (hors formation)</div>
+    <div style="display:flex;gap:3px;background:var(--gris4);border-radius:5px;padding:2px;">
+    <button id="budget-mensuel-poste-btn-mensuel-missions" onclick="setBudgetMensuelPosteMode('missions','mensuel')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
+    <button id="budget-mensuel-poste-btn-cumule-missions" onclick="setBudgetMensuelPosteMode('missions','cumule')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
+    </div>
+    </div>
     <div id="budget-mensuel-wrapper-missions" class="chart-wrapper" style="position:relative;height:200px;">
     <canvas id="chart-budget-mensuel-missions"></canvas>
     </div>
     <div id="budget-mensuel-empty-missions" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
     </div>
+    </div>
+
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;">
     <div style="flex:1;min-width:260px;">
-    <div style="font-weight:600;font-size:12px;color:var(--gris2);margin-bottom:6px;">Contentieux</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px;">
+    <div style="font-weight:600;font-size:12px;color:var(--gris2);">Loyers</div>
+    <div style="display:flex;gap:3px;background:var(--gris4);border-radius:5px;padding:2px;">
+    <button id="budget-mensuel-poste-btn-mensuel-loyer" onclick="setBudgetMensuelPosteMode('loyer','mensuel')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
+    <button id="budget-mensuel-poste-btn-cumule-loyer" onclick="setBudgetMensuelPosteMode('loyer','cumule')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
+    </div>
+    </div>
+    <div id="budget-mensuel-loyer-subtitle" style="font-size:10px;color:var(--gris3);margin-bottom:4px;"></div>
+    <div id="budget-mensuel-wrapper-loyer" class="chart-wrapper" style="position:relative;height:200px;">
+    <canvas id="chart-budget-mensuel-loyer"></canvas>
+    </div>
+    <div id="budget-mensuel-empty-loyer" style="display:none;text-align:center;padding:20px;color:var(--gris3);font-style:italic;font-size:12px;">⚠️ Aucun historique mensuel disponible pour cette structure</div>
+    </div>
+    <div style="flex:1;min-width:260px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+    <div style="font-weight:600;font-size:12px;color:var(--gris2);">Contentieux</div>
+    <div style="display:flex;gap:3px;background:var(--gris4);border-radius:5px;padding:2px;">
+    <button id="budget-mensuel-poste-btn-mensuel-contentieux" onclick="setBudgetMensuelPosteMode('contentieux','mensuel')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
+    <button id="budget-mensuel-poste-btn-cumule-contentieux" onclick="setBudgetMensuelPosteMode('contentieux','cumule')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
+    </div>
+    </div>
     <div id="budget-mensuel-wrapper-contentieux" class="chart-wrapper" style="position:relative;height:200px;">
     <canvas id="chart-budget-mensuel-contentieux"></canvas>
     </div>
