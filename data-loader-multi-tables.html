@@ -370,7 +370,21 @@ const TABLE_CONFIG = {
       'dot_AE_vehicules', 'dot_CP_vehicules', 'Conso_AE_vehicules', 'Conso_CP_vehicules',
       'dot_AE_fonctionnement', 'dot_CP_fonctionnement', 'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
       'Dot_AE_T6', 'Dot_CP_T6', 'Conso_AE_T6', 'Conso_CP_T6',
-      'dot_AE_Immo', 'dot_CP_Immo', 'Conso_AE_Immo', 'Conso_CP_Immo'
+      'dot_AE_Immo', 'dot_CP_Immo', 'Conso_AE_Immo', 'Conso_CP_Immo',
+      'REJB_Vehicules', 'REJB_Fonctionnement', 'REJB_T6buralistes', 'REJB_Immo',
+      // BOP local/central — importées en parallèle des colonnes combinées ci-dessus
+      // tant qu'elles ne sont pas encore converties en formule (Phase 1.2 du plan
+      // local/central) ; à retirer des colonnes ci-dessus dès que la conversion
+      // sera faite dans Grist, sous peine d'écriture ignorée sur colonne formule.
+      'Conso_AE_vehicules_local', 'Conso_AE_vehicules_central',
+      'REJB_Vehicules_local', 'REJB_Vehicules_central',
+      'Conso_CP_vehicules_local', 'Conso_CP_vehicules_central',
+      'Conso_AE_fonctionnement_local', 'Conso_AE_fonctionnement_central',
+      'REJB_Fonctionnement_local', 'REJB_Fonctionnement_central',
+      'Conso_CP_fonctionnement_local', 'Conso_CP_fonctionnement_central',
+      'Conso_AE_Immo_local', 'Conso_AE_Immo_central',
+      'REJB_Immo_local', 'REJB_Immo_central',
+      'Conso_CP_Immo_local', 'Conso_CP_Immo_central'
     ],
     keyFields: ['Structure', 'Annee'],
     needsStructure: true,
@@ -399,7 +413,20 @@ const TABLE_CONFIG = {
       'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
       'Conso_AE_T6', 'Conso_CP_T6',
       'Conso_AE_Immo', 'Conso_CP_Immo',
-      'Conso_Loyer_CP', 'Conso_Formation_CP', 'Conso_Missions_CP', 'Conso_Contx_CP'
+      'REJB_Vehicules', 'REJB_Fonctionnement', 'REJB_T6buralistes', 'REJB_Immo',
+      'Conso_Loyer_CP', 'Conso_Formation_CP', 'Conso_Missions_CP', 'Conso_Contx_CP',
+      // BOP local/central — mêmes règles que pour la table Budget ci-dessus
+      // (import en parallèle tant que les colonnes combinées ne sont pas encore
+      // des formules — Phase 2.2 du plan local/central).
+      'Conso_AE_vehicules_local', 'Conso_AE_vehicules_central',
+      'REJB_Vehicules_local', 'REJB_Vehicules_central',
+      'Conso_CP_vehicules_local', 'Conso_CP_vehicules_central',
+      'Conso_AE_fonctionnement_local', 'Conso_AE_fonctionnement_central',
+      'REJB_Fonctionnement_local', 'REJB_Fonctionnement_central',
+      'Conso_CP_fonctionnement_local', 'Conso_CP_fonctionnement_central',
+      'Conso_AE_Immo_local', 'Conso_AE_Immo_central',
+      'REJB_Immo_local', 'REJB_Immo_central',
+      'Conso_CP_Immo_local', 'Conso_CP_Immo_central'
     ],
     keyFields: ['Structure', 'Annee', 'Mois'],
     needsStructure: true,
