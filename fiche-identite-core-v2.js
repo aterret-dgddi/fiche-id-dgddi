@@ -787,6 +787,11 @@ function getBudgetData(structureId, annee) {
       rejb_ae_vehicules_local: rejb_vehicules_local, rejb_ae_vehicules_central: rejb_vehicules_central,
       rejb_ae_fonctionnement_local: rejb_fonctionnement_local, rejb_ae_fonctionnement_central: rejb_fonctionnement_central,
       rejb_ae_immo_local: rejb_immo_local, rejb_ae_immo_central: rejb_immo_central,
+      // REJB par nature, combiné (Local + Central)
+      rejb_ae_vehicules: rejb_ae[0], rejb_ae_fonctionnement: rejb_ae[1], rejb_ae_t6: rejb_ae[2], rejb_ae_immo: rejb_ae[3],
+      get rejb_ae_total_local() { return this.rejb_ae_vehicules_local + this.rejb_ae_fonctionnement_local + this.rejb_ae_immo_local; },
+      get rejb_ae_total_central() { return this.rejb_ae_vehicules_central + this.rejb_ae_fonctionnement_central + this.rejb_ae_immo_central; },
+      get rejb_ae_total() { return this.rejb_ae_vehicules + this.rejb_ae_fonctionnement + this.rejb_ae_immo; },
       // Dotations par nature et par BOP
       get dot_ae_vehicules_local() { return this.dot_ae_vehicules; },
       dot_ae_vehicules_central: 0,
@@ -855,6 +860,15 @@ function getBudgetData(structureId, annee) {
     rejb_ae_fonctionnement_central: n('REJB_Fonctionnement_central'),
     rejb_ae_immo_local:             n('REJB_Immo_local'),
     rejb_ae_immo_central:           n('REJB_Immo_central'),
+    // REJB par nature, combiné (Local + Central) — pour affichage dans le
+    // tableau détaillé, à côté de Dotation/Conso/Taux AE.
+    rejb_ae_vehicules:      n('REJB_Vehicules'),
+    rejb_ae_fonctionnement: n('REJB_Fonctionnement'),
+    rejb_ae_immo:           n('REJB_Immo'),
+    rejb_ae_t6:              n('REJB_T6buralistes'),
+    get rejb_ae_total_local() { return this.rejb_ae_vehicules_local + this.rejb_ae_fonctionnement_local + this.rejb_ae_immo_local; },
+    get rejb_ae_total_central() { return this.rejb_ae_vehicules_central + this.rejb_ae_fonctionnement_central + this.rejb_ae_immo_central; },
+    get rejb_ae_total() { return this.rejb_ae_vehicules + this.rejb_ae_fonctionnement + this.rejb_ae_immo; },
     // Dotations par nature et par BOP — aucune n'est splittée côté saisie :
     // Véhicules/Fonctionnement sont 100% locales, Immobilier est 100% centrale.
     get dot_ae_vehicules_local() { return this.dot_ae_vehicules; },
@@ -3554,23 +3568,23 @@ function refreshRH(structureId, annee) {
 }
 
 /** Sélectionne, pour un niveau BOP donné ('local' | 'central' | 'total'), les
- * 6 valeurs (dot/conso/taux AE et CP) à afficher — toujours depuis les champs
- * déjà présents sur dataN, jamais recalculées ici. */
+ * valeurs (dot/conso/rejb/taux AE et dot/conso/taux CP) à afficher — toujours
+ * depuis les champs déjà présents sur dataN, jamais recalculées ici. */
 function getBudgetPillValues(dataN, bop) {
   if (bop === 'local') {
     return {
-      dot_ae: dataN.dot_ae_total_local, conso_ae: dataN.conso_ae_total_local, taux_ae: dataN.taux_ae_total_local,
+      dot_ae: dataN.dot_ae_total_local, conso_ae: dataN.conso_ae_total_local, rejb_ae: dataN.rejb_ae_total_local, taux_ae: dataN.taux_ae_total_local,
       dot_cp: dataN.dot_cp_total_local, conso_cp: dataN.conso_cp_total_local, taux_cp: dataN.taux_cp_total_local,
     };
   }
   if (bop === 'central') {
     return {
-      dot_ae: dataN.dot_ae_total_central, conso_ae: dataN.conso_ae_total_central, taux_ae: dataN.taux_ae_total_central,
+      dot_ae: dataN.dot_ae_total_central, conso_ae: dataN.conso_ae_total_central, rejb_ae: dataN.rejb_ae_total_central, taux_ae: dataN.taux_ae_total_central,
       dot_cp: dataN.dot_cp_total_central, conso_cp: dataN.conso_cp_total_central, taux_cp: dataN.taux_cp_total_central,
     };
   }
   return {
-    dot_ae: dataN.dot_ae_total, conso_ae: dataN.conso_ae_total, taux_ae: dataN.taux_ae_total,
+    dot_ae: dataN.dot_ae_total, conso_ae: dataN.conso_ae_total, rejb_ae: dataN.rejb_ae_total, taux_ae: dataN.taux_ae_total,
     dot_cp: dataN.dot_cp_total, conso_cp: dataN.conso_cp_total, taux_cp: dataN.taux_cp_total,
   };
 }
@@ -3627,7 +3641,7 @@ function refreshBudget(structureId, annee) {
     const rejbWrapperEmpty = document.getElementById('budget-rejb-wrapper');
     if (rejbWrapperEmpty) rejbWrapperEmpty.style.display = 'none';
     const tbody = document.getElementById('budget-types-tbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée budgétaire disponible pour ' + annee + '</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée budgétaire disponible pour ' + annee + '</td></tr>';
     initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
     return;
   }
@@ -4605,6 +4619,11 @@ function createBudgetTable(data, moy, libPerimetre, annee, isDI) {
     return `${(v * 100).toFixed(1)} %`;
   };
   const fmtMontant = v => v == null ? '—' : formatCurrency(v, 0);
+  // REJB (rejets de bordereaux) : montant soustrait de la Conso AE brute pour
+  // obtenir la Conso AE nette utilisée dans le calcul du Taux AE — affiché
+  // avec un signe "−" pour rappeler qu'il vient en déduction, jamais en gras
+  // (donnée corrective, pas un indicateur de suivi en soi).
+  const fmtRejb = v => (v == null || v === 0) ? '—' : `<span style="color:var(--gris3);">− ${formatCurrency(v, 0)}</span>`;
 
   /** Construit les 3 sous-lignes Local/Central/Total d'une nature (ou du grand
    * total), avec le libellé de nature affiché une seule fois via rowspan. */
@@ -4620,6 +4639,7 @@ function createBudgetTable(data, moy, libPerimetre, annee, isDI) {
         <td style="color:${lvl.isLevelTotal ? 'inherit' : 'var(--gris3)'};font-size:11px;">${lvl.label}</td>
         <td style="text-align:right;">${fmtMontant(lvl.dot_ae)}</td>
         <td style="text-align:right;">${fmtMontant(lvl.conso_ae)}</td>
+        <td style="text-align:right;">${fmtRejb(lvl.rejb_ae)}</td>
         <td style="text-align:right;">${fmtTaux(lvl.taux_ae, lvl.dot_ae)}</td>
         <td style="text-align:right;">${fmtMontant(lvl.dot_cp)}</td>
         <td style="text-align:right;">${fmtMontant(lvl.conso_cp)}</td>
@@ -4629,11 +4649,11 @@ function createBudgetTable(data, moy, libPerimetre, annee, isDI) {
   };
 
   const natureVals = (key) => isSiege
-    ? { local: {}, central: {}, total: { dot_ae: data[`dot_ae_${key}`], conso_ae: data[`conso_ae_${key}`], taux_ae: data[`taux_ae_${key}`], dot_cp: data[`dot_cp_${key}`], conso_cp: data[`conso_cp_${key}`], taux_cp: data[`taux_cp_${key}`] } }
+    ? { local: {}, central: {}, total: { dot_ae: data[`dot_ae_${key}`], conso_ae: data[`conso_ae_${key}`], rejb_ae: data[`rejb_ae_${key}`], taux_ae: data[`taux_ae_${key}`], dot_cp: data[`dot_cp_${key}`], conso_cp: data[`conso_cp_${key}`], taux_cp: data[`taux_cp_${key}`] } }
     : {
-        local:   { dot_ae: data[`dot_ae_${key}_local`],   conso_ae: data[`conso_ae_${key}_local`],   taux_ae: data[`taux_ae_${key}_local`],   dot_cp: data[`dot_cp_${key}_local`],   conso_cp: data[`conso_cp_${key}_local`],   taux_cp: data[`taux_cp_${key}_local`] },
-        central: { dot_ae: data[`dot_ae_${key}_central`], conso_ae: data[`conso_ae_${key}_central`], taux_ae: data[`taux_ae_${key}_central`], dot_cp: data[`dot_cp_${key}_central`], conso_cp: data[`conso_cp_${key}_central`], taux_cp: data[`taux_cp_${key}_central`] },
-        total:   { dot_ae: data[`dot_ae_${key}`], conso_ae: data[`conso_ae_${key}`], taux_ae: data[`taux_ae_${key}`], dot_cp: data[`dot_cp_${key}`], conso_cp: data[`conso_cp_${key}`], taux_cp: data[`taux_cp_${key}`] },
+        local:   { dot_ae: data[`dot_ae_${key}_local`],   conso_ae: data[`conso_ae_${key}_local`],   rejb_ae: data[`rejb_ae_${key}_local`],   taux_ae: data[`taux_ae_${key}_local`],   dot_cp: data[`dot_cp_${key}_local`],   conso_cp: data[`conso_cp_${key}_local`],   taux_cp: data[`taux_cp_${key}_local`] },
+        central: { dot_ae: data[`dot_ae_${key}_central`], conso_ae: data[`conso_ae_${key}_central`], rejb_ae: data[`rejb_ae_${key}_central`], taux_ae: data[`taux_ae_${key}_central`], dot_cp: data[`dot_cp_${key}_central`], conso_cp: data[`conso_cp_${key}_central`], taux_cp: data[`taux_cp_${key}_central`] },
+        total:   { dot_ae: data[`dot_ae_${key}`], conso_ae: data[`conso_ae_${key}`], rejb_ae: data[`rejb_ae_${key}`], taux_ae: data[`taux_ae_${key}`], dot_cp: data[`dot_cp_${key}`], conso_cp: data[`conso_cp_${key}`], taux_cp: data[`taux_cp_${key}`] },
       };
 
   let html = '';
@@ -4657,6 +4677,7 @@ function createBudgetTable(data, moy, libPerimetre, annee, isDI) {
       <td>—</td>
       <td style="text-align:right;">${fmtMontant(data.dot_ae_t6)}</td>
       <td style="text-align:right;">${fmtMontant(data.conso_ae_t6)}</td>
+      <td style="text-align:right;">${fmtRejb(data.rejb_ae_t6)}</td>
       <td style="text-align:right;">${fmtTaux(data.taux_ae_t6, data.dot_ae_t6)}</td>
       <td style="text-align:right;">${fmtMontant(data.dot_cp_t6)}</td>
       <td style="text-align:right;">${fmtMontant(data.conso_cp_t6)}</td>
