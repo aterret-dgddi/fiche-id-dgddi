@@ -1328,6 +1328,14 @@
     <div class="section-title" id="budget-section-title">Budget & Consommation</div>
     </div>
 
+    <!-- Sélecteur BOP : Total / Local / Central (non applicable au DG) -->
+    <div id="budget-bop-selector" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <span style="font-size:11px;color:var(--gris2);font-weight:500;">Budget :</span>
+    <button id="budget-bop-btn-total" onclick="setBudgetBOP('total')" style="border:none;background:var(--rep);color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;">Total</button>
+    <button id="budget-bop-btn-local" onclick="setBudgetBOP('local')" style="border:none;background:transparent;color:var(--gris2);padding:3px 10px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;">Local</button>
+    <button id="budget-bop-btn-central" onclick="setBudgetBOP('central')" style="border:none;background:transparent;color:var(--gris2);padding:3px 10px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;">Central</button>
+    </div>
+
     <!-- KPI Pills : taux globaux -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;">
     <div class="kpi-card">
@@ -1349,6 +1357,7 @@
     </div>
     </div>
     </div>
+
 
     <!-- Graphiques : araignées budgétaires AE / CP -->
     <div class="chart-grid">
@@ -1389,6 +1398,11 @@
     <option value="immo">Immobilier</option>
     <option value="t6">T6 Buralistes</option>
     </select>
+    <div id="budget-mensuel-bop-selector" style="display:flex;gap:4px;background:var(--gris4);border-radius:6px;padding:3px;">
+    <button id="budget-mensuel-bop-btn-total" onclick="setBudgetMensuelBOP('total')" style="border:none;background:var(--rep);color:#fff;padding:5px 10px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;">Total</button>
+    <button id="budget-mensuel-bop-btn-local" onclick="setBudgetMensuelBOP('local')" style="border:none;background:transparent;color:var(--gris2);padding:5px 10px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;">Local</button>
+    <button id="budget-mensuel-bop-btn-central" onclick="setBudgetMensuelBOP('central')" style="border:none;background:transparent;color:var(--gris2);padding:5px 10px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;">Central</button>
+    </div>
     </div>
     </div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;">

@@ -367,15 +367,16 @@ const TABLE_CONFIG = {
     description: 'Suivi budgétaire AE/CP par poste (une ligne par structure × année)',
     columns: [
       'Structure', 'Annee', 'Date_Import',
-      'dot_AE_vehicules', 'dot_CP_vehicules', 'Conso_AE_vehicules', 'Conso_CP_vehicules',
-      'dot_AE_fonctionnement', 'dot_CP_fonctionnement', 'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
+      'dot_AE_vehicules', 'dot_CP_vehicules',
+      'dot_AE_fonctionnement', 'dot_CP_fonctionnement',
       'Dot_AE_T6', 'Dot_CP_T6', 'Conso_AE_T6', 'Conso_CP_T6',
-      'dot_AE_Immo', 'dot_CP_Immo', 'Conso_AE_Immo', 'Conso_CP_Immo',
-      'REJB_Vehicules', 'REJB_Fonctionnement', 'REJB_T6buralistes', 'REJB_Immo',
-      // BOP local/central — importées en parallèle des colonnes combinées ci-dessus
-      // tant qu'elles ne sont pas encore converties en formule (Phase 1.2 du plan
-      // local/central) ; à retirer des colonnes ci-dessus dès que la conversion
-      // sera faite dans Grist, sous peine d'écriture ignorée sur colonne formule.
+      'dot_AE_Immo', 'dot_CP_Immo',
+      'REJB_T6buralistes',
+      // BOP local/central — seules sources désormais pour la consommation et
+      // REJB des 3 natures ventilées ; les colonnes combinées correspondantes
+      // (Conso_AE_vehicules, REJB_Vehicules, etc.) sont des formules côté
+      // Grist depuis la Phase 1.2 du plan local/central et ne sont plus
+      // importables — volontairement absentes de cette liste.
       'Conso_AE_vehicules_local', 'Conso_AE_vehicules_central',
       'REJB_Vehicules_local', 'REJB_Vehicules_central',
       'Conso_CP_vehicules_local', 'Conso_CP_vehicules_central',
@@ -393,31 +394,21 @@ const TABLE_CONFIG = {
       // variantes de nommage tolerées
       'dot_AE_Vehicules': 'dot_AE_vehicules',
       'dot_CP_Vehicules': 'dot_CP_vehicules',
-      'Conso_AE_Vehicules': 'Conso_AE_vehicules',
-      'Conso_CP_Vehicules': 'Conso_CP_vehicules',
       'dot_AE_Fonctionnement': 'dot_AE_fonctionnement',
       'dot_CP_Fonctionnement': 'dot_CP_fonctionnement',
-      'Conso_AE_Fonctionnement': 'Conso_AE_fonctionnement',
-      'Conso_CP_Fonctionnement': 'Conso_CP_fonctionnement',
       'dot_AE_immo': 'dot_AE_Immo',
-      'dot_CP_immo': 'dot_CP_Immo',
-      'Conso_AE_immo': 'Conso_AE_Immo',
-      'Conso_CP_immo': 'Conso_CP_Immo'
+      'dot_CP_immo': 'dot_CP_Immo'
     }
   },
   'Budget_Mensuel': {
     description: 'Suivi budgétaire AE/CP mensuel par poste (historique, une ligne par structure × année × mois)',
     columns: [
       'Structure', 'Annee', 'Mois', 'Date_Import',
-      'Conso_AE_vehicules', 'Conso_CP_vehicules',
-      'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
-      'Conso_AE_T6', 'Conso_CP_T6',
-      'Conso_AE_Immo', 'Conso_CP_Immo',
-      'REJB_Vehicules', 'REJB_Fonctionnement', 'REJB_T6buralistes', 'REJB_Immo',
+      'Conso_AE_T6', 'Conso_CP_T6', 'REJB_T6buralistes',
       'Conso_Loyer_CP', 'Conso_Formation_CP', 'Conso_Missions_CP', 'Conso_Contx_CP',
-      // BOP local/central — mêmes règles que pour la table Budget ci-dessus
-      // (import en parallèle tant que les colonnes combinées ne sont pas encore
-      // des formules — Phase 2.2 du plan local/central).
+      // BOP local/central — seules sources désormais pour ces 3 natures ; les
+      // colonnes combinées (Conso_AE_vehicules, REJB_Vehicules, etc.) sont des
+      // formules côté Grist depuis la Phase 2.2 et ne sont plus importables.
       'Conso_AE_vehicules_local', 'Conso_AE_vehicules_central',
       'REJB_Vehicules_local', 'REJB_Vehicules_central',
       'Conso_CP_vehicules_local', 'Conso_CP_vehicules_central',
@@ -432,11 +423,6 @@ const TABLE_CONFIG = {
     needsStructure: true,
     mapping: {
       'HIE': 'Structure',
-      'Conso_CP_Vehicules': 'Conso_CP_vehicules',
-      'Conso_AE_Fonctionnement': 'Conso_AE_fonctionnement',
-      'Conso_CP_Fonctionnement': 'Conso_CP_fonctionnement',
-      'Conso_AE_immobilier': 'Conso_AE_Immo',
-      'Conso_CP_immobilier': 'Conso_CP_Immo',
       'Conso_Loyer_CP': 'Conso_Loyer_CP',
       'Conso_Formation_CP': 'Conso_Formation_CP',
       'Conso_Missions_CP': 'Conso_Missions_CP',
