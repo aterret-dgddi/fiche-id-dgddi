@@ -514,6 +514,11 @@ function getBudgetData(structureId, annee) {
     const dot_cp = ['dot_CP_vehicules','dot_CP_fonctionnement','Dot_CP_T6','dot_CP_Immo'].map(sum);
     const conso_ae = ['Conso_AE_vehicules','Conso_AE_fonctionnement','Conso_AE_T6','Conso_AE_Immo'].map(sum);
     const conso_cp = ['Conso_CP_vehicules','Conso_CP_fonctionnement','Conso_CP_T6','Conso_CP_Immo'].map(sum);
+    // REJB (rejets de bordereaux, consommations AE négatives isolées) — à
+    // soustraire de conso_ae pour rester cohérent avec Budget.Conso_AE_Total
+    // côté Grist, qui applique la même correction quand la DI a sa propre ligne.
+    const rejb_ae = ['REJB_Vehicules','REJB_Fonctionnement','REJB_T6buralistes','REJB_Immo'].map(sum);
+    const conso_ae_net = conso_ae.map((v, i) => v - (rejb_ae[i] || 0));
     const taux = (c, d) => d > 0 ? c / d : 0;
     const sumHorsT6 = arr => arr[0] + arr[1] + arr[3];
 
@@ -533,18 +538,21 @@ function getBudgetData(structureId, annee) {
       dot_cp_vehicules: dot_cp[0], dot_cp_fonctionnement: dot_cp[1], dot_cp_t6: dot_cp[2], dot_cp_immo: dot_cp[3],
       conso_ae_vehicules: conso_ae[0], conso_ae_fonctionnement: conso_ae[1], conso_ae_t6: conso_ae[2], conso_ae_immo: conso_ae[3],
       conso_cp_vehicules: conso_cp[0], conso_cp_fonctionnement: conso_cp[1], conso_cp_t6: conso_cp[2], conso_cp_immo: conso_cp[3],
-      taux_ae_vehicules: taux(conso_ae[0], dot_ae[0]),
-      taux_ae_fonctionnement: taux(conso_ae[1], dot_ae[1]),
-      taux_ae_t6: taux(conso_ae[2], dot_ae[2]),
-      taux_ae_immo: taux(conso_ae[3], dot_ae[3]),
+      taux_ae_vehicules: taux(conso_ae_net[0], dot_ae[0]),
+      taux_ae_fonctionnement: taux(conso_ae_net[1], dot_ae[1]),
+      taux_ae_t6: taux(conso_ae_net[2], dot_ae[2]),
+      taux_ae_immo: taux(conso_ae_net[3], dot_ae[3]),
       taux_cp_vehicules: taux(conso_cp[0], dot_cp[0]),
       taux_cp_fonctionnement: taux(conso_cp[1], dot_cp[1]),
       taux_cp_t6: taux(conso_cp[2], dot_cp[2]),
       taux_cp_immo: taux(conso_cp[3], dot_cp[3]),
       date_import,
+      // REJB par nature, AE uniquement (déjà déduits des taux ci-dessus)
+      rejb_ae_vehicules: rejb_ae[0], rejb_ae_fonctionnement: rejb_ae[1], rejb_ae_t6: rejb_ae[2], rejb_ae_immo: rejb_ae[3],
+      get rejb_ae_total() { return this.rejb_ae_vehicules + this.rejb_ae_fonctionnement + this.rejb_ae_immo; },
       get dot_ae_total() { return sumHorsT6(dot_ae); },
       get dot_cp_total() { return sumHorsT6(dot_cp); },
-      get conso_ae_total() { return sumHorsT6(conso_ae); },
+      get conso_ae_total() { return sumHorsT6(conso_ae_net); },
       get conso_cp_total() { return sumHorsT6(conso_cp); },
       get taux_ae_total() { return this.dot_ae_total > 0 ? this.conso_ae_total / this.dot_ae_total : 0; },
       get taux_cp_total() { return this.dot_cp_total > 0 ? this.conso_cp_total / this.dot_cp_total : 0; },
@@ -580,6 +588,11 @@ function getBudgetData(structureId, annee) {
     dot_cp_total: n('Dot_CP_Total'),
     conso_ae_total: n('Conso_AE_Total'),
     conso_cp_total: n('Conso_CP_Total'),
+    // REJB par nature, AE uniquement — déjà déduits des Taux_AE_* lus depuis
+    // Grist ci-dessus ; exposés ici tels quels uniquement pour affichage.
+    rejb_ae_vehicules: n('REJB_Vehicules'), rejb_ae_fonctionnement: n('REJB_Fonctionnement'),
+    rejb_ae_t6: n('REJB_T6buralistes'), rejb_ae_immo: n('REJB_Immo'),
+    get rejb_ae_total() { return this.rejb_ae_vehicules + this.rejb_ae_fonctionnement + this.rejb_ae_immo; },
     get taux_ae_total() { return this.dot_ae_total > 0 ? this.conso_ae_total / this.dot_ae_total : 0; },
     get taux_cp_total() { return this.dot_cp_total > 0 ? this.conso_cp_total / this.dot_cp_total : 0; },
   };
@@ -906,7 +919,7 @@ function mdToDocxParagraphs(md, emptyMsg) {
 function buildCategoryTable(data, moy) {
   const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, ShadingType, AlignmentType, BorderStyle } = docx;
 
-  const headerCells = ['Catégorie', 'Dotation AE', 'Conso AE', 'Taux AE', 'Dotation CP', 'Conso CP', 'Taux CP', 'Moy. périmètre CP']
+  const headerCells = ['Catégorie', 'Dotation AE', 'Conso AE', 'REJB AE', 'Taux AE', 'Dotation CP', 'Conso CP', 'Taux CP', 'Moy. périmètre CP']
     .map(label => new TableCell({
       shading: { type: ShadingType.CLEAR, fill: '000091', color: 'auto' },
       children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: label, bold: true, color: 'FFFFFF', size: 18 })] })],
@@ -919,13 +932,13 @@ function buildCategoryTable(data, moy) {
     { label: 'Immobilier', key: 'immo' },
   ].map(c => ({
     label: c.label,
-    dot_ae: data[`dot_ae_${c.key}`], conso_ae: data[`conso_ae_${c.key}`], taux_ae: data[`taux_ae_${c.key}`],
+    dot_ae: data[`dot_ae_${c.key}`], conso_ae: data[`conso_ae_${c.key}`], rejb_ae: data[`rejb_ae_${c.key}`], taux_ae: data[`taux_ae_${c.key}`],
     dot_cp: data[`dot_cp_${c.key}`], conso_cp: data[`conso_cp_${c.key}`], taux_cp: data[`taux_cp_${c.key}`],
     moy_cp: moy ? moy[`taux_cp_${c.key}`] : null,
   }));
   categories.push({
     label: 'Total', isTotal: true,
-    dot_ae: data.dot_ae_total, conso_ae: data.conso_ae_total, taux_ae: data.taux_ae_total,
+    dot_ae: data.dot_ae_total, conso_ae: data.conso_ae_total, rejb_ae: data.rejb_ae_total, taux_ae: data.taux_ae_total,
     dot_cp: data.dot_cp_total, conso_cp: data.conso_cp_total, taux_cp: data.taux_cp_total,
     moy_cp: moy ? moy.taux_cp_total : null,
   });
@@ -935,6 +948,9 @@ function buildCategoryTable(data, moy) {
     const pct = v * 100;
     return pct >= 80 ? 'C0392B' : pct >= 50 ? 'D07B00' : '008941';
   };
+  // REJB (rejets de bordereaux) : montant soustrait de la Conso AE brute pour
+  // obtenir la Conso AE nette utilisée dans le calcul du Taux AE.
+  const fmtRejbText = v => (v == null || v === 0) ? '—' : `− ${formatCurrency(v)}`;
 
   const rows = [new TableRow({ children: headerCells, tableHeader: true })];
   categories.forEach(c => {
@@ -946,6 +962,7 @@ function buildCategoryTable(data, moy) {
       cellText(c.label),
       cellText(formatCurrency(c.dot_ae), { right: true }),
       cellText(formatCurrency(c.conso_ae), { right: true }),
+      cellText(fmtRejbText(c.rejb_ae), { right: true, color: '888888' }),
       cellText(formatPercent(c.taux_ae != null ? c.taux_ae * 100 : null), { right: true, color: fmtTauxColor(c.taux_ae) }),
       cellText(formatCurrency(c.dot_cp), { right: true }),
       cellText(formatCurrency(c.conso_cp), { right: true }),

@@ -526,6 +526,7 @@
           <th style="text-align:left;padding:6px 8px;color:var(--gris3);font-weight:700;">Nature</th>
           <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Dotation AE</th>
           <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Consommation AE</th>
+          <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">REJB AE</th>
           <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Taux AE</th>
           <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Reste AE</th>
           <th style="text-align:right;padding:6px 8px;color:var(--gris3);font-weight:700;">Dotation CP</th>
@@ -743,6 +744,11 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     const conso_ae_t6 = n('Conso_AE_T6'),       conso_ae_i = n('Conso_AE_Immo');
     const conso_cp_v = n('Conso_CP_vehicules'), conso_cp_f = n('Conso_CP_fonctionnement');
     const conso_cp_t6 = n('Conso_CP_T6'),       conso_cp_i = n('Conso_CP_Immo');
+    // REJB (rejets de bordereaux, consommations AE négatives isolées) — déjà
+    // déduits des Taux_AE_* lus depuis Grist ci-dessous ; exposés ici tels
+    // quels uniquement pour affichage (colonne REJB AE du tableau détaillé).
+    const rejb_ae_v = n('REJB_Vehicules'), rejb_ae_f = n('REJB_Fonctionnement');
+    const rejb_ae_t6 = n('REJB_T6buralistes'), rejb_ae_i = n('REJB_Immo');
 
     // Totaux lus directement depuis Grist : Dot_AE_Total/Conso_AE_Total excluent
     // déjà T6 pour les DI et le consolident au niveau DG (Type == 'Siège') —
@@ -764,6 +770,10 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
       taux_cp_immo:           taux(conso_cp_i,  dot_cp_i),
       taux_cp_total:          taux(conso_cp_total, dot_cp_total),
       dot_ae_total, dot_cp_total, conso_ae_total, conso_cp_total,
+      // REJB par nature, AE uniquement (déjà déduits des taux ci-dessus)
+      rejb_ae_vehicules: rejb_ae_v, rejb_ae_fonctionnement: rejb_ae_f,
+      rejb_ae_t6: rejb_ae_t6, rejb_ae_immo: rejb_ae_i,
+      rejb_ae_total: rejb_ae_v + rejb_ae_f + rejb_ae_i,
       // Montants € par catégorie (AE + CP) — pour affichage et tri pondéré par le poids budgétaire
       dot_ae_vehicules: dot_ae_v,           conso_ae_vehicules: conso_ae_v,
       dot_ae_fonctionnement: dot_ae_f,      conso_ae_fonctionnement: conso_ae_f,
@@ -844,6 +854,10 @@ function extractBudgetData(budgetTable, structureId, structuresTable) {
     taux_cp_immo:           taux(conso_cp_i,  dot_cp_i),
     taux_cp_total:          taux(conso_cp_total, dot_cp_total),
     dot_ae_total, dot_cp_total, conso_ae_total, conso_cp_total,
+    // REJB par nature, AE uniquement
+    rejb_ae_vehicules: rejb_v, rejb_ae_fonctionnement: rejb_f,
+    rejb_ae_t6: rejb_t6, rejb_ae_immo: rejb_i,
+    rejb_ae_total: rejb_v + rejb_f + rejb_i,
     dot_ae_vehicules: dot_ae_v,           conso_ae_vehicules: conso_ae_v,
     dot_ae_fonctionnement: dot_ae_f,      conso_ae_fonctionnement: conso_ae_f,
     dot_ae_t6: dot_ae_t6,                 conso_ae_t6: conso_ae_t6,
@@ -1517,7 +1531,24 @@ function getNationalBudgetDetail() {
   const dot_ae_total = n('Total_Notif_AE'), conso_ae_total = n('Total_Conso_AE');
   const dot_cp_total = n('Total_Notif_CP'), conso_cp_total = n('Total_Conso_CP');
 
+  // REJB (rejets de bordereaux) : Consolidation n'expose pas de colonne
+  // "Total_REJB_*" — on les resomme directement depuis Budget (déjà chargé),
+  // uniquement pour affichage (colonne REJB AE) ; les Total_Conso_AE_* lus
+  // ci-dessus sont déjà nets de REJB côté Grist.
+  let rejb_ae_vehicules = 0, rejb_ae_fonctionnement = 0, rejb_ae_t6 = 0, rejb_ae_immo = 0;
+  if (STATE_budgetTable) {
+    for (let i = 0; i < STATE_budgetTable.id.length; i++) {
+      if (STATE_budgetTable.Annee?.[i] !== ANNEE) continue;
+      rejb_ae_vehicules      += Number(STATE_budgetTable['REJB_Vehicules']?.[i]) || 0;
+      rejb_ae_fonctionnement += Number(STATE_budgetTable['REJB_Fonctionnement']?.[i]) || 0;
+      rejb_ae_t6             += Number(STATE_budgetTable['REJB_T6buralistes']?.[i]) || 0;
+      rejb_ae_immo           += Number(STATE_budgetTable['REJB_Immo']?.[i]) || 0;
+    }
+  }
+  const rejb_ae_total = rejb_ae_vehicules + rejb_ae_fonctionnement + rejb_ae_immo;
+
   return {
+    rejb_ae_vehicules, rejb_ae_fonctionnement, rejb_ae_t6, rejb_ae_immo, rejb_ae_total,
     dot_ae_vehicules, conso_ae_vehicules, taux_ae_vehicules: taux(conso_ae_vehicules, dot_ae_vehicules),
     dot_ae_fonctionnement, conso_ae_fonctionnement, taux_ae_fonctionnement: taux(conso_ae_fonctionnement, dot_ae_fonctionnement),
     dot_ae_t6, conso_ae_t6, taux_ae_t6: taux(conso_ae_t6, dot_ae_t6),
@@ -1552,7 +1583,7 @@ function renderBudgetDetailTable() {
 
   const data = isNational ? getNationalBudgetDetail() : extractBudgetData(STATE_budgetTable, service, STATE_structuresTable);
   if (!data) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--gris3);font-style:italic;">Aucune donnée disponible</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:16px;color:var(--gris3);font-style:italic;">Aucune donnée disponible</td></tr>';
     return;
   }
 
@@ -1582,15 +1613,20 @@ function renderBudgetDetailTable() {
     if (dot == null || conso == null) return '—';
     return fmtEuro(dot - conso);
   };
+  // REJB (rejets de bordereaux) : montant soustrait de la Conso AE brute pour
+  // obtenir la Conso AE nette utilisée dans le calcul du Taux AE.
+  const fmtRejb = v => (v == null || v === 0) ? '—' : `<span style="color:var(--gris3);">− ${fmtEuro(v)}</span>`;
 
   tbody.innerHTML = categories.map(c => {
     const dotAE = data[`dot_ae_${c.k}`], consoAE = data[`conso_ae_${c.k}`], tauxAE = data[`taux_ae_${c.k}`];
     const dotCP = data[`dot_cp_${c.k}`], consoCP = data[`conso_cp_${c.k}`], tauxCP = data[`taux_cp_${c.k}`];
+    const rejbAE = data[`rejb_ae_${c.k}`];
     return `
     <tr${c.isTotal ? ' style="font-weight:600;border-top:2px solid var(--bord);background:var(--gris4);"' : ''}${c.isInfo ? ' style="color:var(--gris2);"' : ''}>
       <td style="padding:6px 8px;">${c.label}</td>
       <td style="text-align:right;padding:6px 8px;">${fmtEuro(dotAE)}</td>
       <td style="text-align:right;padding:6px 8px;">${fmtEuro(consoAE)}</td>
+      <td style="text-align:right;padding:6px 8px;">${fmtRejb(rejbAE)}</td>
       <td style="text-align:right;padding:6px 8px;">${fmtTaux(tauxAE, dotAE)}</td>
       <td style="text-align:right;padding:6px 8px;">${fmtReste(dotAE, consoAE)}</td>
       <td style="text-align:right;padding:6px 8px;">${fmtEuro(dotCP)}</td>
