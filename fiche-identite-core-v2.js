@@ -3597,16 +3597,14 @@ function refreshBudget(structureId, annee) {
   if (!dataN) {
     const elTitleEmpty = document.getElementById('budget-section-title');
     if (elTitleEmpty) elTitleEmpty.textContent = 'Budget & Consommation';
-    ['budget-pill-taux-ae-local','budget-pill-taux-ae-central','budget-pill-taux-ae-total',
-     'budget-pill-montants-ae-local','budget-pill-montants-ae-central','budget-pill-montants-ae-total',
-     'budget-pill-taux-cp-local','budget-pill-taux-cp-central','budget-pill-taux-cp-total',
-     'budget-pill-montants-cp-local','budget-pill-montants-cp-central','budget-pill-montants-cp-total',
+    ['budget-pill-taux-ae-local','budget-pill-montants-ae-local',
+     'budget-pill-taux-cp-local','budget-pill-montants-cp-local',
      'budget-pill-ae-groupe','budget-pill-ae-national',
      'budget-pill-cp-groupe','budget-pill-cp-national'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '—';
     });
-    ['chart-budget-radar-ae','chart-budget-radar-cp','chart-budget-radar-ae-bop','chart-budget-radar-cp-bop'].forEach(id => {
+    ['chart-budget-radar-ae','chart-budget-radar-cp'].forEach(id => {
       const c = Chart.getChart(id); if (c) c.destroy();
     });
     ['budget-radar-ae-kpis','budget-radar-cp-kpis'].forEach(id => {
@@ -3659,20 +3657,11 @@ function refreshBudget(structureId, annee) {
   // ── Pills : Local (par défaut), Central et Total affichés ensemble ────────
   const fmtTaux = t => t == null ? '—' : (t * 100).toFixed(1) + ' %';
   ['ae', 'cp'].forEach(type => {
-    // BOP non applicable au DG : Local/Central affichent '—', seul Total est renseigné.
-    const local   = isSiege ? { taux: null, conso: null, dot: null } : (() => { const v = getBudgetPillValues(dataN, 'local');   return { taux: v[`taux_${type}`], conso: v[`conso_${type}`], dot: v[`dot_${type}`] }; })();
-    const central = isSiege ? { taux: null, conso: null, dot: null } : (() => { const v = getBudgetPillValues(dataN, 'central'); return { taux: v[`taux_${type}`], conso: v[`conso_${type}`], dot: v[`dot_${type}`] }; })();
-    const total   = (() => { const v = getBudgetPillValues(dataN, 'total'); return { taux: v[`taux_${type}`], conso: v[`conso_${type}`], dot: v[`dot_${type}`] }; })();
-
+    // BOP non applicable au DG : Local affiche '—' (pas de niveau local/central).
+    const local = isSiege ? { taux: null, conso: null, dot: null } : (() => { const v = getBudgetPillValues(dataN, 'local'); return { taux: v[`taux_${type}`], conso: v[`conso_${type}`], dot: v[`dot_${type}`] }; })();
     document.getElementById(`budget-pill-taux-${type}-local`).textContent = fmtTaux(local.taux);
     document.getElementById(`budget-pill-montants-${type}-local`).textContent =
       local.conso == null ? '—' : formatCurrency(local.conso, 0) + ' / ' + formatCurrency(local.dot, 0);
-    document.getElementById(`budget-pill-taux-${type}-central`).textContent = fmtTaux(central.taux);
-    document.getElementById(`budget-pill-montants-${type}-central`).textContent =
-      central.conso == null ? '—' : formatCurrency(central.conso, 0) + ' / ' + formatCurrency(central.dot, 0);
-    document.getElementById(`budget-pill-taux-${type}-total`).textContent = fmtTaux(total.taux);
-    document.getElementById(`budget-pill-montants-${type}-total`).textContent =
-      formatCurrency(total.conso, 0) + ' / ' + formatCurrency(total.dot, 0);
   });
 
   const fmtDiff = (val, moy, label) => {
@@ -3703,10 +3692,6 @@ function refreshBudget(structureId, annee) {
 
   // ── Araignée budgétaire CP (Total, toutes natures) ─────────
   createBudgetRadarCP(dataN, moyNational);
-
-  // ── Araignées comparatives Local vs Central (AE et CP) ─────
-  createBudgetRadarBOP('ae', dataN);
-  createBudgetRadarBOP('cp', dataN);
 
   // ── Progression mensuelle de la consommation ──────────────
   createBudgetMensuelChart(structureId);
@@ -3902,89 +3887,6 @@ function createBudgetRadarCP(data, moyNat) {
   createBudgetRadar('chart-budget-radar-cp', 'cp', data, moyNat);
   const el = document.getElementById('budget-radar-cp-kpis');
   if (el) el.innerHTML = buildBudgetRadarKPIs('cp', data, moyNat);
-}
-
-/**
- * Araignée comparative Local vs Central (2 polygones superposés) sur les 3
- * natures effectivement ventilées (Véhicules/Fonctionnement/Immobilier — T6
- * n'est jamais concerné). Un axe sans dotation à ce niveau (ex. Immobilier
- * côté Local, Véhicules/Fonctionnement côté Central) est tracé à 0, avec une
- * infobulle explicite plutôt qu'une valeur chiffrée trompeuse.
- */
-function createBudgetRadarBOP(type, data) {
-  const canvas = document.getElementById(`chart-budget-radar-${type}-bop`);
-  if (!canvas) return;
-  const existing = Chart.getChart(canvas);
-  if (existing) existing.destroy();
-
-  const keys = ['vehicules', 'fonctionnement', 'immo'];
-  const labels = ['Véhicules', 'Fonctionnement', 'Immobilier'];
-  const colors = ['#0891B2', '#1351A8', '#8D6E63'];
-
-  const rawLocal = keys.map(k => data[`taux_${type}_${k}_local`]);
-  const rawCentral = keys.map(k => data[`taux_${type}_${k}_central`]);
-  const toPct = arr => arr.map(v => v != null ? v * 100 : 0);
-
-  new Chart(canvas, {
-    type: 'radar',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Local',
-          data: toPct(rawLocal),
-          backgroundColor: 'rgba(19,81,168,0.12)',
-          borderColor: 'rgba(19,81,168,0.9)',
-          borderWidth: 2,
-          pointBackgroundColor: 'rgba(19,81,168,0.9)',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 1,
-          pointRadius: 4,
-        },
-        {
-          label: 'Central',
-          data: toPct(rawCentral),
-          backgroundColor: 'rgba(200,80,20,0.10)',
-          borderColor: 'rgba(200,80,20,0.85)',
-          borderWidth: 2,
-          borderDash: [4, 3],
-          pointBackgroundColor: 'rgba(200,80,20,0.85)',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 1,
-          pointRadius: 4,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 300 },
-      plugins: {
-        legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } },
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              const raw = ctx.datasetIndex === 0 ? rawLocal[ctx.dataIndex] : rawCentral[ctx.dataIndex];
-              return raw != null ? `${ctx.dataset.label} : ${(raw * 100).toFixed(1)} %` : `${ctx.dataset.label} : — (pas de dotation à ce niveau)`;
-            }
-          },
-          bodyFont: { size: 10 },
-          padding: 6,
-        }
-      },
-      scales: {
-        r: {
-          beginAtZero: true,
-          min: 0,
-          max: 100,
-          ticks: { stepSize: 25, display: false },
-          pointLabels: { font: { size: 11, weight: '600' }, color: colors, padding: 10 },
-          grid: { color: (ctx) => ctx.index === 0 ? 'transparent' : 'rgba(0,0,0,0.08)' },
-          angleLines: { color: 'rgba(0,0,0,0.10)' },
-        }
-      }
-    }
-  });
 }
 
 // ── Progression mensuelle de la consommation (Budget_Mensuel) ────────────────
@@ -4336,7 +4238,7 @@ const BUDGET_MENSUEL_POSTE_COL = {
 // Mode d'affichage par poste ('mensuel' = valeur du mois, 'cumule' = cumul
 // depuis janvier reconstruit côté JS) — indépendant pour chacun des 4
 // graphiques, contrairement au toggle unique du graphique CP principal.
-const BUDGET_MENSUEL_POSTE_STATE = { loyer: 'mensuel', formation: 'mensuel', missions: 'mensuel', contentieux: 'mensuel' };
+const BUDGET_MENSUEL_POSTE_STATE = { loyer: 'cumule', formation: 'cumule', missions: 'cumule', contentieux: 'cumule' };
 
 /**
  * Convertit une série mensuelle NON cumulée en cumul depuis janvier (opération
@@ -7555,8 +7457,8 @@ function exportToXLSX() {
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
     ['Date des donnees', dateBudget, ''],
-    ['Taux conso AE globale', t('budget-pill-taux-ae-total'), t('budget-pill-ae-national')],
-    ['Taux conso CP globale', t('budget-pill-taux-cp-total'), t('budget-pill-cp-national')],
+    ['Taux conso AE globale', budgetD ? (budgetD.taux_ae_total*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
+    ['Taux conso CP globale', budgetD ? (budgetD.taux_cp_total*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
   ];
   const budgetTableEl = document.querySelector('.section:has(#budget-pill-taux-ae-local) .data-table');
   if (budgetTableEl) {
@@ -7948,6 +7850,7 @@ async function executeXLSXExport(mode, filters) {
         const rhD = typeof getRHData==='function' ? getRHData(sid, annee) : null;
         const fmD = typeof getFraisMissionData==='function' ? getFraisMissionData(sid, annee) : null;
         const fonctD = typeof getFonctionnementData==='function' ? getFonctionnementData(sid) : null;
+        const budgetSummaryD = typeof getBudgetData==='function' ? getBudgetData(sid, annee) : null;
 
         const tv = id => { const el=document.getElementById(id); if(!el) return ''; const v=(el.innerText||'').trim().replace(/\u00a0/g,' '); return (v==='—'||v==='-')?'':v; };
 
@@ -7958,7 +7861,7 @@ async function executeXLSXExport(mode, filters) {
           rhD ? (rhD.effectif_su||'') : '',
           rhD ? (rhD.age_moyen_agco||'') : '',
           rhD ? (Math.round(rhD.ms_par_agent)||'') : '',
-          tv('budget-pill-taux-ae-total'), tv('budget-pill-taux-cp-total'),
+          budgetSummaryD ? (budgetSummaryD.taux_ae_total*100).toFixed(1)+' %' : '', budgetSummaryD ? (budgetSummaryD.taux_cp_total*100).toFixed(1)+' %' : '',
           tv('it-total'), tv('it-budget-annuel'), tv('it-ratio'),
           fmD ? (Math.round(fmD.montant_total)||'') : '',
           fmD ? (Math.round(fmD.frais_par_agent)||'') : '',
@@ -8101,8 +8004,8 @@ function exportToXLSXWorkbook(struct, annee) {
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
     ['Date des donnees', dateBudget, ''],
-    ['Taux conso AE globale', t('budget-pill-taux-ae-total'), t('budget-pill-ae-national')],
-    ['Taux conso CP globale', t('budget-pill-taux-cp-total'), t('budget-pill-cp-national')],
+    ['Taux conso AE globale', budgetD ? (budgetD.taux_ae_total*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
+    ['Taux conso CP globale', budgetD ? (budgetD.taux_cp_total*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
   ];
   const budgetEl = document.querySelector('.section:has(#budget-pill-taux-ae-local) .data-table');
   if (budgetEl) {

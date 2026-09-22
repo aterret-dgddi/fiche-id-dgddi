@@ -1328,26 +1328,15 @@
     <div class="section-title" id="budget-section-title">Budget & Consommation</div>
     </div>
 
-    <!-- KPI Pills : taux de consommation — Local (par défaut, hors REJB et hors
-         buralistes), Central et Total affichés ensemble -->
+    <!-- KPI Pills : taux de consommation Local (par défaut, hors REJB et hors
+         buralistes). Le détail Central/Total est disponible dans le tableau
+         par catégorie plus bas — pas dupliqué ici pour rester lisible. -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:24px;">
     <div class="kpi-card">
     <div class="kpi-card-label" id="budget-pill-label-ae">Consommation AE — Local</div>
     <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-ae-local">—</div>
     <div id="budget-pill-montants-ae-local" style="font-weight:600;margin-bottom:8px;">—</div>
-    <div style="display:flex;gap:0;padding-top:8px;border-top:1px solid var(--gris4,#e0e0e0);">
-    <div style="flex:1;text-align:center;">
-    <div style="font-size:9px;color:var(--gris3);font-weight:600;">CENTRAL</div>
-    <div style="font-size:15px;font-weight:700;" id="budget-pill-taux-ae-central">—</div>
-    <div style="font-size:9px;color:#888;" id="budget-pill-montants-ae-central">—</div>
-    </div>
-    <div style="flex:1;text-align:center;border-left:1px solid var(--gris4,#e0e0e0);">
-    <div style="font-size:9px;color:var(--gris3);font-weight:600;">TOTAL</div>
-    <div style="font-size:15px;font-weight:700;" id="budget-pill-taux-ae-total">—</div>
-    <div style="font-size:9px;color:#888;" id="budget-pill-montants-ae-total">—</div>
-    </div>
-    </div>
-    <div style="margin-top:8px;">
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--gris4,#e0e0e0);">
     <div id="budget-pill-ae-groupe" style="font-size:10px;">—</div>
     <div id="budget-pill-ae-national" style="font-size:10px;">—</div>
     </div>
@@ -1356,19 +1345,7 @@
     <div class="kpi-card-label" id="budget-pill-label-cp">Consommation CP — Local</div>
     <div class="kpi-card-value" style="font-size:28px;" id="budget-pill-taux-cp-local">—</div>
     <div id="budget-pill-montants-cp-local" style="font-weight:600;margin-bottom:8px;">—</div>
-    <div style="display:flex;gap:0;padding-top:8px;border-top:1px solid var(--gris4,#e0e0e0);">
-    <div style="flex:1;text-align:center;">
-    <div style="font-size:9px;color:var(--gris3);font-weight:600;">CENTRAL</div>
-    <div style="font-size:15px;font-weight:700;" id="budget-pill-taux-cp-central">—</div>
-    <div style="font-size:9px;color:#888;" id="budget-pill-montants-cp-central">—</div>
-    </div>
-    <div style="flex:1;text-align:center;border-left:1px solid var(--gris4,#e0e0e0);">
-    <div style="font-size:9px;color:var(--gris3);font-weight:600;">TOTAL</div>
-    <div style="font-size:15px;font-weight:700;" id="budget-pill-taux-cp-total">—</div>
-    <div style="font-size:9px;color:#888;" id="budget-pill-montants-cp-total">—</div>
-    </div>
-    </div>
-    <div style="margin-top:8px;">
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--gris4,#e0e0e0);">
     <div id="budget-pill-cp-groupe" style="font-size:10px;">—</div>
     <div id="budget-pill-cp-national" style="font-size:10px;">—</div>
     </div>
@@ -1395,24 +1372,6 @@
     <canvas id="chart-budget-radar-cp"></canvas>
     </div>
     <div id="budget-radar-cp-kpis"></div>
-    </div>
-    </div>
-
-    <!-- Comparatif Local / Central par nature (mêmes 4 axes, deux polygones) -->
-    <div class="chart-grid" style="margin-top:16px;">
-    <div class="chart-container">
-    <div class="chart-title">Araignée budgétaire — AE — Local vs Central</div>
-    <div class="chart-subtitle">Taux de consommation par nature et par BOP — un axe sans dotation à ce niveau reste à 0 (ex. Immobilier côté Local)</div>
-    <div class="chart-wrapper" style="position:relative;height:240px;">
-    <canvas id="chart-budget-radar-ae-bop"></canvas>
-    </div>
-    </div>
-    <div class="chart-container">
-    <div class="chart-title">Araignée budgétaire — CP — Local vs Central</div>
-    <div class="chart-subtitle">Taux de consommation par nature et par BOP — un axe sans dotation à ce niveau reste à 0 (ex. Immobilier côté Local)</div>
-    <div class="chart-wrapper" style="position:relative;height:240px;">
-    <canvas id="chart-budget-radar-cp-bop"></canvas>
-    </div>
     </div>
     </div>
 
@@ -1485,8 +1444,8 @@
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
     <div style="font-weight:600;font-size:12px;color:var(--gris2);">Formation</div>
     <div style="display:flex;gap:3px;background:var(--gris4);border-radius:5px;padding:2px;">
-    <button id="budget-mensuel-poste-btn-mensuel-formation" onclick="setBudgetMensuelPosteMode('formation','mensuel')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
-    <button id="budget-mensuel-poste-btn-cumule-formation" onclick="setBudgetMensuelPosteMode('formation','cumule')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
+    <button id="budget-mensuel-poste-btn-mensuel-formation" onclick="setBudgetMensuelPosteMode('formation','mensuel')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
+    <button id="budget-mensuel-poste-btn-cumule-formation" onclick="setBudgetMensuelPosteMode('formation','cumule')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
     </div>
     </div>
     <div id="budget-mensuel-wrapper-formation" class="chart-wrapper" style="position:relative;height:200px;">
@@ -1498,8 +1457,8 @@
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
     <div style="font-weight:600;font-size:12px;color:var(--gris2);">Missions (hors formation)</div>
     <div style="display:flex;gap:3px;background:var(--gris4);border-radius:5px;padding:2px;">
-    <button id="budget-mensuel-poste-btn-mensuel-missions" onclick="setBudgetMensuelPosteMode('missions','mensuel')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
-    <button id="budget-mensuel-poste-btn-cumule-missions" onclick="setBudgetMensuelPosteMode('missions','cumule')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
+    <button id="budget-mensuel-poste-btn-mensuel-missions" onclick="setBudgetMensuelPosteMode('missions','mensuel')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
+    <button id="budget-mensuel-poste-btn-cumule-missions" onclick="setBudgetMensuelPosteMode('missions','cumule')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
     </div>
     </div>
     <div id="budget-mensuel-wrapper-missions" class="chart-wrapper" style="position:relative;height:200px;">
@@ -1514,8 +1473,8 @@
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px;">
     <div style="font-weight:600;font-size:12px;color:var(--gris2);">Loyers</div>
     <div style="display:flex;gap:3px;background:var(--gris4);border-radius:5px;padding:2px;">
-    <button id="budget-mensuel-poste-btn-mensuel-loyer" onclick="setBudgetMensuelPosteMode('loyer','mensuel')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
-    <button id="budget-mensuel-poste-btn-cumule-loyer" onclick="setBudgetMensuelPosteMode('loyer','cumule')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
+    <button id="budget-mensuel-poste-btn-mensuel-loyer" onclick="setBudgetMensuelPosteMode('loyer','mensuel')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
+    <button id="budget-mensuel-poste-btn-cumule-loyer" onclick="setBudgetMensuelPosteMode('loyer','cumule')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
     </div>
     </div>
     <div id="budget-mensuel-loyer-subtitle" style="font-size:10px;color:var(--gris3);margin-bottom:4px;"></div>
@@ -1528,8 +1487,8 @@
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
     <div style="font-weight:600;font-size:12px;color:var(--gris2);">Contentieux</div>
     <div style="display:flex;gap:3px;background:var(--gris4);border-radius:5px;padding:2px;">
-    <button id="budget-mensuel-poste-btn-mensuel-contentieux" onclick="setBudgetMensuelPosteMode('contentieux','mensuel')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
-    <button id="budget-mensuel-poste-btn-cumule-contentieux" onclick="setBudgetMensuelPosteMode('contentieux','cumule')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
+    <button id="budget-mensuel-poste-btn-mensuel-contentieux" onclick="setBudgetMensuelPosteMode('contentieux','mensuel')" style="border:none;background:transparent;color:var(--gris2);padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Mensuel</button>
+    <button id="budget-mensuel-poste-btn-cumule-contentieux" onclick="setBudgetMensuelPosteMode('contentieux','cumule')" style="border:none;background:var(--rep);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;">Cumulé</button>
     </div>
     </div>
     <div id="budget-mensuel-wrapper-contentieux" class="chart-wrapper" style="position:relative;height:200px;">
