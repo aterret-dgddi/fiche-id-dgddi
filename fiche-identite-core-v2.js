@@ -5361,7 +5361,7 @@ function showExportModal() {
         <label style="display: block; font-weight: 600; color: #1E2D3D; margin-bottom: 12px; font-size: 14px;">🔍 Filtrer les structures</label>
         <div style="display: flex; flex-wrap: wrap; gap: 8px;">
           <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
-            <input type="checkbox" class="filter-type" value="DG" style="margin-right: 8px;">
+            <input type="checkbox" checked class="filter-type" value="DG" style="margin-right: 8px;">
             <span style="background: #dc3545; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DG</span>
             Direction Générale
           </label>
@@ -5371,7 +5371,7 @@ function showExportModal() {
             Directions Interrégionales (Métropole)
           </label>
           <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
-            <input type="checkbox" class="filter-type" value="DI Outremer" style="margin-right: 8px;">
+            <input type="checkbox" checked class="filter-type" value="DI Outremer" style="margin-right: 8px;">
             <span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">DI OM</span>
             Directions Interrégionales Outremer
           </label>
@@ -5381,9 +5381,9 @@ function showExportModal() {
             Directions Régionales Outremer
           </label>
           <label style="display: flex; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; font-size: 13px;">
-            <input type="checkbox" class="filter-type" value="SCN" style="margin-right: 8px;">
+            <input type="checkbox" checked class="filter-type" value="SCN" style="margin-right: 8px;">
             <span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-right: 6px;">SCN</span>
-            Service Commun National
+            Service à compétence nationale
           </label>
         </div>
       </div>
@@ -5473,7 +5473,7 @@ async function exportSingleStructurePDF(struct, annee) {
   try {
     const pdf = new jsPDF('p', 'mm', 'a4', { compress: true });
     await addStructureToPDF(pdf, struct, annee, true);
-    pdf.save(`${struct.sigle}-${annee}-${getPDFTimestamp()}.pdf`);
+    pdf.save(`Fiche Id - ${struct.sigle} - ${getPDFTimestamp()}.pdf`);
     hideLoadingMessage(loadingDiv);
   } catch (error) {
     hideLoadingMessage(loadingDiv);
@@ -5566,7 +5566,7 @@ async function exportAllStructuresAsZIP(filters) {
       await addStructureToPDF(pdf, struct, annee, true);
       
       const pdfBlob = pdf.output('blob');
-      zip.file(`${struct.sigle}-${annee}-${getPDFTimestamp()}.pdf`, pdfBlob);
+      zip.file(`Fiche Id - ${struct.sigle} - ${getPDFTimestamp()}.pdf`, pdfBlob);
     }
     
     loadingDiv.querySelector('div:last-child').textContent = 'Compression de l\'archive...';
@@ -5575,7 +5575,7 @@ async function exportAllStructuresAsZIP(filters) {
     const url = URL.createObjectURL(zipBlob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `fiches-identite-${annee}.zip`;
+    a.download = `Fiche identité PDF - ${getPDFTimestamp()}.zip`;
     a.click();
     URL.revokeObjectURL(url);
     
@@ -7269,6 +7269,71 @@ function _isStructureDI(sid) {
  * (computeBudgetMensuelChartSpec) — garantit la cohérence avec ce qui est
  * affiché à l'écran, y compris l'exclusion T6 pour les DI.
  */
+/**
+ * Construit les lignes XLSX du tableau détaillé par catégorie (Véhicules /
+ * Fonctionnement / Immobilier x Local/Central/Total, ligne TOTAL générale,
+ * T6) — directement depuis les données (getBudgetData), jamais en scrapant
+ * le tableau HTML. Le tableau HTML utilise un rowspan sur la cellule
+ * "Catégorie" : les sous-lignes Central et Total ont donc une cellule <td>
+ * de moins que la sous-ligne Local, ce qui décale tout ce qui suit d'une
+ * colonne dès qu'on lit les <td> ligne par ligne — c'est la cause du
+ * décalage colonne/ligne observé dans les exports précédents.
+ */
+function buildBudgetCategoryXLSXRows(data, moy, isDI) {
+  if (!data) return [];
+  // Le DG (Siège) n'a pas de Local/Central : getBudgetData renvoie null sur
+  // ces champs pour lui (jamais 0, qui serait une vraie dotation nulle).
+  const isSiege = data.dot_ae_total_local == null && data.dot_cp_total_local == null;
+  const fmtN = v => v == null ? '' : Math.round(v);
+  const fmtPct = v => v == null || isNaN(v) ? '' : (v * 100).toFixed(1);
+
+  const rows = [['Categorie','Niveau','Dotation AE','Conso AE','REJB AE','Taux AE hors REJB (%)','Dotation CP','Conso CP','Taux CP (%)','Moy. perimetre CP (%)']];
+
+  const levelVals = (key) => isSiege
+    ? { total: { dot_ae: data[`dot_ae_${key}`], conso_ae: data[`conso_ae_${key}`], rejb_ae: data[`rejb_ae_${key}`], taux_ae: data[`taux_ae_${key}`], dot_cp: data[`dot_cp_${key}`], conso_cp: data[`conso_cp_${key}`], taux_cp: data[`taux_cp_${key}`] } }
+    : {
+        local:   { dot_ae: data[`dot_ae_${key}_local`],   conso_ae: data[`conso_ae_${key}_local`],   rejb_ae: data[`rejb_ae_${key}_local`],   taux_ae: data[`taux_ae_${key}_local`],   dot_cp: data[`dot_cp_${key}_local`],   conso_cp: data[`conso_cp_${key}_local`],   taux_cp: data[`taux_cp_${key}_local`] },
+        central: { dot_ae: data[`dot_ae_${key}_central`], conso_ae: data[`conso_ae_${key}_central`], rejb_ae: data[`rejb_ae_${key}_central`], taux_ae: data[`taux_ae_${key}_central`], dot_cp: data[`dot_cp_${key}_central`], conso_cp: data[`conso_cp_${key}_central`], taux_cp: data[`taux_cp_${key}_central`] },
+        total:   { dot_ae: data[`dot_ae_${key}`], conso_ae: data[`conso_ae_${key}`], rejb_ae: data[`rejb_ae_${key}`], taux_ae: data[`taux_ae_${key}`], dot_cp: data[`dot_cp_${key}`], conso_cp: data[`conso_cp_${key}`], taux_cp: data[`taux_cp_${key}`] },
+      };
+
+  const pushCategory = (label, vals, moyCp) => {
+    ['local', 'central', 'total'].forEach(niveau => {
+      const v = vals[niveau];
+      if (!v) return;
+      const niveauLabel = niveau === 'local' ? 'Local' : niveau === 'central' ? 'Central' : 'Total';
+      rows.push([
+        label, niveauLabel,
+        fmtN(v.dot_ae), fmtN(v.conso_ae), fmtN(v.rejb_ae), fmtPct(v.taux_ae),
+        fmtN(v.dot_cp), fmtN(v.conso_cp), fmtPct(v.taux_cp),
+        niveau === 'total' ? fmtPct(moyCp) : '',
+      ]);
+    });
+  };
+
+  pushCategory('Vehicules',      levelVals('vehicules'),      moy ? moy.taux_cp_vehicules : null);
+  pushCategory('Fonctionnement', levelVals('fonctionnement'), moy ? moy.taux_cp_fonctionnement : null);
+  pushCategory('Immobilier',     levelVals('immo'),           moy ? moy.taux_cp_immo : null);
+
+  const totalVals = isSiege
+    ? { total: { dot_ae: data.dot_ae_total, conso_ae: data.conso_ae_total, rejb_ae: data.rejb_ae_total, taux_ae: data.taux_ae_total, dot_cp: data.dot_cp_total, conso_cp: data.conso_cp_total, taux_cp: data.taux_cp_total } }
+    : {
+        local:   { dot_ae: data.dot_ae_total_local,   conso_ae: data.conso_ae_total_local,   rejb_ae: data.rejb_ae_total_local,   taux_ae: data.taux_ae_total_local,   dot_cp: data.dot_cp_total_local,   conso_cp: data.conso_cp_total_local,   taux_cp: data.taux_cp_total_local },
+        central: { dot_ae: data.dot_ae_total_central, conso_ae: data.conso_ae_total_central, rejb_ae: data.rejb_ae_total_central, taux_ae: data.taux_ae_total_central, dot_cp: data.dot_cp_total_central, conso_cp: data.conso_cp_total_central, taux_cp: data.taux_cp_total_central },
+        total:   { dot_ae: data.dot_ae_total,         conso_ae: data.conso_ae_total,         rejb_ae: data.rejb_ae_total,         taux_ae: data.taux_ae_total,         dot_cp: data.dot_cp_total,         conso_cp: data.conso_cp_total,         taux_cp: data.taux_cp_total },
+      };
+  pushCategory('TOTAL', totalVals, moy ? moy.taux_cp_total : null);
+
+  rows.push([
+    'T6 Buralistes' + (isDI ? ' (pour information, consolide au DG)' : ''), '',
+    fmtN(data.dot_ae_t6), fmtN(data.conso_ae_t6), fmtN(data.rejb_ae_t6), fmtPct(data.taux_ae_t6),
+    fmtN(data.dot_cp_t6), fmtN(data.conso_cp_t6), fmtPct(data.taux_cp_t6),
+    moy ? fmtPct(moy.taux_cp_t6) : '',
+  ]);
+
+  return rows;
+}
+
 function buildBudgetMensuelXLSXRows(sid) {
   const isDI = _isStructureDI(sid);
   const suffix = isDI ? ', hors buralistes' : '';
@@ -7290,6 +7355,31 @@ function buildBudgetMensuelXLSXRows(sid) {
     }
     rows.push([]);
   });
+
+  // Détail Fonctionnement (Loyer/Formation/Missions/Contentieux, CP mensuel
+  // non cumulé) — pour l'analyse des principales dépenses dynamiques du
+  // poste Fonctionnement, absent des feuilles précédentes qui ne couvrent
+  // que le domaine "global".
+  const posteHist = (typeof getBudgetMensuelPosteHistorique === 'function')
+    ? getBudgetMensuelPosteHistorique(sid) : null;
+  const posteLabels = { loyer: 'Loyer', formation: 'Formation', missions: 'Missions', contentieux: 'Contentieux' };
+  rows.push(['Detail Fonctionnement - depenses dynamiques (CP mensuel, non cumule)']);
+  Object.keys(posteLabels).forEach(poste => {
+    const series = posteHist ? posteHist[poste] : null;
+    const annees = series ? Object.keys(series).sort() : [];
+    rows.push([posteLabels[poste]]);
+    if (annees.length) {
+      rows.push(['Annee','Jan','Fev','Mar','Avr','Mai','Juin','Juil','Aout','Sep','Oct','Nov','Dec']);
+      annees.forEach(annee => {
+        const serie = series[annee] || [];
+        rows.push([annee, ...serie.map(v => v == null ? '' : v)]);
+      });
+    } else {
+      rows.push(['Aucune donnee disponible']);
+    }
+    rows.push([]);
+  });
+
   return rows;
 }
 
@@ -7408,22 +7498,24 @@ function exportToXLSX() {
   const comD    = typeof getCommunicationData==='function' ? getCommunicationData(sid) : null;
   const dateBudget = budgetD && budgetD.date_import ? budgetD.date_import.toLocaleDateString('fr-FR') : t('budget-date-import');
   const dateCom    = comD && comD.date_import ? comD.date_import.toLocaleDateString('fr-FR') : t('com-date-import');
+  // Taux Local (métrique principale des pilules) ; repli sur le Total pour
+  // le DG, qui n'a pas de Local/Central (taux_ae_total_local vaut null).
+  const tauxAEexp = budgetD ? (budgetD.taux_ae_total_local != null ? budgetD.taux_ae_total_local : budgetD.taux_ae_total) : null;
+  const tauxCPexp = budgetD ? (budgetD.taux_cp_total_local != null ? budgetD.taux_cp_total_local : budgetD.taux_cp_total) : null;
 
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
     ['Date des donnees', dateBudget, ''],
-    ['Taux conso AE globale', budgetD ? (budgetD.taux_ae_total*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
-    ['Taux conso CP globale', budgetD ? (budgetD.taux_cp_total*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
+    ['Taux conso AE - Local', tauxAEexp!=null ? (tauxAEexp*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
+    ['Taux conso CP - Local', tauxCPexp!=null ? (tauxCPexp*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
   ];
-  const budgetTableEl = document.querySelector('.section:has(#budget-pill-taux-ae-local) .data-table');
-  if (budgetTableEl) {
+  if (budgetD) {
+    const isDIexp = _isStructureDI(sid);
+    const perimetreExp = typeof getPerimetreBudget==='function' ? getPerimetreBudget(sid) : null;
+    const moyPerimetreExp = perimetreExp && typeof getWeightedBudgetMoyennes==='function' ? getWeightedBudgetMoyennes(perimetreExp, annee) : null;
     budgetRows.push([]);
     budgetRows.push(['Execution budgetaire par categorie '+annee]);
-    budgetRows.push(['Categorie','Dotation AE','Conso AE','Taux AE hors REJB (%)','Dotation CP','Conso CP','Taux CP (%)','Moy. perimetre CP']);
-    budgetTableEl.querySelectorAll('tbody tr').forEach(tr => {
-      const cells = Array.from(tr.querySelectorAll('td')).map(td=>(td.innerText||'').trim());
-      if (cells.some(c=>c&&c!=='—')) budgetRows.push(cells.map(c=>c==='—'?'':c));
-    });
+    buildBudgetCategoryXLSXRows(budgetD, moyPerimetreExp, isDIexp).forEach(r => budgetRows.push(r));
   }
   addSheet('Budget', budgetRows);
 
@@ -7610,7 +7702,7 @@ function exportToXLSX() {
   addSheet('Commentaires', cmtRows);
 
   // ── Télécharger ───────────────────────────────────────────────
-  XLSX.writeFile(wb, `${struct.sigle}-${annee}-${getPDFTimestamp()}.xlsx`);
+  XLSX.writeFile(wb, `Fiche identite - ${struct.sigle} - ${getPDFTimestamp()}.xlsx`);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -7762,14 +7854,14 @@ async function executeXLSXExport(mode, filters) {
         // Générer le workbook pour cette structure via exportToXLSXWorkbook()
         const wb = exportToXLSXWorkbook(s, annee);
         const xlsxData = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        zip.file(`${s.sigle}-${annee}-${getPDFTimestamp()}.xlsx`, xlsxData);
+        zip.file(`Fiche identite - ${s.sigle} - ${getPDFTimestamp()}.xlsx`, xlsxData);
       }
       if (loadingDiv) loadingDiv.querySelector('div:last-child').textContent = 'Compression...';
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `fiches-identite-xlsx-${annee}-${getPDFTimestamp()}.zip`;
+      a.download = `Fiche identite XLSX - ${getPDFTimestamp()}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       hideLoadingMessage(loadingDiv);
@@ -7861,7 +7953,7 @@ async function executeXLSXExport(mode, filters) {
       wsCmt['!cols'] = [{wch:10},{wch:30},{wch:18},{wch:80}];
       XLSX.utils.book_append_sheet(wb, wsCmt, 'Commentaires');
 
-      XLSX.writeFile(wb, `synthese-structures-${annee}-${getPDFTimestamp()}.xlsx`);
+      XLSX.writeFile(wb, `Fiche identite - ${getPDFTimestamp()}.xlsx`);
       hideLoadingMessage(loadingDiv);
       alert(`XLSX global généré : ${structures.length} structures.`);
     }
@@ -7955,20 +8047,22 @@ function exportToXLSXWorkbook(struct, annee) {
   const comD    = typeof getCommunicationData==='function' ? getCommunicationData(sid) : null;
   const dateBudget = budgetD && budgetD.date_import ? budgetD.date_import.toLocaleDateString('fr-FR') : t('budget-date-import');
   const dateCom    = comD && comD.date_import ? comD.date_import.toLocaleDateString('fr-FR') : t('com-date-import');
+  const tauxAEexp = budgetD ? (budgetD.taux_ae_total_local != null ? budgetD.taux_ae_total_local : budgetD.taux_ae_total) : null;
+  const tauxCPexp = budgetD ? (budgetD.taux_cp_total_local != null ? budgetD.taux_cp_total_local : budgetD.taux_cp_total) : null;
 
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
     ['Date des donnees', dateBudget, ''],
-    ['Taux conso AE globale', budgetD ? (budgetD.taux_ae_total*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
-    ['Taux conso CP globale', budgetD ? (budgetD.taux_cp_total*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
+    ['Taux conso AE - Local', tauxAEexp!=null ? (tauxAEexp*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
+    ['Taux conso CP - Local', tauxCPexp!=null ? (tauxCPexp*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
   ];
-  const budgetEl = document.querySelector('.section:has(#budget-pill-taux-ae-local) .data-table');
-  if (budgetEl) {
-    budgetRows.push([]); budgetRows.push(['Categorie','Dotation AE','Conso AE','Taux AE hors REJB (%)','Dotation CP','Conso CP','Taux CP (%)','Moy. perimetre CP']);
-    budgetEl.querySelectorAll('tbody tr').forEach(tr => {
-      const c = Array.from(tr.querySelectorAll('td')).map(td=>(td.innerText||'').trim());
-      if (c.some(x=>x&&x!=='—')) budgetRows.push(c.map(x=>x==='—'?'':x));
-    });
+  if (budgetD) {
+    const isDIexp = _isStructureDI(sid);
+    const perimetreExp = typeof getPerimetreBudget==='function' ? getPerimetreBudget(sid) : null;
+    const moyPerimetreExp = perimetreExp && typeof getWeightedBudgetMoyennes==='function' ? getWeightedBudgetMoyennes(perimetreExp, annee) : null;
+    budgetRows.push([]);
+    budgetRows.push(['Execution budgetaire par categorie '+annee]);
+    buildBudgetCategoryXLSXRows(budgetD, moyPerimetreExp, isDIexp).forEach(r => budgetRows.push(r));
   }
   addSheet('Budget', budgetRows);
 
