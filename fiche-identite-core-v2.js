@@ -1186,6 +1186,13 @@ function getWeightedBudgetMoyennes(perimetre, annee) {
     // 'DI'/'Metropole' côté Grist (Consolidation) -> pas de retraitement ici.
     taux_ae_total:          ratio(conso.total_conso_ae, conso.total_notif_ae),
     taux_cp_total:          ratio(conso.total_conso_cp, conso.total_notif_cp),
+    // BOP Local/Central (Phase 4) — null si aucune dotation à ce niveau pour
+    // le périmètre (même logique que côté structure : le DG n'a ni l'un ni
+    // l'autre, donc le périmètre National seul les inclut).
+    taux_ae_total_local:    ratio(conso.total_conso_ae_local, conso.total_dot_ae_local),
+    taux_ae_total_central:  ratio(conso.total_conso_ae_central, conso.total_dot_ae_central),
+    taux_cp_total_local:    ratio(conso.total_conso_cp_local, conso.total_dot_cp_local),
+    taux_cp_total_central:  ratio(conso.total_conso_cp_central, conso.total_dot_cp_central),
   };
 }
 
@@ -1291,6 +1298,16 @@ function getConsolidationData(perimetre, annee) {
     total_conso_ae_immo:           n('Total_Conso_AE_Immo'),
     total_dot_cp_immo:             n('Total_Dot_CP_Immo'),
     total_conso_cp_immo:           n('Total_Conso_CP_Immo'),
+    // BOP Local/Central (Phase 4) — jamais pertinent pour le DG, Consolidation
+    // renvoie déjà 0 pour le périmètre National dans ce cas côté structure.
+    total_dot_ae_local:            n('Total_Dot_AE_Local'),
+    total_dot_ae_central:          n('Total_Dot_AE_Central'),
+    total_conso_ae_local:          n('Total_Conso_AE_Local'),
+    total_conso_ae_central:        n('Total_Conso_AE_Central'),
+    total_dot_cp_local:            n('Total_Dot_CP_Local'),
+    total_dot_cp_central:          n('Total_Dot_CP_Central'),
+    total_conso_cp_local:          n('Total_Conso_CP_Local'),
+    total_conso_cp_central:        n('Total_Conso_CP_Central'),
 
     // === FRAIS DE MISSION ===
     total_frais_mission:          n('Total_Frais_Mission'),
@@ -3679,26 +3696,36 @@ function refreshBudget(structureId, annee) {
   });
 
   const fmtDiff = (val, moy, label) => {
-    if (!moy || moy === 0) return '—';
+    if (val == null || !moy || moy === 0) return '—';
     const diff = (val - moy) * 100;
     const s = diff >= 0 ? '+' : '';
     return `${label} : ${s}${diff.toFixed(1)} pts`;
   };
 
-  // Comparaisons périmètre/national : calculées uniquement au niveau Total
-  // pour l'instant (les moyennes pondérées par périmètre n'ont pas de détail
-  // Local/Central — Phase 4 du plan local/central, pas posée).
+  // Comparaisons périmètre/national : sur le taux Local (métrique principale
+  // des pilules) désormais que Consolidation expose le détail BOP (Phase 4).
+  // Le DG n'a pas de Local -> comparaison sur son Total à la place.
+  const cmpAE = isSiege
+    ? { val: dataN.taux_ae_total, label: 'Total' }
+    : { val: dataN.taux_ae_total_local, label: 'Local' };
+  const cmpCP = isSiege
+    ? { val: dataN.taux_cp_total, label: 'Total' }
+    : { val: dataN.taux_cp_total_local, label: 'Local' };
   if (moyPerimetre) {
+    const moyAE = isSiege ? moyPerimetre.taux_ae_total : moyPerimetre.taux_ae_total_local;
+    const moyCP = isSiege ? moyPerimetre.taux_cp_total : moyPerimetre.taux_cp_total_local;
     document.getElementById('budget-pill-ae-groupe').innerHTML =
-      'Total — ' + fmtDiff(dataN.taux_ae_total, moyPerimetre.taux_ae_total, `Moy. ${libPerimetre}`);
+      cmpAE.label + ' — ' + fmtDiff(cmpAE.val, moyAE, `Moy. ${libPerimetre}`);
     document.getElementById('budget-pill-cp-groupe').innerHTML =
-      'Total — ' + fmtDiff(dataN.taux_cp_total, moyPerimetre.taux_cp_total, `Moy. ${libPerimetre}`);
+      cmpCP.label + ' — ' + fmtDiff(cmpCP.val, moyCP, `Moy. ${libPerimetre}`);
   }
   if (moyNational) {
+    const moyAE = isSiege ? moyNational.taux_ae_total : moyNational.taux_ae_total_local;
+    const moyCP = isSiege ? moyNational.taux_cp_total : moyNational.taux_cp_total_local;
     document.getElementById('budget-pill-ae-national').innerHTML =
-      'Total — ' + fmtDiff(dataN.taux_ae_total, moyNational.taux_ae_total, 'National');
+      cmpAE.label + ' — ' + fmtDiff(cmpAE.val, moyAE, 'National');
     document.getElementById('budget-pill-cp-national').innerHTML =
-      'Total — ' + fmtDiff(dataN.taux_cp_total, moyNational.taux_cp_total, 'National');
+      cmpCP.label + ' — ' + fmtDiff(cmpCP.val, moyCP, 'National');
   }
 
   // ── Araignée budgétaire AE (Total, toutes natures) ─────────
