@@ -7395,23 +7395,33 @@ function buildBudgetMensuelXLSXRows(sid) {
     rows.push([]);
   });
 
-  // Détail Fonctionnement (Loyer/Formation/Missions/Contentieux, CP mensuel
-  // non cumulé) — pour l'analyse des principales dépenses dynamiques du
-  // poste Fonctionnement, absent des feuilles précédentes qui ne couvrent
-  // que le domaine "global".
+  // Détail Fonctionnement (Loyer/Formation/Missions/Contentieux, CP) — pour
+  // l'analyse des principales dépenses dynamiques du poste Fonctionnement,
+  // absent des feuilles précédentes qui ne couvrent que le domaine "global".
+  // Deux vues par poste : mensuel brut (détail) et cumulé depuis janvier
+  // (comparatif rapide entre années — même logique que le cumul déjà utilisé
+  // pour le total AE/CP global plus haut, via toCumulativeSerie()).
   const posteHist = (typeof getBudgetMensuelPosteHistorique === 'function')
     ? getBudgetMensuelPosteHistorique(sid) : null;
   const posteLabels = { loyer: 'Loyer', formation: 'Formation', missions: 'Missions', contentieux: 'Contentieux' };
-  rows.push(['Detail Fonctionnement - depenses dynamiques (CP mensuel, non cumule)']);
+  rows.push(['Detail Fonctionnement - depenses dynamiques (CP mensuel)']);
   Object.keys(posteLabels).forEach(poste => {
     const series = posteHist ? posteHist[poste] : null;
     const annees = series ? Object.keys(series).sort() : [];
     rows.push([posteLabels[poste]]);
     if (annees.length) {
+      rows.push(['Mensuel (non cumule)']);
       rows.push(['Annee','Jan','Fev','Mar','Avr','Mai','Juin','Juil','Aout','Sep','Oct','Nov','Dec']);
       annees.forEach(annee => {
         const serie = series[annee] || [];
         rows.push([annee, ...serie.map(v => v == null ? '' : v)]);
+      });
+      rows.push([]);
+      rows.push(['Cumule depuis janvier (comparatif rapide entre annees)']);
+      rows.push(['Annee','Jan','Fev','Mar','Avr','Mai','Juin','Juil','Aout','Sep','Oct','Nov','Dec']);
+      annees.forEach(annee => {
+        const cumul = toCumulativeSerie(series[annee] || []);
+        rows.push([annee, ...cumul.map(v => v == null ? '' : v)]);
       });
     } else {
       rows.push(['Aucune donnee disponible']);
