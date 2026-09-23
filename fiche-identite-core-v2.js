@@ -7503,8 +7503,15 @@ function exportToXLSX() {
   const tauxAEexp = budgetD ? (budgetD.taux_ae_total_local != null ? budgetD.taux_ae_total_local : budgetD.taux_ae_total) : null;
   const tauxCPexp = budgetD ? (budgetD.taux_cp_total_local != null ? budgetD.taux_cp_total_local : budgetD.taux_cp_total) : null;
 
+  // DEBUG TEMPORAIRE — à retirer une fois la cause identifiée.
+  const _dbgBudgetTable = FICHE_STATE.data.budget;
+  const _dbgIdx = _dbgBudgetTable ? _dbgBudgetTable.id.findIndex((id,i) => _dbgBudgetTable.Structure[i] === sid && _dbgBudgetTable.Annee[i] === annee) : -2;
+
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
+    ['[DEBUG] sid', `${sid} (${typeof sid})`, `annee: ${annee} (${typeof annee})`],
+    ['[DEBUG] table Budget', _dbgBudgetTable ? `${_dbgBudgetTable.id.length} lignes chargees` : 'ABSENTE', `ligne trouvee (idx): ${_dbgIdx}`],
+    ['[DEBUG] budgetD', budgetD ? 'objet retourne' : 'NULL', budgetD ? `dot_ae_vehicules=${budgetD.dot_ae_vehicules} / dot_ae_total_local=${budgetD.dot_ae_total_local}` : ''],
     ['Date des donnees', dateBudget, ''],
     ['Taux conso AE - Local', tauxAEexp!=null ? (tauxAEexp*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
     ['Taux conso CP - Local', tauxCPexp!=null ? (tauxCPexp*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
@@ -8050,8 +8057,15 @@ function exportToXLSXWorkbook(struct, annee) {
   const tauxAEexp = budgetD ? (budgetD.taux_ae_total_local != null ? budgetD.taux_ae_total_local : budgetD.taux_ae_total) : null;
   const tauxCPexp = budgetD ? (budgetD.taux_cp_total_local != null ? budgetD.taux_cp_total_local : budgetD.taux_cp_total) : null;
 
+  // DEBUG TEMPORAIRE — à retirer une fois la cause identifiée.
+  const _dbgBudgetTable = FICHE_STATE.data.budget;
+  const _dbgIdx = _dbgBudgetTable ? _dbgBudgetTable.id.findIndex((id,i) => _dbgBudgetTable.Structure[i] === sid && _dbgBudgetTable.Annee[i] === annee) : -2;
+
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
+    ['[DEBUG] sid', `${sid} (${typeof sid})`, `annee: ${annee} (${typeof annee})`],
+    ['[DEBUG] table Budget', _dbgBudgetTable ? `${_dbgBudgetTable.id.length} lignes chargees` : 'ABSENTE', `ligne trouvee (idx): ${_dbgIdx}`],
+    ['[DEBUG] budgetD', budgetD ? 'objet retourne' : 'NULL', budgetD ? `dot_ae_vehicules=${budgetD.dot_ae_vehicules} / dot_ae_total_local=${budgetD.dot_ae_total_local}` : ''],
     ['Date des donnees', dateBudget, ''],
     ['Taux conso AE - Local', tauxAEexp!=null ? (tauxAEexp*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
     ['Taux conso CP - Local', tauxCPexp!=null ? (tauxCPexp*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
