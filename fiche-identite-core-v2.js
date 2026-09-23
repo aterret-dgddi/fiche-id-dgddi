@@ -360,7 +360,28 @@ function setStructure(structureId) {
 function getDRRattachees(structureId) {
   const structures = FICHE_STATE.data.structures;
   const drList = [];
-  
+
+  // Cas spécial DI 972 (Antilles-Guyane) : regroupement historique de 3 DR
+  // (971 Guadeloupe / 972 Martinique / 973 Guyane) qui ne sont pas forcément
+  // rattachées via leur champ Parent — même règle que côté Grist
+  // (Consolidation_Structure.Effectif_Total, Nb_Vehicules, etc. testent tous
+  // structure.Sigle == 'DI 972' plutôt que Parent). Sans ce cas particulier,
+  // un rattachement par Parent seul peut être incomplet côté JS (une ou
+  // plusieurs DR non trouvées) alors qu'il est complet côté Grist -> les
+  // totaux agrégés ici (dotation, consommation, effectifs...) se désynchronisent
+  // de ceux affichés par Consolidation, avec des taux qui n'ont plus de sens
+  // (ex. > 100 % si la dotation d'une DR manque à l'appel).
+  const sIdx = structures.id.indexOf(structureId);
+  const sigle = sIdx !== -1 ? structures.Sigle?.[sIdx] : null;
+  if (sigle === 'DI 972') {
+    structures.id.forEach((id, idx) => {
+      if (['DR 971', 'DR 972', 'DR 973'].includes(structures.Sigle?.[idx])) {
+        drList.push(id);
+      }
+    });
+    return drList;
+  }
+
   structures.id.forEach((id, idx) => {
     if (structures.Type[idx] === 'DR' && structures.Parent && structures.Parent[idx] === structureId) {
       drList.push(id);
@@ -3602,16 +3623,19 @@ function refreshBudget(structureId, annee) {
   const isSiege = FICHE_STATE.structure && FICHE_STATE.structure.type === 'Siège';
   const elLabelAE = document.getElementById('budget-pill-label-ae');
   const elLabelCP = document.getElementById('budget-pill-label-cp');
-  if (elLabelAE) elLabelAE.textContent = 'Consommation AE — Local (hors REJB' + suffixeT6 + ')';
-  if (elLabelCP) elLabelCP.textContent = 'Consommation CP — Local' + suffixeT6;
+  // Le DG n'a pas de Local/Central (le BOP ne s'y applique pas) : la pilule y
+  // affiche son taux Total, seule métrique qui ait un sens pour lui — sinon
+  // elle resterait vide, contrairement à toutes les autres structures.
+  const niveauLabel = isSiege ? 'Total' : 'Local';
+  if (elLabelAE) elLabelAE.textContent = `Consommation AE — ${niveauLabel} (hors REJB${suffixeT6})`;
+  if (elLabelCP) elLabelCP.textContent = `Consommation CP — ${niveauLabel}${suffixeT6}`;
   const elMensuelTitle = document.getElementById('budget-mensuel-chart-title');
   if (elMensuelTitle) elMensuelTitle.textContent = 'Progression mensuelle de la consommation (AE hors REJB)' + suffixeT6;
 
-  // ── Pills : Local (par défaut), Central et Total affichés ensemble ────────
+  // ── Pills : Local (par défaut), Total pour le DG ────────
   const fmtTaux = t => t == null ? '—' : (t * 100).toFixed(1) + ' %';
   ['ae', 'cp'].forEach(type => {
-    // BOP non applicable au DG : Local affiche '—' (pas de niveau local/central).
-    const local = isSiege ? { taux: null, conso: null, dot: null } : (() => { const v = getBudgetPillValues(dataN, 'local'); return { taux: v[`taux_${type}`], conso: v[`conso_${type}`], dot: v[`dot_${type}`] }; })();
+    const local = (() => { const v = getBudgetPillValues(dataN, isSiege ? 'total' : 'local'); return { taux: v[`taux_${type}`], conso: v[`conso_${type}`], dot: v[`dot_${type}`] }; })();
     document.getElementById(`budget-pill-taux-${type}-local`).textContent = fmtTaux(local.taux);
     document.getElementById(`budget-pill-montants-${type}-local`).textContent =
       local.conso == null ? '—' : formatCurrency(local.conso, 0) + ' / ' + formatCurrency(local.dot, 0);
@@ -7519,12 +7543,15 @@ function exportToXLSX() {
   // le DG, qui n'a pas de Local/Central (taux_ae_total_local vaut null).
   const tauxAEexp = budgetD ? (budgetD.taux_ae_total_local != null ? budgetD.taux_ae_total_local : budgetD.taux_ae_total) : null;
   const tauxCPexp = budgetD ? (budgetD.taux_cp_total_local != null ? budgetD.taux_cp_total_local : budgetD.taux_cp_total) : null;
+  // Le DG n'a pas de Local/Central : le libellé doit refléter qu'on affiche
+  // alors son taux Total (seule métrique pertinente pour lui), pas le Local.
+  const niveauLabelExp = budgetD && budgetD.taux_ae_total_local == null ? 'Total' : 'Local';
 
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
     ['Date des donnees', dateBudget, ''],
-    ['Taux conso AE - Local', tauxAEexp!=null ? (tauxAEexp*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
-    ['Taux conso CP - Local', tauxCPexp!=null ? (tauxCPexp*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
+    [`Taux conso AE - ${niveauLabelExp}`, tauxAEexp!=null ? (tauxAEexp*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
+    [`Taux conso CP - ${niveauLabelExp}`, tauxCPexp!=null ? (tauxCPexp*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
   ];
   if (budgetD) {
     const isDIexp = _isStructureDI(sid);
@@ -8069,12 +8096,15 @@ function exportToXLSXWorkbook(struct, annee) {
   const dateCom    = comD && comD.date_import ? comD.date_import.toLocaleDateString('fr-FR') : t('com-date-import');
   const tauxAEexp = budgetD ? (budgetD.taux_ae_total_local != null ? budgetD.taux_ae_total_local : budgetD.taux_ae_total) : null;
   const tauxCPexp = budgetD ? (budgetD.taux_cp_total_local != null ? budgetD.taux_cp_total_local : budgetD.taux_cp_total) : null;
+  // Le DG n'a pas de Local/Central : le libellé doit refléter qu'on affiche
+  // alors son taux Total (seule métrique pertinente pour lui), pas le Local.
+  const niveauLabelExp = budgetD && budgetD.taux_ae_total_local == null ? 'Total' : 'Local';
 
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
     ['Date des donnees', dateBudget, ''],
-    ['Taux conso AE - Local', tauxAEexp!=null ? (tauxAEexp*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
-    ['Taux conso CP - Local', tauxCPexp!=null ? (tauxCPexp*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
+    [`Taux conso AE - ${niveauLabelExp}`, tauxAEexp!=null ? (tauxAEexp*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
+    [`Taux conso CP - ${niveauLabelExp}`, tauxCPexp!=null ? (tauxCPexp*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
   ];
   if (budgetD) {
     const isDIexp = _isStructureDI(sid);
