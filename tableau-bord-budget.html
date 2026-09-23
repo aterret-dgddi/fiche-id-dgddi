@@ -1735,7 +1735,9 @@ function renderBudgetDetailTable() {
   };
   // REJB (rejets de bordereaux) : montant soustrait de la Conso AE brute pour
   // obtenir la Conso AE nette utilisée dans le calcul du Taux AE.
-  const fmtRejb = v => (v == null || v === 0) ? '—' : `<span style="color:var(--gris3);">− ${fmtEuro(v)}</span>`;
+  // REJB (rejets de bordereaux) : stocké en négatif côté Grist — valeur
+  // affichée telle quelle, sans second signe "−".
+  const fmtRejb = v => (v == null || v === 0) ? '—' : `<span style="color:var(--gris3);">${fmtEuro(v)}</span>`;
 
   tbody.innerHTML = categories.map(c => {
     const dotAE = data[`dot_ae_${c.k}`], consoAE = data[`conso_ae_${c.k}`], tauxAE = data[`taux_ae_${c.k}`];

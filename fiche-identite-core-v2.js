@@ -1050,97 +1050,6 @@ function getBudgetMensuelHistorique(structureId) {
 }
 
 /**
- * Retourne l'historique annuel des montants isolés au titre des REJB
- * (consommations AE négatives — rejets de bordereaux — déjà retirées du
- * calcul de l'indicateur mensuel côté Grist, cf. Conso_AE_total /
- * Cumul_AE_*). Pour chaque (structure, année) du périmètre — structure + DR
- * rattachées si DI —, on prend la ligne du dernier mois disponible sur
- * l'année : les colonnes Cumul_REJB_* y contiennent déjà le cumul Grist du
- * 1er janvier à ce mois. Retourne { annees: [...triées], parAnnee: {
- * annee: {vehicules, fonctionnement, t6, immo, total} } }, ou null si aucune
- * donnée.
- */
-function getBudgetRejbHistorique(structureId) {
-  const bm = FICHE_STATE.data.budget_mensuel;
-  if (!bm || !bm.id) return null;
-
-  const idsToScan = [structureId];
-  const structures = FICHE_STATE.data.structures;
-  if (structures) {
-    const sIdx = structures.id.indexOf(structureId);
-    if (sIdx !== -1 && structures.Type[sIdx] === 'DI') {
-      idsToScan.push(...getDRRattachees(structureId));
-    }
-  }
-
-  const latestByStructureAnnee = {};
-  bm.id.forEach((id, i) => {
-    if (!idsToScan.includes(bm.Structure[i])) return;
-    const annee = bm.Annee[i], mois = bm.Mois[i];
-    if (!annee || !mois) return;
-    const key = `${bm.Structure[i]}-${annee}`;
-    if (!latestByStructureAnnee[key] || mois > latestByStructureAnnee[key].mois) {
-      latestByStructureAnnee[key] = { annee, mois, i };
-    }
-  });
-
-  const parAnnee = {};
-  Object.values(latestByStructureAnnee).forEach(({ annee, i }) => {
-    if (!parAnnee[annee]) parAnnee[annee] = { vehicules: 0, fonctionnement: 0, t6: 0, immo: 0 };
-    parAnnee[annee].vehicules      += Number(bm.Cumul_REJB_vehicules?.[i]) || 0;
-    parAnnee[annee].fonctionnement += Number(bm.Cumul_REJB_fonctionnement?.[i]) || 0;
-    parAnnee[annee].t6             += Number(bm.Cumul_REJB_T6?.[i]) || 0;
-    parAnnee[annee].immo           += Number(bm.Cumul_REJB_Immo?.[i]) || 0;
-  });
-
-  const annees = Object.keys(parAnnee).map(Number).sort((a, b) => a - b);
-  if (!annees.length) return null;
-
-  annees.forEach(annee => {
-    const t = parAnnee[annee];
-    t.total = t.vehicules + t.fonctionnement + t.t6 + t.immo;
-  });
-
-  return { annees, parAnnee };
-}
-
-/**
- * Rend le tableau "Consommations AE négatives isolées (REJB)" sous
- * l'indicateur de progression mensuelle : une ligne par année, colonnes par
- * nature + total. Masqué si aucune donnée REJB.
- */
-function createBudgetRejbTable(structureId) {
-  const wrapper = document.getElementById('budget-rejb-wrapper');
-  const titleEl = document.getElementById('budget-rejb-title');
-  const tbody = document.getElementById('budget-rejb-tbody');
-  if (!wrapper || !tbody) return;
-
-  const hist = getBudgetRejbHistorique(structureId);
-  if (!hist || !hist.annees.length) {
-    wrapper.style.display = 'none';
-    tbody.innerHTML = '';
-    return;
-  }
-
-  if (titleEl) titleEl.textContent = 'Consommations AE négatives isolées (REJB)';
-  let html = '';
-  hist.annees.forEach((annee, idx) => {
-    const t = hist.parAnnee[annee];
-    const isLast = idx === hist.annees.length - 1;
-    html += `<tr${isLast ? ' class="annee-courante"' : ''}>
-      <td>${annee}</td>
-      <td style="text-align:right;">${formatCurrency(t.vehicules, 0)}</td>
-      <td style="text-align:right;">${formatCurrency(t.fonctionnement, 0)}</td>
-      <td style="text-align:right;">${formatCurrency(t.t6, 0)}</td>
-      <td style="text-align:right;">${formatCurrency(t.immo, 0)}</td>
-      <td style="text-align:right;font-weight:700;">${formatCurrency(t.total, 0)}</td>
-    </tr>`;
-  });
-  tbody.innerHTML = html;
-  wrapper.style.display = '';
-}
-
-/**
  * Retourne les moyennes budgétaires périmètre depuis Consolidation.
  * Inclut taux par catégorie + taux global.
  */
@@ -3655,8 +3564,6 @@ function refreshBudget(structureId, annee) {
     });
     const tableToggle = document.getElementById('budget-mensuel-table-toggle');
     if (tableToggle) tableToggle.style.display = 'none';
-    const rejbWrapperEmpty = document.getElementById('budget-rejb-wrapper');
-    if (rejbWrapperEmpty) rejbWrapperEmpty.style.display = 'none';
     const tbody = document.getElementById('budget-types-tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--orange);font-style:italic;">⚠️ Aucune donnée budgétaire disponible pour ' + annee + '</td></tr>';
     initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
@@ -3740,10 +3647,7 @@ function refreshBudget(structureId, annee) {
   // ── Détail Fonctionnement : consommation mensuelle CP (Loyer/Formation/Missions/Contentieux) ──
   createBudgetMensuelPosteCharts(structureId);
 
-  // ── Consommations AE négatives isolées (REJB) ─────────────
-  createBudgetRejbTable(structureId);
-
-  // ── Tableau par catégorie ─────────────────────────────────
+  // ── Tableau par catégorie (inclut désormais le détail REJB AE) ────
   createBudgetTable(dataN, moyPerimetre, libPerimetre, annee, isDI);
 
   initSectionMDE('budget-commentaire', structureId, annee, 'Budget');
@@ -4650,7 +4554,10 @@ function createBudgetTable(data, moy, libPerimetre, annee, isDI) {
   // obtenir la Conso AE nette utilisée dans le calcul du Taux AE — affiché
   // avec un signe "−" pour rappeler qu'il vient en déduction, jamais en gras
   // (donnée corrective, pas un indicateur de suivi en soi).
-  const fmtRejb = v => (v == null || v === 0) ? '—' : `<span style="color:var(--gris3);">− ${formatCurrency(v, 0)}</span>`;
+  // REJB (rejets de bordereaux) : stocké en négatif côté Grist (montant à
+  // soustraire pour obtenir la Conso AE nette utilisée dans le Taux AE) — on
+  // affiche donc la valeur telle quelle, sans ajouter un second signe "−".
+  const fmtRejb = v => (v == null || v === 0) ? '—' : `<span style="color:var(--gris3);">${formatCurrency(v, 0)}</span>`;
 
   /** Construit les 3 sous-lignes Local/Central/Total d'une nature (ou du grand
    * total), avec le libellé de nature affiché une seule fois via rowspan. */
