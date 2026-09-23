@@ -319,6 +319,21 @@ function getDerniereAnnee() {
   return Math.max(...annees);
 }
 
+/**
+ * Dernière année disponible dans la table Budget elle-même — distincte de
+ * getDerniereAnnee() (basée sur RH). Les deux tables ne sont pas forcément
+ * importées au même rythme : Budget peut déjà être sur l'année N+1 (import
+ * mensuel) alors que RH reste sur N (mise à jour annuelle), ou l'inverse en
+ * tout début d'année. Utiliser FICHE_STATE.annee (année RH) pour interroger
+ * Budget dans ce cas ne trouve aucune ligne et renvoie des zéros silencieux.
+ */
+function getDerniereAnneeBudget() {
+  const budget = FICHE_STATE.data.budget;
+  if (!budget || !budget.Annee) return FICHE_STATE.annee;
+  const annees = [...new Set(budget.Annee.filter(a => a > 0))];
+  return annees.length ? Math.max(...annees) : FICHE_STATE.annee;
+}
+
 function setStructure(structureId) {
   const structures = FICHE_STATE.data.structures;
   const idx = structures.id.indexOf(structureId);
@@ -7493,8 +7508,10 @@ function exportToXLSX() {
   addSheet('RH', rhRows);
 
   // ── 3. Budget ─────────────────────────────────────────────────
-  // Récupérer les dates depuis les données sources
-  const budgetD = typeof getBudgetData==='function' ? getBudgetData(sid, annee) : null;
+  // Budget peut être importé plus fréquemment que RH -> ne pas réutiliser
+  // l'année RH ici, sous peine de chercher une ligne Budget qui n'existe pas.
+  const budgetAnnee = typeof getDerniereAnneeBudget==='function' ? getDerniereAnneeBudget() : annee;
+  const budgetD = typeof getBudgetData==='function' ? getBudgetData(sid, budgetAnnee) : null;
   const comD    = typeof getCommunicationData==='function' ? getCommunicationData(sid) : null;
   const dateBudget = budgetD && budgetD.date_import ? budgetD.date_import.toLocaleDateString('fr-FR') : t('budget-date-import');
   const dateCom    = comD && comD.date_import ? comD.date_import.toLocaleDateString('fr-FR') : t('com-date-import');
@@ -7503,15 +7520,8 @@ function exportToXLSX() {
   const tauxAEexp = budgetD ? (budgetD.taux_ae_total_local != null ? budgetD.taux_ae_total_local : budgetD.taux_ae_total) : null;
   const tauxCPexp = budgetD ? (budgetD.taux_cp_total_local != null ? budgetD.taux_cp_total_local : budgetD.taux_cp_total) : null;
 
-  // DEBUG TEMPORAIRE — à retirer une fois la cause identifiée.
-  const _dbgBudgetTable = FICHE_STATE.data.budget;
-  const _dbgIdx = _dbgBudgetTable ? _dbgBudgetTable.id.findIndex((id,i) => _dbgBudgetTable.Structure[i] === sid && _dbgBudgetTable.Annee[i] === annee) : -2;
-
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
-    ['[DEBUG] sid', `${sid} (${typeof sid})`, `annee: ${annee} (${typeof annee})`],
-    ['[DEBUG] table Budget', _dbgBudgetTable ? `${_dbgBudgetTable.id.length} lignes chargees` : 'ABSENTE', `ligne trouvee (idx): ${_dbgIdx}`],
-    ['[DEBUG] budgetD', budgetD ? 'objet retourne' : 'NULL', budgetD ? `dot_ae_vehicules=${budgetD.dot_ae_vehicules} / dot_ae_total_local=${budgetD.dot_ae_total_local}` : ''],
     ['Date des donnees', dateBudget, ''],
     ['Taux conso AE - Local', tauxAEexp!=null ? (tauxAEexp*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
     ['Taux conso CP - Local', tauxCPexp!=null ? (tauxCPexp*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
@@ -7519,9 +7529,9 @@ function exportToXLSX() {
   if (budgetD) {
     const isDIexp = _isStructureDI(sid);
     const perimetreExp = typeof getPerimetreBudget==='function' ? getPerimetreBudget(sid) : null;
-    const moyPerimetreExp = perimetreExp && typeof getWeightedBudgetMoyennes==='function' ? getWeightedBudgetMoyennes(perimetreExp, annee) : null;
+    const moyPerimetreExp = perimetreExp && typeof getWeightedBudgetMoyennes==='function' ? getWeightedBudgetMoyennes(perimetreExp, budgetAnnee) : null;
     budgetRows.push([]);
-    budgetRows.push(['Execution budgetaire par categorie '+annee]);
+    budgetRows.push(['Execution budgetaire par categorie '+budgetAnnee]);
     buildBudgetCategoryXLSXRows(budgetD, moyPerimetreExp, isDIexp).forEach(r => budgetRows.push(r));
   }
   addSheet('Budget', budgetRows);
@@ -7904,7 +7914,7 @@ async function executeXLSXExport(mode, filters) {
         const rhD = typeof getRHData==='function' ? getRHData(sid, annee) : null;
         const fmD = typeof getFraisMissionData==='function' ? getFraisMissionData(sid, annee) : null;
         const fonctD = typeof getFonctionnementData==='function' ? getFonctionnementData(sid) : null;
-        const budgetSummaryD = typeof getBudgetData==='function' ? getBudgetData(sid, annee) : null;
+        const budgetSummaryD = typeof getBudgetData==='function' ? getBudgetData(sid, typeof getDerniereAnneeBudget==='function' ? getDerniereAnneeBudget() : annee) : null;
 
         const tv = id => { const el=document.getElementById(id); if(!el) return ''; const v=(el.innerText||'').trim().replace(/\u00a0/g,' '); return (v==='—'||v==='-')?'':v; };
 
@@ -8050,22 +8060,18 @@ function exportToXLSXWorkbook(struct, annee) {
   if (rhDetail.length>1) { rhRows.push([]); rhDetail.forEach(r=>rhRows.push(r)); }
   addSheet('RH', rhRows);
 
-  const budgetD = typeof getBudgetData==='function' ? getBudgetData(sid, annee) : null;
+  // Budget peut être importé plus fréquemment que RH -> ne pas réutiliser
+  // l'année RH ici, sous peine de chercher une ligne Budget qui n'existe pas.
+  const budgetAnnee = typeof getDerniereAnneeBudget==='function' ? getDerniereAnneeBudget() : annee;
+  const budgetD = typeof getBudgetData==='function' ? getBudgetData(sid, budgetAnnee) : null;
   const comD    = typeof getCommunicationData==='function' ? getCommunicationData(sid) : null;
   const dateBudget = budgetD && budgetD.date_import ? budgetD.date_import.toLocaleDateString('fr-FR') : t('budget-date-import');
   const dateCom    = comD && comD.date_import ? comD.date_import.toLocaleDateString('fr-FR') : t('com-date-import');
   const tauxAEexp = budgetD ? (budgetD.taux_ae_total_local != null ? budgetD.taux_ae_total_local : budgetD.taux_ae_total) : null;
   const tauxCPexp = budgetD ? (budgetD.taux_cp_total_local != null ? budgetD.taux_cp_total_local : budgetD.taux_cp_total) : null;
 
-  // DEBUG TEMPORAIRE — à retirer une fois la cause identifiée.
-  const _dbgBudgetTable = FICHE_STATE.data.budget;
-  const _dbgIdx = _dbgBudgetTable ? _dbgBudgetTable.id.findIndex((id,i) => _dbgBudgetTable.Structure[i] === sid && _dbgBudgetTable.Annee[i] === annee) : -2;
-
   const budgetRows = [
     ['Indicateur','Valeur','Moyenne nationale'],
-    ['[DEBUG] sid', `${sid} (${typeof sid})`, `annee: ${annee} (${typeof annee})`],
-    ['[DEBUG] table Budget', _dbgBudgetTable ? `${_dbgBudgetTable.id.length} lignes chargees` : 'ABSENTE', `ligne trouvee (idx): ${_dbgIdx}`],
-    ['[DEBUG] budgetD', budgetD ? 'objet retourne' : 'NULL', budgetD ? `dot_ae_vehicules=${budgetD.dot_ae_vehicules} / dot_ae_total_local=${budgetD.dot_ae_total_local}` : ''],
     ['Date des donnees', dateBudget, ''],
     ['Taux conso AE - Local', tauxAEexp!=null ? (tauxAEexp*100).toFixed(1)+' %' : '', t('budget-pill-ae-national')],
     ['Taux conso CP - Local', tauxCPexp!=null ? (tauxCPexp*100).toFixed(1)+' %' : '', t('budget-pill-cp-national')],
@@ -8073,9 +8079,9 @@ function exportToXLSXWorkbook(struct, annee) {
   if (budgetD) {
     const isDIexp = _isStructureDI(sid);
     const perimetreExp = typeof getPerimetreBudget==='function' ? getPerimetreBudget(sid) : null;
-    const moyPerimetreExp = perimetreExp && typeof getWeightedBudgetMoyennes==='function' ? getWeightedBudgetMoyennes(perimetreExp, annee) : null;
+    const moyPerimetreExp = perimetreExp && typeof getWeightedBudgetMoyennes==='function' ? getWeightedBudgetMoyennes(perimetreExp, budgetAnnee) : null;
     budgetRows.push([]);
-    budgetRows.push(['Execution budgetaire par categorie '+annee]);
+    budgetRows.push(['Execution budgetaire par categorie '+budgetAnnee]);
     buildBudgetCategoryXLSXRows(budgetD, moyPerimetreExp, isDIexp).forEach(r => budgetRows.push(r));
   }
   addSheet('Budget', budgetRows);
