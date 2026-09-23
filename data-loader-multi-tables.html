@@ -389,6 +389,14 @@ const TABLE_CONFIG = {
     ],
     keyFields: ['Structure', 'Annee'],
     needsStructure: true,
+    // Colonnes formule côté Grist (local + central) — jamais des cibles de
+    // mapping valides, même si le fichier source en porte encore le nom.
+    formulaColumns: [
+      'Conso_AE_vehicules', 'Conso_CP_vehicules',
+      'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
+      'Conso_AE_Immo', 'Conso_CP_Immo',
+      'REJB_Vehicules', 'REJB_Fonctionnement', 'REJB_Immo'
+    ],
     mapping: {
       'HIE': 'Structure',
       // variantes de nommage tolerées
@@ -421,6 +429,12 @@ const TABLE_CONFIG = {
     ],
     keyFields: ['Structure', 'Annee', 'Mois'],
     needsStructure: true,
+    formulaColumns: [
+      'Conso_AE_vehicules', 'Conso_CP_vehicules',
+      'Conso_AE_fonctionnement', 'Conso_CP_fonctionnement',
+      'Conso_AE_Immo', 'Conso_CP_Immo',
+      'REJB_Vehicules', 'REJB_Fonctionnement', 'REJB_Immo'
+    ],
     mapping: {
       'HIE': 'Structure',
       'Conso_Loyer_CP': 'Conso_Loyer_CP',
@@ -565,8 +579,14 @@ document.getElementById('target-table').onchange = async (e) => {
     G.existingData = data;
     
     // Récupérer les colonnes RÉELLES de la table Grist (pas celles de la config)
-    // Exclure 'id' et 'manualSort' qui sont des colonnes système
-    const realColumns = Object.keys(data).filter(col => col !== 'id' && col !== 'manualSort');
+    // Exclure 'id' et 'manualSort' (colonnes système) ainsi que les colonnes
+    // formule connues (config.formulaColumns) : fetchTable() les renvoie aussi,
+    // mais Grist refuse toute écriture dessus (elles ne sont plus que des
+    // combinaisons _local + _central depuis le chantier BOP) — sans ce filtre,
+    // l'auto-mapping peut s'y raccrocher si le fichier source porte encore
+    // l'ancien nom de colonne (ex. "Conso_AE_vehicules"), et l'import plante.
+    const excluded = new Set(['id', 'manualSort', ...(config.formulaColumns || [])]);
+    const realColumns = Object.keys(data).filter(col => !excluded.has(col));
     G.targetColumns = realColumns;
     
     console.log(`✓ Colonnes disponibles dans ${tableName}:`, realColumns);
