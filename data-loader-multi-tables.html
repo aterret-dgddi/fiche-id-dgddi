@@ -959,10 +959,11 @@ document.getElementById('btn-write').onclick = async () => {
     
     const mappedCols = Object.values(G.mapping).filter(v => v !== '[Ignorer]');
 
-    // Pour la table Communication ou Budget : injecter la date d'import = aujourd'hui
-    // Grist stocke les dates en nombre de jours depuis le 1er janvier 2000 (epoch Grist)
+    // Pour la table Communication, Budget ou Budget_Mensuel : injecter la date
+    // d'import = aujourd'hui. Grist stocke les dates en nombre de jours depuis
+    // le 1er janvier 2000 (epoch Grist).
     const isComTable    = G.targetTable === 'Communication';
-    const isBudgetTable = G.targetTable === 'Budget';
+    const isBudgetTable = G.targetTable === 'Budget' || G.targetTable === 'Budget_Mensuel';
     let dateImportGrist = null;
     if (isComTable || isBudgetTable) {
       const today = new Date();
