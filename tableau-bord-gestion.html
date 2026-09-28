@@ -10,9 +10,9 @@
   
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   
   <style>
     @font-face {
@@ -399,6 +399,41 @@
       background: var(--rep, #002F6C);
       color: white;
     }
+
+    /* ══════════════════════════════════ */
+    /* COMPARAISON DES STRUCTURES */
+    /* ══════════════════════════════════ */
+    .cmp-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+    .cmp-toolbar-label { font-size:12px; color:var(--gris2); font-weight:600; }
+    .cmp-seg { display:inline-flex; border:1px solid var(--bord); border-radius:8px; overflow:hidden; }
+    .cmp-seg button { border:none; background:#fff; padding:6px 12px; font-size:12px; font-family:inherit; color:var(--gris2); cursor:pointer; }
+    .cmp-seg button + button { border-left:1px solid var(--bord); }
+    .cmp-seg button.active { background:var(--rep); color:#fff; font-weight:600; }
+    .cmp-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(440px, 1fr)); gap:20px; }
+    .cmp-card { background:#fff; border:1px solid var(--bord); border-radius:10px; padding:16px; }
+    .cmp-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px; }
+    .cmp-card-title { font-size:15px; font-weight:700; color:var(--gris1); }
+    .cmp-card-sub { font-size:11px; color:var(--gris3); margin-top:2px; }
+    .cmp-copy { border:1px solid var(--bord); background:#fff; border-radius:6px; padding:5px 10px; font-size:11px; font-family:inherit; color:var(--rep2); cursor:pointer; white-space:nowrap; }
+    .cmp-copy:hover { background:var(--rep-pale); }
+    .cmp-copy:disabled { opacity:.6; cursor:wait; }
+    .cmp-table { font-size:12px; }
+    .cmp-table thead th { padding:8px 8px; font-size:10px; }
+    .cmp-table thead th.cmp-sortable { cursor:pointer; user-select:none; }
+    .cmp-table thead th.cmp-sortable:hover { color:var(--rep2); }
+    .cmp-table tbody td { padding:6px 8px; }
+    .cmp-table td.cmp-rang { width:28px; color:var(--gris3); font-weight:700; text-align:right; }
+    .cmp-bar-wrap { display:flex; align-items:center; gap:8px; justify-content:flex-end; }
+    .cmp-bar { height:8px; border-radius:4px; background:var(--rep2); opacity:.75; }
+    .cmp-bar-track { width:90px; background:var(--gris4); border-radius:4px; display:flex; justify-content:flex-start; }
+    .cmp-ecart { font-size:11px; font-weight:700; white-space:nowrap; }
+    .cmp-ecart-sub { display:block; font-size:10px; font-weight:600; }
+    .cmp-table tr.cmp-moy td { border-top:2px solid var(--bord); background:var(--gris4); font-weight:700; }
+    .cmp-table tr.cmp-nd td { color:var(--gris3); }
+    .cmp-overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; z-index:10000; }
+    .cmp-overlay-box { background:#fff; border-radius:10px; padding:16px; max-width:92vw; max-height:90vh; overflow:auto; }
+    .cmp-overlay-box img { max-width:100%; display:block; border:1px solid var(--bord); }
+
     @media print {
       #export-bar { display: none !important; }
       .container { padding: 0 !important; }
@@ -1281,7 +1316,10 @@
         ${renderBudgetSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
         ${renderCommunicationSection(blocDG, blocDIMetropole, blocOutremer, blocDROutremer, blocSCN)}
 
-        <!-- PARTIE 2 : INDICATEURS DE GESTION -->
+        <!-- PARTIE 2 : COMPARAISON DES STRUCTURES -->
+        ${renderComparaisonSection(structures, totaux, moyennes)}
+
+        <!-- PARTIE 3 : INDICATEURS DE GESTION -->
         <div style="margin: 28px 0 12px 0; padding: 10px 18px; background: linear-gradient(90deg, #374151 0%, #4b5563 100%); border-radius: 8px; display:flex; align-items:center; gap:10px;">
           <span style="font-size:18px;">⚙️</span>
           <span style="color:#fff; font-size:15px; font-weight:700; letter-spacing:0.02em;">Indicateurs de gestion</span>
@@ -3151,6 +3189,257 @@
         document.body.removeChild(loadingDiv);
         alert('Erreur lors de la génération du PDF : ' + err.message);
       }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // COMPARAISON DES STRUCTURES — classements simples + copie PNG
+    // Valeurs lues telles quelles depuis Grist (Consolidation_Structure,
+    // Consolidation National, Fonctionnement) : aucun recalcul métier ici.
+    // ══════════════════════════════════════════════════════════════════
+
+    let _cmpCtx = null;                 // { structures, totaux, moyennes } — alimenté par render()
+    let cmpPerimetre = 'territorial';   // 'territorial' (DI + DR outremer) | 'scn'
+    const cmpTri = {};                  // { [tableId]: { key, dir: 'desc'|'asc' } }
+
+    const CMP_PERIMETRES = {
+      // DR Antilles exclues : déjà consolidées dans DI 972. DG exclue : non comparable.
+      territorial: { label: 'DI + DR outremer', types: ['DI_Hexagone', 'DI_Outremer', 'DR_Outremer'] },
+      scn:         { label: 'SCN',              types: ['SCN'] },
+    };
+
+    const cmpEur  = v => Math.round(v).toLocaleString('fr-FR') + ' €';
+    const cmpPct  = v => v.toFixed(1).replace('.', ',') + ' %';
+    const cmpDec2 = v => v.toFixed(2).replace('.', ',');
+
+    function getCmpConfigs(ctx) {
+      const m = ctx.moyennes || {};
+      const t = ctx.totaux || {};
+      return [
+        {
+          id: 'cmp-frais', icone: '✈️', titre: 'Frais de mission',
+          sousTitre: `Coût par agent — ${ANNEE}`,
+          colonnes: [
+            { key: 'v', label: 'Frais / agent', get: s => s.frais_par_agent, fmt: cmpEur, moy: m.frais_par_agent, sens: 'bas' },
+          ],
+        },
+        {
+          id: 'cmp-veh', icone: '🚗', titre: 'Véhicules',
+          sousTitre: `${ANNEE}`,
+          colonnes: [
+            { key: 'vet',  label: 'Taux vétusté',    get: s => s.taux_vetuste,        fmt: cmpPct,  moy: t.taux_vetuste,        sens: 'bas', ecartPts: true },
+            { key: 'cout', label: 'Coût / véh.',     get: s => s.cout_fonct_vehicule, fmt: cmpEur,  moy: m.cout_fonct_vehicule, sens: 'bas' },
+            { key: 'su',   label: 'Véh. / agent SU', get: s => s.ratio_vehicule_su,   fmt: cmpDec2, moy: m.ratio_vehicule_su,   sens: 'neutre' },
+          ],
+        },
+        {
+          id: 'cmp-it', icone: '💻', titre: 'Informatique',
+          sousTitre: 'Coût bureautique par agent, moyenne lissée sur 4 ans',
+          colonnes: [
+            { key: 'v', label: 'Coût / agent (4 ans)', get: s => s.it_par_agent_lisse, fmt: cmpEur, moy: m.it_par_agent_lisse, sens: 'bas' },
+          ],
+        },
+        {
+          id: 'cmp-fonct', icone: '🏢', titre: 'Fonctionnement',
+          sousTitre: 'Dépenses maîtrisables par agent, moyenne lissée 2022-2025',
+          colonnes: [
+            { key: 'v', label: 'Maîtrisable / agent (4 ans)', get: s => getFonctData(s.id)?.fonct_agent_4ans, fmt: cmpEur, moy: m.fonct_par_agent_4ans, sens: 'bas' },
+          ],
+        },
+      ];
+    }
+
+    function cmpEcartHtml(val, col) {
+      if (!val || !col.moy) return '';
+      const diff = col.ecartPts ? (val - col.moy) : (val - col.moy) / col.moy * 100;
+      const unite = col.ecartPts ? ' pt' : ' %';
+      const signe = diff > 0 ? '+' : '';
+      let couleur = 'var(--gris3)';
+      if (Math.abs(diff) >= 5 && col.sens === 'bas') couleur = diff > 0 ? 'var(--rouge)' : 'var(--vert)';
+      else if (Math.abs(diff) >= 5) couleur = 'var(--rep2)';
+      return `<span class="cmp-ecart" style="color:${couleur};">${signe}${diff.toFixed(0)}${unite}</span>`;
+    }
+
+    function renderCmpTable(cfg, structures) {
+      const tri = cmpTri[cfg.id] || { key: cfg.colonnes[0].key, dir: 'desc' };
+      const colTri = cfg.colonnes.find(c => c.key === tri.key) || cfg.colonnes[0];
+
+      const lignes = structures.map(s => {
+        const vals = {};
+        cfg.colonnes.forEach(c => { const v = Number(c.get(s)); vals[c.key] = isFinite(v) && v > 0 ? v : null; });
+        return { s, vals };
+      });
+      const dispo = lignes.filter(l => l.vals[colTri.key] !== null);
+      const nd    = lignes.filter(l => l.vals[colTri.key] === null);
+      dispo.sort((a, b) => tri.dir === 'desc'
+        ? b.vals[colTri.key] - a.vals[colTri.key]
+        : a.vals[colTri.key] - b.vals[colTri.key]);
+
+      const simple = cfg.colonnes.length === 1;
+      const maxVal = simple ? Math.max(0, ...dispo.map(l => l.vals[colTri.key])) : 0;
+      const fleche = k => k === tri.key ? (tri.dir === 'desc' ? ' ▼' : ' ▲') : '';
+
+      const thead = simple
+        ? `<th></th><th>Structure</th>
+           <th class="number cmp-sortable" onclick="cmpTrier('${cfg.id}','${cfg.colonnes[0].key}')">${cfg.colonnes[0].label}${fleche(cfg.colonnes[0].key)}</th>
+           <th class="number">Écart moy.</th>`
+        : `<th></th><th>Structure</th>` + cfg.colonnes.map(c =>
+            `<th class="number cmp-sortable" onclick="cmpTrier('${cfg.id}','${c.key}')">${c.label}${fleche(c.key)}</th>`).join('');
+
+      const ligneHtml = (l, rang) => {
+        const badge = `<span class="badge ${getBadgeClass(l.s.typeAffichage)}">${getBadgeLabel(l.s.typeAffichage, l.s.type)}</span>`;
+        const cls = rang === null ? 'cmp-nd' : '';
+        if (simple) {
+          const c = cfg.colonnes[0], v = l.vals[c.key];
+          const w = v && maxVal ? Math.max(2, Math.round(v / maxVal * 90)) : 0;
+          return `<tr class="${cls}">
+            <td class="cmp-rang">${rang ?? ''}</td>
+            <td>${badge}${l.s.sigle}</td>
+            <td class="number"><div class="cmp-bar-wrap">${v ? c.fmt(v) : 'n.d.'}<div class="cmp-bar-track"><div class="cmp-bar" style="width:${w}px;"></div></div></div></td>
+            <td class="number">${cmpEcartHtml(v, c)}</td>
+          </tr>`;
+        }
+        return `<tr class="${cls}">
+          <td class="cmp-rang">${rang ?? ''}</td>
+          <td>${badge}${l.s.sigle}</td>
+          ${cfg.colonnes.map(c => {
+            const v = l.vals[c.key];
+            const fort = c.key === tri.key ? 'font-weight:700;' : '';
+            return `<td class="number" style="${fort}">${v ? c.fmt(v) : 'n.d.'}${v ? `<span class="cmp-ecart-sub">${cmpEcartHtml(v, c)}</span>` : ''}</td>`;
+          }).join('')}
+        </tr>`;
+      };
+
+      const moyRow = simple
+        ? `<tr class="cmp-moy"><td></td><td>Moyenne nationale</td>
+             <td class="number">${cfg.colonnes[0].moy ? cfg.colonnes[0].fmt(cfg.colonnes[0].moy) : '—'}</td><td></td></tr>`
+        : `<tr class="cmp-moy"><td></td><td>Moyenne nationale</td>${cfg.colonnes.map(c =>
+             `<td class="number">${c.moy ? c.fmt(c.moy) : '—'}</td>`).join('')}</tr>`;
+
+      return `
+        <div class="cmp-card" id="${cfg.id}">
+          <div class="cmp-card-head">
+            <div>
+              <div class="cmp-card-title">${cfg.icone} ${cfg.titre}</div>
+              <div class="cmp-card-sub">${CMP_PERIMETRES[cmpPerimetre].label} — ${cfg.sousTitre}</div>
+            </div>
+            <button class="cmp-copy" data-html2canvas-ignore="true" onclick="copierTableauPNG('${cfg.id}', this)" title="Copier le tableau en image dans le presse-papiers">📋 Copier en PNG</button>
+          </div>
+          <table class="cmp-table">
+            <thead><tr>${thead}</tr></thead>
+            <tbody>
+              ${dispo.map((l, i) => ligneHtml(l, i + 1)).join('')}
+              ${nd.map(l => ligneHtml(l, null)).join('')}
+              ${moyRow}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    function renderComparaisonInner() {
+      if (!_cmpCtx) return '';
+      const perim = CMP_PERIMETRES[cmpPerimetre];
+      const structures = _cmpCtx.structures.filter(s => perim.types.includes(s.typeAffichage));
+      const seg = Object.entries(CMP_PERIMETRES).map(([k, p]) =>
+        `<button class="${k === cmpPerimetre ? 'active' : ''}" onclick="cmpChangerPerimetre('${k}')">${p.label}</button>`).join('');
+      return `
+        <div class="section-header">
+          <div class="section-icon">🏅</div>
+          <div class="section-title">Comparaison des structures</div>
+        </div>
+        <div class="cmp-toolbar" data-html2canvas-ignore="true">
+          <span class="cmp-toolbar-label">Périmètre :</span>
+          <div class="cmp-seg">${seg}</div>
+          <span class="cmp-toolbar-label" style="font-weight:400;color:var(--gris3);">Cliquer sur un en-tête pour changer le tri. Écart : vert = sous la moyenne, rouge = au-dessus.</span>
+        </div>
+        <div class="cmp-grid">
+          ${getCmpConfigs(_cmpCtx).map(cfg => renderCmpTable(cfg, structures)).join('')}
+        </div>`;
+    }
+
+    function renderComparaisonSection(structures, totaux, moyennes) {
+      _cmpCtx = { structures, totaux, moyennes };
+      return `<div class="section" id="cmp-root">${renderComparaisonInner()}</div>`;
+    }
+
+    function refreshComparaison() {
+      const root = document.getElementById('cmp-root');
+      if (root) root.innerHTML = renderComparaisonInner();
+    }
+
+    function cmpChangerPerimetre(k) {
+      if (!CMP_PERIMETRES[k]) return;
+      cmpPerimetre = k;
+      refreshComparaison();
+    }
+
+    function cmpTrier(tableId, key) {
+      const cur = cmpTri[tableId];
+      const cfg = getCmpConfigs(_cmpCtx).find(c => c.id === tableId);
+      const defKey = cfg ? cfg.colonnes[0].key : key;
+      const curKey = cur ? cur.key : defKey;
+      const curDir = cur ? cur.dir : 'desc';
+      cmpTri[tableId] = { key, dir: (curKey === key && curDir === 'desc') ? 'asc' : 'desc' };
+      refreshComparaison();
+    }
+
+    // Clone html2canvas : Marianne inaccessible dans Grist DINUM → police système
+    function _cmpOnClone(clonedDoc) {
+      clonedDoc.querySelectorAll('style').forEach(st => {
+        st.textContent = st.textContent.replace(/@font-face\s*\{[^}]*\}/g, '');
+      });
+      const f = clonedDoc.createElement('style');
+      f.textContent = '* { font-family: Arial, Helvetica, sans-serif !important; }';
+      clonedDoc.head.appendChild(f);
+    }
+
+    function copierTableauPNG(cardId, btn) {
+      const el = document.getElementById(cardId);
+      if (!el || typeof html2canvas === 'undefined') { alert('Capture indisponible (html2canvas non chargé).'); return; }
+      const libelle = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Capture…';
+      const fin = (txt) => { btn.innerHTML = txt; setTimeout(() => { btn.innerHTML = libelle; btn.disabled = false; }, 1800); };
+
+      // Promesse créée immédiatement : ClipboardItem accepte une promesse,
+      // ce qui préserve l'activation utilisateur pendant la capture.
+      const blobPromise = html2canvas(el, {
+        scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true, onclone: _cmpOnClone
+      }).then(canvas => new Promise((res, rej) =>
+        canvas.toBlob(b => b ? res(b) : rej(new Error('Conversion PNG impossible')), 'image/png')));
+
+      const apiOk = navigator.clipboard && typeof navigator.clipboard.write === 'function' && typeof ClipboardItem !== 'undefined';
+      const tentative = apiOk
+        ? navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })])
+        : Promise.reject(new Error('API presse-papiers indisponible'));
+
+      tentative
+        .then(() => fin('✅ Copié'))
+        .catch(err => {
+          console.warn('Copie presse-papiers refusée, affichage de l\'aperçu :', err);
+          blobPromise
+            .then(blob => { afficherApercuPNG(blob); fin(libelle); })
+            .catch(e2 => { alert('Erreur de capture : ' + e2.message); fin(libelle); });
+        });
+    }
+
+    // Repli si le presse-papiers est bloqué (permission iframe) : l'image
+    // s'affiche, clic droit → « Copier l'image ». Aucun téléchargement.
+    function afficherApercuPNG(blob) {
+      const url = URL.createObjectURL(blob);
+      const ov = document.createElement('div');
+      ov.className = 'cmp-overlay';
+      ov.innerHTML = `
+        <div class="cmp-overlay-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+            <span style="font-size:13px;color:var(--gris2);">Copie directe bloquée par le navigateur : <b>clic droit sur l'image → Copier l'image</b></span>
+            <button class="cmp-copy" type="button">Fermer</button>
+          </div>
+          <img src="${url}" alt="Tableau">
+        </div>`;
+      const fermer = () => { URL.revokeObjectURL(url); ov.remove(); };
+      ov.addEventListener('click', e => { if (e.target === ov) fermer(); });
+      ov.querySelector('button').addEventListener('click', fermer);
+      document.body.appendChild(ov);
     }
 
     init();
