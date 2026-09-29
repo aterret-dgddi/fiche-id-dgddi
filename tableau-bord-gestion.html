@@ -430,6 +430,7 @@
     .cmp-ecart-sub { display:block; font-size:10px; font-weight:600; }
     .cmp-table tr.cmp-moy td { border-top:2px solid var(--bord); background:var(--gris4); font-weight:700; }
     .cmp-table tr.cmp-nd td { color:var(--gris3); }
+    .cmp-table tr.cmp-groupe td { background:var(--rep-pale); color:var(--rep); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:5px 8px; }
     .cmp-overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; z-index:10000; }
     .cmp-overlay-box { background:#fff; border-radius:10px; padding:16px; max-width:92vw; max-height:90vh; overflow:auto; }
     .cmp-overlay-box img { max-width:100%; display:block; border:1px solid var(--bord); }
@@ -3198,13 +3199,19 @@
     // ══════════════════════════════════════════════════════════════════
 
     let _cmpCtx = null;                 // { structures, totaux, moyennes } — alimenté par render()
-    let cmpPerimetre = 'territorial';   // 'territorial' (DI + DR outremer) | 'scn'
+    let cmpPerimetre = 'tous';          // 'tous' | 'territorial' (DI + DR outremer) | 'scn'
     const cmpTri = {};                  // { [tableId]: { key, dir: 'desc'|'asc' } }
 
-    const CMP_PERIMETRES = {
-      // DR Antilles exclues : déjà consolidées dans DI 972. DG exclue : non comparable.
+    // DR Antilles exclues : déjà consolidées dans DI 972. DG exclue : non comparable.
+    // Chaque groupe a son propre classement (rang recommence à 1).
+    const CMP_GROUPES = {
       territorial: { label: 'DI + DR outremer', types: ['DI_Hexagone', 'DI_Outremer', 'DR_Outremer'] },
       scn:         { label: 'SCN',              types: ['SCN'] },
+    };
+    const CMP_PERIMETRES = {
+      tous:        { label: 'Toutes',           groupes: ['territorial', 'scn'] },
+      territorial: { label: 'DI + DR outremer', groupes: ['territorial'] },
+      scn:         { label: 'SCN',              groupes: ['scn'] },
     };
 
     const cmpEur  = v => Math.round(v).toLocaleString('fr-FR') + ' €';
@@ -3259,23 +3266,28 @@
       return `<span class="cmp-ecart" style="color:${couleur};">${signe}${diff.toFixed(0)}${unite}</span>`;
     }
 
-    function renderCmpTable(cfg, structures) {
+    function renderCmpTable(cfg, groupes) {
       const tri = cmpTri[cfg.id] || { key: cfg.colonnes[0].key, dir: 'desc' };
       const colTri = cfg.colonnes.find(c => c.key === tri.key) || cfg.colonnes[0];
 
-      const lignes = structures.map(s => {
-        const vals = {};
-        cfg.colonnes.forEach(c => { const v = Number(c.get(s)); vals[c.key] = isFinite(v) && v > 0 ? v : null; });
-        return { s, vals };
+      // groupes : [{ label, structures }] → [{ label, dispo, nd }]
+      const blocs = groupes.map(g => {
+        const lignes = g.structures.map(s => {
+          const vals = {};
+          cfg.colonnes.forEach(c => { const v = Number(c.get(s)); vals[c.key] = isFinite(v) && v > 0 ? v : null; });
+          return { s, vals };
+        });
+        const dispo = lignes.filter(l => l.vals[colTri.key] !== null);
+        const nd    = lignes.filter(l => l.vals[colTri.key] === null);
+        dispo.sort((a, b) => tri.dir === 'desc'
+          ? b.vals[colTri.key] - a.vals[colTri.key]
+          : a.vals[colTri.key] - b.vals[colTri.key]);
+        return { label: g.label, dispo, nd };
       });
-      const dispo = lignes.filter(l => l.vals[colTri.key] !== null);
-      const nd    = lignes.filter(l => l.vals[colTri.key] === null);
-      dispo.sort((a, b) => tri.dir === 'desc'
-        ? b.vals[colTri.key] - a.vals[colTri.key]
-        : a.vals[colTri.key] - b.vals[colTri.key]);
 
       const simple = cfg.colonnes.length === 1;
-      const maxVal = simple ? Math.max(0, ...dispo.map(l => l.vals[colTri.key])) : 0;
+      const nbCols = simple ? 4 : 2 + cfg.colonnes.length;
+      const maxVal = simple ? Math.max(0, ...blocs.flatMap(b => b.dispo.map(l => l.vals[colTri.key]))) : 0;
       const fleche = k => k === tri.key ? (tri.dir === 'desc' ? ' ▼' : ' ▲') : '';
 
       const thead = simple
@@ -3320,15 +3332,17 @@
           <div class="cmp-card-head">
             <div>
               <div class="cmp-card-title">${cfg.icone} ${cfg.titre}</div>
-              <div class="cmp-card-sub">${CMP_PERIMETRES[cmpPerimetre].label} — ${cfg.sousTitre}</div>
+              <div class="cmp-card-sub">${cmpPerimetre === 'tous' ? 'DI + DR outremer et SCN' : CMP_PERIMETRES[cmpPerimetre].label} — ${cfg.sousTitre}</div>
             </div>
             <button class="cmp-copy" data-html2canvas-ignore="true" onclick="copierTableauPNG('${cfg.id}', this)" title="Copier le tableau en image dans le presse-papiers">📋 Copier en PNG</button>
           </div>
           <table class="cmp-table">
             <thead><tr>${thead}</tr></thead>
             <tbody>
-              ${dispo.map((l, i) => ligneHtml(l, i + 1)).join('')}
-              ${nd.map(l => ligneHtml(l, null)).join('')}
+              ${blocs.map(b => `
+                ${blocs.length > 1 ? `<tr class="cmp-groupe"><td colspan="${nbCols}">${b.label}</td></tr>` : ''}
+                ${b.dispo.map((l, i) => ligneHtml(l, i + 1)).join('')}
+                ${b.nd.map(l => ligneHtml(l, null)).join('')}`).join('')}
               ${moyRow}
             </tbody>
           </table>
@@ -3338,7 +3352,10 @@
     function renderComparaisonInner() {
       if (!_cmpCtx) return '';
       const perim = CMP_PERIMETRES[cmpPerimetre];
-      const structures = _cmpCtx.structures.filter(s => perim.types.includes(s.typeAffichage));
+      const groupes = perim.groupes.map(k => ({
+        label: CMP_GROUPES[k].label,
+        structures: _cmpCtx.structures.filter(s => CMP_GROUPES[k].types.includes(s.typeAffichage)),
+      }));
       const seg = Object.entries(CMP_PERIMETRES).map(([k, p]) =>
         `<button class="${k === cmpPerimetre ? 'active' : ''}" onclick="cmpChangerPerimetre('${k}')">${p.label}</button>`).join('');
       return `
@@ -3352,7 +3369,7 @@
           <span class="cmp-toolbar-label" style="font-weight:400;color:var(--gris3);">Cliquer sur un en-tête pour changer le tri. Écart : vert = sous la moyenne, rouge = au-dessus.</span>
         </div>
         <div class="cmp-grid">
-          ${getCmpConfigs(_cmpCtx).map(cfg => renderCmpTable(cfg, structures)).join('')}
+          ${getCmpConfigs(_cmpCtx).map(cfg => renderCmpTable(cfg, groupes)).join('')}
         </div>`;
     }
 
