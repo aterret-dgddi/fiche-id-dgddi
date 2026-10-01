@@ -334,6 +334,38 @@ function getDerniereAnneeBudget() {
   return annees.length ? Math.max(...annees) : FICHE_STATE.annee;
 }
 
+/**
+ * Recharge depuis Grist les tables budgétaires (Budget, Budget_Mensuel,
+ * Consolidation, Consolidation_Structure). FICHE_STATE.data n'est chargé
+ * qu'une fois à l'ouverture du widget : un import réalisé ensuite (via le
+ * data-loader) n'y est pas visible, et les exports se basaient alors sur cet
+ * instantané périmé (date d'import, taux, mois manquants).
+ * Appelé avant chaque export XLSX pour garantir des données à jour.
+ */
+async function reloadBudgetTables() {
+  const [budget, budget_mensuel, consolidation, consolidation_structure] = await Promise.all([
+    grist.docApi.fetchTable('Budget').catch(() => null),
+    grist.docApi.fetchTable('Budget_Mensuel').catch(() => null),
+    grist.docApi.fetchTable('Consolidation').catch(() => null),
+    grist.docApi.fetchTable('Consolidation_Structure').catch(() => null),
+  ]);
+  // Ne remplacer que ce qui a effectivement été relu (un échec réseau ne doit
+  // pas vider des données déjà chargées).
+  if (budget) FICHE_STATE.data.budget = budget;
+  if (budget_mensuel) FICHE_STATE.data.budget_mensuel = budget_mensuel;
+  if (consolidation) FICHE_STATE.data.consolidation = consolidation;
+  if (consolidation_structure) FICHE_STATE.data.consolidation_structure = consolidation_structure;
+}
+
+/**
+ * Année budgétaire réellement affichée par refreshBudget() — les exports
+ * doivent utiliser la même, sinon ils peuvent lire une autre ligne Budget
+ * que celle visible à l'écran.
+ */
+function getAnneeBudgetAffichee() {
+  return FICHE_STATE.budgetAnnee || 2026;
+}
+
 function setStructure(structureId) {
   const structures = FICHE_STATE.data.structures;
   const idx = structures.id.indexOf(structureId);
@@ -3554,6 +3586,7 @@ function getBudgetPillValues(dataN, bop) {
 function refreshBudget(structureId, annee) {
 
   annee = 2026;
+  FICHE_STATE.budgetAnnee = annee;
 
   // T6 Buralistes : non discrétionnaire pour les DI depuis 2026 (UOT créée au
   // niveau DG) -> exclu du Total (Grist s'en charge partout : Budget.Dot_AE_Total,
@@ -7544,7 +7577,7 @@ function exportToXLSX() {
   // ── 3. Budget ─────────────────────────────────────────────────
   // Budget peut être importé plus fréquemment que RH -> ne pas réutiliser
   // l'année RH ici, sous peine de chercher une ligne Budget qui n'existe pas.
-  const budgetAnnee = typeof getDerniereAnneeBudget==='function' ? getDerniereAnneeBudget() : annee;
+  const budgetAnnee = getAnneeBudgetAffichee();
   const budgetD = typeof getBudgetData==='function' ? getBudgetData(sid, budgetAnnee) : null;
   const comD    = typeof getCommunicationData==='function' ? getCommunicationData(sid) : null;
   const dateBudget = budgetD && budgetD.date_import ? budgetD.date_import.toLocaleDateString('fr-FR') : t('budget-date-import');
@@ -7870,6 +7903,11 @@ function showXLSXModal() {
 }
 
 async function executeXLSXExport(mode, filters) {
+  try {
+    await reloadBudgetTables();
+  } catch (e) {
+    console.warn('Rechargement des tables budgétaires impossible, export sur les données en mémoire', e);
+  }
   if (mode === 'single') {
     exportToXLSX(); // fonction existante — structure courante
     return;
@@ -8099,7 +8137,7 @@ function exportToXLSXWorkbook(struct, annee) {
 
   // Budget peut être importé plus fréquemment que RH -> ne pas réutiliser
   // l'année RH ici, sous peine de chercher une ligne Budget qui n'existe pas.
-  const budgetAnnee = typeof getDerniereAnneeBudget==='function' ? getDerniereAnneeBudget() : annee;
+  const budgetAnnee = getAnneeBudgetAffichee();
   const budgetD = typeof getBudgetData==='function' ? getBudgetData(sid, budgetAnnee) : null;
   const comD    = typeof getCommunicationData==='function' ? getCommunicationData(sid) : null;
   const dateBudget = budgetD && budgetD.date_import ? budgetD.date_import.toLocaleDateString('fr-FR') : t('budget-date-import');
