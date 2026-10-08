@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frais de contentieux — Dépenses CP par structure</title>
+
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<style>
+  :root {
+    --bleu: #1351A8; --rouge: #C0392B; --vert: #008941;
+    --gris1: #1A1A1A; --gris2: #444; --gris3: #888; --gris4: #F5F6F8;
+    --bord: #DDE1E9; --rep: #1351A8;
+    --font: 'Marianne', Arial, Helvetica, sans-serif;
+    --badge-dg: #1A1A1A; --badge-di: #1351A8; --badge-dr: #27AE60; --badge-scn: #8E44AD;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--gris4); color: var(--gris1); font-size: 12px; }
+
+  .page-header { background: var(--bleu); color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+  .page-header h1 { font-size: 15px; font-weight: 700; }
+  .page-header .subtitle { font-size: 11px; opacity: .8; margin-top: 2px; }
+  .header-controls { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .header-controls select { font-family: var(--font); font-size: 12px; padding: 5px 8px; border-radius: 4px; border: none; min-width: 240px; }
+
+  .btn { font-family: var(--font); font-size: 11px; font-weight: 600; padding: 6px 12px; border-radius: 4px; border: 1px solid var(--bord); background: #fff; color: var(--bleu); cursor: pointer; }
+  .btn:hover { background: #EEF3FB; }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .btn.primary { background: var(--bleu); color: #fff; border-color: var(--bleu); }
+  .btn.primary:hover { background: #0F4290; }
+
+  .main { padding: 16px 20px; max-width: 1100px; margin: 0 auto; }
+
+  .card { background: #fff; border: 1px solid var(--bord); border-radius: 6px; padding: 16px 18px; margin-bottom: 14px; }
+  .fiche-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .fiche-head .sigle { font-size: 18px; font-weight: 700; }
+  .fiche-head .nom { font-size: 12px; color: var(--gris2); }
+  .badge { font-size: 10px; font-weight: 700; color: #fff; padding: 2px 7px; border-radius: 10px; }
+  .badge.DG { background: var(--badge-dg); } .badge.DI { background: var(--badge-di); }
+  .badge.DR { background: var(--badge-dr); } .badge.SCN { background: var(--badge-scn); }
+  .badge.NAT { background: var(--rouge); }
+  .perimetre { font-size: 11px; color: var(--gris3); font-style: italic; margin-bottom: 14px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .kpi { border-left: 3px solid var(--bleu); background: var(--gris4); padding: 8px 12px; border-radius: 0 4px 4px 0; }
+  .kpi .v { font-size: 17px; font-weight: 700; }
+  .kpi .l { font-size: 10.5px; color: var(--gris2); margin-top: 2px; }
+  .kpi .up { color: var(--rouge); } .kpi .down { color: var(--vert); }
+
+  .section-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .section-title h2 { font-size: 13px; font-weight: 700; color: var(--gris2); }
+  .toggle { display: flex; gap: 3px; background: var(--gris4); border-radius: 5px; padding: 2px; }
+  .toggle button { border: none; background: transparent; color: var(--gris2); padding: 3px 9px; border-radius: 4px; font-size: 10.5px; font-weight: 500; cursor: pointer; font-family: var(--font); }
+  .toggle button.on { background: var(--rep); color: #fff; }
+
+  .chart-wrapper { position: relative; height: 300px; }
+  .empty { text-align: center; padding: 30px; color: var(--gris3); font-style: italic; }
+
+  table.data { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 6px; }
+  table.data th { text-align: right; font-weight: 600; color: var(--gris2); background: var(--gris4); padding: 7px 8px; border-bottom: 1px solid var(--bord); }
+  table.data th:first-child, table.data td:first-child { text-align: left; }
+  table.data td { text-align: right; padding: 6px 8px; border-bottom: 1px solid #EEF0F4; font-variant-numeric: tabular-nums; }
+  table.data tr.current td { font-weight: 700; color: var(--bleu); }
+  table.data tr.foot td { font-style: italic; color: var(--gris2); border-top: 1px solid var(--bord); }
+  .up { color: var(--rouge); } .down { color: var(--vert); }
+  .note { font-size: 10.5px; color: var(--gris3); margin-top: 8px; line-height: 1.45; }
+
+  .export-box { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+  .export-box .types { display: flex; gap: 12px; flex-wrap: wrap; }
+  .export-box label { font-size: 11.5px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .progress { font-size: 11px; color: var(--gris3); }
+  .error { background: #FDECEA; color: var(--rouge); padding: 12px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <h1>Frais de contentieux — dépenses CP 2022-2026</h1>
+    <div class="subtitle">Consommation CP mensuelle (Budget_Mensuel · Conso_Contx_CP), par structure</div>
+  </div>
+  <div class="header-controls">
+    <select id="structure-select" onchange="selectEntity(this.value)"></select>
+    <button class="btn" id="btn-pdf-one" onclick="exportPDFStructure()">📄 PDF de la fiche</button>
+  </div>
+</div>
+
+<div class="main">
+  <div id="loading" class="card empty">Chargement des données…</div>
+  <div id="error" class="error" style="display:none;"></div>
+
+  <div id="fiche" class="card" style="display:none;">
+    <div class="fiche-head">
+      <span class="sigle" id="f-sigle"></span>
+      <span class="badge" id="f-badge"></span>
+      <span class="nom" id="f-nom"></span>
+    </div>
+    <div class="perimetre" id="f-perimetre"></div>
+
+    <div class="kpis" id="f-kpis"></div>
+
+    <div class="section-title">
+      <h2 id="f-chart-title">Consommation CP mensuelle</h2>
+      <div class="toggle">
+        <button id="mode-mensuel" onclick="setMode('mensuel')">Mensuel</button>
+        <button id="mode-cumule" class="on" onclick="setMode('cumule')">Cumulé</button>
+      </div>
+    </div>
+    <div id="f-chart-wrapper" class="chart-wrapper"><canvas id="chart-contentieux"></canvas></div>
+    <div id="f-chart-empty" class="empty" style="display:none;">⚠️ Aucune dépense de contentieux enregistrée pour cette structure sur 2022-2026</div>
+
+    <div class="section-title" style="margin-top:20px;"><h2>Dépenses CP par année</h2></div>
+    <div id="f-table"></div>
+    <div class="note" id="f-note"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title"><h2>Export PDF groupé (une fiche par structure)</h2></div>
+    <div class="export-box">
+      <div class="types">
+        <label><input type="checkbox" class="type-cb" value="DG" checked> DG</label>
+        <label><input type="checkbox" class="type-cb" value="DI" checked> DI</label>
+        <label><input type="checkbox" class="type-cb" value="DR" checked> DR outre-mer</label>
+        <label><input type="checkbox" class="type-cb" value="SCN" checked> SCN</label>
+        <label><input type="checkbox" id="cb-national" checked> Fiche nationale</label>
+        <label><input type="checkbox" id="cb-synthese" checked> Tableau de synthèse</label>
+        <label><input type="checkbox" id="cb-skip-empty" checked> Ignorer les structures sans dépense</label>
+      </div>
+      <button class="btn primary" id="btn-pdf-all" onclick="exportPDFGroupe()">📚 Générer le PDF groupé</button>
+      <span class="progress" id="pdf-progress"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Constantes ────────────────────────────────────────────────────────────────
+const ANNEES = [2022, 2023, 2024, 2025, 2026];
+const COL_CONTX = 'Conso_Contx_CP';
+const TYPES_AFFICHES = ['DG', 'DI_Hexagone', 'DI_Outremer', 'DR_Antilles', 'DR_Outremer', 'SCN'];
+const MOIS_COURT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+const MOIS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const FONT_CANVAS = 'Arial, Helvetica, sans-serif';
+
+// ── État ──────────────────────────────────────────────────────────────────────
+let STATE_structures = null;
+let STATE_bm = null;
+let ENTITIES = [];           // [{key, sigle, nom, typeLabel, typeAff, ids, perimetre}]
+let currentKey = null;
+let currentMode = 'cumule';  // 'mensuel' | 'cumule'
+let chartInstance = null;
+
+// ── Formatage ─────────────────────────────────────────────────────────────────
+const fmtEuro = v => (v != null && !isNaN(v)) ? Math.round(v).toLocaleString('fr-FR') + ' €' : '—';
+const fmtEuroK = v => {
+  if (v == null || isNaN(v)) return '—';
+  const abs = Math.abs(v);
+  if (abs >= 100000) return (v / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' k€';
+  if (abs >= 1000)   return (v / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' k€';
+  return Math.round(v).toLocaleString('fr-FR') + ' €';
+};
+const fmtEvol = v => (v == null || !isFinite(v)) ? '—' : (v > 0 ? '+' : '') + (v * 100).toFixed(1).replace('.', ',') + ' %';
+const evolClass = v => (v == null || !isFinite(v) || v === 0) ? '' : (v > 0 ? 'up' : 'down');
+// jsPDF (helvetica) ne gère pas les espaces insécables de toLocaleString('fr-FR')
+const pdfSafe = s => String(s).replace(/[\u00A0\u202F\u2009\u2007]/g, ' ');
+const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function pdfTimestamp() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}h${p(d.getMinutes())}`;
+}
+function dateFR() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+function typeLabel(ta) {
+  if (ta === 'DG') return 'DG';
+  if (ta === 'DI_Hexagone' || ta === 'DI_Outremer') return 'DI';
+  if (ta === 'DR_Antilles' || ta === 'DR_Outremer') return 'DR';
+  if (ta === 'SCN') return 'SCN';
+  return '';
+}
+function sortOrder(tl) { return { NAT: -1, DG: 0, DI: 1, DR: 2, SCN: 3 }[tl] ?? 9; }
+
+// Couleur par année : dégradé bleu clair -> bleu République (année la plus récente)
+function yearColor(idx, total) {
+  const dark = { r: 19, g: 81, b: 168 }, light = { r: 197, g: 216, b: 240 };
+  const t = total > 1 ? idx / (total - 1) : 1;
+  const c = k => Math.round(light[k] + (dark[k] - light[k]) * t);
+  return `rgb(${c('r')}, ${c('g')}, ${c('b')})`;
+}
+
+// ── Périmètres ────────────────────────────────────────────────────────────────
+/** DR rattachées à une DI. Cas spécial DI 972 : DR 971/972/973 (même règle que le core et Grist). */
+function getDRRattachees(structureId) {
+  const s = STATE_structures, list = [];
+  const idx = s.id.indexOf(structureId);
+  const sigle = idx !== -1 ? s.Sigle?.[idx] : null;
+  if (sigle === 'DI 972') {
+    s.id.forEach((id, i) => { if (['DR 971', 'DR 972', 'DR 973'].includes(s.Sigle?.[i])) list.push(id); });
+    return list;
+  }
+  s.id.forEach((id, i) => { if (s.Type[i] === 'DR' && s.Parent && s.Parent[i] === structureId) list.push(id); });
+  return list;
+}
+
+function buildEntities() {
+  const s = STATE_structures;
+  const sigleOf = id => { const i = s.id.indexOf(id); return i !== -1 ? (s.Sigle?.[i] || '').trim() : ''; };
+  const dg = [], others = [];
+
+  for (let i = 0; i < s.id.length; i++) {
+    const ta = s.Type_Affichage?.[i];
+    if (!TYPES_AFFICHES.includes(ta)) continue;
+    const sigle = (s.Sigle?.[i] || '').trim();
+    if (!sigle) continue;
+    const id = s.id[i];
+    const nom = s.Nom?.[i] || sigle;
+    const tl = typeLabel(ta);
+    if (tl === 'DG') { dg.push({ id, sigle, nom }); continue; }
+    let ids = [id], perimetre = sigle;
+    if (tl === 'DI') {
+      const drs = getDRRattachees(id);
+      ids = [id, ...drs];
+      if (drs.length) perimetre = `${sigle} + DR rattachées (${drs.map(sigleOf).filter(Boolean).join(', ')})`;
+    }
+    others.push({ key: String(id), sigle, nom, typeLabel: tl, ids, perimetre });
+  }
+
+  const list = [...others];
+  // DG : une seule fiche consolidant toutes les entités de type d'affichage DG
+  if (dg.length) {
+    const main = dg.find(d => d.sigle === 'DGDDI') || dg[0];
+    list.push({
+      key: 'DG', sigle: dg.length > 1 ? 'DG' : main.sigle, nom: main.nom, typeLabel: 'DG',
+      ids: dg.map(d => d.id),
+      perimetre: dg.length > 1 ? `Consolidation ${dg.map(d => d.sigle).join(', ')}` : main.sigle
+    });
+  }
+
+  list.sort((a, b) => sortOrder(a.typeLabel) - sortOrder(b.typeLabel)
+    || a.sigle.localeCompare(b.sigle, 'fr', { numeric: true }));
+
+  // Fiche nationale : toutes les structures présentes dans Budget_Mensuel
+  const allIds = STATE_bm ? [...new Set(STATE_bm.Structure)] : [];
+  list.unshift({ key: 'national', sigle: 'DGDDI — national', nom: 'Ensemble des structures', typeLabel: 'NAT', ids: allIds, perimetre: 'Toutes structures confondues' });
+  return list;
+}
+
+// ── Calculs ───────────────────────────────────────────────────────────────────
+/**
+ * Consommation contentieux CP mensuelle NON cumulée par année (2022-2026) sur un
+ * périmètre. Même règle que la fiche identité : la série s'arrête net (null) au
+ * premier mois sans aucune ligne Budget_Mensuel sur le périmètre.
+ */
+function computeSeries(ids) {
+  const bm = STATE_bm, idsSet = new Set(ids);
+  const rows = {};
+  bm.id.forEach((_, i) => {
+    if (!idsSet.has(bm.Structure[i])) return;
+    const a = Number(bm.Annee[i]), m = Number(bm.Mois[i]);
+    if (!ANNEES.includes(a) || !m || m < 1 || m > 12) return;
+    rows[a] = rows[a] || {};
+    rows[a][m] = (rows[a][m] || 0) + (Number(bm[COL_CONTX]?.[i]) || 0);
+    rows[a]['_has' + m] = true;
+  });
+  const series = {};
+  ANNEES.forEach(a => {
+    if (!rows[a]) return;
+    const serie = Array(12).fill(null);
+    for (let m = 1; m <= 12; m++) {
+      if (!rows[a]['_has' + m]) break;
+      serie[m - 1] = Math.round(rows[a][m]);
+    }
+    if (serie.some(v => v != null)) series[a] = serie;
+  });
+  return series;
+}
+
+function toCumulative(serie) {
+  const out = []; let sum = 0, broken = false;
+  serie.forEach(v => {
+    if (broken || v == null) { out.push(null); broken = true; return; }
+    sum += v; out.push(Math.round(sum));
+  });
+  return out;
+}
+
+/** Tableau annuel : total, mois disponibles, évolution N-1 et comparaison à même période. */
+function computeAnnualTable(series) {
+  const annees = ANNEES.filter(a => series[a]);
+  if (!annees.length) return { hasData: false, rows: [], annees: [] };
+
+  const last = annees[annees.length - 1];
+  const moisRef = series[last].filter(v => v != null).length; // dernier mois disponible de l'année la plus récente
+
+  const rows = ANNEES.map(a => {
+    const s = series[a];
+    if (!s) return { annee: a, hasData: false };
+    const nbMois = s.filter(v => v != null).length;
+    const total = s.reduce((acc, v) => acc + (v || 0), 0);
+    const cumulRef = nbMois >= moisRef ? s.slice(0, moisRef).reduce((acc, v) => acc + (v || 0), 0) : null;
+    return { annee: a, hasData: true, nbMois, total, complete: nbMois === 12, cumulRef };
+  });
+
+  rows.forEach((r, i) => {
+    if (!r.hasData || i === 0) return;
+    const prev = rows[i - 1];
+    if (!prev.hasData) return;
+    if (r.complete && prev.complete && prev.total) r.evolAnnuelle = (r.total - prev.total) / Math.abs(prev.total);
+    if (r.cumulRef != null && prev.cumulRef) r.evolPeriode = (r.cumulRef - prev.cumulRef) / Math.abs(prev.cumulRef);
+  });
+
+  const completes = rows.filter(r => r.hasData && r.complete);
+  const moyenne = completes.length ? completes.reduce((a, r) => a + r.total, 0) / completes.length : null;
+  const totalPeriode = rows.filter(r => r.hasData).reduce((a, r) => a + r.total, 0);
+
+  return { hasData: true, rows, annees, last, moisRef, moyenne, nbCompletes: completes.length, totalPeriode };
+}
+
+function computeFiche(entity) {
+  const series = computeSeries(entity.ids);
+  return { series, table: computeAnnualTable(series) };
+}
+
+function buildDatasets(series, mode, forPdf) {
+  const annees = ANNEES.filter(a => series[a]);
+  return annees.map((a, idx) => {
+    const color = yearColor(idx, annees.length);
+    const isLast = idx === annees.length - 1;
+    return {
+      label: String(a),
+      data: mode === 'cumule' ? toCumulative(series[a]) : series[a],
+      borderColor: color, backgroundColor: color,
+      borderWidth: forPdf ? (isLast ? 5 : 2.5) : (isLast ? 3 : 1.5),
+      borderDash: isLast ? [] : (forPdf ? [8, 6] : [4, 3]),
+      pointRadius: 0, pointHoverRadius: 4, tension: 0.25, spanGaps: false
+    };
+  });
+}
+
+// ── Rendu écran ───────────────────────────────────────────────────────────────
+function populateSelect() {
+  const sel = document.getElementById('structure-select');
+  const groups = { NAT: 'National', DG: 'DG', DI: 'DI', DR: 'DR outre-mer', SCN: 'SCN' };
+  sel.innerHTML = Object.keys(groups).map(tl => {
+    const opts = ENTITIES.filter(e => e.typeLabel === tl)
+      .map(e => `<option value="${escapeHtml(e.key)}">${escapeHtml(e.sigle)}${e.nom && e.nom !== e.sigle && tl !== 'NAT' ? ' — ' + escapeHtml(e.nom) : ''}</option>`).join('');
+    return opts ? `<optgroup label="${groups[tl]}">${opts}</optgroup>` : '';
+  }).join('');
+}
+
+function selectEntity(key) {
+  currentKey = key;
+  const sel = document.getElementById('structure-select');
+  if (sel.value !== key) sel.value = key;
+  renderFiche();
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('mode-mensuel').classList.toggle('on', mode === 'mensuel');
+  document.getElementById('mode-cumule').classList.toggle('on', mode === 'cumule');
+  renderFiche();
+}
+
+function renderFiche() {
+  const e = ENTITIES.find(x => x.key === currentKey);
+  if (!e) return;
+  const { series, table } = computeFiche(e);
+
+  document.getElementById('fiche').style.display = '';
+  document.getElementById('f-sigle').textContent = e.sigle;
+  const badge = document.getElementById('f-badge');
+  badge.className = 'badge ' + e.typeLabel;
+  badge.textContent = e.typeLabel === 'NAT' ? 'National' : e.typeLabel;
+  document.getElementById('f-nom').textContent = e.nom !== e.sigle ? e.nom : '';
+  document.getElementById('f-perimetre').textContent = 'Périmètre : ' + e.perimetre;
+  document.getElementById('f-chart-title').textContent =
+    currentMode === 'cumule' ? 'Consommation CP cumulée depuis janvier' : 'Consommation CP mensuelle';
+
+  renderKPIs(table);
+  renderChart(series, table);
+  document.getElementById('f-table').innerHTML = buildTableHTML(table);
+  document.getElementById('f-note').innerHTML = buildNote(table);
+}
+
+function renderKPIs(t) {
+  const el = document.getElementById('f-kpis');
+  if (!t.hasData) { el.innerHTML = ''; return; }
+  const last = t.rows.find(r => r.annee === t.last);
+  const prev = t.rows.find(r => r.annee === t.last - 1);
+  const lastComplete = [...t.rows].reverse().find(r => r.hasData && r.complete);
+  const moisTxt = MOIS_LONG[t.moisRef - 1];
+  const tiles = [];
+  tiles.push(`<div class="kpi"><div class="v">${fmtEuro(last.total)}</div><div class="l">${t.last} — cumul à fin ${moisTxt}</div></div>`);
+  if (prev && prev.hasData && prev.cumulRef != null) {
+    tiles.push(`<div class="kpi"><div class="v ${evolClass(last.evolPeriode)}">${fmtEvol(last.evolPeriode)}</div><div class="l">vs ${t.last - 1} à même période (${fmtEuro(prev.cumulRef)})</div></div>`);
+  }
+  if (lastComplete && lastComplete.annee !== t.last) {
+    tiles.push(`<div class="kpi"><div class="v">${fmtEuro(lastComplete.total)}</div><div class="l">Dépenses ${lastComplete.annee} (année complète)</div></div>`);
+  }
+  if (t.moyenne != null) {
+    tiles.push(`<div class="kpi"><div class="v">${fmtEuro(t.moyenne)}</div><div class="l">Moyenne annuelle (${t.nbCompletes} année${t.nbCompletes > 1 ? 's' : ''} complète${t.nbCompletes > 1 ? 's' : ''})</div></div>`);
+  }
+  el.innerHTML = tiles.join('');
+}
+
+function renderChart(series, t) {
+  const canvas = document.getElementById('chart-contentieux');
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const wrapper = document.getElementById('f-chart-wrapper');
+  const empty = document.getElementById('f-chart-empty');
+  if (!t.hasData) { wrapper.style.display = 'none'; empty.style.display = ''; return; }
+  wrapper.style.display = ''; empty.style.display = 'none';
+
+  chartInstance = new Chart(canvas, {
+    type: 'line',
+    data: { labels: MOIS_COURT, datasets: buildDatasets(series, currentMode, false) },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label} : ${fmtEuro(ctx.parsed.y)}` } }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => fmtEuroK(v), color: '#8A9BAA', font: { size: 10 } }, grid: { color: '#e1e0d9' } },
+        x: { ticks: { color: '#8A9BAA', font: { size: 10 }, autoSkip: false }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function buildTableHTML(t) {
+  if (!t.hasData) return '<div class="empty">Aucune donnée</div>';
+  const moisTxt = MOIS_COURT[t.moisRef - 1].toLowerCase();
+  let html = `<table class="data"><thead><tr>
+    <th>Année</th><th>Mois disponibles</th><th>Dépenses CP</th><th>Évol. vs N-1</th>
+    <th>Cumul jan.–${moisTxt}</th><th>Évol. même période</th></tr></thead><tbody>`;
+  t.rows.forEach(r => {
+    if (!r.hasData) {
+      html += `<tr><td>${r.annee}</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`;
+      return;
+    }
+    const periode = r.complete ? '12 / 12' : `${r.nbMois} / 12 (fin ${MOIS_COURT[r.nbMois - 1].toLowerCase()}.)`;
+    html += `<tr class="${r.annee === t.last ? 'current' : ''}">
+      <td>${r.annee}</td><td>${periode}</td><td>${fmtEuro(r.total)}</td>
+      <td class="${evolClass(r.evolAnnuelle)}">${fmtEvol(r.evolAnnuelle)}</td>
+      <td>${fmtEuro(r.cumulRef)}</td>
+      <td class="${evolClass(r.evolPeriode)}">${fmtEvol(r.evolPeriode)}</td></tr>`;
+  });
+  html += `<tr class="foot"><td>Total ${ANNEES[0]}–${ANNEES[ANNEES.length - 1]}</td><td></td><td>${fmtEuro(t.totalPeriode)}</td><td></td><td></td><td></td></tr>`;
+  if (t.moyenne != null) html += `<tr class="foot"><td>Moyenne années complètes</td><td></td><td>${fmtEuro(t.moyenne)}</td><td></td><td></td><td></td></tr>`;
+  return html + '</tbody></table>';
+}
+
+function buildNote(t) {
+  if (!t.hasData) return '';
+  return `L'évolution annuelle n'est calculée qu'entre deux années complètes. La colonne « même période » compare le cumul de janvier à fin ${MOIS_LONG[t.moisRef - 1]} (dernier mois disponible en ${t.last}) d'une année sur l'autre. Hausse en rouge, baisse en vert. Poste informatif déjà inclus dans Fonctionnement.`;
+}
+
+// ── Export PDF ────────────────────────────────────────────────────────────────
+/** Graphique hors écran -> PNG haute résolution, fond blanc, police système. */
+async function renderChartPNG(series) {
+  const W = 1600, H = 760;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  canvas.style.cssText = 'position:fixed;left:-99999px;top:0;';
+  document.body.appendChild(canvas);
+  const whiteBg = { id: 'whiteBg', beforeDraw: c => { const x = c.ctx; x.save(); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.restore(); } };
+  const chart = new Chart(canvas, {
+    type: 'line',
+    data: { labels: MOIS_COURT, datasets: buildDatasets(series, currentMode, true) },
+    options: {
+      responsive: false, animation: false, devicePixelRatio: 1,
+      font: { family: FONT_CANVAS },
+      plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 22, family: FONT_CANVAS }, boxWidth: 30, padding: 24 } }, tooltip: { enabled: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => fmtEuroK(v), color: '#6B7785', font: { size: 20, family: FONT_CANVAS } }, grid: { color: '#e1e0d9' } },
+        x: { ticks: { color: '#6B7785', font: { size: 20, family: FONT_CANVAS }, autoSkip: false }, grid: { display: false } }
+      }
+    },
+    plugins: [whiteBg]
+  });
+  await new Promise(r => setTimeout(r, 20));
+  const dataUrl = canvas.toDataURL('image/png');
+  chart.destroy(); canvas.remove();
+  return { dataUrl, ratio: H / W };
+}
+
+const PDF = { W: 210, H: 297, M: 14, BLEU: [19, 81, 168], ROUGE: [192, 57, 43], VERT: [0, 137, 65], GRIS: [90, 90, 90] };
+
+function pdfHeader(pdf, title, subtitle) {
+  pdf.setFillColor(...PDF.BLEU);
+  pdf.rect(0, 0, PDF.W, 24, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(14);
+  pdf.text(pdfSafe(title), PDF.M, 11);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+  pdf.text(pdfSafe(subtitle), PDF.M, 18);
+}
+
+function pdfFooters(pdf) {
+  const n = pdf.getNumberOfPages();
+  for (let p = 1; p <= n; p++) {
+    pdf.setPage(p);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7); pdf.setTextColor(140, 140, 140);
+    pdf.text(pdfSafe(`DGDDI — Frais de contentieux (Budget_Mensuel, ${COL_CONTX}) — édité le ${dateFR()}`), PDF.M, PDF.H - 8);
+    pdf.text(`${p} / ${n}`, PDF.W - PDF.M, PDF.H - 8, { align: 'right' });
+  }
+}
+
+/** Dessine une fiche structure complète sur la page courante. */
+async function pdfDrawFiche(pdf, entity) {
+  const { series, table: t } = computeFiche(entity);
+  const typeTxt = entity.typeLabel === 'NAT' ? 'National' : entity.typeLabel;
+  pdfHeader(pdf, `Frais de contentieux — ${entity.sigle}`, `${typeTxt}${entity.nom && entity.nom !== entity.sigle ? ' · ' + entity.nom : ''} · Dépenses CP ${ANNEES[0]}-${ANNEES[ANNEES.length - 1]}`);
+
+  let y = 31;
+  pdf.setTextColor(120, 120, 120); pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8);
+  pdf.splitTextToSize(pdfSafe('Périmètre : ' + entity.perimetre), PDF.W - 2 * PDF.M).forEach(l => { pdf.text(l, PDF.M, y); y += 3.8; });
+  y += 2;
+
+  if (!t.hasData) {
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(...PDF.GRIS);
+    pdf.text(pdfSafe('Aucune dépense de contentieux enregistrée sur la période.'), PDF.M, y + 6);
+    return;
+  }
+
+  // KPI
+  const last = t.rows.find(r => r.annee === t.last);
+  const prev = t.rows.find(r => r.annee === t.last - 1);
+  const kpis = [[fmtEuro(last.total), `${t.last} - cumul à fin ${MOIS_LONG[t.moisRef - 1]}`, null]];
+  if (prev && prev.hasData && prev.cumulRef != null) kpis.push([fmtEvol(last.evolPeriode), `vs ${t.last - 1} même période (${fmtEuro(prev.cumulRef)})`, last.evolPeriode]);
+  if (t.moyenne != null) kpis.push([fmtEuro(t.moyenne), `Moyenne annuelle (années complètes)`, null]);
+  const kw = (PDF.W - 2 * PDF.M - (kpis.length - 1) * 4) / kpis.length;
+  kpis.forEach((k, i) => {
+    const x = PDF.M + i * (kw + 4);
+    pdf.setFillColor(245, 246, 248); pdf.rect(x, y, kw, 15, 'F');
+    pdf.setFillColor(...PDF.BLEU); pdf.rect(x, y, 0.9, 15, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+    pdf.setTextColor(...(k[2] > 0 ? PDF.ROUGE : k[2] < 0 ? PDF.VERT : [26, 26, 26]));
+    pdf.text(pdfSafe(k[0]), x + 4, y + 6.5);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7); pdf.setTextColor(...PDF.GRIS);
+    pdf.text(pdfSafe(k[1]), x + 4, y + 11.5);
+  });
+  y += 21;
+
+  // Graphique
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(68, 68, 68);
+  pdf.text(currentMode === 'cumule' ? 'Consommation CP cumulée depuis janvier' : 'Consommation CP mensuelle', PDF.M, y);
+  y += 3;
+  const img = await renderChartPNG(series);
+  const iw = PDF.W - 2 * PDF.M, ih = iw * img.ratio;
+  pdf.addImage(img.dataUrl, 'PNG', PDF.M, y, iw, ih);
+  y += ih + 8;
+
+  // Tableau annuel
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(68, 68, 68);
+  pdf.text(pdfSafe('Dépenses CP par année'), PDF.M, y);
+  y += 4;
+  const moisTxt = MOIS_COURT[t.moisRef - 1].toLowerCase();
+  const cols = [
+    { h: 'Année', w: 18, a: 'left' }, { h: 'Mois disponibles', w: 34, a: 'right' },
+    { h: 'Dépenses CP', w: 32, a: 'right' }, { h: 'Évol. vs N-1', w: 26, a: 'right' },
+    { h: `Cumul jan.-${moisTxt}`, w: 46, a: 'right' }, { h: 'Évol. même période', w: 26, a: 'right' }
+  ];
+  const tw = cols.reduce((s, c) => s + c.w, 0);
+  const cellX = (i) => { let x = PDF.M; for (let k = 0; k < i; k++) x += cols[k].w; return cols[i].a === 'right' ? x + cols[i].w - 2 : x + 2; };
+
+  pdf.setFillColor(245, 246, 248); pdf.rect(PDF.M, y, tw, 7, 'F');
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.5); pdf.setTextColor(68, 68, 68);
+  cols.forEach((c, i) => pdf.text(pdfSafe(c.h), cellX(i), y + 4.7, { align: c.a }));
+  y += 7;
+
+  const drawRow = (cells, opts = {}) => {
+    pdf.setFont('helvetica', opts.bold ? 'bold' : (opts.italic ? 'italic' : 'normal'));
+    pdf.setFontSize(8);
+    cells.forEach((v, i) => {
+      const col = opts.colors && opts.colors[i];
+      pdf.setTextColor(...(col || opts.color || [26, 26, 26]));
+      pdf.text(pdfSafe(v), cellX(i), y + 4.6, { align: cols[i].a });
+    });
+    pdf.setDrawColor(230, 232, 236); pdf.line(PDF.M, y + 6.6, PDF.M + tw, y + 6.6);
+    y += 6.6;
+  };
+  const evolColor = v => (v == null || !isFinite(v) || v === 0) ? null : (v > 0 ? PDF.ROUGE : PDF.VERT);
+
+  t.rows.forEach(r => {
+    if (!r.hasData) { drawRow([String(r.annee), '—', '—', '—', '—', '—'], { color: [150, 150, 150] }); return; }
+    const periode = r.complete ? '12 / 12' : `${r.nbMois} / 12 (fin ${MOIS_COURT[r.nbMois - 1].toLowerCase()}.)`;
+    const isLast = r.annee === t.last;
+    drawRow([String(r.annee), periode, fmtEuro(r.total), fmtEvol(r.evolAnnuelle), fmtEuro(r.cumulRef), fmtEvol(r.evolPeriode)], {
+      bold: isLast, color: isLast ? PDF.BLEU : null,
+      colors: [null, null, null, evolColor(r.evolAnnuelle), null, evolColor(r.evolPeriode)]
+    });
+  });
+  drawRow([`Total ${ANNEES[0]}-${ANNEES[ANNEES.length - 1]}`, '', fmtEuro(t.totalPeriode), '', '', ''], { italic: true, color: [68, 68, 68] });
+  if (t.moyenne != null) drawRow(['Moyenne années complètes', '', fmtEuro(t.moyenne), '', '', ''], { italic: true, color: [68, 68, 68] });
+
+  y += 5;
+  pdf.setFont('helvetica', 'italic'); pdf.setFontSize(7); pdf.setTextColor(140, 140, 140);
+  const note = buildNote(t).replace(/[«»]/g, '"');
+  pdf.splitTextToSize(pdfSafe(note), PDF.W - 2 * PDF.M).forEach(l => { if (y < PDF.H - 14) { pdf.text(l, PDF.M, y); y += 3.4; } });
+}
+
+/** Page(s) de synthèse : une ligne par structure, dépenses annuelles 2022-2026. */
+function pdfDrawSynthese(pdf, entities) {
+  pdfHeader(pdf, 'Frais de contentieux — synthèse par structure', `Dépenses CP ${ANNEES[0]}-${ANNEES[ANNEES.length - 1]} (année en cours : cumul au dernier mois disponible)`);
+  const cols = [{ h: 'Structure', w: 34, a: 'left' }, ...ANNEES.map(a => ({ h: String(a), w: 25, a: 'right' })), { h: 'Évol. même pér.', w: 23, a: 'right' }];
+  const cellX = i => { let x = PDF.M; for (let k = 0; k < i; k++) x += cols[k].w; return cols[i].a === 'right' ? x + cols[i].w - 2 : x + 2; };
+  const tw = cols.reduce((s, c) => s + c.w, 0);
+  let y = 31;
+
+  const header = () => {
+    pdf.setFillColor(245, 246, 248); pdf.rect(PDF.M, y, tw, 7, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.5); pdf.setTextColor(68, 68, 68);
+    cols.forEach((c, i) => pdf.text(pdfSafe(c.h), cellX(i), y + 4.7, { align: c.a }));
+    y += 7;
+  };
+  header();
+
+  entities.forEach(e => {
+    if (y > PDF.H - 20) { pdf.addPage(); y = 14; header(); }
+    const { table: t } = computeFiche(e);
+    const last = t.hasData ? t.rows.find(r => r.annee === t.last) : null;
+    const cells = [e.sigle, ...ANNEES.map(a => {
+      const r = t.hasData ? t.rows.find(x => x.annee === a) : null;
+      if (!r || !r.hasData) return '—';
+      return fmtEuroK(r.total) + (r.complete ? '' : '*');
+    }), last ? fmtEvol(last.evolPeriode) : '—'];
+    const isNat = e.typeLabel === 'NAT';
+    pdf.setFont('helvetica', isNat ? 'bold' : 'normal'); pdf.setFontSize(7.5);
+    cells.forEach((v, i) => {
+      let col = isNat ? PDF.BLEU : [26, 26, 26];
+      if (i === cells.length - 1 && last && last.evolPeriode) col = last.evolPeriode > 0 ? PDF.ROUGE : PDF.VERT;
+      pdf.setTextColor(...col);
+      pdf.text(pdfSafe(v), cellX(i), y + 4.4, { align: cols[i].a });
+    });
+    pdf.setDrawColor(230, 232, 236); pdf.line(PDF.M, y + 6.2, PDF.M + tw, y + 6.2);
+    y += 6.2;
+  });
+
+  y += 4;
+  pdf.setFont('helvetica', 'italic'); pdf.setFontSize(7); pdf.setTextColor(140, 140, 140);
+  pdf.text(pdfSafe('* année incomplète (cumul au dernier mois disponible). « Évol. même pér. » : année la plus récente vs N-1 sur la même période.').replace(/[«»]/g, '"'), PDF.M, Math.min(y, PDF.H - 14));
+}
+
+function newPDF() {
+  const { jsPDF } = window.jspdf;
+  return new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+}
+
+function checkLibs() {
+  if (typeof window.jspdf === 'undefined') { alert('Bibliothèque jsPDF non chargée. Rechargez la page.'); return false; }
+  return true;
+}
+
+async function exportPDFStructure() {
+  if (!checkLibs()) return;
+  const e = ENTITIES.find(x => x.key === currentKey);
+  if (!e) { alert('Aucune structure sélectionnée.'); return; }
+  const btn = document.getElementById('btn-pdf-one');
+  btn.disabled = true;
+  try {
+    const pdf = newPDF();
+    await pdfDrawFiche(pdf, e);
+    pdfFooters(pdf);
+    pdf.save(`contentieux-CP-${e.sigle.replace(/[^a-z0-9\-]+/gi, '_')}-${pdfTimestamp()}.pdf`);
+  } catch (err) {
+    console.error(err); alert('Erreur lors de la génération du PDF : ' + err.message);
+  } finally { btn.disabled = false; }
+}
+
+async function exportPDFGroupe() {
+  if (!checkLibs()) return;
+  const types = [...document.querySelectorAll('.type-cb:checked')].map(cb => cb.value);
+  const withNat = document.getElementById('cb-national').checked;
+  const withSynth = document.getElementById('cb-synthese').checked;
+  const skipEmpty = document.getElementById('cb-skip-empty').checked;
+
+  let list = ENTITIES.filter(e => (e.typeLabel === 'NAT' && withNat) || types.includes(e.typeLabel));
+  if (skipEmpty) list = list.filter(e => computeFiche(e).table.hasData);
+  if (!list.length) { alert('Aucune structure à exporter avec ces filtres.'); return; }
+
+  const btn = document.getElementById('btn-pdf-all');
+  const prog = document.getElementById('pdf-progress');
+  btn.disabled = true;
+  try {
+    const pdf = newPDF();
+    let first = true;
+    if (withSynth) { pdfDrawSynthese(pdf, list); first = false; }
+    for (let i = 0; i < list.length; i++) {
+      prog.textContent = `Fiche ${i + 1} / ${list.length} — ${list[i].sigle}`;
+      if (!first) pdf.addPage();
+      first = false;
+      await pdfDrawFiche(pdf, list[i]);
+      await new Promise(r => setTimeout(r, 0)); // laisse respirer l'UI
+    }
+    pdfFooters(pdf);
+    pdf.save(`contentieux-CP-structures-${pdfTimestamp()}.pdf`);
+    prog.textContent = `✓ ${list.length} fiche${list.length > 1 ? 's' : ''} exportée${list.length > 1 ? 's' : ''}`;
+  } catch (err) {
+    console.error(err); prog.textContent = '';
+    alert('Erreur lors de la génération du PDF : ' + err.message);
+  } finally { btn.disabled = false; }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    grist.ready({ requiredAccess: 'read table' });
+    Chart.defaults.font.family = FONT_CANVAS;
+
+    const [structures, bm] = await Promise.all([
+      grist.docApi.fetchTable('Structures').catch(() => null),
+      grist.docApi.fetchTable('Budget_Mensuel').catch(() => null)
+    ]);
+    if (!structures) throw new Error('Table Structures non accessible.');
+    if (!bm || !bm.id) throw new Error('Table Budget_Mensuel non accessible.');
+    if (!bm[COL_CONTX]) throw new Error(`Colonne ${COL_CONTX} absente de Budget_Mensuel.`);
+
+    STATE_structures = structures;
+    STATE_bm = bm;
+    ENTITIES = buildEntities();
+
+    populateSelect();
+    document.getElementById('loading').style.display = 'none';
+
+    // Si l'utilisateur n'a accès qu'à une structure (ACL), on ouvre directement sa fiche
+    const firstStructure = ENTITIES.find(e => e.typeLabel !== 'NAT');
+    selectEntity(ENTITIES.length === 2 && firstStructure ? firstStructure.key : ENTITIES[0].key);
+
+    // Suivi de la ligne sélectionnée quand le widget est lié à la table Structures
+    grist.onRecord(rec => {
+      if (!rec) return;
+      const sigle = (rec.Sigle || '').trim();
+      const ent = ENTITIES.find(e => e.key === String(rec.id) && e.sigle === sigle)
+        || (sigle ? ENTITIES.find(e => e.sigle === sigle) : null)
+        || (rec.Type_Affichage === 'DG' ? ENTITIES.find(e => e.key === 'DG') : null);
+      if (ent && ent.key !== currentKey) selectEntity(ent.key);
+    });
+  } catch (err) {
+    console.error(err);
+    document.getElementById('loading').style.display = 'none';
+    const el = document.getElementById('error');
+    el.style.display = '';
+    el.textContent = '⚠️ ' + err.message;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
