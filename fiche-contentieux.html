@@ -412,8 +412,8 @@ function buildDatasets(series, mode, forPdf) {
       label: String(a),
       data: mode === 'cumule' ? toCumulative(series[a]) : series[a],
       borderColor: color, backgroundColor: color,
-      borderWidth: forPdf ? (isLast ? 5 : 2.5) : (isLast ? 3 : 1.5),
-      borderDash: isLast ? [] : (forPdf ? [8, 6] : [4, 3]),
+      borderWidth: forPdf ? (isLast ? 3.2 : 1.6) : (isLast ? 3 : 1.5),
+      borderDash: isLast ? [] : (forPdf ? [5, 4] : [4, 3]),
       pointRadius: 0, pointHoverRadius: 4, tension: 0.25, spanGaps: false
     };
   });
@@ -581,8 +581,9 @@ function buildNote(entity, t) {
 
 // ── Export PDF ────────────────────────────────────────────────────────────────
 /** Graphique hors écran -> PNG haute résolution, fond blanc, police système. */
-async function renderChartPNG(series) {
-  const W = 1600, H = 720;
+async function renderChartImage(series) {
+  // 1000 px sur 182 mm ≈ 140 dpi : net à l'impression, ~10x plus léger qu'avant
+  const W = 1000, H = 450;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   canvas.style.cssText = 'position:fixed;left:-99999px;top:0;';
@@ -594,16 +595,17 @@ async function renderChartPNG(series) {
     options: {
       responsive: false, animation: false, devicePixelRatio: 1,
       font: { family: FONT_CANVAS },
-      plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 22, family: FONT_CANVAS }, boxWidth: 30, padding: 24 } }, tooltip: { enabled: false } },
+      plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 14, family: FONT_CANVAS }, boxWidth: 20, padding: 16 } }, tooltip: { enabled: false } },
       scales: {
-        y: { beginAtZero: true, ticks: { callback: v => fmtEuroK(v), color: '#6B7785', font: { size: 20, family: FONT_CANVAS } }, grid: { color: '#e1e0d9' } },
-        x: { ticks: { color: '#6B7785', font: { size: 20, family: FONT_CANVAS }, autoSkip: false }, grid: { display: false } }
+        y: { beginAtZero: true, ticks: { callback: v => fmtEuroK(v), color: '#6B7785', font: { size: 13, family: FONT_CANVAS } }, grid: { color: '#e1e0d9' } },
+        x: { ticks: { color: '#6B7785', font: { size: 13, family: FONT_CANVAS }, autoSkip: false }, grid: { display: false } }
       }
     },
     plugins: [whiteBg]
   });
   await new Promise(r => setTimeout(r, 20));
-  const dataUrl = canvas.toDataURL('image/png');
+  // JPEG (fond blanc déjà peint) : un PNG non compressé pesait ~1,5 Mo par graphique
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
   chart.destroy(); canvas.remove();
   return { dataUrl, ratio: H / W };
 }
@@ -673,9 +675,9 @@ async function pdfDrawFiche(pdf, entity) {
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(68, 68, 68);
   pdf.text(pdfSafe(currentMode === 'cumule' ? 'Consommation CP cumulée depuis janvier' : 'Consommation CP mensuelle'), PDF.M, y);
   y += 3;
-  const img = await renderChartPNG(series);
+  const img = await renderChartImage(series);
   const iw = PDF.W - 2 * PDF.M, ih = iw * img.ratio;
-  pdf.addImage(img.dataUrl, 'PNG', PDF.M, y, iw, ih);
+  pdf.addImage(img.dataUrl, 'JPEG', PDF.M, y, iw, ih, undefined, 'FAST');
   y += ih + 7;
 
   // Tableau annuel
@@ -772,7 +774,7 @@ function pdfDrawSynthese(pdf, entities) {
 
 function newPDF() {
   const { jsPDF } = window.jspdf;
-  return new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  return new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
 }
 
 function checkLibs() {
