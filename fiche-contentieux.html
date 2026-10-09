@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Frais de contentieux — Dépenses CP par structure</title>
+<title>Dépenses CP par poste — fiches par structure</title>
 
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -25,6 +25,14 @@
   .page-header .subtitle { font-size: 11px; opacity: .8; margin-top: 2px; }
   .header-controls { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .header-controls select { font-family: var(--font); font-size: 12px; padding: 5px 8px; border-radius: 4px; border: none; min-width: 240px; }
+
+  /* Sélecteur de poste */
+  .poste-bar { background: #fff; border-bottom: 1px solid var(--bord); padding: 8px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: sticky; top: 0; z-index: 10; }
+  .poste-bar .lbl { font-size: 11px; color: var(--gris3); }
+  .poste-btn { font-family: var(--font); font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px; border: 1px solid var(--bord); background: #fff; color: var(--gris2); cursor: pointer; }
+  .poste-btn:hover { border-color: var(--bleu); color: var(--bleu); }
+  .poste-btn.on { background: var(--bleu); border-color: var(--bleu); color: #fff; font-weight: 600; }
+  .poste-btn:disabled { opacity: .4; cursor: not-allowed; border-color: var(--bord); color: var(--gris3); }
 
   .btn { font-family: var(--font); font-size: 11px; font-weight: 600; padding: 6px 12px; border-radius: 4px; border: 1px solid var(--bord); background: #fff; color: var(--bleu); cursor: pointer; }
   .btn:hover { background: #EEF3FB; }
@@ -75,6 +83,7 @@
   .export-box { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
   .export-box .types { display: flex; gap: 12px; flex-wrap: wrap; }
   .export-box label { font-size: 11.5px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .export-box .sep { width: 1px; align-self: stretch; background: var(--bord); }
   .progress { font-size: 11px; color: var(--gris3); }
   .error { background: #FDECEA; color: var(--rouge); padding: 12px; border-radius: 4px; }
 </style>
@@ -83,13 +92,18 @@
 
 <div class="page-header">
   <div>
-    <h1>Frais de contentieux — dépenses CP 2022-2026</h1>
-    <div class="subtitle">Consommation CP mensuelle (Budget_Mensuel · Conso_Contx_CP), par structure</div>
+    <h1 id="page-title">Dépenses CP 2022-2026</h1>
+    <div class="subtitle" id="page-subtitle">Consommation CP mensuelle (Budget_Mensuel), par structure</div>
   </div>
   <div class="header-controls">
     <select id="structure-select" onchange="selectEntity(this.value)"></select>
-    <button class="btn" id="btn-pdf-one" onclick="exportPDFStructure()">📄 PDF de la fiche</button>
+    <button class="btn" id="btn-pdf-one" onclick="exportPDFStructure(false)" title="PDF de la structure affichée, poste sélectionné">📄 PDF de la fiche</button>
+    <button class="btn" id="btn-pdf-one-all" onclick="exportPDFStructure(true)" title="PDF de la structure affichée, une page par poste">📄 PDF 5 postes</button>
   </div>
+</div>
+
+<div class="poste-bar" id="poste-bar">
+  <span class="lbl">Poste :</span>
 </div>
 
 <div class="main">
@@ -114,8 +128,8 @@
         <button id="mode-cumule" class="on" onclick="setMode('cumule')">Cumulé</button>
       </div>
     </div>
-    <div id="f-chart-wrapper" class="chart-wrapper"><canvas id="chart-contentieux"></canvas></div>
-    <div id="f-chart-empty" class="empty" style="display:none;">⚠️ Aucune dépense de contentieux enregistrée pour ce périmètre sur 2022-2026</div>
+    <div id="f-chart-wrapper" class="chart-wrapper"><canvas id="chart-main"></canvas></div>
+    <div id="f-chart-empty" class="empty" style="display:none;"></div>
 
     <div class="section-title" style="margin-top:20px;"><h2>Dépenses CP par année</h2></div>
     <div class="table-scroll" id="f-table"></div>
@@ -125,6 +139,11 @@
   <div class="card">
     <div class="section-title"><h2>Export PDF groupé (une fiche par structure)</h2></div>
     <div class="export-box">
+      <div class="types">
+        <label><input type="radio" name="export-postes" value="current" checked> Poste affiché</label>
+        <label><input type="radio" name="export-postes" value="all"> Les 5 postes</label>
+      </div>
+      <div class="sep"></div>
       <div class="types">
         <label><input type="checkbox" class="type-cb" value="DG" checked> DG</label>
         <label><input type="checkbox" class="type-cb" value="DI" checked> DI</label>
@@ -144,7 +163,27 @@
 <script>
 // ── Constantes ────────────────────────────────────────────────────────────────
 const ANNEES = [2022, 2023, 2024, 2025, 2026];
-const COL_CONTX = 'Conso_Contx_CP';
+
+/**
+ * Postes disponibles dans le sélecteur (colonnes de Budget_Mensuel, CP).
+ *  - kind 'mois'  : la colonne porte la consommation DU MOIS (Conso_*_CP) ;
+ *  - kind 'cumul' : la colonne est un cumul depuis janvier précalculé dans Grist
+ *                   (Cumul_CP_*) -> la consommation du mois est reconstruite par
+ *                   différence (même règle que toIncrementalSerie du core).
+ *  colLocal : part locale utilisée au numérateur du poids (sinon col, hors Siège).
+ *  cible    : ligne cible « loyer annuel estimé » (table Immobilier), comme dans
+ *             la fiche identité.
+ */
+const POSTES = {
+  vehicules:   { label: 'Automobile',       titre: 'Dépenses automobiles',            kind: 'cumul', col: 'Cumul_CP_vehicules', colLocal: 'Cumul_CP_vehicules_local' },
+  formation:   { label: 'Formation',        titre: 'Frais de formation',              kind: 'mois',  col: 'Conso_Formation_CP' },
+  missions:    { label: 'Frais de mission', titre: 'Frais de mission (hors formation)', kind: 'mois', col: 'Conso_Missions_CP' },
+  loyer:       { label: 'Loyer',            titre: 'Loyers',                          kind: 'mois',  col: 'Conso_Loyer_CP', cible: true },
+  contentieux: { label: 'Contentieux',      titre: 'Frais de contentieux',            kind: 'mois',  col: 'Conso_Contx_CP' }
+};
+const POSTE_ORDER = ['vehicules', 'formation', 'missions', 'loyer', 'contentieux'];
+const POSTE_DEFAUT = 'contentieux';
+
 // Dépenses locales hors Immobilier et hors T6 Buralistes = Véhicules local + Fonctionnement local.
 // Priorité aux cumuls précalculés côté Grist (même source que les graphiques de la fiche
 // identité) ; à défaut, somme des consommations du mois.
@@ -154,18 +193,23 @@ const TYPES_AFFICHES = ['DG', 'DI_Hexagone', 'DI_Outremer', 'DR_Antilles', 'DR_O
 const MOIS_COURT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 const MOIS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const FONT_CANVAS = 'Arial, Helvetica, sans-serif';
+const COULEUR_CIBLE = '#B52020';
 
 // ── État ──────────────────────────────────────────────────────────────────────
 let STATE_structures = null;
 let STATE_bm = null;
+let STATE_immo = null;
 let SIEGE_IDS = new Set();   // structures DG / Siège : pas d'enveloppe locale
 let SKIP_ROW = null;         // lignes Budget_Mensuel ignorées (anti-doublon DI 972)
 let LOCAL_MODE = null;       // 'cumul' | 'mois' | null (colonnes locales absentes)
+let POSTE_DISPO = {};        // poste -> colonne présente dans Budget_Mensuel
 let DEDUP_INFO = { di972Id: null, nbIgnorees: 0 };
 let ENTITIES = [];           // [{key, sigle, nom, typeLabel, ids, perimetre}]
 let currentKey = null;
+let currentPoste = POSTE_DEFAUT;
 let currentMode = 'cumule';  // 'mensuel' | 'cumule'
 let chartInstance = null;
+const FICHE_CACHE = new Map(); // `${entity.key}|${poste}` -> résultat de computeFiche
 
 // ── Formatage ─────────────────────────────────────────────────────────────────
 const fmtEuro = v => (v != null && !isNaN(v)) ? Math.round(v).toLocaleString('fr-FR') + ' €' : '—';
@@ -182,6 +226,7 @@ const evolClass = v => (v == null || !isFinite(v) || v === 0) ? '' : (v > 0 ? 'u
 // jsPDF (helvetica) ne gère pas les espaces insécables de toLocaleString('fr-FR')
 const pdfSafe = s => String(s).replace(/[    ]/g, ' ').replace(/[«»]/g, '"');
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const safeName = s => String(s).replace(/[^a-z0-9\-]+/gi, '_');
 
 function pdfTimestamp() {
   const d = new Date(), p = n => String(n).padStart(2, '0');
@@ -228,12 +273,13 @@ function getDRRattachees(structureId) {
  * Budget_Mensuel contient, pour un même (année, mois), à la fois une ligne
  * DI 972 et des lignes de ses DR, la ligne DI 972 est ignorée (le détail DR
  * prime). Une ligne DI 972 seule (sans DR ce mois-là) reste prise en compte.
- * Calculé une fois pour toutes : s'applique à la fiche DI 972 et aux fiches
- * nationales.
+ * Calculé une fois pour toutes : s'applique à tous les postes, à la fiche
+ * DI 972 et aux fiches nationales.
  */
 function buildSkipRows() {
   const s = STATE_structures, bm = STATE_bm;
   SKIP_ROW = new Uint8Array(bm.id.length);
+  DEDUP_INFO = { di972Id: null, nbIgnorees: 0 };
   const i972 = s.id.findIndex((_, i) => (s.Sigle?.[i] || '').trim() === 'DI 972');
   if (i972 === -1) return;
   const di972 = s.id[i972];
@@ -247,7 +293,7 @@ function buildSkipRows() {
       DEDUP_INFO.nbIgnorees++;
     }
   });
-  if (DEDUP_INFO.nbIgnorees) console.warn(`[contentieux] ${DEDUP_INFO.nbIgnorees} ligne(s) DI 972 ignorée(s) : doublon avec DR 971/972/973`);
+  if (DEDUP_INFO.nbIgnorees) console.warn(`[depenses-cp] ${DEDUP_INFO.nbIgnorees} ligne(s) DI 972 ignorée(s) : doublon avec DR 971/972/973`);
 }
 
 function buildEntities() {
@@ -300,48 +346,13 @@ function buildEntities() {
 }
 
 // ── Calculs ───────────────────────────────────────────────────────────────────
-/**
- * Agrège Budget_Mensuel sur un périmètre (2022-2026), par année et mois :
- *  - contx    : contentieux CP du mois, toutes structures du périmètre ;
- *  - contxLoc : contentieux CP du mois, hors Siège (numérateur du poids) ;
- *  - local    : dépenses locales CP hors Immo / hors T6 (dénominateur du poids),
- *               en cumul depuis janvier, hors Siège.
- * La série s'arrête net (null) au premier mois sans aucune ligne sur le périmètre,
- * même règle que la fiche identité.
- */
-function computeSeries(ids) {
-  const bm = STATE_bm, idsSet = new Set(ids);
-  const acc = {};
-  bm.id.forEach((_, i) => {
-    if (SKIP_ROW[i] || !idsSet.has(bm.Structure[i])) return;
-    const a = Number(bm.Annee[i]), m = Number(bm.Mois[i]);
-    if (!ANNEES.includes(a) || !m || m < 1 || m > 12) return;
-    const cell = ((acc[a] = acc[a] || {})[m] = acc[a][m] || { contx: 0, contxLoc: 0, local: 0 });
-    const c = Number(bm[COL_CONTX]?.[i]) || 0;
-    cell.contx += c;
-    if (!SIEGE_IDS.has(bm.Structure[i])) {
-      cell.contxLoc += c;
-      if (LOCAL_MODE === 'cumul') cell.local += COLS_LOCAL_CUMUL.reduce((s, col) => s + (Number(bm[col]?.[i]) || 0), 0);
-      else if (LOCAL_MODE === 'mois') cell.local += COLS_LOCAL_MOIS.reduce((s, col) => s + (Number(bm[col]?.[i]) || 0), 0);
-    }
+/** Série cumulée -> consommation du mois (différence avec le mois précédent). */
+function toIncremental(cum) {
+  return cum.map((v, i) => {
+    if (v == null) return null;
+    const prev = i === 0 ? 0 : cum[i - 1];
+    return prev == null ? null : v - prev;
   });
-
-  const series = {}, contxLoc = {}, localCumul = {};
-  ANNEES.forEach(a => {
-    if (!acc[a]) return;
-    const s = Array(12).fill(null), cl = Array(12).fill(null), lc = Array(12).fill(null);
-    let runLocal = 0;
-    for (let m = 1; m <= 12; m++) {
-      const cell = acc[a][m];
-      if (!cell) break;
-      s[m - 1] = Math.round(cell.contx);
-      cl[m - 1] = cell.contxLoc;
-      runLocal = LOCAL_MODE === 'cumul' ? cell.local : runLocal + cell.local;
-      lc[m - 1] = runLocal;
-    }
-    if (s.some(v => v != null)) { series[a] = s; contxLoc[a] = cl; localCumul[a] = lc; }
-  });
-  return { series, contxLoc, localCumul };
 }
 
 function toCumulative(serie) {
@@ -355,9 +366,58 @@ function toCumulative(serie) {
 
 const sumTo = (arr, n) => arr.slice(0, n).reduce((acc, v) => acc + (v || 0), 0);
 
+/**
+ * Agrège Budget_Mensuel sur un périmètre (2022-2026), par année et mois, pour un poste :
+ *  - series   : consommation CP du mois du poste, toutes structures du périmètre ;
+ *  - numLoc   : consommation du mois du poste, hors Siège (part locale pour
+ *               l'automobile) -> numérateur du poids ;
+ *  - localCum : dépenses locales CP hors Immo / hors T6, cumul depuis janvier,
+ *               hors Siège -> dénominateur du poids.
+ * La série s'arrête net (null) au premier mois sans aucune ligne sur le périmètre,
+ * même règle que la fiche identité.
+ */
+function computeSeries(ids, posteKey) {
+  const P = POSTES[posteKey];
+  const bm = STATE_bm, idsSet = new Set(ids);
+  const colNum = (P.colLocal && bm[P.colLocal]) ? P.colLocal : P.col;
+  const acc = {};
+  bm.id.forEach((_, i) => {
+    if (SKIP_ROW[i] || !idsSet.has(bm.Structure[i])) return;
+    const a = Number(bm.Annee[i]), m = Number(bm.Mois[i]);
+    if (!ANNEES.includes(a) || !m || m < 1 || m > 12) return;
+    const cell = ((acc[a] = acc[a] || {})[m] = acc[a][m] || { v: 0, vLoc: 0, local: 0 });
+    cell.v += Number(bm[P.col]?.[i]) || 0;
+    if (!SIEGE_IDS.has(bm.Structure[i])) {
+      cell.vLoc += Number(bm[colNum]?.[i]) || 0;
+      if (LOCAL_MODE === 'cumul') cell.local += COLS_LOCAL_CUMUL.reduce((s, col) => s + (Number(bm[col]?.[i]) || 0), 0);
+      else if (LOCAL_MODE === 'mois') cell.local += COLS_LOCAL_MOIS.reduce((s, col) => s + (Number(bm[col]?.[i]) || 0), 0);
+    }
+  });
+
+  const series = {}, numLoc = {}, localCum = {};
+  ANNEES.forEach(a => {
+    if (!acc[a]) return;
+    let s = Array(12).fill(null), nl = Array(12).fill(null);
+    const lc = Array(12).fill(null);
+    let runLocal = 0;
+    for (let m = 1; m <= 12; m++) {
+      const cell = acc[a][m];
+      if (!cell) break;
+      s[m - 1] = cell.v;
+      nl[m - 1] = cell.vLoc;
+      runLocal = LOCAL_MODE === 'cumul' ? cell.local : runLocal + cell.local;
+      lc[m - 1] = runLocal;
+    }
+    if (P.kind === 'cumul') { s = toIncremental(s); nl = toIncremental(nl); }
+    s = s.map(v => v == null ? null : Math.round(v));
+    if (s.some(v => v != null)) { series[a] = s; numLoc[a] = nl; localCum[a] = lc; }
+  });
+  return { series, numLoc, localCum };
+}
+
 /** Tableau annuel : total, mois disponibles, évolutions, poids dans les dépenses locales. */
 function computeAnnualTable(agg) {
-  const { series, contxLoc, localCumul } = agg;
+  const { series, numLoc, localCum } = agg;
   const annees = ANNEES.filter(a => series[a]);
   if (!annees.length) return { hasData: false, rows: [], annees: [] };
 
@@ -370,10 +430,11 @@ function computeAnnualTable(agg) {
     const nbMois = s.filter(v => v != null).length;
     const total = sumTo(s, nbMois);
     const cumulRef = nbMois >= moisRef ? sumTo(s, moisRef) : null;
-    // Poids = contentieux (hors Siège) / dépenses locales CP hors Immo et T6, à fin du dernier mois dispo
-    const local = LOCAL_MODE ? localCumul[a][nbMois - 1] : null;
-    const poids = local > 0 ? sumTo(contxLoc[a], nbMois) / local : null;
-    return { annee: a, hasData: true, nbMois, total, complete: nbMois === 12, cumulRef, local, poids };
+    // Poids = poste (hors Siège) / dépenses locales CP hors Immo et T6, à fin du dernier mois dispo
+    const local = LOCAL_MODE ? localCum[a][nbMois - 1] : null;
+    const num = sumTo(numLoc[a], nbMois);
+    const poids = local > 0 ? num / local : null;
+    return { annee: a, hasData: true, nbMois, total, complete: nbMois === 12, cumulRef, local, num, poids };
   });
 
   rows.forEach((r, i) => {
@@ -388,24 +449,57 @@ function computeAnnualTable(agg) {
   const completes = withData.filter(r => r.complete);
   const moyenne = completes.length ? completes.reduce((acc, r) => acc + r.total, 0) / completes.length : null;
   const totalPeriode = withData.reduce((acc, r) => acc + r.total, 0);
-  // Poids moyen sur la période : Σ contentieux ÷ Σ dépenses locales (pondéré, jamais une moyenne de taux)
+  // Poids moyen sur la période : Σ poste ÷ Σ dépenses locales (pondéré, jamais une moyenne de taux)
   const sumLocal = withData.reduce((acc, r) => acc + (r.local || 0), 0);
-  const sumContxLoc = withData.reduce((acc, r) => acc + (r.local ? sumTo(contxLoc[r.annee], r.nbMois) : 0), 0);
-  const poidsPeriode = sumLocal > 0 ? sumContxLoc / sumLocal : null;
+  const sumNum = withData.reduce((acc, r) => acc + (r.local ? r.num : 0), 0);
+  const poidsPeriode = sumLocal > 0 ? sumNum / sumLocal : null;
 
   return { hasData: true, rows, annees, last, moisRef, moyenne, nbCompletes: completes.length, totalPeriode, poidsPeriode };
 }
 
-function isSiegeOnly(entity) { return entity.ids.length > 0 && entity.ids.every(id => SIEGE_IDS.has(id)); }
-
-function computeFiche(entity) {
-  const agg = computeSeries(entity.ids);
-  return { series: agg.series, table: computeAnnualTable(agg) };
+/**
+ * Loyer annuel estimé (table Immobilier, Loyer_Annuel), dédupliqué par site —
+ * même règle que la fiche identité et le tableau de bord budget. National :
+ * tous les sites ; national hors DG : sites hors Siège ; sinon : périmètre.
+ */
+function getLoyerAnnuel(entity) {
+  const immo = STATE_immo;
+  if (!immo || !immo.id || !immo.Loyer_Annuel) return null;
+  const idsSet = new Set(entity.ids);
+  const inScope = entity.key === 'national' ? () => true
+    : entity.key === 'national_hors_dg' ? sid => !SIEGE_IDS.has(sid)
+    : sid => idsSet.has(sid);
+  const seen = new Set();
+  let total = 0;
+  for (let i = 0; i < immo.id.length; i++) {
+    if (!inScope(immo.Structure?.[i])) continue;
+    const siteKey = immo.site?.[i] || immo.Libelle?.[i] || String(immo.id[i]);
+    if (seen.has(siteKey)) continue;
+    seen.add(siteKey);
+    total += Number(immo.Loyer_Annuel[i]) || 0;
+  }
+  return total > 0 ? total : null;
 }
 
-function buildDatasets(series, mode, forPdf) {
+function isSiegeOnly(entity) { return entity.ids.length > 0 && entity.ids.every(id => SIEGE_IDS.has(id)); }
+
+function computeFiche(entity, posteKey) {
+  const k = entity.key + '|' + posteKey;
+  if (FICHE_CACHE.has(k)) return FICHE_CACHE.get(k);
+  const agg = computeSeries(entity.ids, posteKey);
+  const res = {
+    series: agg.series,
+    table: computeAnnualTable(agg),
+    loyerAnnuel: POSTES[posteKey].cible ? getLoyerAnnuel(entity) : null
+  };
+  FICHE_CACHE.set(k, res);
+  return res;
+}
+
+function buildDatasets(fiche, mode, forPdf) {
+  const { series, loyerAnnuel } = fiche;
   const annees = ANNEES.filter(a => series[a]);
-  return annees.map((a, idx) => {
+  const ds = annees.map((a, idx) => {
     const color = yearColor(idx, annees.length);
     const isLast = idx === annees.length - 1;
     return {
@@ -417,9 +511,19 @@ function buildDatasets(series, mode, forPdf) {
       pointRadius: 0, pointHoverRadius: 4, tension: 0.25, spanGaps: false
     };
   });
+  if (loyerAnnuel) {
+    const v = mode === 'cumule' ? loyerAnnuel : loyerAnnuel / 12;
+    ds.push({
+      label: mode === 'cumule' ? 'Loyer annuel estimé' : 'Moyenne mensuelle estimée',
+      data: Array(12).fill(Math.round(v)),
+      borderColor: COULEUR_CIBLE, backgroundColor: COULEUR_CIBLE,
+      borderWidth: 2, borderDash: [2, 3], pointRadius: 0, tension: 0
+    });
+  }
+  return ds;
 }
 
-/** Libellé de la colonne poids (et explication de son absence pour le DG). */
+/** Explication de l'absence de poids (DG, colonnes absentes). */
 function poidsLabel(entity) {
   if (isSiegeOnly(entity)) return 'non applicable au DG (pas d\'enveloppe locale)';
   if (!LOCAL_MODE) return 'colonnes locales absentes de Budget_Mensuel';
@@ -438,6 +542,24 @@ function buildWarn(entity) {
 }
 
 // ── Rendu écran ───────────────────────────────────────────────────────────────
+function renderPosteBar() {
+  const bar = document.getElementById('poste-bar');
+  bar.innerHTML = '<span class="lbl">Poste :</span>' + POSTE_ORDER.map(k => {
+    const P = POSTES[k];
+    const dis = !POSTE_DISPO[k];
+    return `<button class="poste-btn${k === currentPoste ? ' on' : ''}" ${dis ? 'disabled' : ''}
+      title="${escapeHtml(dis ? `Colonne ${P.col} absente de Budget_Mensuel` : P.titre)}"
+      onclick="setPoste('${k}')">${escapeHtml(P.label)}</button>`;
+  }).join('');
+}
+
+function setPoste(k) {
+  if (!POSTE_DISPO[k]) return;
+  currentPoste = k;
+  renderPosteBar();
+  renderFiche();
+}
+
 function populateSelect() {
   const sel = document.getElementById('structure-select');
   const groups = { NAT: 'National', DG: 'DG', DI: 'DI', DR: 'DR outre-mer', SCN: 'SCN' };
@@ -462,10 +584,19 @@ function setMode(mode) {
   renderFiche();
 }
 
+function chartTitle(posteKey) {
+  return currentMode === 'cumule' ? 'Consommation CP cumulée depuis janvier' : 'Consommation CP mensuelle';
+}
+
 function renderFiche() {
   const e = ENTITIES.find(x => x.key === currentKey);
   if (!e) return;
-  const { series, table } = computeFiche(e);
+  const P = POSTES[currentPoste];
+  const fiche = computeFiche(e, currentPoste);
+  const { table } = fiche;
+
+  document.getElementById('page-title').textContent = `${P.titre} — dépenses CP ${ANNEES[0]}-${ANNEES[ANNEES.length - 1]}`;
+  document.getElementById('page-subtitle').textContent = `Consommation CP (Budget_Mensuel · ${P.col}), par structure`;
 
   document.getElementById('fiche').style.display = '';
   document.getElementById('f-sigle').textContent = e.sigle;
@@ -478,16 +609,17 @@ function renderFiche() {
   const warnEl = document.getElementById('f-warn');
   warnEl.style.display = warns.length ? '' : 'none';
   warnEl.innerHTML = warns.map(escapeHtml).join('<br>');
-  document.getElementById('f-chart-title').textContent =
-    currentMode === 'cumule' ? 'Consommation CP cumulée depuis janvier' : 'Consommation CP mensuelle';
+  document.getElementById('f-chart-title').textContent = `${P.titre} — ${chartTitle().toLowerCase()}`;
+  document.getElementById('f-chart-empty').textContent = `⚠️ Aucune dépense « ${P.label.toLowerCase()} » enregistrée pour ce périmètre sur ${ANNEES[0]}-${ANNEES[ANNEES.length - 1]}`;
 
-  renderKPIs(e, table);
-  renderChart(series, table);
+  renderKPIs(e, fiche);
+  renderChart(fiche);
   document.getElementById('f-table').innerHTML = buildTableHTML(e, table);
-  document.getElementById('f-note').innerHTML = escapeHtml(buildNote(e, table));
+  document.getElementById('f-note').innerHTML = escapeHtml(buildNote(e, table, currentPoste));
 }
 
-function kpiList(entity, t) {
+function kpiList(entity, fiche) {
+  const t = fiche.table;
   const last = t.rows.find(r => r.annee === t.last);
   const prev = t.rows.find(r => r.annee === t.last - 1);
   const lastComplete = [...t.rows].reverse().find(r => r.hasData && r.complete);
@@ -499,7 +631,9 @@ function kpiList(entity, t) {
   if (!poidsLabel(entity) && last.poids != null) {
     tiles.push({ v: fmtPoids(last.poids), l: `Poids ${t.last} dans les dépenses locales (${fmtEuro(last.local)})` });
   }
-  if (lastComplete && lastComplete.annee !== t.last) {
+  if (fiche.loyerAnnuel) {
+    tiles.push({ v: fmtEuro(fiche.loyerAnnuel), l: 'Loyer annuel estimé (Immobilier)' });
+  } else if (lastComplete && lastComplete.annee !== t.last) {
     tiles.push({ v: fmtEuro(lastComplete.total), l: `Dépenses ${lastComplete.annee} (année complète)` });
   } else if (t.moyenne != null) {
     tiles.push({ v: fmtEuro(t.moyenne), l: `Moyenne annuelle (${t.nbCompletes} année${t.nbCompletes > 1 ? 's' : ''} complète${t.nbCompletes > 1 ? 's' : ''})` });
@@ -507,24 +641,24 @@ function kpiList(entity, t) {
   return tiles;
 }
 
-function renderKPIs(entity, t) {
+function renderKPIs(entity, fiche) {
   const el = document.getElementById('f-kpis');
-  if (!t.hasData) { el.innerHTML = ''; return; }
-  el.innerHTML = kpiList(entity, t).map(k =>
+  if (!fiche.table.hasData) { el.innerHTML = ''; return; }
+  el.innerHTML = kpiList(entity, fiche).map(k =>
     `<div class="kpi"><div class="v ${k.evol !== undefined ? evolClass(k.evol) : ''}">${escapeHtml(k.v)}</div><div class="l">${escapeHtml(k.l)}</div></div>`).join('');
 }
 
-function renderChart(series, t) {
-  const canvas = document.getElementById('chart-contentieux');
+function renderChart(fiche) {
+  const canvas = document.getElementById('chart-main');
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
   const wrapper = document.getElementById('f-chart-wrapper');
   const empty = document.getElementById('f-chart-empty');
-  if (!t.hasData) { wrapper.style.display = 'none'; empty.style.display = ''; return; }
+  if (!fiche.table.hasData) { wrapper.style.display = 'none'; empty.style.display = ''; return; }
   wrapper.style.display = ''; empty.style.display = 'none';
 
   chartInstance = new Chart(canvas, {
     type: 'line',
-    data: { labels: MOIS_COURT, datasets: buildDatasets(series, currentMode, false) },
+    data: { labels: MOIS_COURT, datasets: buildDatasets(fiche, currentMode, false) },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
@@ -568,21 +702,26 @@ function buildTableHTML(entity, t) {
   return html + '</tbody></table>';
 }
 
-function buildNote(entity, t) {
+function buildNote(entity, t, posteKey) {
   if (!t.hasData) return '';
+  const P = POSTES[posteKey];
   const noPoids = poidsLabel(entity);
   const src = LOCAL_MODE === 'cumul' ? 'Cumul_CP_vehicules_local + Cumul_CP_fonctionnement_local' : 'Conso_CP_vehicules_local + Conso_CP_fonctionnement_local';
-  return `L'évolution annuelle n'est calculée qu'entre deux années complètes. La colonne « même période » compare le cumul de janvier à fin ${MOIS_LONG[t.moisRef - 1]} (dernier mois disponible en ${t.last}) d'une année sur l'autre. Hausse en rouge, baisse en vert. `
-    + (noPoids
-      ? `Poids : ${noPoids}.`
-      : `Poids = dépenses de contentieux ÷ dépenses CP locales hors Immobilier et hors T6 Buralistes (${src}), à fin du dernier mois disponible de chaque année ; ligne Total = Σ contentieux ÷ Σ dépenses locales.`)
-    + ' Poste informatif déjà inclus dans Fonctionnement.';
+  const numTxt = (P.colLocal && STATE_bm[P.colLocal]) ? `part locale du poste (${P.colLocal})` : 'dépenses du poste';
+  let note = `L'évolution annuelle n'est calculée qu'entre deux années complètes. La colonne « même période » compare le cumul de janvier à fin ${MOIS_LONG[t.moisRef - 1]} (dernier mois disponible en ${t.last}) d'une année sur l'autre. Hausse en rouge, baisse en vert. `;
+  note += noPoids
+    ? `Poids : ${noPoids}.`
+    : `Poids = ${numTxt} hors Siège ÷ dépenses CP locales hors Immobilier et hors T6 Buralistes (${src}), à fin du dernier mois disponible de chaque année ; ligne Total = Σ poste ÷ Σ dépenses locales.`;
+  if (P.kind === 'cumul') note += ` Consommation du mois reconstruite par différence entre deux cumuls successifs (${P.col}) : une régularisation peut donner un mois négatif.`;
+  else note += ' Poste informatif déjà inclus dans Fonctionnement.';
+  if (P.cible) note += ' Ligne rouge : loyer annuel estimé (table Immobilier, dédupliqué par site) — montant annuel en vue cumulée, moyenne mensuelle (÷ 12) en vue mensuelle.';
+  return note;
 }
 
 // ── Export PDF ────────────────────────────────────────────────────────────────
-/** Graphique hors écran -> PNG haute résolution, fond blanc, police système. */
-async function renderChartImage(series) {
-  // 1000 px sur 182 mm ≈ 140 dpi : net à l'impression, ~10x plus léger qu'avant
+/** Graphique hors écran -> JPEG compressé, fond blanc, police système. */
+async function renderChartImage(fiche) {
+  // 1000 px sur 182 mm ≈ 140 dpi : net à l'impression, ~20x plus léger qu'un PNG 1600 px
   const W = 1000, H = 450;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -591,7 +730,7 @@ async function renderChartImage(series) {
   const whiteBg = { id: 'whiteBg', beforeDraw: c => { const x = c.ctx; x.save(); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.restore(); } };
   const chart = new Chart(canvas, {
     type: 'line',
-    data: { labels: MOIS_COURT, datasets: buildDatasets(series, currentMode, true) },
+    data: { labels: MOIS_COURT, datasets: buildDatasets(fiche, currentMode, true) },
     options: {
       responsive: false, animation: false, devicePixelRatio: 1,
       font: { family: FONT_CANVAS },
@@ -627,7 +766,7 @@ function pdfFooters(pdf) {
   for (let p = 1; p <= n; p++) {
     pdf.setPage(p);
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7); pdf.setTextColor(140, 140, 140);
-    pdf.text(pdfSafe(`DGDDI — Frais de contentieux (Budget_Mensuel, ${COL_CONTX}) — édité le ${dateFR()}`), PDF.M, PDF.H - 8);
+    pdf.text(pdfSafe(`DGDDI — Dépenses CP par poste (Budget_Mensuel) — édité le ${dateFR()}`), PDF.M, PDF.H - 8);
     pdf.text(`${p} / ${n}`, PDF.W - PDF.M, PDF.H - 8, { align: 'right' });
   }
 }
@@ -639,11 +778,13 @@ function pdfParagraph(pdf, text, y, opts = {}) {
   return y;
 }
 
-/** Dessine une fiche structure complète sur la page courante. */
-async function pdfDrawFiche(pdf, entity) {
-  const { series, table: t } = computeFiche(entity);
+/** Dessine une fiche structure × poste complète sur la page courante. */
+async function pdfDrawFiche(pdf, entity, posteKey) {
+  const P = POSTES[posteKey];
+  const fiche = computeFiche(entity, posteKey);
+  const t = fiche.table;
   const typeTxt = entity.typeLabel === 'NAT' ? 'National' : entity.typeLabel;
-  pdfHeader(pdf, `Frais de contentieux — ${entity.sigle}`, `${typeTxt}${entity.nom && entity.nom !== entity.sigle ? ' · ' + entity.nom : ''} · Dépenses CP ${ANNEES[0]}-${ANNEES[ANNEES.length - 1]}`);
+  pdfHeader(pdf, `${P.titre} — ${entity.sigle}`, `${typeTxt}${entity.nom && entity.nom !== entity.sigle ? ' · ' + entity.nom : ''} · Dépenses CP ${ANNEES[0]}-${ANNEES[ANNEES.length - 1]}`);
 
   let y = 31;
   y = pdfParagraph(pdf, 'Périmètre : ' + entity.perimetre, y, { size: 8, lh: 3.8, color: [120, 120, 120] });
@@ -652,12 +793,12 @@ async function pdfDrawFiche(pdf, entity) {
 
   if (!t.hasData) {
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(...PDF.GRIS);
-    pdf.text(pdfSafe('Aucune dépense de contentieux enregistrée sur la période.'), PDF.M, y + 6);
+    pdf.text(pdfSafe(`Aucune dépense "${P.label.toLowerCase()}" enregistrée sur la période.`), PDF.M, y + 6);
     return;
   }
 
   // KPI
-  const kpis = kpiList(entity, t);
+  const kpis = kpiList(entity, fiche);
   const kw = (PDF.W - 2 * PDF.M - (kpis.length - 1) * 3) / kpis.length;
   kpis.forEach((k, i) => {
     const x = PDF.M + i * (kw + 3);
@@ -673,9 +814,9 @@ async function pdfDrawFiche(pdf, entity) {
 
   // Graphique
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(68, 68, 68);
-  pdf.text(pdfSafe(currentMode === 'cumule' ? 'Consommation CP cumulée depuis janvier' : 'Consommation CP mensuelle'), PDF.M, y);
+  pdf.text(pdfSafe(chartTitle()), PDF.M, y);
   y += 3;
-  const img = await renderChartImage(series);
+  const img = await renderChartImage(fiche);
   const iw = PDF.W - 2 * PDF.M, ih = iw * img.ratio;
   pdf.addImage(img.dataUrl, 'JPEG', PDF.M, y, iw, ih, undefined, 'FAST');
   y += ih + 7;
@@ -727,12 +868,13 @@ async function pdfDrawFiche(pdf, entity) {
   if (t.moyenne != null) drawRow(['Moy. années compl.', '', fmtEuro(t.moyenne), '', '', '', ''], { italic: true, color: [68, 68, 68] });
 
   y += 4;
-  pdfParagraph(pdf, buildNote(entity, t), y);
+  pdfParagraph(pdf, buildNote(entity, t, posteKey), y);
 }
 
-/** Page(s) de synthèse : une ligne par structure, dépenses annuelles 2022-2026 + poids. */
-function pdfDrawSynthese(pdf, entities) {
-  pdfHeader(pdf, 'Frais de contentieux — synthèse par structure', `Dépenses CP ${ANNEES[0]}-${ANNEES[ANNEES.length - 1]} (année en cours : cumul au dernier mois disponible)`);
+/** Page(s) de synthèse d'un poste : une ligne par structure, dépenses annuelles 2022-2026 + poids. */
+function pdfDrawSynthese(pdf, entities, posteKey) {
+  const P = POSTES[posteKey];
+  pdfHeader(pdf, `${P.titre} — synthèse par structure`, `Dépenses CP ${ANNEES[0]}-${ANNEES[ANNEES.length - 1]} (année en cours : cumul au dernier mois disponible)`);
   const cols = [{ h: 'Structure', w: 34, a: 'left' }, ...ANNEES.map(a => ({ h: String(a), w: 21, a: 'right' })), { h: 'Évol. même pér.', w: 22, a: 'right' }, { h: 'Poids local', w: 21, a: 'right' }];
   const cellX = i => { let x = PDF.M; for (let k = 0; k < i; k++) x += cols[k].w; return cols[i].a === 'right' ? x + cols[i].w - 2 : x + 2; };
   const tw = cols.reduce((s, c) => s + c.w, 0);
@@ -748,7 +890,7 @@ function pdfDrawSynthese(pdf, entities) {
 
   entities.forEach(e => {
     if (y > PDF.H - 22) { pdf.addPage(); y = 14; header(); }
-    const { table: t } = computeFiche(e);
+    const { table: t } = computeFiche(e, posteKey);
     const last = t.hasData ? t.rows.find(r => r.annee === t.last) : null;
     const cells = [e.sigle, ...ANNEES.map(a => {
       const r = t.hasData ? t.rows.find(x => x.annee === a) : null;
@@ -769,7 +911,7 @@ function pdfDrawSynthese(pdf, entities) {
   });
 
   y += 4;
-  pdfParagraph(pdf, '* année incomplète (cumul au dernier mois disponible). « Évol. même pér. » : année la plus récente vs N-1 sur la même période. « Poids local » : part du contentieux dans les dépenses CP locales hors Immobilier et hors T6 Buralistes, année la plus récente (non applicable au DG). Les lignes nationales comptent chaque structure une seule fois.', y);
+  pdfParagraph(pdf, '* année incomplète (cumul au dernier mois disponible). « Évol. même pér. » : année la plus récente vs N-1 sur la même période. « Poids local » : part du poste dans les dépenses CP locales hors Immobilier et hors T6 Buralistes, année la plus récente (non applicable au DG). Les lignes nationales comptent chaque structure une seule fois.', y);
 }
 
 function newPDF() {
@@ -782,17 +924,25 @@ function checkLibs() {
   return true;
 }
 
-async function exportPDFStructure() {
+const postesDisponibles = () => POSTE_ORDER.filter(k => POSTE_DISPO[k]);
+
+/** PDF de la structure affichée : poste sélectionné, ou une page par poste. */
+async function exportPDFStructure(allPostes) {
   if (!checkLibs()) return;
   const e = ENTITIES.find(x => x.key === currentKey);
   if (!e) { alert('Aucune structure sélectionnée.'); return; }
-  const btn = document.getElementById('btn-pdf-one');
+  const btn = document.getElementById(allPostes ? 'btn-pdf-one-all' : 'btn-pdf-one');
   btn.disabled = true;
   try {
+    const postes = allPostes ? postesDisponibles() : [currentPoste];
     const pdf = newPDF();
-    await pdfDrawFiche(pdf, e);
+    for (let i = 0; i < postes.length; i++) {
+      if (i > 0) pdf.addPage();
+      await pdfDrawFiche(pdf, e, postes[i]);
+    }
     pdfFooters(pdf);
-    pdf.save(`contentieux-CP-${e.sigle.replace(/[^a-z0-9\-]+/gi, '_')}-${pdfTimestamp()}.pdf`);
+    const suffix = allPostes ? 'postes' : safeName(POSTES[currentPoste].label);
+    pdf.save(`depenses-CP-${suffix}-${safeName(e.sigle)}-${pdfTimestamp()}.pdf`);
   } catch (err) {
     console.error(err); alert('Erreur lors de la génération du PDF : ' + err.message);
   } finally { btn.disabled = false; }
@@ -800,34 +950,43 @@ async function exportPDFStructure() {
 
 async function exportPDFGroupe() {
   if (!checkLibs()) return;
+  const allPostes = document.querySelector('input[name="export-postes"]:checked')?.value === 'all';
+  const postes = allPostes ? postesDisponibles() : [currentPoste];
   const types = [...document.querySelectorAll('.type-cb:checked')].map(cb => cb.value);
   const withNat = document.getElementById('cb-national').checked;
   const withNatHorsDg = document.getElementById('cb-national-hors-dg').checked;
   const withSynth = document.getElementById('cb-synthese').checked;
   const skipEmpty = document.getElementById('cb-skip-empty').checked;
 
-  let list = ENTITIES.filter(e =>
+  const base = ENTITIES.filter(e =>
     (e.key === 'national' && withNat) || (e.key === 'national_hors_dg' && withNatHorsDg) || types.includes(e.typeLabel));
-  if (skipEmpty) list = list.filter(e => computeFiche(e).table.hasData);
-  if (!list.length) { alert('Aucune structure à exporter avec ces filtres.'); return; }
+  // Liste filtrée par poste (une structure sans dépense sur un poste est ignorée pour ce poste seulement)
+  const plan = postes.map(p => ({ poste: p, list: skipEmpty ? base.filter(e => computeFiche(e, p).table.hasData) : base }))
+                     .filter(x => x.list.length);
+  const nbFiches = plan.reduce((s, x) => s + x.list.length, 0);
+  if (!nbFiches) { alert('Aucune structure à exporter avec ces filtres.'); return; }
 
   const btn = document.getElementById('btn-pdf-all');
   const prog = document.getElementById('pdf-progress');
   btn.disabled = true;
   try {
     const pdf = newPDF();
-    let first = true;
-    if (withSynth) { pdfDrawSynthese(pdf, list); first = false; }
-    for (let i = 0; i < list.length; i++) {
-      prog.textContent = `Fiche ${i + 1} / ${list.length} — ${list[i].sigle}`;
-      if (!first) pdf.addPage();
-      first = false;
-      await pdfDrawFiche(pdf, list[i]);
-      await new Promise(r => setTimeout(r, 0)); // laisse respirer l'UI
+    let first = true, done = 0;
+    const nextPage = () => { if (!first) pdf.addPage(); first = false; };
+    for (const { poste, list } of plan) {
+      if (withSynth) { nextPage(); pdfDrawSynthese(pdf, list, poste); }
+      for (const e of list) {
+        done++;
+        prog.textContent = `${POSTES[poste].label} — fiche ${done} / ${nbFiches} (${e.sigle})`;
+        nextPage();
+        await pdfDrawFiche(pdf, e, poste);
+        await new Promise(r => setTimeout(r, 0)); // laisse respirer l'UI
+      }
     }
     pdfFooters(pdf);
-    pdf.save(`contentieux-CP-structures-${pdfTimestamp()}.pdf`);
-    prog.textContent = `✓ ${list.length} fiche${list.length > 1 ? 's' : ''} exportée${list.length > 1 ? 's' : ''}`;
+    const suffix = allPostes ? 'postes' : safeName(POSTES[currentPoste].label);
+    pdf.save(`depenses-CP-${suffix}-structures-${pdfTimestamp()}.pdf`);
+    prog.textContent = `✓ ${nbFiches} fiche${nbFiches > 1 ? 's' : ''} exportée${nbFiches > 1 ? 's' : ''}`;
   } catch (err) {
     console.error(err); prog.textContent = '';
     alert('Erreur lors de la génération du PDF : ' + err.message);
@@ -835,12 +994,18 @@ async function exportPDFGroupe() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-function prepareData(structures, bm) {
+function prepareData(structures, bm, immo) {
   STATE_structures = structures;
   STATE_bm = bm;
+  STATE_immo = immo;
+  FICHE_CACHE.clear();
   SIEGE_IDS = new Set(structures.id.filter((id, i) => structures.Type?.[i] === 'Siège' || structures.Type_Affichage?.[i] === 'DG'));
   LOCAL_MODE = COLS_LOCAL_CUMUL.every(c => bm[c]) ? 'cumul' : (COLS_LOCAL_MOIS.every(c => bm[c]) ? 'mois' : null);
-  if (!LOCAL_MODE) console.warn('[contentieux] colonnes locales absentes de Budget_Mensuel : poids non calculé');
+  if (!LOCAL_MODE) console.warn('[depenses-cp] colonnes locales absentes de Budget_Mensuel : poids non calculé');
+  POSTE_DISPO = {};
+  POSTE_ORDER.forEach(k => { POSTE_DISPO[k] = !!bm[POSTES[k].col]; });
+  POSTE_ORDER.filter(k => !POSTE_DISPO[k]).forEach(k => console.warn(`[depenses-cp] colonne ${POSTES[k].col} absente : poste "${POSTES[k].label}" désactivé`));
+  if (!POSTE_DISPO[currentPoste]) currentPoste = postesDisponibles()[0];
   buildSkipRows();
   ENTITIES = buildEntities();
 }
@@ -850,15 +1015,17 @@ async function init() {
     grist.ready({ requiredAccess: 'read table' });
     Chart.defaults.font.family = FONT_CANVAS;
 
-    const [structures, bm] = await Promise.all([
+    const [structures, bm, immo] = await Promise.all([
       grist.docApi.fetchTable('Structures').catch(() => null),
-      grist.docApi.fetchTable('Budget_Mensuel').catch(() => null)
+      grist.docApi.fetchTable('Budget_Mensuel').catch(() => null),
+      grist.docApi.fetchTable('Immobilier').catch(() => null)  // facultatif : ligne cible du poste Loyer
     ]);
     if (!structures) throw new Error('Table Structures non accessible.');
     if (!bm || !bm.id) throw new Error('Table Budget_Mensuel non accessible.');
-    if (!bm[COL_CONTX]) throw new Error(`Colonne ${COL_CONTX} absente de Budget_Mensuel.`);
+    if (!POSTE_ORDER.some(k => bm[POSTES[k].col])) throw new Error('Aucune des colonnes attendues (Cumul_CP_vehicules, Conso_Formation_CP, Conso_Missions_CP, Conso_Loyer_CP, Conso_Contx_CP) n\'est présente dans Budget_Mensuel.');
 
-    prepareData(structures, bm);
+    prepareData(structures, bm, immo);
+    renderPosteBar();
     populateSelect();
     document.getElementById('loading').style.display = 'none';
 
