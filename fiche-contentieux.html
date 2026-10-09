@@ -24,7 +24,29 @@
   .page-header h1 { font-size: 15px; font-weight: 700; }
   .page-header .subtitle { font-size: 11px; opacity: .8; margin-top: 2px; }
   .header-controls { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .header-controls select { font-family: var(--font); font-size: 12px; padding: 5px 8px; border-radius: 4px; border: none; min-width: 240px; }
+  /* Sélecteur structure avec recherche (même principe que la fiche identité) */
+  #selector-wrap { position: relative; width: 340px; max-width: 100%; }
+  #sel-input { width: 100%; padding: 6px 30px 6px 10px; border: 2px solid transparent; border-radius: 5px; font-family: var(--font); font-size: 12px; font-weight: 600; background: #fff; color: var(--gris1); cursor: pointer; }
+  #sel-input:focus, #sel-input.open { outline: none; border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.35); }
+  #sel-chevron { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--gris3); pointer-events: none; transition: transform .2s; }
+  #sel-input.open + #sel-chevron { transform: translateY(-50%) rotate(180deg); }
+  #sel-dropdown { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: #fff; border: 2px solid var(--bleu); border-radius: 8px; box-shadow: 0 8px 32px rgba(0,20,70,.22); display: none; flex-direction: column; z-index: 300; color: var(--gris1); }
+  #sel-dropdown.open { display: flex; }
+  #sel-search-wrap { position: relative; padding: 8px; border-bottom: 1px solid var(--bord); }
+  #sel-search-wrap .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--gris3); }
+  #sel-search { width: 100%; padding: 7px 10px 7px 30px; border: 1px solid var(--bord); border-radius: 5px; font-family: var(--font); font-size: 12px; }
+  #sel-search:focus { outline: none; border-color: var(--bleu); }
+  #sel-list { overflow-y: auto; max-height: 360px; }
+  .sel-group { padding: 6px 12px 3px; font-size: 10px; font-weight: 700; color: var(--gris3); background: var(--gris4); position: sticky; top: 0; }
+  .sel-item { padding: 7px 12px; cursor: pointer; border-bottom: 1px solid var(--gris4); }
+  .sel-item:hover, .sel-item.hl { background: #E6ECF8; }
+  .sel-item.active { background: var(--bleu); color: #fff; }
+  .sel-item-main { font-weight: 600; font-size: 12px; }
+  .sel-item-meta { font-size: 10.5px; color: var(--gris3); margin-top: 1px; }
+  .sel-item.active .sel-item-meta { color: rgba(255,255,255,.8); }
+  .sel-item mark { background: #FFE58A; color: inherit; padding: 0; border-radius: 2px; }
+  .sel-item.active mark { background: rgba(255,255,255,.3); }
+  .sel-empty { padding: 16px; text-align: center; color: var(--gris3); font-style: italic; }
 
   /* Sélecteur de poste */
   .poste-bar { background: #fff; border-bottom: 1px solid var(--bord); padding: 8px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: sticky; top: 0; z-index: 10; }
@@ -96,7 +118,18 @@
     <div class="subtitle" id="page-subtitle">Consommation CP mensuelle (Budget_Mensuel), par structure</div>
   </div>
   <div class="header-controls">
-    <select id="structure-select" onchange="selectEntity(this.value)"></select>
+    <div id="selector-wrap">
+      <input type="text" id="sel-input" placeholder="Choisir une structure…" readonly onclick="toggleDropdown()" autocomplete="off">
+      <span id="sel-chevron">▾</span>
+      <div id="sel-dropdown">
+        <div id="sel-search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="sel-search" placeholder="Rechercher par sigle, nom, région…" autocomplete="off"
+                 oninput="renderDropdownList(this.value)" onkeydown="onSearchKey(event)">
+        </div>
+        <div id="sel-list"></div>
+      </div>
+    </div>
     <button class="btn" id="btn-pdf-one" onclick="exportPDFStructure(false)" title="PDF de la structure affichée, poste sélectionné">📄 PDF de la fiche</button>
     <button class="btn" id="btn-pdf-one-all" onclick="exportPDFStructure(true)" title="PDF de la structure affichée, une page par poste">📄 PDF 5 postes</button>
   </div>
@@ -316,7 +349,7 @@ function buildEntities() {
       ids = [id, ...drs];
       if (drs.length) perimetre = `${sigle} + DR rattachées (${drs.map(sigleOf).filter(Boolean).join(', ')})`;
     }
-    others.push({ key: String(id), sigle, nom, typeLabel: tl, ids, perimetre });
+    others.push({ key: String(id), sigle, nom, typeLabel: tl, ids, perimetre, region: (s.Region?.[i] || '').trim() });
   }
 
   const list = [...others];
@@ -560,20 +593,123 @@ function setPoste(k) {
   renderFiche();
 }
 
-function populateSelect() {
-  const sel = document.getElementById('structure-select');
-  const groups = { NAT: 'National', DG: 'DG', DI: 'DI', DR: 'DR outre-mer', SCN: 'SCN' };
-  sel.innerHTML = Object.keys(groups).map(tl => {
-    const opts = ENTITIES.filter(e => e.typeLabel === tl)
-      .map(e => `<option value="${escapeHtml(e.key)}">${escapeHtml(e.sigle)}${e.nom && e.nom !== e.sigle && tl !== 'NAT' ? ' — ' + escapeHtml(e.nom) : ''}</option>`).join('');
-    return opts ? `<optgroup label="${groups[tl]}">${opts}</optgroup>` : '';
-  }).join('');
+// ── Sélecteur structure avec recherche ────────────────────────────────────────
+const SEL_GROUPS = { NAT: 'National', DG: 'DG', DI: 'DI', DR: 'DR outre-mer', SCN: 'SCN' };
+const normalize = str => String(str || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+let selVisibleKeys = [];   // ordre des éléments affichés (navigation clavier)
+let selHighlight = -1;
+
+function entityLabel(e) { return e.nom && e.nom !== e.sigle && e.typeLabel !== 'NAT' ? `${e.sigle} — ${e.nom}` : e.sigle; }
+function entityMeta(e) {
+  if (e.typeLabel === 'NAT') return e.perimetre;
+  return [SEL_GROUPS[e.typeLabel], e.region, e.perimetre !== e.sigle ? e.perimetre : ''].filter(Boolean).join(' • ');
 }
+
+/** Surligne chaque mot recherché (insensible à la casse et aux accents). */
+function highlight(text, words) {
+  const src = String(text || '');
+  if (!words.length) return escapeHtml(src);
+  const norm = normalize(src);           // même longueur que src (diacritiques retirés un par un)
+  const marks = new Array(src.length).fill(false);
+  words.forEach(w => { let i = norm.indexOf(w); while (i !== -1) { for (let k = i; k < i + w.length; k++) marks[k] = true; i = norm.indexOf(w, i + 1); } });
+  let out = '', open = false;
+  for (let i = 0; i < src.length; i++) {
+    if (marks[i] && !open) { out += '<mark>'; open = true; }
+    if (!marks[i] && open) { out += '</mark>'; open = false; }
+    out += escapeHtml(src[i]);
+  }
+  return out + (open ? '</mark>' : '');
+}
+
+function toggleDropdown() {
+  const dd = document.getElementById('sel-dropdown');
+  if (dd.classList.contains('open')) { closeDropdown(); return; }
+  dd.classList.add('open');
+  document.getElementById('sel-input').classList.add('open');
+  renderDropdownList('');
+  const search = document.getElementById('sel-search');
+  search.value = '';
+  search.focus();
+  const act = document.querySelector('#sel-list .sel-item.active');
+  if (act) act.scrollIntoView({ block: 'nearest' });
+}
+
+function closeDropdown() {
+  document.getElementById('sel-dropdown').classList.remove('open');
+  document.getElementById('sel-input').classList.remove('open');
+  document.getElementById('sel-search').value = '';
+  selHighlight = -1;
+}
+
+/** Recherche multi-mots : chaque mot doit apparaître dans le sigle, le nom, la région, le type ou le périmètre. */
+function renderDropdownList(term) {
+  const list = document.getElementById('sel-list');
+  const words = normalize(term).split(/\s+/).filter(Boolean);
+  const matches = ENTITIES.filter(e => {
+    if (!words.length) return true;
+    const hay = normalize([e.sigle, e.nom, e.region, SEL_GROUPS[e.typeLabel], e.perimetre].join(' '));
+    return words.every(w => hay.includes(w));
+  });
+  selVisibleKeys = matches.map(e => e.key);
+  selHighlight = words.length && matches.length ? 0 : -1;
+
+  if (!matches.length) { list.innerHTML = '<div class="sel-empty">Aucune structure trouvée</div>'; return; }
+  let html = '';
+  Object.keys(SEL_GROUPS).forEach(tl => {
+    const grp = matches.filter(e => e.typeLabel === tl);
+    if (!grp.length) return;
+    html += `<div class="sel-group">${SEL_GROUPS[tl]} (${grp.length})</div>`;
+    grp.forEach(e => {
+      html += `<div class="sel-item${e.key === currentKey ? ' active' : ''}" data-key="${escapeHtml(e.key)}"
+                    onmousedown="event.preventDefault(); chooseEntity(this.dataset.key)">
+        <div class="sel-item-main">${highlight(entityLabel(e), words)}</div>
+        <div class="sel-item-meta">${highlight(entityMeta(e), words)}</div></div>`;
+    });
+  });
+  list.innerHTML = html;
+  applyHighlight();
+}
+
+function applyHighlight() {
+  document.querySelectorAll('#sel-list .sel-item').forEach(el => el.classList.remove('hl'));
+  if (selHighlight < 0) return;
+  const el = document.querySelector(`#sel-list .sel-item[data-key="${CSS.escape(selVisibleKeys[selHighlight])}"]`);
+  if (el) { el.classList.add('hl'); el.scrollIntoView({ block: 'nearest' }); }
+}
+
+function onSearchKey(ev) {
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+    ev.preventDefault();
+    if (!selVisibleKeys.length) return;
+    const d = ev.key === 'ArrowDown' ? 1 : -1;
+    selHighlight = selHighlight < 0 ? (d > 0 ? 0 : selVisibleKeys.length - 1)
+      : (selHighlight + d + selVisibleKeys.length) % selVisibleKeys.length;
+    applyHighlight();
+  } else if (ev.key === 'Enter') {
+    ev.preventDefault();
+    const k = selVisibleKeys[selHighlight >= 0 ? selHighlight : 0];
+    if (k) chooseEntity(k);
+  } else if (ev.key === 'Escape') {
+    closeDropdown();
+    document.getElementById('sel-input').focus();
+  }
+}
+
+function chooseEntity(key) { closeDropdown(); selectEntity(key); }
+
+function updateSelectorDisplay() {
+  const e = ENTITIES.find(x => x.key === currentKey);
+  document.getElementById('sel-input').value = e ? entityLabel(e) : '';
+}
+
+document.addEventListener('click', ev => {
+  const wrap = document.getElementById('selector-wrap');
+  if (wrap && !wrap.contains(ev.target)) closeDropdown();
+});
 
 function selectEntity(key) {
   currentKey = key;
-  const sel = document.getElementById('structure-select');
-  if (sel.value !== key) sel.value = key;
+  updateSelectorDisplay();
   renderFiche();
 }
 
@@ -609,7 +745,7 @@ function renderFiche() {
   const warnEl = document.getElementById('f-warn');
   warnEl.style.display = warns.length ? '' : 'none';
   warnEl.innerHTML = warns.map(escapeHtml).join('<br>');
-  document.getElementById('f-chart-title').textContent = `${P.titre} — ${chartTitle().toLowerCase()}`;
+  document.getElementById('f-chart-title').textContent = `${P.titre} — ${chartTitle().charAt(0).toLowerCase() + chartTitle().slice(1)}`;
   document.getElementById('f-chart-empty').textContent = `⚠️ Aucune dépense « ${P.label.toLowerCase()} » enregistrée pour ce périmètre sur ${ANNEES[0]}-${ANNEES[ANNEES.length - 1]}`;
 
   renderKPIs(e, fiche);
@@ -1026,7 +1162,6 @@ async function init() {
 
     prepareData(structures, bm, immo);
     renderPosteBar();
-    populateSelect();
     document.getElementById('loading').style.display = 'none';
 
     // Si l'utilisateur n'a accès qu'à une structure (ACL), on ouvre directement sa fiche
