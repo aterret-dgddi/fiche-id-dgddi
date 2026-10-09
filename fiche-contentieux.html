@@ -108,6 +108,16 @@
   .export-box .sep { width: 1px; align-self: stretch; background: var(--bord); }
   .progress { font-size: 11px; color: var(--gris3); }
   .error { background: #FDECEA; color: var(--rouge); padding: 12px; border-radius: 4px; }
+  details.diag summary { cursor: pointer; display: flex; align-items: center; gap: 10px; list-style: none; }
+  details.diag summary::-webkit-details-marker { display: none; }
+  details.diag summary::before { content: '▸'; color: var(--gris3); }
+  details.diag[open] summary::before { content: '▾'; }
+  details.diag summary h2 { font-size: 13px; font-weight: 700; color: var(--gris2); }
+  .diag-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .diag-badge.ok { background: #E3F4EA; color: var(--vert); } .diag-badge.ko { background: #FDECEA; color: var(--rouge); }
+  .diag-list { list-style: none; margin: 12px 0; font-size: 11.5px; line-height: 1.5; }
+  .diag-list li { padding: 3px 0; } .diag-list li.ko { color: var(--rouge); }
+  .diag-table { max-width: 760px; }
 </style>
 </head>
 <body>
@@ -164,10 +174,24 @@
     <div id="f-chart-wrapper" class="chart-wrapper"><canvas id="chart-main"></canvas></div>
     <div id="f-chart-empty" class="empty" style="display:none;"></div>
 
-    <div class="section-title" style="margin-top:20px;"><h2>Dépenses CP par année</h2></div>
+    <div class="section-title" style="margin-top:20px;">
+      <h2>Dépenses CP par année</h2>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="sub">Base du poids :</span>
+        <div class="toggle">
+          <button data-base="total_local" class="on" onclick="setBase('total_local')" title="Cumul_CP_vehicules_local + Cumul_CP_fonctionnement_local">Total local</button>
+          <button data-base="fonct_local" onclick="setBase('fonct_local')" title="Cumul_CP_fonctionnement_local">Fonctionnement local</button>
+        </div>
+      </div>
+    </div>
     <div class="table-scroll" id="f-table"></div>
     <div class="note" id="f-note"></div>
   </div>
+
+  <details class="card diag">
+    <summary><h2>Contrôles de cohérence des données</h2> <span id="diag-badge" class="diag-badge"></span></summary>
+    <div id="diag-body"></div>
+  </details>
 
   <div class="card">
     <div class="section-title"><h2>Export PDF groupé (une fiche par structure)</h2></div>
@@ -220,8 +244,12 @@ const POSTE_DEFAUT = 'contentieux';
 // Dépenses locales hors Immobilier et hors T6 Buralistes = Véhicules local + Fonctionnement local.
 // Priorité aux cumuls précalculés côté Grist (même source que les graphiques de la fiche
 // identité) ; à défaut, somme des consommations du mois.
-const COLS_LOCAL_CUMUL = ['Cumul_CP_vehicules_local', 'Cumul_CP_fonctionnement_local'];
-const COLS_LOCAL_MOIS  = ['Conso_CP_vehicules_local', 'Conso_CP_fonctionnement_local'];
+const BASES_POIDS = {
+  total_local: { label: 'Total local (véhicules + fonctionnement)', court: 'dépenses locales', sub: 'véhicules + fonctionnement, hors Immo et T6',
+                 cumul: ['Cumul_CP_vehicules_local', 'Cumul_CP_fonctionnement_local'], mois: ['Conso_CP_vehicules_local', 'Conso_CP_fonctionnement_local'] },
+  fonct_local: { label: 'Fonctionnement local', court: 'fonctionnement local', sub: 'hors véhicules, Immo et T6',
+                 cumul: ['Cumul_CP_fonctionnement_local'], mois: ['Conso_CP_fonctionnement_local'] }
+};
 const TYPES_AFFICHES = ['DG', 'DI_Hexagone', 'DI_Outremer', 'DR_Antilles', 'DR_Outremer', 'SCN'];
 const MOIS_COURT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 const MOIS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -233,10 +261,13 @@ let STATE_structures = null;
 let STATE_bm = null;
 let STATE_immo = null;
 let SIEGE_IDS = new Set();   // structures DG / Siège : pas d'enveloppe locale
-let SKIP_ROW = null;         // lignes Budget_Mensuel ignorées (anti-doublon DI 972)
-let LOCAL_MODE = null;       // 'cumul' | 'mois' | null (colonnes locales absentes)
+let SKIP_ROW = null;         // lignes Budget_Mensuel écartées (doublons exacts, lignes agrégées)
+let ROW_OF = new Map();      // `${sid}|${annee}|${mois}` -> index de la ligne retenue
+let MONTHLY_CACHE = new Map(); // `${col}|${kind}` -> Map(sid -> {annee: [12]})
+let BASE_POIDS = 'total_local';
+let LOCAL_MODE = null;       // 'cumul' | 'mois' | null (colonnes de la base absentes)
+let DIAG = null;             // résultats des contrôles de cohérence
 let POSTE_DISPO = {};        // poste -> colonne présente dans Budget_Mensuel
-let DEDUP_INFO = { di972Id: null, nbIgnorees: 0 };
 let ENTITIES = [];           // [{key, sigle, nom, typeLabel, ids, perimetre}]
 let currentKey = null;
 let currentPoste = POSTE_DEFAUT;
@@ -301,32 +332,126 @@ function getDRRattachees(structureId) {
   return list;
 }
 
+/** Enfants directs d'une structure (Parent), avec le cas spécial DI 972 -> DR 971/972/973. */
+function getChildren(structureId) {
+  const s = STATE_structures;
+  const idx = s.id.indexOf(structureId);
+  if (idx !== -1 && (s.Sigle?.[idx] || '').trim() === 'DI 972') return getDRRattachees(structureId);
+  return s.id.filter((id, i) => s.Parent && s.Parent[i] === structureId && id !== structureId);
+}
+
+/** Colonnes servant à comparer une ligne parent à la somme de ses enfants. */
+function signatureCols() {
+  const cols = new Set();
+  POSTE_ORDER.forEach(k => cols.add(POSTES[k].col));
+  Object.values(BASES_POIDS).forEach(b => b.cumul.concat(b.mois).forEach(c => cols.add(c)));
+  return [...cols].filter(c => STATE_bm[c]);
+}
+
 /**
- * Anti-doublon DI 972 : DI 972 est un regroupement pur de DR 971/972/973. Si
- * Budget_Mensuel contient, pour un même (année, mois), à la fois une ligne
- * DI 972 et des lignes de ses DR, la ligne DI 972 est ignorée (le détail DR
- * prime). Une ligne DI 972 seule (sans DR ce mois-là) reste prise en compte.
- * Calculé une fois pour toutes : s'applique à tous les postes, à la fiche
- * DI 972 et aux fiches nationales.
+ * Prépare Budget_Mensuel et écarte ce qui serait compté deux fois :
+ *  1. doublon exact (même structure, même année, même mois importé deux fois) :
+ *     on garde la ligne la plus récente (id le plus élevé) ;
+ *  2. ligne « consolidée » d'une structure mère qui reprend déjà ses
+ *     structures filles pour le même mois (montants égaux à ±0,5 % de la
+ *     somme des filles sur l'ensemble des colonnes utilisées) : la ligne mère
+ *     est écartée, le détail des filles prime. DI 972 (regroupement pur de
+ *     DR 971/972/973) est toujours écartée quand ses DR sont présentes.
+ * Les lignes mères dont les montants diffèrent de leurs filles (dépenses
+ * propres, ex. état-major de DI) sont conservées et listées dans les contrôles.
  */
-function buildSkipRows() {
+function buildDataIndex() {
   const s = STATE_structures, bm = STATE_bm;
   SKIP_ROW = new Uint8Array(bm.id.length);
-  DEDUP_INFO = { di972Id: null, nbIgnorees: 0 };
-  const i972 = s.id.findIndex((_, i) => (s.Sigle?.[i] || '').trim() === 'DI 972');
-  if (i972 === -1) return;
-  const di972 = s.id[i972];
-  DEDUP_INFO.di972Id = di972;
-  const drIds = new Set(getDRRattachees(di972));
-  const moisAvecDR = new Set();
-  bm.id.forEach((_, i) => { if (drIds.has(bm.Structure[i])) moisAvecDR.add(bm.Annee[i] + '|' + bm.Mois[i]); });
-  bm.id.forEach((_, i) => {
-    if (bm.Structure[i] === di972 && moisAvecDR.has(bm.Annee[i] + '|' + bm.Mois[i])) {
-      SKIP_ROW[i] = 1;
-      DEDUP_INFO.nbIgnorees++;
-    }
+  ROW_OF = new Map();
+  MONTHLY_CACHE = new Map();
+  DIAG = { doublonsExacts: [], agregats: [], meresDistinctes: [] };
+  const sigleOf = id => { const i = s.id.indexOf(id); return i !== -1 ? (s.Sigle?.[i] || '').trim() || `#${id}` : `#${id}`; };
+
+  // 1. Doublons exacts
+  bm.id.forEach((rid, i) => {
+    const a = Number(bm.Annee[i]), m = Number(bm.Mois[i]);
+    if (!a || !m) return;
+    const k = `${bm.Structure[i]}|${a}|${m}`;
+    const prev = ROW_OF.get(k);
+    if (prev === undefined) { ROW_OF.set(k, i); return; }
+    const keep = bm.id[i] > bm.id[prev] ? i : prev, drop = keep === i ? prev : i;
+    SKIP_ROW[drop] = 1;
+    ROW_OF.set(k, keep);
+    DIAG.doublonsExacts.push(`${sigleOf(bm.Structure[i])} ${String(m).padStart(2, '0')}/${a}`);
   });
-  if (DEDUP_INFO.nbIgnorees) console.warn(`[depenses-cp] ${DEDUP_INFO.nbIgnorees} ligne(s) DI 972 ignorée(s) : doublon avec DR 971/972/973`);
+
+  // 2. Lignes consolidées mère / filles — des niveaux les plus profonds vers la racine,
+  //    pour qu'une fille elle-même consolidée soit déjà écartée quand on teste sa mère.
+  const cols = signatureCols();
+  const num = (c, i) => Number(bm[c]?.[i]) || 0;
+  // Ligne consolidée = CHAQUE colonne utilisée égale (±0,5 %) à la somme des filles, et au moins une non nulle
+  const isSumOf = (i, rows) => {
+    let nonZero = false;
+    for (const c of cols) {
+      const vp = num(c, i), vc = rows.reduce((t, j) => t + num(c, j), 0);
+      if (Math.abs(vp - vc) > Math.max(1, 0.005 * Math.abs(vc))) return false;
+      if (vc !== 0) nonZero = true;
+    }
+    return nonZero;
+  };
+  const depth = id => { let d = 0, cur = id, guard = 0; while (guard++ < 20) { const i = s.id.indexOf(cur); const par = i !== -1 ? s.Parent?.[i] : 0; if (!par || par === cur) break; d++; cur = par; } return d; };
+  const descendants = id => { const out = [], stack = [...getChildren(id)], seen = new Set([id]); while (stack.length) { const c = stack.pop(); if (seen.has(c)) continue; seen.add(c); out.push(c); stack.push(...getChildren(c)); } return out; };
+  const parents = s.id.filter(id => getChildren(id).length).sort((x, y) => depth(y) - depth(x));
+  const di972 = s.id.find((_, i) => (s.Sigle?.[i] || '').trim() === 'DI 972');
+
+  parents.forEach(pid => {
+    const desc = descendants(pid);
+    const ecart = { n: 0 }, distinct = { mois: 0 };
+    for (const [k, i] of ROW_OF) {
+      const [sid, a, m] = k.split('|');
+      if (Number(sid) !== pid || SKIP_ROW[i]) continue;
+      const childRows = desc.map(c => ROW_OF.get(`${c}|${a}|${m}`)).filter(j => j !== undefined && !SKIP_ROW[j]);
+      if (!childRows.length) continue;
+      const isAgregat = pid === di972 || isSumOf(i, childRows);
+      if (isAgregat) { SKIP_ROW[i] = 1; ecart.n++; }
+      else distinct.mois++;
+    }
+    if (ecart.n) DIAG.agregats.push({ sigle: sigleOf(pid), id: pid, n: ecart.n, filles: getChildren(pid).map(sigleOf).join(', ') });
+    if (distinct.mois) DIAG.meresDistinctes.push({ sigle: sigleOf(pid), id: pid, mois: distinct.mois, filles: getChildren(pid).map(sigleOf).join(', ') });
+  });
+  // L'index ne garde que les lignes retenues
+  for (const [k, i] of ROW_OF) if (SKIP_ROW[i]) ROW_OF.delete(k);
+  if (DIAG.doublonsExacts.length) console.warn('[depenses-cp] doublons exacts écartés :', DIAG.doublonsExacts);
+  if (DIAG.agregats.length) console.warn('[depenses-cp] lignes consolidées écartées :', DIAG.agregats);
+}
+
+/**
+ * Consommation DU MOIS par structure pour une colonne. Pour une colonne de cumul,
+ * la valeur du mois = cumul du mois - dernier cumul connu de la structure : un
+ * mois non importé pour une structure ne fait donc pas « disparaître » son cumul,
+ * il est rattrapé au mois suivant importé.
+ */
+function monthlyByStructure(col, kind) {
+  const ck = col + '|' + kind;
+  if (MONTHLY_CACHE.has(ck)) return MONTHLY_CACHE.get(ck);
+  const bm = STATE_bm, out = new Map();
+  if (bm[col]) {
+    const sids = new Set(bm.Structure);
+    sids.forEach(sid => {
+      const byYear = {};
+      ANNEES.forEach(a => {
+        const arr = Array(12).fill(null);
+        let last = 0, any = false;
+        for (let m = 1; m <= 12; m++) {
+          const i = ROW_OF.get(`${sid}|${a}|${m}`);
+          if (i === undefined) continue;
+          const v = Number(bm[col][i]) || 0;
+          if (kind === 'cumul') { arr[m - 1] = v - last; last = v; } else arr[m - 1] = v;
+          any = true;
+        }
+        if (any) byYear[a] = arr;
+      });
+      out.set(sid, byYear);
+    });
+  }
+  MONTHLY_CACHE.set(ck, out);
+  return out;
 }
 
 function buildEntities() {
@@ -400,49 +525,40 @@ function toCumulative(serie) {
 const sumTo = (arr, n) => arr.slice(0, n).reduce((acc, v) => acc + (v || 0), 0);
 
 /**
- * Agrège Budget_Mensuel sur un périmètre (2022-2026), par année et mois, pour un poste :
+ * Agrège Budget_Mensuel sur un périmètre (2022-2026), par année et mois, pour un poste.
+ * Chaque structure est d'abord ramenée à sa consommation DU MOIS, puis les
+ * structures sont additionnées (chaque structure une seule fois, lignes en
+ * double ou consolidées déjà écartées par buildDataIndex) :
  *  - series   : consommation CP du mois du poste, toutes structures du périmètre ;
- *  - numLoc   : consommation du mois du poste, hors Siège (part locale pour
- *               l'automobile) -> numérateur du poids ;
- *  - localCum : dépenses locales CP hors Immo / hors T6, cumul depuis janvier,
- *               hors Siège -> dénominateur du poids.
+ *  - numLoc   : idem hors Siège (part locale pour l'automobile) -> numérateur du poids ;
+ *  - localCum : base du poids (dépenses CP locales), cumul depuis janvier, hors Siège.
  * La série s'arrête net (null) au premier mois sans aucune ligne sur le périmètre,
  * même règle que la fiche identité.
  */
 function computeSeries(ids, posteKey) {
   const P = POSTES[posteKey];
-  const bm = STATE_bm, idsSet = new Set(ids);
+  const bm = STATE_bm;
+  const sids = [...new Set(ids)];
+  const sidsLoc = sids.filter(id => !SIEGE_IDS.has(id));
   const colNum = (P.colLocal && bm[P.colLocal]) ? P.colLocal : P.col;
-  const acc = {};
-  bm.id.forEach((_, i) => {
-    if (SKIP_ROW[i] || !idsSet.has(bm.Structure[i])) return;
-    const a = Number(bm.Annee[i]), m = Number(bm.Mois[i]);
-    if (!ANNEES.includes(a) || !m || m < 1 || m > 12) return;
-    const cell = ((acc[a] = acc[a] || {})[m] = acc[a][m] || { v: 0, vLoc: 0, local: 0 });
-    cell.v += Number(bm[P.col]?.[i]) || 0;
-    if (!SIEGE_IDS.has(bm.Structure[i])) {
-      cell.vLoc += Number(bm[colNum]?.[i]) || 0;
-      if (LOCAL_MODE === 'cumul') cell.local += COLS_LOCAL_CUMUL.reduce((s, col) => s + (Number(bm[col]?.[i]) || 0), 0);
-      else if (LOCAL_MODE === 'mois') cell.local += COLS_LOCAL_MOIS.reduce((s, col) => s + (Number(bm[col]?.[i]) || 0), 0);
-    }
-  });
+  const mainM = monthlyByStructure(P.col, P.kind);
+  const numM = monthlyByStructure(colNum, P.kind);
+  const base = BASES_POIDS[BASE_POIDS];
+  const baseCols = LOCAL_MODE === 'cumul' ? base.cumul : LOCAL_MODE === 'mois' ? base.mois : [];
+  const baseM = baseCols.map(c => monthlyByStructure(c, LOCAL_MODE));
+  const val = (M, sid, a, m) => { const y = M.get(sid)?.[a]; return y ? (y[m - 1] || 0) : 0; };
 
   const series = {}, numLoc = {}, localCum = {};
   ANNEES.forEach(a => {
-    if (!acc[a]) return;
-    let s = Array(12).fill(null), nl = Array(12).fill(null);
-    const lc = Array(12).fill(null);
-    let runLocal = 0;
+    const s = Array(12).fill(null), nl = Array(12).fill(null), lc = Array(12).fill(null);
+    let run = 0;
     for (let m = 1; m <= 12; m++) {
-      const cell = acc[a][m];
-      if (!cell) break;
-      s[m - 1] = cell.v;
-      nl[m - 1] = cell.vLoc;
-      runLocal = LOCAL_MODE === 'cumul' ? cell.local : runLocal + cell.local;
-      lc[m - 1] = runLocal;
+      if (!sids.some(sid => ROW_OF.has(`${sid}|${a}|${m}`))) break;
+      s[m - 1] = Math.round(sids.reduce((t, sid) => t + val(mainM, sid, a, m), 0));
+      nl[m - 1] = sidsLoc.reduce((t, sid) => t + val(numM, sid, a, m), 0);
+      run += sidsLoc.reduce((t, sid) => t + baseM.reduce((u, M) => u + val(M, sid, a, m), 0), 0);
+      lc[m - 1] = run;
     }
-    if (P.kind === 'cumul') { s = toIncremental(s); nl = toIncremental(nl); }
-    s = s.map(v => v == null ? null : Math.round(v));
     if (s.some(v => v != null)) { series[a] = s; numLoc[a] = nl; localCum[a] = lc; }
   });
   return { series, numLoc, localCum };
@@ -517,10 +633,11 @@ function getLoyerAnnuel(entity) {
 function isSiegeOnly(entity) { return entity.ids.length > 0 && entity.ids.every(id => SIEGE_IDS.has(id)); }
 
 function computeFiche(entity, posteKey) {
-  const k = entity.key + '|' + posteKey;
+  const k = entity.key + '|' + posteKey + '|' + BASE_POIDS;
   if (FICHE_CACHE.has(k)) return FICHE_CACHE.get(k);
   const agg = computeSeries(entity.ids, posteKey);
   const res = {
+    poste: posteKey,
     series: agg.series,
     table: computeAnnualTable(agg),
     loyerAnnuel: POSTES[posteKey].cible ? getLoyerAnnuel(entity) : null
@@ -556,22 +673,110 @@ function buildDatasets(fiche, mode, forPdf) {
   return ds;
 }
 
-/** Explication de l'absence de poids (DG, colonnes absentes). */
-function poidsLabel(entity) {
+/** Explication de l'absence de poids (DG, colonnes absentes, base non pertinente). */
+function poidsLabel(entity, posteKey = currentPoste) {
   if (isSiegeOnly(entity)) return 'non applicable au DG (pas d\'enveloppe locale)';
   if (!LOCAL_MODE) return 'colonnes locales absentes de Budget_Mensuel';
+  if (posteKey === 'vehicules' && BASE_POIDS === 'fonct_local') return 'non pertinent : l\'automobile ne fait pas partie du fonctionnement';
   return null;
 }
 
 function buildWarn(entity) {
   const msgs = [];
-  if (DEDUP_INFO.nbIgnorees && DEDUP_INFO.di972Id != null && entity.ids.includes(DEDUP_INFO.di972Id)) {
-    msgs.push(`Anti-doublon : ${DEDUP_INFO.nbIgnorees} ligne(s) mensuelle(s) DI 972 ignorée(s) car les DR 971/972/973 sont déjà présentes pour les mêmes mois.`);
+  if (DIAG) {
+    DIAG.agregats.filter(g => entity.ids.includes(g.id)).forEach(g =>
+      msgs.push(`Anti-doublon : ${g.n} ligne(s) mensuelle(s) ${g.sigle} écartée(s) car elles reprennent déjà ${g.filles}.`));
   }
-  if (entity.key === 'national') {
-    msgs.push('Le poids est calculé hors DG : le Siège n\'a pas d\'enveloppe locale.');
-  }
+  if (entity.key === 'national') msgs.push('Le poids est calculé hors DG : le Siège n\'a pas d\'enveloppe locale.');
   return msgs;
+}
+
+// ── Base du poids ─────────────────────────────────────────────────────────────
+function setBase(b) {
+  if (!BASES_POIDS[b]) return;
+  BASE_POIDS = b;
+  LOCAL_MODE = computeLocalMode();
+  FICHE_CACHE.clear();
+  document.querySelectorAll('[data-base]').forEach(el => el.classList.toggle('on', el.dataset.base === b));
+  renderFiche();
+  renderDiagnostics();
+}
+function computeLocalMode() {
+  const b = BASES_POIDS[BASE_POIDS], bm = STATE_bm;
+  return b.cumul.every(c => bm[c]) ? 'cumul' : (b.mois.every(c => bm[c]) ? 'mois' : null);
+}
+
+// ── Contrôles de cohérence ────────────────────────────────────────────────────
+/**
+ * Réconciliation : pour chaque poste, le national doit être égal à la somme
+ * d'une partition des fiches (DG + DI avec leurs DR + DR non rattachées à une
+ * DI + SCN) + les structures sans fiche. Toute structure comptée dans deux
+ * fiches de cette partition est signalée.
+ */
+function computeReconciliation() {
+  const fiches = ENTITIES.filter(e => e.typeLabel !== 'NAT');
+  const inDI = new Set(fiches.filter(e => e.typeLabel === 'DI').flatMap(e => e.ids.filter(id => id !== Number(e.key))));
+  const partition = fiches.filter(e => !(e.typeLabel === 'DR' && inDI.has(Number(e.key))));
+  const count = new Map();
+  partition.forEach(e => new Set(e.ids).forEach(id => count.set(id, (count.get(id) || 0) + 1)));
+  const doubles = [...count].filter(([, n]) => n > 1).map(([id]) => id);
+  const covered = new Set(count.keys());
+  const horsFiches = [...new Set(STATE_bm.Structure)].filter(id => !covered.has(id));
+  const sigleOf = id => { const i = STATE_structures.id.indexOf(id); return i !== -1 ? (STATE_structures.Sigle?.[i] || '').trim() || `#${id}` : `#${id}`; };
+  const nat = ENTITIES.find(e => e.key === 'national');
+
+  const rows = postesDisponibles().map(p => {
+    const tNat = computeFiche(nat, p).table;
+    if (!tNat.hasData) return { poste: p, hasData: false };
+    const annee = tNat.last, n = tNat.rows.find(r => r.annee === annee);
+    const totalOf = ids => sumTo(computeSeries(ids, p).series[annee] || [], n.nbMois);
+    const sommeFiches = partition.reduce((t, e) => t + totalOf(e.ids), 0);
+    const hors = horsFiches.length ? totalOf(horsFiches) : 0;
+    return { poste: p, hasData: true, annee, nbMois: n.nbMois, national: n.total, sommeFiches, hors, ecart: n.total - sommeFiches - hors };
+  });
+  return { rows, doubles: doubles.map(sigleOf), horsFiches: horsFiches.map(sigleOf), drInclus: [...inDI].map(sigleOf) };
+}
+
+function renderDiagnostics() {
+  const el = document.getElementById('diag-body');
+  if (!el || !DIAG) return;
+  const rec = computeReconciliation();
+  DIAG.reconciliation = rec;
+  const okRec = rec.rows.every(r => !r.hasData || Math.abs(r.ecart) < 1) && !rec.doubles.length;
+  const li = (ok, txt) => `<li class="${ok ? 'ok' : 'ko'}">${ok ? '✓' : '⚠'} ${txt}</li>`;
+  let html = '<ul class="diag-list">';
+  html += li(true, `Chaque structure n'est additionnée qu'une fois par fiche ; le national additionne chaque structure présente dans Budget_Mensuel une seule fois.`);
+  html += li(!DIAG.doublonsExacts.length, DIAG.doublonsExacts.length
+    ? `${DIAG.doublonsExacts.length} ligne(s) importée(s) en double (même structure, même mois) — seule la plus récente est retenue : ${escapeHtml(DIAG.doublonsExacts.slice(0, 12).join(', '))}${DIAG.doublonsExacts.length > 12 ? '…' : ''}`
+    : 'Aucune ligne importée en double (même structure, même mois).');
+  html += li(true, DIAG.agregats.length
+    ? `Lignes consolidées écartées (elles reprenaient déjà leurs structures filles) : ${DIAG.agregats.map(g => `${escapeHtml(g.sigle)} (${g.n} mois)`).join(', ')}.`
+    : 'Aucune ligne consolidée mère/filles détectée.');
+  if (DIAG.meresDistinctes.length) {
+    html += li(true, `Structures ayant leurs propres dépenses en plus de celles de leurs filles (conservées, ce ne sont pas des doublons) : ${DIAG.meresDistinctes.map(g => escapeHtml(g.sigle)).join(', ')}.`);
+  }
+  html += li(!rec.doubles.length, rec.doubles.length
+    ? `Structures présentes dans deux fiches à la fois : ${escapeHtml(rec.doubles.join(', '))}.`
+    : 'Aucune structure n\'appartient à deux fiches (DR outre-mer rattachées à une DI mises à part, voir ci-dessous).');
+  if (rec.drInclus.length) html += li(true, `DR incluses dans une fiche DI et ayant aussi leur propre fiche : ${escapeHtml(rec.drInclus.join(', '))}. Dans la synthèse PDF elles sont marquées « inclus DI » : ne pas les additionner avec leur DI.`);
+  if (rec.horsFiches.length) html += li(true, `Structures présentes dans Budget_Mensuel sans fiche propre (comptées dans le national) : ${escapeHtml(rec.horsFiches.join(', '))}.`);
+  html += li(!!LOCAL_MODE, LOCAL_MODE
+    ? `Base du poids : ${escapeHtml(BASES_POIDS[BASE_POIDS].label)} = ${(LOCAL_MODE === 'cumul' ? BASES_POIDS[BASE_POIDS].cumul : BASES_POIDS[BASE_POIDS].mois).join(' + ')}, hors Siège, cumulée de janvier au dernier mois disponible.`
+    : 'Colonnes de la base du poids absentes de Budget_Mensuel : poids non calculé.');
+  html += '</ul>';
+
+  html += `<table class="data diag-table"><thead><tr><th>Poste</th><th>Année (mois)</th><th>National</th><th>Σ fiches (partition)</th><th>Sans fiche</th><th>Écart</th></tr></thead><tbody>`;
+  rec.rows.forEach(r => {
+    if (!r.hasData) { html += `<tr><td>${escapeHtml(POSTES[r.poste].label)}</td><td colspan="5">—</td></tr>`; return; }
+    const ok = Math.abs(r.ecart) < 1;
+    html += `<tr><td>${escapeHtml(POSTES[r.poste].label)}</td><td>${r.annee} (${r.nbMois} mois)</td><td>${fmtEuro(r.national)}</td><td>${fmtEuro(r.sommeFiches)}</td><td>${fmtEuro(r.hors)}</td><td class="${ok ? 'down' : 'up'}">${ok ? '✓ 0 €' : fmtEuro(r.ecart)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  html += '<div class="note">Partition = fiche DG + fiches DI (avec leurs DR) + fiches DR non rattachées à une DI + fiches SCN. Un écart nul prouve qu\'aucune dépense n\'est comptée deux fois ni oubliée entre les fiches et le national.</div>';
+  el.innerHTML = html;
+  const badge = document.getElementById('diag-badge');
+  badge.textContent = okRec ? '✓ cohérent' : '⚠ à vérifier';
+  badge.className = 'diag-badge ' + (okRec ? 'ok' : 'ko');
 }
 
 // ── Rendu écran ───────────────────────────────────────────────────────────────
@@ -764,8 +969,8 @@ function kpiList(entity, fiche) {
   if (prev && prev.hasData && prev.cumulRef != null) {
     tiles.push({ v: fmtEvol(last.evolPeriode), l: `vs ${t.last - 1} à même période (${fmtEuro(prev.cumulRef)})`, evol: last.evolPeriode });
   }
-  if (!poidsLabel(entity) && last.poids != null) {
-    tiles.push({ v: fmtPoids(last.poids), l: `Poids ${t.last} dans les dépenses locales (${fmtEuro(last.local)})` });
+  if (!poidsLabel(entity, fiche.poste) && last.poids != null) {
+    tiles.push({ v: fmtPoids(last.poids), l: `Poids ${t.last} dans le ${BASE_POIDS === 'fonct_local' ? 'fonctionnement local' : 'total local'} (${fmtEuro(last.local)})` });
   }
   if (fiche.loyerAnnuel) {
     tiles.push({ v: fmtEuro(fiche.loyerAnnuel), l: 'Loyer annuel estimé (Immobilier)' });
@@ -817,7 +1022,7 @@ function buildTableHTML(entity, t) {
   let html = `<table class="data"><thead><tr>
     <th>Année</th><th>Mois disponibles</th><th>Dépenses CP</th><th>Évol. vs N-1</th>
     <th>Cumul jan.–${moisTxt}</th><th>Évol. même période</th>
-    <th>Poids dans les dépenses locales<br><span class="sub">hors Immobilier et T6</span></th></tr></thead><tbody>`;
+    <th>Poids dans ${BASE_POIDS === 'fonct_local' ? 'le fonctionnement local' : 'les dépenses locales'}<br><span class="sub">${escapeHtml(BASES_POIDS[BASE_POIDS].sub)}</span></th></tr></thead><tbody>`;
   t.rows.forEach(r => {
     if (!r.hasData) {
       html += `<tr><td>${r.annee}</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`;
@@ -841,13 +1046,14 @@ function buildTableHTML(entity, t) {
 function buildNote(entity, t, posteKey) {
   if (!t.hasData) return '';
   const P = POSTES[posteKey];
-  const noPoids = poidsLabel(entity);
-  const src = LOCAL_MODE === 'cumul' ? 'Cumul_CP_vehicules_local + Cumul_CP_fonctionnement_local' : 'Conso_CP_vehicules_local + Conso_CP_fonctionnement_local';
+  const noPoids = poidsLabel(entity, posteKey);
+  const B = BASES_POIDS[BASE_POIDS];
+  const src = (LOCAL_MODE === 'cumul' ? B.cumul : B.mois).join(' + ');
   const numTxt = (P.colLocal && STATE_bm[P.colLocal]) ? `part locale du poste (${P.colLocal})` : 'dépenses du poste';
   let note = `L'évolution annuelle n'est calculée qu'entre deux années complètes. La colonne « même période » compare le cumul de janvier à fin ${MOIS_LONG[t.moisRef - 1]} (dernier mois disponible en ${t.last}) d'une année sur l'autre. Hausse en rouge, baisse en vert. `;
   note += noPoids
     ? `Poids : ${noPoids}.`
-    : `Poids = ${numTxt} hors Siège ÷ dépenses CP locales hors Immobilier et hors T6 Buralistes (${src}), à fin du dernier mois disponible de chaque année ; ligne Total = Σ poste ÷ Σ dépenses locales.`;
+    : `Poids = ${numTxt} hors Siège ÷ ${B.label.toLowerCase()} en CP (${src}), hors Siège, cumulés de janvier à fin du dernier mois disponible de chaque année ; ligne Total = Σ poste ÷ Σ base. Chaque structure est comptée une seule fois.`;
   if (P.kind === 'cumul') note += ` Consommation du mois reconstruite par différence entre deux cumuls successifs (${P.col}) : une régularisation peut donner un mois négatif.`;
   else note += ' Poste informatif déjà inclus dans Fonctionnement.';
   if (P.cible) note += ' Ligne rouge : loyer annuel estimé (table Immobilier, dédupliqué par site) — montant annuel en vue cumulée, moyenne mensuelle (÷ 12) en vue mensuelle.';
@@ -961,13 +1167,13 @@ async function pdfDrawFiche(pdf, entity, posteKey) {
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(68, 68, 68);
   pdf.text(pdfSafe('Dépenses CP par année'), PDF.M, y);
   y += 4;
-  const noPoids = poidsLabel(entity);
+  const noPoids = poidsLabel(entity, posteKey);
   const moisTxt = MOIS_COURT[t.moisRef - 1].toLowerCase();
   const cols = [
     { h: ['Année'], w: 15, a: 'left' }, { h: ['Mois', 'disponibles'], w: 27, a: 'right' },
     { h: ['Dépenses CP'], w: 28, a: 'right' }, { h: ['Évol.', 'vs N-1'], w: 20, a: 'right' },
     { h: ['Cumul', `jan.-${moisTxt}`], w: 28, a: 'right' }, { h: ['Évol.', 'même pér.'], w: 22, a: 'right' },
-    { h: ['Poids dép. locales', '(hors Immo, T6)'], w: 42, a: 'right' }
+    { h: BASE_POIDS === 'fonct_local' ? ['Poids fonct.', 'local'] : ['Poids dép. locales', '(véh. + fonct.)'], w: 42, a: 'right' }
   ];
   const tw = cols.reduce((s, c) => s + c.w, 0);
   const cellX = (i) => { let x = PDF.M; for (let k = 0; k < i; k++) x += cols[k].w; return cols[i].a === 'right' ? x + cols[i].w - 2 : x + 2; };
@@ -1015,6 +1221,7 @@ function pdfDrawSynthese(pdf, entities, posteKey) {
   const cellX = i => { let x = PDF.M; for (let k = 0; k < i; k++) x += cols[k].w; return cols[i].a === 'right' ? x + cols[i].w - 2 : x + 2; };
   const tw = cols.reduce((s, c) => s + c.w, 0);
   let y = 31;
+  const drInclus = new Set(ENTITIES.filter(e => e.typeLabel === 'DI').flatMap(e => e.ids.filter(id => String(id) !== e.key).map(String)));
 
   const header = () => {
     pdf.setFillColor(245, 246, 248); pdf.rect(PDF.M, y, tw, 7, 'F');
@@ -1032,12 +1239,13 @@ function pdfDrawSynthese(pdf, entities, posteKey) {
       const r = t.hasData ? t.rows.find(x => x.annee === a) : null;
       if (!r || !r.hasData) return '—';
       return fmtEuroK(r.total) + (r.complete ? '' : '*');
-    }), last ? fmtEvol(last.evolPeriode) : '—', (last && !poidsLabel(e)) ? fmtPoids(last.poids) : '—'];
+    }), last ? fmtEvol(last.evolPeriode) : '—', (last && !poidsLabel(e, posteKey)) ? fmtPoids(last.poids) : '—'];
+    if (drInclus.has(e.key)) cells[0] = `${e.sigle} (inclus DI)`;
     const isNat = e.typeLabel === 'NAT';
     if (isNat) { pdf.setFillColor(238, 243, 251); pdf.rect(PDF.M, y, tw, 6.2, 'F'); }
-    pdf.setFont('helvetica', isNat ? 'bold' : 'normal'); pdf.setFontSize(7.3);
+    pdf.setFont('helvetica', isNat ? 'bold' : (drInclus.has(e.key) ? 'italic' : 'normal')); pdf.setFontSize(7.3);
     cells.forEach((v, i) => {
-      let col = isNat ? PDF.BLEU : [26, 26, 26];
+      let col = isNat ? PDF.BLEU : (drInclus.has(e.key) ? [120, 120, 120] : [26, 26, 26]);
       if (i === cells.length - 2 && last && last.evolPeriode) col = last.evolPeriode > 0 ? PDF.ROUGE : PDF.VERT;
       pdf.setTextColor(...col);
       pdf.text(pdfSafe(v), cellX(i), y + 4.4, { align: cols[i].a });
@@ -1047,7 +1255,7 @@ function pdfDrawSynthese(pdf, entities, posteKey) {
   });
 
   y += 4;
-  pdfParagraph(pdf, '* année incomplète (cumul au dernier mois disponible). « Évol. même pér. » : année la plus récente vs N-1 sur la même période. « Poids local » : part du poste dans les dépenses CP locales hors Immobilier et hors T6 Buralistes, année la plus récente (non applicable au DG). Les lignes nationales comptent chaque structure une seule fois.', y);
+  pdfParagraph(pdf, '* année incomplète (cumul au dernier mois disponible). « Évol. même pér. » : année la plus récente vs N-1 sur la même période. « Poids local » : part du poste dans la base retenue, année la plus récente (non applicable au DG). Les lignes nationales comptent chaque structure une seule fois ; les DR marquées « inclus DI » sont déjà comprises dans leur DI et ne doivent pas être additionnées avec elle.', y);
 }
 
 function newPDF() {
@@ -1136,13 +1344,13 @@ function prepareData(structures, bm, immo) {
   STATE_immo = immo;
   FICHE_CACHE.clear();
   SIEGE_IDS = new Set(structures.id.filter((id, i) => structures.Type?.[i] === 'Siège' || structures.Type_Affichage?.[i] === 'DG'));
-  LOCAL_MODE = COLS_LOCAL_CUMUL.every(c => bm[c]) ? 'cumul' : (COLS_LOCAL_MOIS.every(c => bm[c]) ? 'mois' : null);
+  LOCAL_MODE = computeLocalMode();
   if (!LOCAL_MODE) console.warn('[depenses-cp] colonnes locales absentes de Budget_Mensuel : poids non calculé');
   POSTE_DISPO = {};
   POSTE_ORDER.forEach(k => { POSTE_DISPO[k] = !!bm[POSTES[k].col]; });
   POSTE_ORDER.filter(k => !POSTE_DISPO[k]).forEach(k => console.warn(`[depenses-cp] colonne ${POSTES[k].col} absente : poste "${POSTES[k].label}" désactivé`));
   if (!POSTE_DISPO[currentPoste]) currentPoste = postesDisponibles()[0];
-  buildSkipRows();
+  buildDataIndex();
   ENTITIES = buildEntities();
 }
 
@@ -1162,6 +1370,7 @@ async function init() {
 
     prepareData(structures, bm, immo);
     renderPosteBar();
+    renderDiagnostics();
     document.getElementById('loading').style.display = 'none';
 
     // Si l'utilisateur n'a accès qu'à une structure (ACL), on ouvre directement sa fiche
